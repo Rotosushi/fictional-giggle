@@ -1,0 +1,235 @@
+// a program is composed of zero or more
+// top level declarations, followed by the EOF token
+<program> := (<top-level-declaration>)* EOF
+
+// Things that can be declared at the top (file) level are
+// file scope blocks of code, the file context,
+// file scope new types, file scope variables,
+// and file scope constants.
+<top-level-declaration> := <function-declaration>
+						 | <context-declaration>
+						 | <type-declaration>
+						 | <variable-declaration>
+				// TODO: | <macro-declaration>
+
+<declaration>  := <function-declaration>
+				| <context-declaration>
+				| <type-declaration>
+				| <variable-declaration>
+
+// blocks of code can be functions, or macros.
+// a function is a bit of code to be executed
+// a macro is something that can be filled in
+// to then be run like a function.
+// a := fun (x, y);
+// c := mac (fun, a);
+// b := c();
+<function-declaration> := <identifier> <assignment-operator> '(' <argument-list> ')' '->' ('(' <return-list> ')')? <block>
+
+<lambda-declaration> := '(' <argument-list> ')' '->' ( '(' <return-list> ')' )? <block>
+
+// <function-declaration> helpers
+<argument-list> := (<argument>)*
+
+<return-list> := (<return-value>)*
+
+<argument> = <arg> (',' <arg>)*
+
+<arg> := <identifier> ':' <type-specifier>
+
+<return-value> := <type-specifier> (',' <type-specifier>)*
+
+// the file header is where the context is accessed.
+// the context of a file is self similar to the program context, and
+// to procedure context.
+// the context holds; resource handles (stdin, stdout, stderr,
+// pipes, sockets, locks, etc...), allocators (alloc, dealloc),
+// and import and export statements. This gives programmers a single
+// location to refrence when they want to log errors, allocate memory,
+// see what global and file scope variables they have refrences too,
+// declare the entry point of your program, configure the linker and
+// build flags, and the context can also be appended to, just by
+// declaring a top level variable. The context identifier is the name of the file.
+// The context is what the import and export directives look for,
+// within the context you can specify the start point of your
+// program.
+<context-declaration> := 'context' '::' '{' (<declaration> | <assignment-expression>)*  '}'
+
+<type-declaration> := <type-alias>
+					| <composite-type-declaration>
+
+<type-alias> := 'alias' <identifier> '::' <type-specifier> ';'
+
+<composite-type-declaration> := ('struct' | 'union') (<identifier>)? '::' '{' (<declaration>)* '}'
+							  | 'enum' (<identifier>)? '::' '{' <enumeration-list> '}'
+
+<enumeration-list> = <enum> (',' <enum>)*
+
+<enum> = <identifier> ('=' <numeric-literal>)?
+
+<variable-declaration> := <identifier> (<assignment-operator> <initializer>)? ';'
+
+
+/// statements
+<statement> := <expression>
+			 | <conditional>
+			 | <iteration>
+			 | <block>
+
+<expression> := (<expr>)?
+
+<expr> := <assignment-expr>
+		| <expr> ',' <assignment-expr>
+
+<assignment-expr> := <ternary-expr>
+				   | <unary-expr> <assignment-operator> <assignment-expr>
+
+<ternary-expr> := <logical-or-expr>
+				| <logical-or-expr> '?' <expr> ':' <ternary-expr>
+
+<logical-or-expr> := 
+
+
+<conditional>  := 'if' '(' <expression> ')' <statement> 
+				| 'if' '(' <expression> ')' <statement> 'else' <statement>
+		// TODO:| 'switch' '(' <expression> ')' <switch-block>
+
+<iteration> := 'while' '(' <expression> ')' <statement>
+			 | 'do' <statement> 'while' '(' <expression> ')'
+	// TODO: | 'for' <identifier> 'in' <iterable> <statement>
+
+<block> := '{' (<declaration> | <statement>)* '}'
+
+// Constants in the grammar:
+<assignment-operator> :=  '='
+						| ':' ( <type-specifier> | <compiler-directive> )* 
+						| ':='
+						| '::'
+						| ':' ( <type-specifier> | <compiler-directive> )* '='
+						| '*='
+						| '/='
+						| '%='
+						| '+='
+						| '-='
+						| '<<='
+						| '>>='
+						| '&='
+						| '^='
+						| '|='
+
+<unary-operator> := '&'
+				  | '*'
+				  | '+'
+				  | '-'
+				  | '!'
+				  | '!!'
+
+<type-primitive>   := 'maybe'
+					| 'none'
+					| 'u8'
+					| 'u16'
+					| 'u32'
+					| 'u64'
+					| 's8'
+					| 's16'
+					| 's32'
+					| 's64'
+					| 'f32'
+					| 'f64'
+					| 'int'
+					| 'float'
+					| 'char'
+					| 'string'
+					| 'bool'
+					| '[' (<constant-expression>)? ']' // array type
+					| '*'	  // pointer type
+
+<identifier> := [a-zA-Z]([(- | _)a-zA-Z0-9])*
+
+<numeric-literal>  := <numeric-literal-decimal>
+					| <numeric-literal-hexidecimal>
+					| <numeric-literal-octal>
+					| <numeric-literal-binary>
+
+<numeric-literal-decimal>	  := [0-9']*(.)?[0-9']+
+<numeric-literal-hexidecimal> := ('0h' | '0H')[0-9a-fA-F']+
+<numeric-literal-octal>		  := ('0o' | '0O')[0-7']+
+<numeric-literal-binary>	  := ('0b' | '0B')[0-1']+
+
+
+// the pound directive: [ '#'<directive-identifier> ]
+// This is a compiler directive, like c/c++ keywords, 
+// except broader in scope, because they live in a 
+// seperate namespace. Doable because it is easy to
+// disambiguate #directive from directive. 
+// then we have directives like:
+/// 
+	// a <declaration> has a scope of it's enclosing. so
+	// things declared in a file without surrounding curly
+	// braces are file scope, things surrounded by curly
+	// braces are scoped to the braces.
+	a : #global = 42; // this makes a global scope variable
+	z : string; // this makes a file scope variable;
+
+	
+	f :: (g : () -> (int)) {	 // functions are first class
+		b := 0;					 // This makes a local scope variable
+		c : #global = 2;		 // this makes a global scope variable
+		d : #static int;		 // this makes a local scope variable
+		e : * int; // '*' pointer type
+		f :: 0;    // this makes a constant variable
+		h : #global : "Hello";
+		
+		d = g();
+
+		b += c - d;
+
+		return b * d;
+	}
+
+	g :: (a : string, b : [] int, c : (int) -> (char)) -> (int) { // '[]' array type
+		// for (b) |i| {a += c(i)};
+		// for i in b  {a += c(i)};
+	}
+
+	
+	/// does variable capture help? or does it fuck with scoping rules
+			too much?
+	h :: () ->
+	{
+		variable := "smelly";
+		{
+			variable := "hello"; // there is no variable shadowing
+			print(variable); // prints "hello"
+		}
+		print(variable);     // prints "smelly"
+
+		{
+			variable = "goodbye"; // error: variable is not declared in current scope
+			print(variable);	  // prints "goodbye"
+		}
+
+		[variable]{ // here we capture the refrence to the outer variable
+			variable := "code"; // reassign the contents of variable
+			print(variable);    // prints "code"
+		}
+		print(variable); // prints "code"
+	}
+
+	// what does polymorphism look like?
+	// double := (x: $T) -> {return T * T;}
+	// x := 42;
+	// y := double (x);
+
+	// do we want function overloading?
+	// double := (x: int) -> {return x * x;}
+	// double := (x: float) -> {return x * x;}
+
+	// do we want operator overloading,
+	// if yes: what syntax does it have?
+	// append_int_to_string :: (i: int, s: string);
+
+	// overload '+=', append_int_to_string;
+///
+
+
