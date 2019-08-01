@@ -3,6 +3,8 @@
 
 extern std::string current;
 
+int gettok();
+
 enum token {
 	T_EOF,
 	T_ERR,
@@ -84,4 +86,5 @@ enum token {
 	T_DO,
 	T_FOR,
 };
-int get_next_token();
+
+

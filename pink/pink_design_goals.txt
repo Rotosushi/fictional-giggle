@@ -50,7 +50,22 @@
 
 	<identifier> <assignment-op> <function-name> '(' <argument-list> ')' ';'
 
+-- Type Constructors
+	<type-name> '(' <argument-list> ')'
 
+	type construction seems like a necessary language feature.
+	c doesn't have this, and so requires seperate intitialization
+	functions for more complex types. This separation of the type
+	from it's intializer creates cognitive overhead. If types
+	always have a constructor then this pairs each type with it's
+	constructor function. This reduces the cognitive overhead
+	of ensuring that types are valid after declaration 
+	and initialization. 
+	Explicit type construction looks like class construction
+	but it is optional, and dynamic memory allocation should
+	not occur by default. The default constructor should allocate
+	space on the stack frame of the current function.
+	
 
 -- initializer lists for structs
 -- vs. declared constructors like jai 

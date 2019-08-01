@@ -81,7 +81,7 @@ string current;
 int integer_value;
 float float_value;
 
-int get_next_token() {
+int gettok() {
 	static int c = ' ';
 
 	while (isspace(c)) { // ignore whitespace
@@ -153,8 +153,6 @@ int get_next_token() {
 				return T_ERR;
 			}
 		}
-
-
 
 		if (has_fractional) {
 			integer_value = atoi(current.c_str());
