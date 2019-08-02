@@ -26,9 +26,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="pink_design_goals.txt">
-      <Filter>Resource Files</Filter>
-    </Text>
     <Text Include="pink_examples.txt">
       <Filter>Resource Files</Filter>
     </Text>
@@ -45,6 +42,9 @@
       <Filter>Resource Files</Filter>
     </Text>
     <Text Include="test_parser.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="pink_design.txt">
       <Filter>Resource Files</Filter>
     </Text>
   </ItemGroup>

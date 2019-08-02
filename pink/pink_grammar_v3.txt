@@ -250,43 +250,5 @@
 	}
 
 	
-	/// does variable capture help? or does it fuck with scoping rules
-			too much?
-	h :: () ->
-	{
-		variable := "smelly";
-		{
-			variable := "hello"; // there is no variable shadowing
-			print(variable); // prints "hello"
-		}
-		print(variable);     // prints "smelly"
-
-		{
-			variable = "goodbye"; // error: variable is not declared in current scope
-			print(variable);	  // prints "goodbye"
-		}
-
-		[variable]{ // here we capture the refrence to the outer variable
-			variable := "code"; // reassign the contents of variable
-			print(variable);    // prints "code"
-		}
-		print(variable); // prints "code"
-	}
-
-	// what does polymorphism look like?
-	// double := (x: $T) -> {return T * T;}
-	// x := 42;
-	// y := double (x);
-
-	// do we want function overloading?
-	// double := (x: int) -> {return x * x;}
-	// double := (x: float) -> {return x * x;}
-
-	// do we want operator overloading,
-	// if yes: what syntax does it have?
-	// append_int_to_string :: (i: int, s: string);
-
-	// overload '+=', append_int_to_string;
-///
 
 

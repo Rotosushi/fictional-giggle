@@ -120,6 +120,7 @@ int gettok() {
 		if (current == "struct")	return T_STRUCT;
 		if (current == "union")		return T_UNION;
 		if (current == "enum")		return T_ENUM;
+		if (current == "context")	return T_CONTEXT;
 		if (current == "u8")		return T_U8;
 		if (current == "u16")		return T_U16;
 		if (current == "u32")		return T_U32;
@@ -129,7 +130,7 @@ int gettok() {
 		if (current == "s32")		return T_S32;
 		if (current == "s64")		return T_S64;
 		if (current == "f32")		return T_F32;
-		if (current == "f64")		return T_F64;			
+		if (current == "f64")		return T_F64;
 		// else it's an identifier
 		return T_ID;
 	}

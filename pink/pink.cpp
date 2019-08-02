@@ -549,7 +549,7 @@ void test_lexer() {
 	current.clear();
 
 	t = gettok();
-	assert(current == "butts");
+	assert(current == "pink");
 	assert(t == T_ID);
 	current.clear();
 

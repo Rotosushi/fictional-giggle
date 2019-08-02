@@ -157,7 +157,7 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="c_grammar.txt" />
-    <Text Include="pink_design_goals.txt" />
+    <Text Include="pink_design.txt" />
     <Text Include="pink_examples.txt" />
     <Text Include="pink_grammar.txt" />
     <Text Include="pink_grammar_v3.txt" />

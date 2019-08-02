@@ -85,6 +85,7 @@ enum token {
 	T_WHILE,
 	T_DO,
 	T_FOR,
+	T_CONTEXT,
 };
 
 
