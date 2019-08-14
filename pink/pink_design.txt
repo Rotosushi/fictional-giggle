@@ -14,6 +14,128 @@
 	 that it becomes a chore to write and mentally parse. see: c++ templates),
 	 and highly expressive language; 
 
+- Dimensions of the language
+	- Expressivity
+		the language should enable programmers solve their problems, rather
+		than solve the riddle of how to express what they want to say in the
+		language.
+
+		Programmers fluent in the language should be able to easily read what
+		one another are saying and doing in their code. 
+		common abstractions should have a common form
+		common tasks should have a common form
+		it should be easy to say what is easy to do 
+
+	- Security
+		The language doesn't exist in a vacuum, a robust, expressive language
+		should be aware of the security concerns of a modern language. C is 
+		exploitable because it is hard to write hardened code, and easy to 
+		exploit interoperations between disperate programs. More complex languages
+		are exploitable because their own operation is hard to understand.
+
+	- Performance
+		writing code that utilizes its resources effectively is difficult. writing
+		interoperating abstractions that can utilize shared resources is difficult.
+		performance modeling should be easy to do, and require minimal cognitive
+		overhead. the shape of performance modeling is uniform in the time axis, 
+		and on the space axis.
+
+	- Maintainability
+		Code that is written today, may be talking to code that is written 20
+		years from now. This is not something that can be ignored. How does this
+		affect the other dimensions, and how does the language assist programmers
+		in this dimension.
+
+	- Testing
+		testing is a non-trivial aspect of development, that also has a uniform
+		shape. How does this language assist programmers in testing their own code?
+		in testing unknown code? 
+
+- Cognitive Dimensions of Abstraction
+
+Abstraction gradient 
+    What are the minimum and maximum levels of abstraction exposed by the notation? 
+	Can details be encapsulated?
+
+Closeness of mapping 
+    How closely does the notation correspond to the problem world?
+
+Consistency 
+    After part of the notation has been learned, how much of the rest can be 
+	successfully guessed?
+
+Diffuseness / terseness 
+    How many symbols or how much space does the notation require to produce a 
+	certain result or express a meaning?
+
+Error-proneness 
+    To what extent does the notation influence the likelihood of the user making 
+	a mistake?
+
+Hard mental operations 
+    How much hard mental processing lies at the notational level, rather than at
+	the semantic level? Are there places where the user needs to resort to fingers 
+	or penciled annotation to keep track of what’s happening?
+
+Hidden dependencies 
+    Are dependencies between entities in the notation visible or hidden? Is every
+	dependency indicated in both directions? Does a change in one area of the 
+	notation lead to unexpected consequences?
+
+Juxtaposability 
+    Can different parts of the notation be compared side-by-side at the same time?
+
+Premature commitment 
+    Are there strong constraints on the order in which the user must complete 
+	the tasks to use the system?
+
+    Are there decisions that must be made before all the necessary information
+	is available? Can those decisions be reversed or corrected later?
+
+Progressive evaluation 
+    How easy is it to evaluate and obtain feedback on an incomplete solution?
+
+Role-expressiveness 
+    How obvious is the role of each component of the notation in the solution as a 
+	whole?
+
+Secondary notation and escape from formalism 
+    Can the notation carry extra information by means not related to syntax, such 
+	as layout, color, or other cues?
+
+Viscosity
+    Are there any inherent barriers to change in the notation? How much effort 
+	is required to make a change to a program expressed in the notation?
+
+    This dimension can be further classified into the following types:
+
+        'Knock-on viscosity' : a change in the code violates internal constraints
+			in the program, whose resolution may violate further internal constraints.
+
+        'Repetition viscosity' : a single action within the user’s conceptual 
+			model requires many, repetitive device actions.
+
+        'Scope viscosity' : a change in the size of the input data set requires 
+			changes to the program structure itself.
+
+Visibility 
+    How readily can required parts of the notation be identified, 
+	accessed and made visible?
+
+creative ambiguity 
+	does the notation encourage interpreting several meanings of 
+	the same element?
+
+indexing 
+	are there elements to guide finding a specific part?
+
+synopsis 
+	"gestalt view" of the whole annotated structure
+
+unevenness 
+	some creation paths are easier than others, 
+	which bias the expressed ideas in a developed artifact.
+
 - "Stop telling me what you are saying and just say it!"
 %% ~Zen
 
@@ -58,7 +180,7 @@
 	
 	<identifier> <assignment-op> <type-name> '(' <argument-list> ')' ';'
 
-	is only syntactically different based on the type of the identifier
+	is only semantically different based on the type of the identifier
 
 	<identifier> <assignment-op> <function-name> '(' <argument-list> ')' ';'
 
@@ -83,10 +205,12 @@
 -- vs. declared constructors like jai 
 
 -- struct a :: {b: int, c: string}
+
 	v1 : a{someint, somestring};
 	v2 : a(someint, somestring);
 	v3 := alloc (a, someint, somestring);
-	v4 : a
+	v4 : a;
+	v4 = alloc (a, someint, somestring);
 
 
 -- a function call is so far the only syntactic construct that looks 
@@ -111,8 +235,14 @@
 	constant type definitions
 		struct my_type :: { v: int; w: float; }
 
-	/// does variable capture help? or does it fuck with scoping rules
-			too much?
+	constants in code
+		my_constant :: "this string is constant";
+		mY_other_constant :: 42;
+
+
+	/// does variable capture help? or does it conflict
+	    with internalized scoping rules too much?
+	
 	h :: () ->
 	{
 		variable := "smelly";
@@ -147,10 +277,23 @@
 						// syntax from Jai
 	mytemplatefunc :: (x: $T, y: T) -> {return x * y;}
 
-	the constraints are that x, y are the same type, derived from T;
+	the constraint on the type is that 'x', 'y' are the same type, derived from 'T';
+	implicitly, the derivation is from the type of 'x' 
 
 	x := 3; y := 4;
 	z := mytemplatefunc (x, y);
+
+	x := 3.14; y := 5;
+	z := mytemplatefunc (x, y); // is this then a syntax error?
+								// the types are different, even though
+								// through an implicit type conversion
+								// this function call can work, and without
+								// a loss of precision.
+
+	x := 4; y := "not-an-int"
+	z := mytemplatefunc (x, y); // This has to be a semantic error,
+								// {int} '*' {string} 
+								// is not a valid operation
 
 	// function overloading allows you to abstract
 	// the body of a function
@@ -158,18 +301,30 @@
 	overloadfunc :: (x: int, y: int) -> {return x * y;}
 	overloadfunc :: (x: float, y: float) -> {return x * y;}
 
-	LISP style macros:
-		simply: A 'macro' is a procedure whose arguments are executable code
-		 and whose result is executable code. a macro is also itself composed
-		 of executable code, but this code will never itself be executed at runtime
-		 macros exist only in compiletime and are used by the compiler to
-		 generate executable code. It will hopefully accomplish this through
-		 AST insertion
+	macros:
+		a macro is not code itself, but a specification of the
+		form of code. the idea being that code itself can be something
+		that code can talk about. normally we talk about numbers, strings
+		and other data-abstractions within code. we can also talk about control
+		flow in the form of functions and conditional statements.
 
 		c/c++ have macros, they are all handled with the preprocessor.
 		 This means that they operate only with textual substitution.
 		 this is okay for simple forms of macros, but lacks typechecking
 		 and much of the power of lisp macros.
+
+		 c++ has recently developed something with close to the same power 
+		 as a true macro, and it is in the form of templates. in their original
+		 conception templates are a way to abstract the type of a procedure.
+		 this is because many algorithms work regardless of the
+		 type that they consume. Linked lists, Arrays, Heaps, etc.
+		 in other words, there is a -pattern- to the code, and the storage 
+		 structure has the same form no matter the contents. The form of the 
+		 storage medium is the pattern which is captured within the template.
+
+		 now, with more complex structures the constraints that are placed on
+		 what a
+
 
 	// Helper functions
 	(defun primep (number)
@@ -218,8 +373,8 @@
 
 	// macro macr :: (x: {type}, y: {lambda}, z: {static-int}) -> (list: []{type}) {
 	//	l: []{type};
-	//	for(i := 0; i < value; i += 1) l.prepend(y(x));
-	//	return l;
+	//	for(i := 0; i < value; i += 1) l.prepend((y, x));
+	//	return copy(l);
 	//}
 
 	// 'for' '('{declarations} ';' {conditional} ';' {post-statements}')' {statements}
@@ -238,6 +393,14 @@
 	//				}
 	//			}
 	
+	// 'if' '(' {expression} ')' {statements} 
+	//		-> {
+	//				jump-if-not-equal i, {expression}, {true-value},
+	//				{statements}
+	//				i:
+	//			}
+
+
 
 	// {constrained-block} -> {evaluate-to-bool}
 	//						| {iterable}
@@ -263,7 +426,7 @@
 // v2 goals : the dynamic language
 - pointers
 - composite types
-- allocators
+- allocators, these will be registered in the context block
 
 // v3 goals : high level programming constructs
 - polymorphism

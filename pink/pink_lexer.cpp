@@ -121,6 +121,7 @@ int gettok() {
 		if (current == "union")		return T_UNION;
 		if (current == "enum")		return T_ENUM;
 		if (current == "context")	return T_CONTEXT;
+		if (current == "fn")		return T_FUNCTION;
 		if (current == "u8")		return T_U8;
 		if (current == "u16")		return T_U16;
 		if (current == "u32")		return T_U32;
@@ -156,10 +157,10 @@ int gettok() {
 		}
 
 		if (has_fractional) {
-			integer_value = atoi(current.c_str());
+			float_value = atof(current.c_str());
 			return T_FLOAT_LITERAL;
 		} else {
-			float_value = atof(current.c_str());
+			integer_value = atof(current.c_str());
 			return T_INT_LITERAL;
 		}
 	}

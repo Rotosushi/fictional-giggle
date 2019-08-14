@@ -53,64 +53,145 @@ variable* curvar = nullptr;
 
 // <program> := (<top-level-declaration>)* EOF
 // <top-level-declaration>  := <context-declaration>
-//							 | <type-declaration>
-//							 | <variable-declaration>
-
+//							 | <type-definition>
+//							 | <declaration>
+//
 // <context-declaration> := 'context' '::' <context-block>
-// <type-declaration>    := 'alias' <identifier> '::' <type-specifier> ';'
-//						  | ('struct' | 'union') (<identifier>)? '::' '{' (<declaration>)* '}'
-//						  | 'enum' (<identifier>) ? '::' '{' <enumeration-list> '}'
-// <variable-declaration> := <identifier> <assignment-op> <type-specifier> ';'
+// <type-definition>     := 'alias' <identifier> '::' <type-specifier> ';'
+//						  | ('struct' | 'union') (<identifier>)? '::' <composite-type-block>
+//						  | 'enum' (<identifier>) ? '::' <enumeration-block>
+//						  | 'fn' <identifier> '::' <lambda-definition>
+//
+// <declaration>         := <identifier> <assignment-statement>
+// 
+// <context-block> := '{' (<declaration>)* '}' // future: (<declaration> | <compiler-directive>)*
+//
+// <composite-type-block> := '{' (<declaration>)+ '}'
+//
+// <enumeration-block> := '{' <enumeration-list> '}'
+//
+// <enumeration-list>  := <enum> (',' <enum>)*
+//
+// <enum> := <identifier> (':' <numeric-literal>)?
+//
+// <lambda-definition> := <argument-list> (<return-list>)? <lambda-block>
+//
+// <argument-list> := '(' <arg> (',' <arg>)* ')'
+//
+// <arg> := <identifier> (':' <type-specifier>)?
+//
+// <return-list> := '->' <argument-list> 
+//
+// <lambda-block> := '{' (<declaration> | <statement>)* '}'
+//
+// <type-specifier> := <identifier>
+//					 | <type-primitive>
+//					 | <lambda-definition>
+//					 | <literal>
+//
+// <assignment-statement>  := <variable-declaration>
+//							| <variable-assignment>
+//							| <statement>
+//
+// <variable-declaration>  := ':' (<compiler-directive>)* <type-specifier> ';'
+//							| ':' (<compiler-directive>)* '=' <type-specifier> ';'
+//							| ':' (<compiler-directive>)* ':' <type-specifier> ';'
+//
+// <variable-assignment>   := '=' (<compiler-directive>)* <type-specifier> ';'
+//
+// TODO: <statement>
+// TODO: <compiler-directive>
 
-int parse_top_level() {
-	int failed = 0;
-	
+
+bool match_top_level() {
 	while (curtok != T_EOF) {
 		// prime our input
 		curtok = gettok();
 
+		if (speculate_context())
+			match_context();
+		else if (speculate_alias())
+			match_alias();
+		else if (speculate_struct())
+			match_struct();
+		else if (speculate_union())
+			match_union();
+		else if (speculate_)
+
 		switch (curtok) {
 			case T_CONTEXT: {
-				parse_context(); // TODO:
+				if (speculate_context()) // TODO:
+					match_context();
+				else return false;
 				break;
 			}
 			case T_ALIAS: {
-				parse_alias();   // TODO:
+				if (speculate_alias())   // TODO:
+					match_alias();
+				else return false;
 				break;
 			}
 			case T_STRUCT: {
-				parse_struct();  // TODO:
+				if (speculate_struct())  // TODO:
+					match_struct();
+				else return false;
 				break;
 			}
 			case T_UNION: {
-				parse_union();   // TODO:
+				if (speculate_union())   // TODO:
+					match_union();
+				else return false;
 				break;
 			}
 			case T_ENUM: {
-				parse_enum();    // TODO:
+				if (speculate_enum())    // TODO:
+					match_enum();
+				else return false;
 				break;
 			}
 			case T_ID: {
-				parse_id();
+				if (speculate_id())
+					match_id();
+				else return false;
 				break;
 			}
 
 		}
 	}
-	return failed;
+	return true;
 }
 
-void parse_context() {}
+bool speculate_context() {}
 
-void parse_alias() {}
+void match_context()
+{
+}
 
-void parse_struct() {}
+bool speculate_alias() {}
 
-void parse_union() {}
+void match_alias()
+{
+}
 
-void parse_enum() {}
+bool speculate_struct() {}
 
-void parse_id() {
+void match_struct()
+{
+}
+
+bool speculate_union() {}
+
+void match_union()
+{
+}
+
+bool speculate_enum() {}
+
+void match_enum()
+{
+}
+
+bool speculate_id() {
 	// add the identifier to the symbol table if it doesn't already exist.
 	// aside: why not symbol_table.find(current) ??
 	//	or even find current : symbol_table 
@@ -122,20 +203,26 @@ void parse_id() {
 		symbol_table.push_front(current);
 	}
 
+	auto id = current;
+
 	// if we parse an identifier, then we can be sure this is a variable declaration.
 	// for this first pass at a parser, the language will support initialization via
 	// literals only.
 	// variables look like:
 	// --- <identifier> (<assignment-operator <initializer>)? ';'
 	//     <initializer> := <literal>
-	//					  | <function>
+	//					  | <lambda>
 	//					  | <identifier>
 
 	// we now need to see what the next token is and make a decision.
 	curtok = gettok();
 	switch (curtok) {
+	case T_SEMICOLON:
+		// 
+		break;
 	case T_ASSIGN_EQ:    case T_ASSIGN_COLON_EQ:
 	case T_ASSIGN_COLON: case T_ASSIGN_COLON_COLON: {
+		speculate_initializer();
 		// we know this is an assignment operation, 
 		// so now we need to look at what is being assigned.
 		auto op = current;
@@ -149,7 +236,7 @@ void parse_id() {
 			auto val = current;
 			break;
 		case T_L_PAREN: { // function assignment
-			parse_function();
+			speculate_function();
 			break;
 		}
 		}
@@ -159,6 +246,28 @@ void parse_id() {
 	}
 }
 
+void match_id()
+{
+}
+
+bool speculate_function()
+{
+	return false;
+}
+
+void match_function()
+{
+}
+
+bool speculate_initializer() {}
+
+void match_initializer()
+{
+}
+
+bool match_token(token tok, token cur) {
+	return tok == cur ? true : false;
+}
 
 //
 //typedef struct {

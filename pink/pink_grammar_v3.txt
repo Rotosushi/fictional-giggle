@@ -1,5 +1,5 @@
 // a program is composed of zero or more
-// top level declarations, followed by the EOF token
+// top level declarations, followed by the EOF (End-Of-File) token
 <program> := (<top-level-declaration>)* EOF
 
 // Things that can be declared at the top (file) level are
@@ -39,7 +39,6 @@
 
 <return-value> := <type-specifier> (',' <type-specifier>)*
 
-// the file header is where the context is accessed.
 // the context of a file is self similar to the program context, and
 // to procedure context.
 // the context holds; resource handles (stdin, stdout, stderr,
@@ -68,6 +67,11 @@
 <enum> = <identifier> ('=' <numeric-literal>)?
 
 <variable-declaration> := <identifier> (<assignment-operator> <initializer>)? ';'
+
+<initializer>  := <lambda-declaration>
+				| <numeric-literal>
+				| <identifier>
+				| <type-specifier>
 
 /// statements
 <statement> := <expression>

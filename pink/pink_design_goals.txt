@@ -1,0 +1,177 @@
+
+
+- a small yet expressive language, built for readability, ergonomics
+- and easy parsing.
+
+- logical consistency, one obvious way of doing things,
+- easy to say what is easy to do.
+
+- The goal is also not to create a 'pure' language, nor is the language
+	'impure', this language is a collection of the most sensible features
+	working together to express programming ideas ergonomically. The goal 
+	is to have a clear (read: unambiguous), 
+	concise(read: just enough characters to communicate, but not so many
+	 that it becomes a chore to write and mentally parse. see: c++ templates),
+	 and highly expressive language; 
+
+
+
+-- logical consistency : a function declaration should always look
+	like a function declaration, a struct definition should always
+	look like a struct declaration, a variable should have the 
+	constraints that you tell it to have, this should permeate the
+	design of the language. (instead of '~' and '!' we have '!' and '!!',
+	because this lines up with the operator consistency of '&' and '&&',
+	'|' and '||', and '^' and '^^')
+
+-- this logical consistency lowers the learning curve, because there
+	are less caveats to remember. This lessens cognitive burden and
+	allows programmers to think about their problem, rather then how 
+	to speak the language. This syntatic consistency will hopefully
+	make the language easy to parse, this plus the small feature
+	set, should make lisp stype macros easier to do. Lisp style
+	macros in an imperitive language is the design space that I
+	would like to explore. Eventually moving on to state machine 
+	encoding, and to self modifying code. The easy to parse nature
+	of the language will ease the further development with the language.
+	and it should make it easier to disambiguate parse trees, and to
+	make a deep learning neural network learn less rules before being
+	able to generate code.
+
+	a function declaration is disambiguated by the '->' operator
+	either (<argument-list>) -> (<return-list>) {<block>} or
+	(<argument-list>) -> {<block>}, with the omission of the
+	(<return-list>) giving clear and syntactic indication to
+	the programmer that the return values are going to be deduced 
+	from the {<block>}. 
+	
+	This may help disambiguate between 
+	constructors and function calls. 
+	
+	struct s :: {a: int; b: int;}
+
+	a := s(5, 10);
+
+	although 
+	
+	<identifier> <assignment-op> <type-name> '(' <argument-list> ')' ';'
+
+	is only syntactically different based on the type of the identifier
+
+	<identifier> <assignment-op> <function-name> '(' <argument-list> ')' ';'
+
+-- Type Constructors
+	<type-name> '(' <argument-list> ')'
+
+	type construction seems like a necessary language feature.
+	c doesn't have this, and so requires seperate intitialization
+	functions for more complex types. This separation of the type
+	from it's intializer creates cognitive overhead. If types
+	always have a constructor then this pairs each type with it's
+	constructor function. This reduces the cognitive overhead
+	of ensuring that types are valid after declaration 
+	and initialization. 
+	Explicit type construction looks like class construction
+	but it is optional, and dynamic memory allocation should
+	not occur by default. The default constructor should allocate
+	space on the stack frame of the current function.
+	
+
+-- initializer lists for structs
+-- vs. declared constructors like jai 
+
+-- struct a :: {b: int, c: string}
+	v1 : a{someint, somestring};
+	v2 : a(someint, somestring);
+	v3 := alloc (a, someint, somestring);
+	v4 : a
+
+
+-- a function call is so far the only syntactic construct that looks 
+	like : <identifier> '(' <argument-list> ')' ';'
+	if type construction calls a function, then the semantic difference
+	between <function-name> '(' <argument-list> ')' ';'
+	and     <type-name>     '(' <argument-list> ')' ';'
+	might not be a problem.
+		aside: This also seems like part of an argument for overloading
+				functions.
+	a function is always 'stored' in a variable, but we don't always
+	want programmers to change top level functions, this is solved by
+	the const assignment operator '::', this creates a constant binding
+
+-- constness is always indicated through the '::' operator.
+	constant functions:
+		fun :: (a: int, b: int) -> {return a + b;}
+
+	non-const functions:
+		fun := (a: int, b: [] int) -> {return for i in b {c += a + i}}
+
+	constant type definitions
+		struct my_type :: { v: int; w: float; }
+
+	/// does variable capture help? or does it fuck with scoping rules
+			too much?
+	h :: () ->
+	{
+		variable := "smelly";
+		{
+			variable := "hello"; // there is no variable shadowing
+			print(variable); // prints "hello"
+		}
+		print(variable);     // prints "smelly"
+
+		{
+			variable = "goodbye"; // error: variable is not declared in current scope
+			print(variable);	  // prints "goodbye"
+		}
+
+		[variable]{ // here we capture the refrence to the outer variable
+			variable := "code"; // reassign the contents of variable
+			print(variable);    // prints "code"
+		}
+		print(variable); // prints "code"
+	}
+
+	// what does polymorphism look like?
+	// double := (x: $T) -> {return T * T;}
+	// x := 42;
+	// y := double (x);
+
+	// do we want function overloading?
+	// double := (x: int) -> {return x * x;}
+	// double := (x: float) -> {return x * x;}
+
+	// do we want operator overloading,
+	// if yes: what syntax does it have?
+	// append_int_to_string :: (i: int, s: string);
+
+	// overload '+=', append_int_to_string;
+///
+
+
+
+
+// v1 goals : the static language
+- functions
+- conditionals and loops
+- variables with primitive types
+- operations
+
+// v2 goals : the dynamic language
+- pointers
+- composite types
+- allocators
+
+// v3 goals : high level programming constructs
+- polymorphism
+- macros (programmer ast manipulation)
+- concurrency
+
+// research
+- processor primitives
+-- compare-and-swap, atomic load/store, atomic rmw
+
+- macros are typechecked
+-- implement polymorphism in terms of macros?
+
+
