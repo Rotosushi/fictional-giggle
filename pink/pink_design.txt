@@ -1,5 +1,10 @@
 
 %% Zen
+
+pink is a language whose job is to allow programmers to easily
+	manipulate assembly instructions as logical units and to 
+	easily manipulate data around the machine efficiently.
+
 - a small yet expressive language, built for readability, ergonomics
 - and easy parsing.
 
@@ -138,6 +143,76 @@ unevenness
 
 - "Stop telling me what you are saying and just say it!"
 %% ~Zen
+
+A program in pink is composed of declarations and statements
+	Declarations:
+		A declaration adds a new item to the current scope.
+		This applies to
+			function declarations
+			variables
+			unstructured scopes ( aka the unnamed scope { // } )
+
+	Statements:
+		A statement is something that has a side effect, either upon the state of a variable
+			or the state of the program flow
+		This applies to
+			function calls
+			operators (=, +, -, etc.)
+			structured scopes (conditionals & loops)
+
+Why make a new programming language?
+	for fun?
+	for profit?
+	how about:
+		There is a ton of unneccessary complexity in modern day languages
+		c is in its verbosity (This is a result of being a small lang, 
+			which is addmittedly a plus), pitfalls, and age.
+		c++ fails in its verbosity (partly inherited, mostly added), 
+			semantic overhead, and its plethora of features
+		Dynamicly Typed and Garbage Collected languages fail
+			in the computational overhead of garbage collection,
+			the mental overhead of duck typing
+			and the complexity of the languages implementation.
+			if an advanced user wants to get in and tinker, they in theory can,
+			but its always far more complex a design than should be required.
+
+If these are the problems, then how is this language a solution?
+	what are the design goals of pink?
+		1) The language should have a small, focused feature set which can be learned
+			quickly, and mastered slowly. Each feature should hold its own weight in the
+			design space of the language. There shouldn't be 12 innate ways of doing one thing,
+			the programming language should have a convienient built-in, with the ability for the 
+			programmer to specialize should they have a unique set of constraints.
+
+		2) The syntax of the language should make it easy to say what is easy to do.
+			Taking a page out of the python school of thought, the language should be designed for
+			_humans_ and not the computer. The syntax should help the programmer to understand what is happening
+			not obfuscate even the simplest of ideas (looking at you c++, *cough* polymorphism)
+
+		3) The syntax and the semantics of the language should help the programmer build
+			the necessary abstractions for small and large programs in a way that is 
+			computationally effecient for the machine, and cognitively efficient for the programmer.
+
+		4) The language should help you with the hardest of problems! 
+		~Multithreading & Parrellelism.
+			This is something that will be built into the language, and will have low-level and high-level
+			abstractions, plus the plumbing required to get between. 
+		~Dynamic Memory management~.
+			This is a major sticking point of the language, C did it 80% correctly, but the 20% they didn't do
+			bit new programmers so much they wanted to do away with the problem entirely. hence, Garbage Collection.
+			This is too much of a perfomance hit to be acceptable. We can build better, We deserve better.
+		~Hardware interface~
+			What major language gives you an easy way to inject native assembly into your program?
+			c, c++, do have ways of interfacing. However asm("") is clumsy. What about nice interfaces around
+			hardware devices like SPI, or USB? this is basically non-existant in a public way. C and Linux are the
+			best about this. otherwise its up to the hardware vendor.
+		~Interlanguage Interface~
+			Should be able to talk to C
+
+		5) The implementation of the language should make it easy to tinker with the specifics
+			when you need to, but should have well thought out defaults that cover the most
+			common use cases.
+
 
 %% Thoughts on things
 -- logical consistency : a function declaration should always look

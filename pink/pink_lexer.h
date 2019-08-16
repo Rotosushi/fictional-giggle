@@ -17,8 +17,8 @@ enum Tok {
 	T_AND,
 	T_XOR,
 	T_OR,
-	T_LESS,
-	T_GREATER,
+	T_LSHIFT, 
+	T_RSHIFT, 
 	T_LBRACE,
 	T_RBRACE,
 	T_LBRACKET,
@@ -27,7 +27,31 @@ enum Tok {
 	T_RPAREN,
 	T_PERIOD,
 	T_COMMA,
+	T_CONST_ASSIGN,
+	T_DYNAMIC_ASSIGN,
+	T_ADD_ASSIGN, 
+	T_SUB_ASSIGN,  
+	T_MULT_ASSIGN,
+	T_DIV_ASSIGN, 
+	T_MOD_ASSIGN, 
+	T_OR_ASSIGN,
+	T_AND_ASSIGN,
+	T_XOR_ASSIGN,
+	T_LSHIFT_ASSIGN,
+	T_RSHIFT_ASSIGN,
+	T_LOG_AND,
+	T_LOG_OR,
+	T_LOG_XOR,
+	T_LOG_NOT,
+	T_NOT_EQUALS,
+	T_LOG_LESS,
+	T_LOG_GREATER,
+	T_LESS_EQUALS,
+	T_GREATER_EQUALS,
+	T_LOG_LESS_EQUAL,
+	T_LOG_GREATER_EQUAL,
 	T_SEMICOLON,
+	T_ARROW,
 	T_INT,
 	T_FLOAT,
 	T_BOOL,
@@ -65,8 +89,8 @@ enum Tok {
 typedef struct {
 	Tok type;
 	std::string value;
-} token;
+} Token;
 
-token gettok();
+Token gettok();
 
 

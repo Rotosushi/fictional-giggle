@@ -157,6 +157,11 @@
     <ClCompile Include="pink_ast.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="pink_lexer.h" />
+    <ClInclude Include="pink_parser.h" />
+    <ClInclude Include="pink_ast.h" />
+  </ItemGroup>
+  <ItemGroup>
     <Text Include="c_grammar.txt" />
     <Text Include="pink_design.txt" />
     <Text Include="pink_examples.txt" />
@@ -166,10 +171,7 @@
     <Text Include="test_lexer.txt" />
     <Text Include="test_parser.txt" />
   </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="pink_lexer.h" />
-    <ClInclude Include="pink_parser.h" />
-  </ItemGroup>
+ 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

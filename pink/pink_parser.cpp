@@ -6,6 +6,7 @@
 
 #include "pink_parser.h"
 #include "pink_lexer.h"
+#include "pink_ast.h"
 
 using std::string;
 using std::list;
@@ -15,7 +16,7 @@ using std::cout;
 using std::endl;
 
 stack<int>	  marks;  // tokbuf indexes for nested backtracking
-vector<token> tokbuf; // buffer of tokens
+vector<Token> tokbuf; // buffer of tokens
 int			  tokidx; // index of current token
 
 // used by debugging
@@ -64,6 +65,10 @@ bool match(Tok tok) {
 	else return false;
 }
 
+Token get_last_match() {
+	return tokbuf[((uint64_t)tokidx - 1)];
+}
+
 // consumes a token in the buffer, replacing with a new token.
 // if not backtracking; resets the token buffer
 void consume() {
@@ -93,7 +98,7 @@ void consume() {
 
 // ensure buffer has i more tokens from the current tokidx
 void sync(int i) {
-	if ((size_t)(tokidx + i) > tokbuf.size()) { // do we need more tokens than we have?
+	if ((size_t)((uint64_t)tokidx + i) > tokbuf.size()) { // do we need more tokens than we have?
 		int n = (tokidx + i) - tokbuf.size(); // how many more do we need?
 		for (int i = 0; i < n; i++) tokbuf.push_back(gettok()); // get n tokens
 	}
@@ -172,6 +177,10 @@ bool speculate_declaration()
 		if (match_assignment_operator()) {
 			// followed by a <type-specifier>
 			if (match_type_specifier()) {
+				if (match(T_SEMICOLON)) {
+
+				}
+				else success = false;
 			}
 			else success = false;
 		}
@@ -197,12 +206,30 @@ bool match_type_definition()
 
 bool match_declaration()
 {
+	Token id, assign_op, rhs;
+	bool success = true;
 	// <declaration> := <identifier> <assignment-operator> <type-specifier> ';'	
-	match(T_ID);
-	match_assignment_operator();
-	match_type_specifier();
-	match(T_SEMICOLON);
-	return true;
+	if (match(T_ID)) {
+		id = get_last_match();
+		if (match_assignment_operator()) {
+			assign_op = get_last_match();
+			if (match_type_specifier()) {
+				rhs = get_last_match();
+				if (match(T_SEMICOLON)) {
+
+				}
+				else success = false;
+			}
+			else success = false;
+		}
+		else success = false;
+	}
+	else success = false;
+
+	// build the AST declaration now.
+	declaration dec(id, assign_op, rhs);
+
+	return success;
 }
 
 bool match_alias()
@@ -235,23 +262,30 @@ bool match_assignment_operator() {
 	// <assignment-operator> := ':' (<compiler-directive>)* (':' | '=')?
 	//						  | '=' (<compiler-directive>)*
 	if (match(T_COLON)) {
-		while (match_compiler_directive()) { // consume these tokens
+		if (match_compiler_directive()) {
+			// TODO: consume directive
 			if (!speculating()) {
-				// preform AST building actions
+				
+			}
+			// try to find more directives
+			while (match_compiler_directive()) { // consume these tokens
+				if (!speculating()) {
+					// preform AST building actions
+				}
+			}
+
+			// this could still be a constant or dynamic binding
+			if (match(T_EQUALS)) { // ':='
+
+			}
+			else if (match(T_COLON)) { // '::'
+
+			}
+			else { // is this needed?
+
 			}
 		}
-		if (match(T_COLON)) {
-			// '::' assignment
-			if (!speculating()) {
-				// preform AST building actions
-			}
-		}
-		else if (match(T_EQUALS)) {
-			if (!speculating()) {
-				// preform AST building actions
-			}
-		}
-		else {
+		else { // just ':'
 			if (!speculating()) {
 				// preform AST building actions
 			}
@@ -269,8 +303,15 @@ bool match_assignment_operator() {
 		}
 		return true;
 	}
-	// TODO: else if ( '*=' '+=' '-=' '/=' '%=' '|=' '&=' '^='
-	//					'<<=' '>>=' )
+	else if (match(T_DYNAMIC_ASSIGN)) {
+
+		return true;
+	}
+	else if (match(T_CONST_ASSIGN)) {
+
+		return true;
+	}
+	// TODO: +=, -=, ..., >>=
 	else return false;
 }
 
