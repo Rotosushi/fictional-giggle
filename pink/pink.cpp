@@ -335,8 +335,10 @@ What is the Design Space of the language
 */
 
 #include "pink_lexer.h"
+#include "pink_parser.h"
 #include <cassert>
 
+/*
 void test_lexer() {
 	int t;
 	t = gettok();
@@ -366,7 +368,7 @@ void test_lexer() {
 
 	t = gettok();
 	assert(current == "=");
-	assert(t == T_ASSIGN_EQ);
+	assert(t == T_EQUALS);
 	current.clear();
 
 	t = gettok();
@@ -381,7 +383,7 @@ void test_lexer() {
 
 	t = gettok();
 	assert(current == ":");
-	assert(t == T_ASSIGN_COLON);
+	assert(t == T_COLON);
 	current.clear();
 
 	t = gettok();
@@ -416,7 +418,7 @@ void test_lexer() {
 
 	t = gettok();
 	assert(current == "!");
-	assert(t == T_BIT_NOT);
+	assert(t == T_NOT);
 	current.clear();
 
 	t = gettok();
@@ -426,7 +428,7 @@ void test_lexer() {
 
 	t = gettok();
 	assert(current == "^");
-	assert(t == T_BIT_XOR);
+	assert(t == T_XOR);
 	current.clear();
 
 	t = gettok();
@@ -436,7 +438,7 @@ void test_lexer() {
 
 	t = gettok();
 	assert(current == "&");
-	assert(t == T_BIT_AND);
+	assert(t == T_AND);
 	current.clear();
 
 	t = gettok();
@@ -446,32 +448,32 @@ void test_lexer() {
 
 	t = gettok();
 	assert(current == "[");
-	assert(t == T_L_BRACE);
+	assert(t == T_LBRACE);
 	current.clear();
 
 	t = gettok();
 	assert(current == "]");
-	assert(t == T_R_BRACE);
+	assert(t == T_RBRACE);
 	current.clear();
 
 	t = gettok();
 	assert(current == "{");
-	assert(t == T_L_BRACKET);
+	assert(t == T_LBRACKET);
 	current.clear();
 
 	t = gettok();
 	assert(current == "}");
-	assert(t == T_R_BRACKET);
+	assert(t == T_RBRACKET);
 	current.clear();
 
 	t = gettok();
 	assert(current == "(");
-	assert(t == T_L_PAREN);
+	assert(t == T_LPAREN);
 	current.clear();
 
 	t = gettok();
 	assert(current == ")");
-	assert(t == T_R_PAREN);
+	assert(t == T_RPAREN);
 	current.clear();
 
 	t = gettok();
@@ -496,12 +498,12 @@ void test_lexer() {
 
 	t = gettok();
 	assert(current == "<");
-	assert(t == T_LOG_LESS);
+	assert(t == T_LESS);
 	current.clear();
 
 	t = gettok();
 	assert(current == ">");
-	assert(t == T_LOG_GREATER);
+	assert(t == T_GREATER);
 	current.clear();
 
 	t = gettok();
@@ -514,15 +516,12 @@ void test_lexer() {
 	assert(t == T_LOG_GEQ);
 	current.clear();
 
-	/*
+	
 	t = get_next_token();
 	assert(current == "");
 	assert(t == );
 	current.clear();
-	*/
-
-	//
-
+	
 	t = gettok();
 	assert(current == "hello");
 	assert(t == T_ID);
@@ -710,7 +709,7 @@ void test_lexer() {
 
 	t = gettok();
 	assert(current == "=");
-	assert(t == T_ASSIGN_EQ);
+	assert(t == T_EQUALS);
 	current.clear();
 
 	t = gettok();
@@ -733,9 +732,10 @@ void test_lexer() {
 	assert(t == T_EOF);
 	current.clear();
 }
+*/
 
 void test_parser() {
-
+	match_top_level();
 }
 
 int main()

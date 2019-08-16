@@ -39,24 +39,6 @@ Token := (<op1> | <op2> | .. | <opn> )
 		else <unknown-token>
 */
 
-/* 
- top level parsing 
-	<program> := (<header>)? (<declaration> | <statement>)*
-	
-	# TODO: <header> :=
-
-	<declaration> :=  <variable-declaration>
-					| <type-alias>
-
-	<statement> := <expression-statement>
-				 | <compound-statement>
-				 | <conditional-statement>
-				 | <iteration-statement>
-
-*/
-
-
-
 int isidentifier(int c) {
 	if (isalnum(c) || c == '_' || c == '-') {
 		return 1;
@@ -77,164 +59,146 @@ int isoperator(int c) {
 	}
 }
 
-string current;
-int integer_value;
-float float_value;
-
-int gettok() {
-	static int c = ' ';
+token gettok() {
+	static int c = ' '; // prime the input
+	token tok;
 
 	while (isspace(c)) { // ignore whitespace
 		c = getchar();
 	}
 
 	if (c == EOF) {
-		current = "EOF";
-		return T_EOF;
+		tok.value = "EOF";
+		tok.type = T_EOF;
+		return tok;
 	}
 
 	if (isalpha(c)) { // could be an identifier, a type-primitive, or a keyword
-		current += c;
+		tok.value += c;
 		c = getchar();
 		while (isidentifier(c)) { // consume the next word
-			current += c;
+			tok.value += c;
 			c = getchar();
 		}
 
-		if (current == "int")		return T_INT;
-		if (current == "float")		return T_FLOAT;
-		if (current == "string")	return T_STRING;
-		if (current == "bool")		return T_BOOL;
-		if (current == "maybe")		return T_MAYBE;
-		if (current == "none")		return T_NONE;
-		if (current == "true")		return T_TRUE;
-		if (current == "false")		return T_FALSE;
-		if (current == "if")		return T_IF;
-		if (current == "else")		return T_ELSE;
-		if (current == "do")		return T_DO;
-		if (current == "while")		return T_WHILE;
-		if (current == "for")		return T_FOR;
-		if (current == "alias")		return T_ALIAS;
-		if (current == "sizeof")	return T_SIZEOF;
-		if (current == "typecast")	return T_TYPECAST;
-		if (current == "struct")	return T_STRUCT;
-		if (current == "union")		return T_UNION;
-		if (current == "enum")		return T_ENUM;
-		if (current == "context")	return T_CONTEXT;
-		if (current == "fn")		return T_FUNCTION;
-		if (current == "u8")		return T_U8;
-		if (current == "u16")		return T_U16;
-		if (current == "u32")		return T_U32;
-		if (current == "u64")		return T_U64;
-		if (current == "s8")		return T_S8;
-		if (current == "s16")		return T_S16;
-		if (current == "s32")		return T_S32;
-		if (current == "s64")		return T_S64;
-		if (current == "f32")		return T_F32;
-		if (current == "f64")		return T_F64;
-		// else it's an identifier
-		return T_ID;
+		if (tok.value == "int")			  tok.type = T_INT;
+		else if (tok.value == "float")	  tok.type = T_FLOAT;
+		else if (tok.value == "string")   tok.type = T_STRING;
+		else if (tok.value == "bool")	  tok.type = T_BOOL;
+		else if (tok.value == "maybe")	  tok.type = T_MAYBE;
+		else if (tok.value == "none")	  tok.type = T_NONE;
+		else if (tok.value == "true")	  tok.type = T_TRUE;
+		else if (tok.value == "false")    tok.type = T_FALSE;
+		else if (tok.value == "if")		  tok.type = T_IF;
+		else if (tok.value == "else")	  tok.type = T_ELSE;
+		else if (tok.value == "do")		  tok.type = T_DO;
+		else if (tok.value == "while")    tok.type = T_WHILE;
+		else if (tok.value == "for")	  tok.type = T_FOR;
+		else if (tok.value == "alias")    tok.type = T_ALIAS;
+		else if (tok.value == "sizeof")   tok.type = T_SIZEOF;
+		else if (tok.value == "typecast") tok.type = T_TYPECAST;
+		else if (tok.value == "struct")   tok.type = T_STRUCT;
+		else if (tok.value == "union")	  tok.type = T_UNION;
+		else if (tok.value == "enum")	  tok.type = T_ENUM;
+		else if (tok.value == "context")  tok.type = T_CONTEXT;
+		else if (tok.value == "fn")  tok.type = T_FUNCTION;
+		else if (tok.value == "u8")  tok.type = T_U8;
+		else if (tok.value == "u16") tok.type = T_U16;
+		else if (tok.value == "u32") tok.type = T_U32;
+		else if (tok.value == "u64") tok.type = T_U64;
+		else if (tok.value == "s8")  tok.type = T_S8;
+		else if (tok.value == "s16") tok.type = T_S16;
+		else if (tok.value == "s32") tok.type = T_S32;
+		else if (tok.value == "s64") tok.type = T_S64;
+		else if (tok.value == "f32") tok.type = T_F32;
+		else if (tok.value == "f64") tok.type = T_F64;
+		else tok.type = T_ID;
+		return tok;
 	}
 
-	if (isdigit(c) || c == '.') { // could be an int or a float literal
+	if (isdigit(c) || c == '.') { // could be an int or float literal
 		bool has_fractional = c == '.' ? true : false;
 
-		current += c;
+		tok.value += c;
 		c = getchar();
 
 		while (isdigit(c) || c == '.') { // consume the whole number
 			if (c == '.') has_fractional = true;
-			current += c;
+			tok.value += c;
 			c = getchar();
 
 			if (c == '.' && has_fractional) {    // this is a malformed numer
 				while (c != '\n' && c != '\r') { // grab the rest of the line
-					current += c;
+					tok.value += c;
 					c = getchar();
 				}
-				return T_ERR;
+				tok.type = T_ERR;
+				return tok;
 			}
 		}
 
 		if (has_fractional) {
-			float_value = atof(current.c_str());
-			return T_FLOAT_LITERAL;
+			tok.type = T_FLOAT_LITERAL;
+			return tok;
 		} else {
-			integer_value = atof(current.c_str());
-			return T_INT_LITERAL;
+			tok.type = T_INT_LITERAL;
+			return tok;
 		}
 	}
 
 	if (c == '\'' || c == '\"') { // it's a string literal
-		current += c;
+		tok.value += c;
 		c = getchar();
 
 		while (c != '\'' && c != '\"') {
-			current += c;
+			tok.value += c;
 			c = getchar();
-			if (c == EOF) return T_ERR; // This is probably because of no ending ' or "
-		}
+			// ensure we don't consume the EOF
+			if (c == EOF) { // This is probably because of no ending ' or "
+				tok.type = T_ERR;
+				return tok;
+			}
 
-		current += c; // store the trailing ' or "
-		c = getchar(); // prime the next char
-		return T_STRING_LITERAL;
+			tok.value += c; // store the trailing ' or "
+			c = getchar();  // prime the next char
+
+			tok.type = T_STRING_LITERAL;
+			return tok;
+		}
 	}
 
-	if (isoperator(c)) { // it's operator or grouping symbol
-		current += c;
+	if (isoperator(c)) { // else it's an operator or grouping symbol
+		// operators are all parsed one symbol at a time
+		tok.value += c;
 		c = getchar();
 
-		while (isoperator(c)) {
-			current += c;
-			c = getchar();
-		}
-
-		if (current == "=") return T_ASSIGN_EQ;
-		if (current == ":") return T_ASSIGN_COLON;
-		if (current == ":=") return T_ASSIGN_COLON_EQ;
-		if (current == "::") return T_ASSIGN_COLON_COLON;
-		if (current == "*=") return T_MULT_ASSIGN;
-		if (current == "/=") return T_DIV_ASSIGN;
-		if (current == "%=") return T_MOD_ASSIGN;
-		if (current == "+=") return T_ADD_ASSIGN;
-		if (current == "-=") return T_SUB_ASSIGN;
-		if (current == "&=") return T_BIT_AND_ASSIGN;
-		if (current == "^=") return T_BIT_XOR_ASSIGN;
-		if (current == "|=") return T_BIT_OR_ASSIGN;
-		if (current == "<<=") return T_LSHIFT_ASSIGN;
-		if (current == ">>=") return T_RSHIFT_ASSIGN;
-		if (current == "+") return T_ADD;
-		if (current == "-") return T_SUB;
-		if (current == "*") return T_MULT;
-		if (current == "/") return T_DIV;
-		if (current == "%") return T_MOD;
-		if (current == "&") return T_BIT_AND;
-		if (current == "|") return T_BIT_OR;
-		if (current == "^") return T_BIT_XOR;
-		if (current == "!") return T_BIT_NOT;
-		if (current == "!!") return T_LOG_NOT;
-		if (current == "&&") return T_LOG_AND;
-		if (current == "||") return T_LOG_OR;
-		if (current == "^^") return T_LOG_XOR;
-		if (current == "==") return T_LOG_EQ;
-		if (current == "!!=") return T_LOG_NEQ;
-		if (current == "<") return T_LOG_LESS;
-		if (current == ">") return T_LOG_GREATER;
-		if (current == "<=") return T_LOG_LEQ;
-		if (current == ">=") return T_LOG_GEQ;
-		if (current == "<<") return T_BIT_LSHIFT;
-		if (current == ">>") return T_BIT_RSHIFT;
-		if (current == "[") return T_L_BRACE;
-		if (current == "]") return T_R_BRACE;
-		if (current == "{") return T_L_BRACKET;
-		if (current == "}") return T_R_BRACKET;
-		if (current == "(") return T_L_PAREN;
-		if (current == ")") return T_R_PAREN;
-		if (current == ".") return T_PERIOD;
-		if (current == ",") return T_COMMA;
-		return T_ERR; // This is an unrecognized token
+		if (tok.value == "=") tok.type = T_EQUALS;
+		else if (tok.value == ":") tok.type = T_COLON;
+		else if (tok.value == "+") tok.type = T_ADD;
+		else if (tok.value == "-") tok.type = T_SUB;
+		else if (tok.value == "*") tok.type = T_MULT;
+		else if (tok.value == "/") tok.type = T_DIV;
+		else if (tok.value == "%") tok.type = T_MOD;
+		else if (tok.value == "&") tok.type = T_AND;
+		else if (tok.value == "|") tok.type = T_OR;
+		else if (tok.value == "^") tok.type = T_XOR;
+		else if (tok.value == "!") tok.type = T_NOT;
+		else if (tok.value == "<") tok.type = T_LESS;
+		else if (tok.value == ">") tok.type = T_GREATER;
+		else if (tok.value == "[") tok.type = T_LBRACE;
+		else if (tok.value == "]") tok.type = T_RBRACE;
+		else if (tok.value == "{") tok.type = T_LBRACKET;
+		else if (tok.value == "}") tok.type = T_RBRACKET;
+		else if (tok.value == "(") tok.type = T_LPAREN;
+		else if (tok.value == ")") tok.type = T_RPAREN;
+		else if (tok.value == ".") tok.type = T_PERIOD;
+		else if (tok.value == ",") tok.type = T_COMMA;
+		else if (tok.value == ";") tok.type = T_SEMICOLON;
+		else tok.type = T_ERR; // This is an unrecognized token
+		return tok;
 	}
-	return T_ERR; // if it's not an identifier, keyword,
+	tok.type = T_ERR;
+	return tok; // if it's not an identifier, keyword,
 				  // numeric literal, string literal, or
 				  // operator, it's unrecognized
 }

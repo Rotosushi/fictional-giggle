@@ -1,11 +1,6 @@
 #pragma once
-#include <string>
 
-extern std::string current;
-
-int gettok();
-
-enum token {
+enum Tok {
 	T_EOF,
 	T_ERR,
 	T_MAYBE,
@@ -16,42 +11,20 @@ enum token {
 	T_MULT,
 	T_DIV,
 	T_MOD,
-	T_ASSIGN_EQ,
-	T_ASSIGN_COLON,
-	T_ASSIGN_COLON_EQ,
-	T_ASSIGN_COLON_COLON,
-	T_MULT_ASSIGN,
-	T_DIV_ASSIGN,
-	T_MOD_ASSIGN,
-	T_ADD_ASSIGN,
-	T_SUB_ASSIGN,
-	T_LSHIFT_ASSIGN,
-	T_RSHIFT_ASSIGN,
-	T_BIT_LSHIFT,
-	T_BIT_RSHIFT,
-	T_BIT_AND_ASSIGN,
-	T_BIT_XOR_ASSIGN,
-	T_BIT_OR_ASSIGN,
-	T_BIT_NOT,
-	T_BIT_AND,
-	T_BIT_XOR,
-	T_BIT_OR,
-	T_LOG_NOT,
-	T_LOG_AND,
-	T_LOG_XOR,
-	T_LOG_OR,
-	T_LOG_EQ,
-	T_LOG_NEQ,
-	T_LOG_LEQ,
-	T_LOG_GEQ,
-	T_LOG_LESS,
-	T_LOG_GREATER,
-	T_L_BRACE,
-	T_R_BRACE,
-	T_L_BRACKET,
-	T_R_BRACKET,
-	T_L_PAREN,
-	T_R_PAREN,
+	T_EQUALS,
+	T_COLON,
+	T_NOT,
+	T_AND,
+	T_XOR,
+	T_OR,
+	T_LESS,
+	T_GREATER,
+	T_LBRACE,
+	T_RBRACE,
+	T_LBRACKET,
+	T_RBRACKET,
+	T_LPAREN,
+	T_RPAREN,
 	T_PERIOD,
 	T_COMMA,
 	T_SEMICOLON,
@@ -88,5 +61,12 @@ enum token {
 	T_FOR,
 	T_CONTEXT,
 };
+
+typedef struct {
+	Tok type;
+	std::string value;
+} token;
+
+token gettok();
 
 

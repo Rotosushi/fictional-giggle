@@ -154,6 +154,7 @@
     <ClCompile Include="pink.cpp" />
     <ClCompile Include="pink_lexer.cpp" />
     <ClCompile Include="pink_parser.cpp" />
+    <ClCompile Include="pink_ast.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="c_grammar.txt" />
@@ -161,6 +162,7 @@
     <Text Include="pink_examples.txt" />
     <Text Include="pink_grammar.txt" />
     <Text Include="pink_grammar_v3.txt" />
+    <Text Include="pink_grammar_v4.txt" />
     <Text Include="test_lexer.txt" />
     <Text Include="test_parser.txt" />
   </ItemGroup>

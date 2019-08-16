@@ -24,6 +24,9 @@
     <ClCompile Include="pink_parser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="pink_ast.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="pink_examples.txt">
@@ -45,6 +48,9 @@
       <Filter>Resource Files</Filter>
     </Text>
     <Text Include="pink_design.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="pink_grammar_v4.txt">
       <Filter>Resource Files</Filter>
     </Text>
   </ItemGroup>

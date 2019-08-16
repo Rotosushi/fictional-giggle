@@ -1,5 +1,3 @@
-
-
 - a small yet expressive language, built for readability, ergonomics
 - and easy parsing.
 
@@ -13,7 +11,6 @@
 	concise(read: just enough characters to communicate, but not so many
 	 that it becomes a chore to write and mentally parse. see: c++ templates),
 	 and highly expressive language; 
-
 
 
 -- logical consistency : a function declaration should always look
@@ -149,7 +146,13 @@
 ///
 
 
+// note: the implementation details of the language are so far
+//		heavily influenced by the book 
+			Language Implementation Patterns:
+				Create your own Domain Specific,
+				and General Programming Languages.
 
+		source: https://pragprog.com/book/tpdsl/language-implementation-patterns
 
 // v1 goals : the static language
 - functions
