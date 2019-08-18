@@ -84,6 +84,7 @@ enum Tok {
 	T_DO,
 	T_FOR,
 	T_CONTEXT,
+	T_COMPILER_DIRECTIVE,
 };
 
 typedef struct {

@@ -402,7 +402,7 @@ void test_lexer() {
 */
 
 void test_parser() {
-	match_top_level();
+	build_module();
 }
 
 int main()

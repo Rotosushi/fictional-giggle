@@ -16,7 +16,7 @@
  
 <context-block> := '{' (<declaration> | <compiler-directive>)* '}'
 
-<composite-type-block> := '{' (<declaration>)+ '}'
+<composite-type-block> := '{' (<declaration>)* '}'
 
 <enumeration-block> := '{' <enumeration-list> '}'
 

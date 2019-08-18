@@ -230,6 +230,19 @@ Token gettok() {
 		else tok.type = T_ERR; // This is an unrecognized token
 		return tok;
 	}
+	
+	if (c == '#') { // it's a compiler directive
+		tok.value += c;
+		c = getchar();
+
+		while (isidentifier(c)) {
+			tok.value += c;
+			c = getchar();
+		}
+		tok.type = T_COMPILER_DIRECTIVE;
+		return tok;
+	}
+
 	tok.type = T_ERR;
 	return tok; // if it's not an identifier, keyword,
 				  // numeric literal, string literal, or

@@ -1,9 +1,9 @@
 #pragma once
 
-struct Ast;
+struct _ast;
 
-struct declaration;
+struct _declaration;
 
-struct val_int;
-struct val_float;
-struct val_string;
+struct _int;
+struct _float;
+struct _string;

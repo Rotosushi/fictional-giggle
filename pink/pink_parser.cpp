@@ -6,7 +6,6 @@
 
 #include "pink_parser.h"
 #include "pink_lexer.h"
-#include "pink_ast.h"
 
 using std::string;
 using std::list;
@@ -15,6 +14,190 @@ using std::stack;
 using std::cout;
 using std::endl;
 
+enum ast_type {
+	AST_DECLARATION,
+	AST_FUNCTION,
+	AST_SCOPE,
+	AST_MODULE,
+	AST_BINOP,
+	AST_UNARYOP,
+	AST_IF,
+	AST_WHILE,
+	AST_DOWHILE,
+	AST_FOR,
+	AST_STRUCT,
+	AST_UNION,
+	AST_ALIAS,
+	AST_ENUM,
+	AST_INT,
+	AST_FLOAT,
+	AST_STRING,
+	AST_BOOL,
+};
+
+// because forward declarations are not enough...
+typedef struct _ast {
+	ast_type type;
+	// yay polymorphism!
+	// TODO: debugging info
+	//int linenum;
+	//int charnum;
+	//string filename;
+	_ast(ast_type type) { type = type; }
+} _ast;
+
+typedef struct _declaration : public _ast {
+	string id; // while every ID is lexed as a Token, I don't want to type
+	Token lhs; //  decl.id.value everytime we need the identifier
+	_ast * rhs;
+	vector<Token> directives;
+	_declaration() : _ast(AST_DECLARATION) {}
+} _declaration;
+
+typedef struct _function : public _ast {
+	string id;
+	vector<Token> argument_list;
+	vector<Token> return_list;
+	_ast * body;
+	vector<Token> directives;
+	_function() : _ast(AST_FUNCTION) {}
+} _function;
+
+typedef struct _scope : public _ast {
+	string id;
+	vector<_ast *> cntxt;
+	vector<string> symbls;
+	vector<_declaration *> decls;
+	vector<_ast *> stmts;
+	_scope() : _ast(AST_SCOPE) {}
+} _scope;
+
+typedef struct _module : public _ast {
+	string id;
+	vector<_ast*> types;
+	vector<string> imports;
+	vector<string> exports;
+	vector<_ast*> cntxt;
+	vector<_declaration *> decls;
+	vector<_ast*> stmts;
+	_module() : _ast(AST_MODULE) {}
+} _module;
+
+typedef struct _binop : public _ast {
+	Token op;
+	_ast * lhs;
+	_ast * rhs;
+	_binop() : _ast(AST_BINOP) {}
+} _binop;
+
+typedef struct _unaryop : public _ast {
+	Token op;
+	_ast * rhs;
+    _unaryop() : _ast(AST_UNARYOP) {}
+} _unaryop;
+
+typedef struct _if : public _ast {
+	_ast * cond;
+	_ast * true_block;
+	_ast * els;
+	_if() : _ast(AST_IF) {}
+} _if;
+
+typedef struct _while : public _ast {
+	_ast * cond;
+	_ast * body;
+	_ast * els;
+	_while() : _ast(AST_WHILE) {}
+} _while;
+
+typedef struct _dowhile : public _ast {
+	_ast * cond;
+	_ast * body;
+	_ast * els;
+	_dowhile() : _ast(AST_DOWHILE) {}
+} _dowhile;
+
+typedef struct _for : public _ast {
+	_ast * init;
+	_ast * cond;
+	_ast * body;
+	_ast * post;
+	_ast * els;
+	_for() : _ast(AST_FOR) {}
+} _for;
+
+typedef struct _struct : public _ast {
+	string id;
+	vector<_ast *> body;
+	_struct() : _ast(AST_STRUCT) {}
+} _struct;
+
+typedef struct _union : public _ast {
+	string id;
+	vector<_ast *> body;
+	_union() : _ast(AST_UNION) {}
+} _union;
+
+typedef struct _enum : public _ast {
+	string id;
+	vector<_ast *> body;
+	_enum() : _ast(AST_ENUM) {}
+} _enum;
+
+typedef struct _alias : public _ast {
+	Tok alias;
+	Tok type;
+	_alias() : _ast(AST_ALIAS) {}
+} _alias;
+
+typedef struct _int : public _ast {
+	int value;
+	_int() : _ast(AST_INT) {}
+} _int;
+
+typedef struct _float : public _ast {
+	float value;
+	_float() : _ast(AST_FLOAT) {}
+} _float;
+
+typedef struct _string : public _ast {
+	string value;
+	_string() : _ast(AST_STRING) {}
+} _string;
+
+typedef struct _bool : public _ast {
+	bool value;
+	_bool() : _ast(AST_BOOL) {}
+} _bool;
+
+/* language support */
+stack<_scope> scopes; // we push new scopes on the stack to declare modules, functions
+					  //	conditionals and loops.
+
+bool speculate_alias();
+bool speculate_struct();
+bool speculate_union();
+bool speculate_function();
+bool speculate_declaration();
+
+bool speculate_type_primitive();
+bool speculate_lambda();
+bool speculate_literal();
+bool speculate_composite_type_block();
+
+bool speculate_argument_list();
+bool speculate_return_list();
+bool speculate_lambda_block();
+bool speculate_arg();
+bool speculate_statement();
+
+void build_alias(_alias& alias);
+void build_struct(_struct& strct);
+void build_union(_union& unn);
+void build_function(_function& fun);
+void build_declaration(_declaration& decl);
+
+/* backtracking support */
 stack<int>	  marks;  // tokbuf indexes for nested backtracking
 vector<Token> tokbuf; // buffer of tokens
 int			  tokidx; // index of current token
@@ -57,17 +240,20 @@ void seek(int i) {
 
 // parsing primitives:
 // compares passed token to the lookahead token
-bool match(Tok tok) {
+
+bool speculate(Tok tok) {
 	if (tok == tokbuf[tokidx].type) {
 		consume();
 		return true;
-	}
-	else return false;
+	} else return false;
 }
 
 Token get_last_match() {
 	return tokbuf[((uint64_t)tokidx - 1)];
 }
+
+/* memoization support */
+
 
 // consumes a token in the buffer, replacing with a new token.
 // if not backtracking; resets the token buffer
@@ -111,7 +297,7 @@ bool speculating() {
 	return (marks.size() > 0);
 }
 
-bool match_top_level() {
+bool build_module() {
 	// this function implements this segment of the grammar:
 	//		"a program is composed of zero or more top level declarations
 	//			followed by the 'EOF' token."
@@ -133,15 +319,40 @@ bool match_top_level() {
 	//		"a declaration is a variable declaration, specified by type"
 	//		<declaration>         := <identifier> <assignment-operator> <type-specifier> ';'
 	
-	sync(1); // prime our input
+	// a module in pink is a file. a file is simply the context, and its collection
+	// of declarations. so lets create a module level scope
+	// TODO: top.id = <name-of-file-being-parsed>
+	_module top;
 
-	while (tokbuf[tokidx].type  != T_EOF) {
-		if (speculate_context_declaration())
-			match_context_declaration();
-		else if (speculate_type_definition())
-			match_type_definition();
-		else if (speculate_declaration())
-			match_declaration();
+	sync(1); // prime our input
+	
+	// these are all top level declarations
+	while (tokbuf[tokidx].type != T_EOF) {
+		if (speculate_alias()) {
+			auto a = new _alias;
+			build_alias(*a);
+			top.types.front() = a;
+		}
+		else if (speculate_struct()) {
+			auto s = new _struct;
+			build_struct(*s);
+			top.types.front() = s;
+		}
+		else if (speculate_union()) {
+			auto u = new _union;
+			build_union(*u);
+			top.types.front() = u;
+		}
+		else if (speculate_function()) {
+			auto f = new _function;
+			build_function(*f);
+			top.types.front() = f;
+		}
+		else if (speculate_declaration()) {
+			auto d = new _declaration;
+			build_declaration(*d);
+			top.decls.front() = d;
+		}
 		else {
 			cout << "Error while parsing, unknown <top-level-declaration>: \n";
 			print_token_buffer();
@@ -150,15 +361,53 @@ bool match_top_level() {
 	}
 	return true;
 }
-// TODO:
-bool speculate_context_declaration()
+
+
+bool speculate_alias()
 {
 	return false;
 }
-// TODO:
-bool speculate_type_definition()
+
+bool speculate_struct() {
+	/// <struct> := 'struct' (<identifier>)? '::' <composite-type-block>
+	bool success = true;
+	mark();
+	if (speculate(T_STRUCT)) {
+		if (speculate(T_ID)) {
+
+		}
+
+		if (speculate_composite_type_block()) {
+
+		}
+		else success = false;
+	} else success = false;
+	release();
+	return success;
+}
+
+bool speculate_union()
 {
 	return false;
+}
+
+bool speculate_function()
+{
+	/* 'fn' <identifier> '::' <lambda-definition> */
+	bool success = true;
+	mark();
+	if (speculate(T_FUNCTION)) {
+		if (speculate(T_ID)) {
+			if (speculate_lambda()) {
+
+			}
+			else success = false();
+		}
+		else success = false;
+	}
+	else success = false;
+	release();
+	return success;
 }
 
 bool speculate_declaration()
@@ -169,298 +418,252 @@ bool speculate_declaration()
 	// we can rewind later
 	bool success = true;
 	mark();
-
-	// all variable declarations are led by an <identifier>
-	if (match(T_ID)) {
-		// TODO: store the ID parsed
-		// followed by an <assignment-operator>
-		if (match_assignment_operator()) {
-			// followed by a <type-specifier>
-			if (match_type_specifier()) {
-				if (match(T_SEMICOLON)) {
-
-				}
-				else success = false;
-			}
-			else success = false;
-		}
-		else success = false;
-	}
-	else success = false;
-
+	if (speculate(T_ID)) {
+		if (speculate_assignment_operator()) {
+			if (speculate_type_specifier()) {
+				if (speculate(T_SEMICOLON)) {
+					
+				} else success = false;
+			} else success = false;
+		} else success = false;
+	} else success = false;
 	release(); // reset the tokidx succeed or fail, 
 			   // we are reparsing either way
 	return success;
 }
-// TODO:
-bool match_context_declaration()
-{
-	return false;
-}
-// TODO:
-bool match_type_definition()
-{
 
-	return false;
-}
-
-bool match_declaration()
+bool speculate_type_primitive()
 {
-	Token id, assign_op, rhs;
 	bool success = true;
-	// <declaration> := <identifier> <assignment-operator> <type-specifier> ';'	
-	if (match(T_ID)) {
-		id = get_last_match();
-		if (match_assignment_operator()) {
-			assign_op = get_last_match();
-			if (match_type_specifier()) {
-				rhs = get_last_match();
-				if (match(T_SEMICOLON)) {
+	mark();
+	if (speculate(T_MAYBE));
+	else if (speculate(T_NONE));
+	else if (speculate(T_U8));
+	else if (speculate(T_U16));
+	else if (speculate(T_U32));
+	else if (speculate(T_U64));
+	else if (speculate(T_S8));
+	else if (speculate(T_S16));
+	else if (speculate(T_S32));
+	else if (speculate(T_S64));
+	else if (speculate(T_F32));
+	else if (speculate(T_F64));
+	else if (speculate(T_INT));
+	else if (speculate(T_FLOAT));
+	else if (speculate(T_STRING));
+	else if (speculate(T_BOOL));
+	else if (speculate(T_LBRACE)); //TODO:
+	else if (speculate(T_MULT));   //TODO:
+	else success = false;
+	release();
+	return success;
+}
+
+bool speculate_lambda()
+{
+	/*<lambda-definition> := <argument-list> (<return-list>)? <lambda-block>*/
+	bool success = true;
+	mark();
+	if (speculate_argument_list()) {
+		if (speculate_return_list()) {
+
+		}
+		if (speculate_lambda_block()) {
+
+		}
+		else success = false;
+	}
+	else success = false;
+	release();
+	return success;
+}
+
+bool speculate_literal()
+{
+	/*
+	<numeric-literal>  := <numeric-literal-decimal>
+					| <numeric-literal-hexidecimal>
+					| <numeric-literal-octal>
+					| <numeric-literal-binary>
+
+	<numeric-literal-decimal>	  := [0-9']*(.)?[0-9']+
+	<numeric-literal-hexidecimal> := ('h' | 'H')[0-9a-fA-F']+
+	<numeric-literal-octal>		  := ('o' | 'O')[0-7']+
+	<numeric-literal-binary>	  := ('b' | 'B')[0-1']+
+	*/
+	bool success = true;
+	mark();
+	if (speculate(T_INT_LITERAL));
+	else if (speculate(T_FLOAT_LITERAL));
+	else if (speculate(T_STRING_LITERAL));
+	else if (speculate(T_TRUE));
+	else if (speculate(T_FALSE));
+	release();
+	return success;
+}
+
+bool speculate_composite_type_block() {
+	/* <composite-type-block> := '{' (<declaration>)* '}' */
+	bool success = true;
+	mark();
+	if (speculate(T_LBRACKET)) { // '{'
+		while (speculate_declaration()); // (<declaration>)*
+
+		if (speculate(T_RBRACKET)) { // '}'
+
+		}
+		else success = false;
+	}
+	else success = false;
+	release();
+	return success;
+}
+
+bool speculate_argument_list()
+{
+	/*<argument-list> := '(' <arg> (',' <arg>)* ')'*/
+	bool success = true;
+	mark();
+	if (speculate(T_LPAREN)) {
+		if (speculate_arg()) {
+
+		}
+		while (speculate(T_COMMA)) {
+			if (speculate_arg()) {
+
+			}
+			else {
+				success = false;
+				break;
+			}
+		}
+		if (speculate(T_RPAREN)) {
+
+		}
+		else success = false;
+	}
+	else success = false;
+	release();
+	return success;
+}
+
+bool speculate_arg()
+{
+	/*<arg> := <identifier> (':' <type-specifier>)?*/
+	bool success = true;
+	mark();
+	if (speculate(T_ID)) {
+		if (speculate(T_COLON)) {
+			if (speculate_type_specifier()) {
+
+			}
+			else success = false;
+		}
+	}
+	else success = false;
+	release();
+	return success;
+}
+
+bool speculate_return_list()
+{
+	/*<return-list> := '->' <argument-list> */
+	bool success = true;
+	mark();
+	if (speculate(T_ARROW)) {
+		if (speculate(T_LPAREN)) {
+			if (speculate_arg()) {
+
+			}
+			while (speculate(T_COMMA)) {
+				if (speculate_arg()) {
 
 				}
-				else success = false;
+				else {
+					success = false;
+					break;
+				}
+			}
+			if (speculate(T_RPAREN)) {
+
 			}
 			else success = false;
 		}
 		else success = false;
 	}
-	else success = false;
-
-	// build the AST declaration now.
-	declaration dec(id, assign_op, rhs);
-
+	release();
 	return success;
 }
 
-bool match_alias()
+bool speculate_lambda_block()
 {
-	return false;
+	/*<lambda-block> := '{' (<declaration> | <statement>)* '}'*/
+	bool success = true;
+	mark();
+	if (speculate(T_LBRACKET)) {
+		while (speculate_declaration() || speculate_statement());
+
+		if (speculate(T_RBRACKET)) {
+
+		}
+		else success = false;
+	}
+	else success = false;
+	release();
+	return success;
 }
 
-bool match_struct()
+void build_alias(_alias& alias)
 {
-	return false;
 }
 
-bool match_union()
+void build_struct(_struct& strct)
 {
-	return false;
 }
 
-bool match_enum()
+void build_union(_union& unn)
 {
-	return false;
 }
 
-bool match_function()
+void build_function(_function& fun)
 {
-	return false;
 }
 
-bool match_assignment_operator() {
+void build_declaration(_declaration& decl)
+{
+	// this function implements this portion of the grammar:
+	// <declaration> := <identifier> <assignment-operator> <type-specifier> ';'
+	
+}
+
+bool speculate_assignment_operator() {
 	// this function implements this part of the grammar:
-	// <assignment-operator> := ':' (<compiler-directive>)* (':' | '=')?
-	//						  | '=' (<compiler-directive>)*
-	if (match(T_COLON)) {
-		if (match_compiler_directive()) {
-			// TODO: consume directive
-			if (!speculating()) {
-				
-			}
-			// try to find more directives
-			while (match_compiler_directive()) { // consume these tokens
-				if (!speculating()) {
-					// preform AST building actions
-				}
-			}
-
-			// this could still be a constant or dynamic binding
-			if (match(T_EQUALS)) { // ':='
-
-			}
-			else if (match(T_COLON)) { // '::'
-
-			}
-			else { // is this needed?
-
-			}
-		}
-		else { // just ':'
-			if (!speculating()) {
-				// preform AST building actions
-			}
-		}
-		return true;
-	}
-	else if (match(T_EQUALS)) {
-		while (match_compiler_directive()) { // consume these tokens
-			if (!speculating()) {
-				// preform AST building actions
-			}
-		}
-		if (!speculating()) {
-			// preform AST building actions
-		}
-		return true;
-	}
-	else if (match(T_DYNAMIC_ASSIGN)) {
-
-		return true;
-	}
-	else if (match(T_CONST_ASSIGN)) {
-
-		return true;
-	}
-	// TODO: +=, -=, ..., >>=
-	else return false;
-}
-
-bool match_type_primitive()
-{
+	// <assignment-operator> := ':' (<compiler-directive> | <type-specifier>)* (':' | '=')?
+	//						  | '=' (<compiler-directive> | <type-specifier>)*
 	bool success = true;
-	if		(match(T_MAYBE)) {
-		if (!speculating()) {
+	mark();
+	if (speculate(T_COLON)) { // ':' (<compiler-directive> | <type-specifier>)* (':' | '=')?
+		while (speculate(T_COMPILER_DIRECTIVE) || speculate_type_specifier());
+
+		if (speculate(T_COLON)) {
+
+		}
+		else if (speculate(T_EQUALS)) {
+
+		}
+		else {
 
 		}
 	}
-	else if (match(T_NONE)) {
-		if (!speculating()) {
-
-		}
-	}
-	else if (match(T_INT)) {
-		if (!speculating()) {
-
-		}
-	}
-	else if (match(T_FLOAT)) {
-		if (!speculating()) {
-
-		}
-	}
-	else if (match(T_STRING)) {
-		if (!speculating()) {
-
-		}
-	}
-	else if (match(T_BOOL)) {
-		if (!speculating()) {
-
-		}
-	}
-	else if (match(T_S8)) {
-		if (!speculating()) {
-
-		}
-	}
-	else if (match(T_S16)) {
-		if (!speculating()) {
-
-		}
-	}
-	else if (match(T_S32)) {
-		if (!speculating()) {
-
-		}
-	}
-	else if (match(T_S64)) {
-		if (!speculating()) {
-
-		}
-	}
-	else if (match(T_U8)) {
-		if (!speculating()) {
-
-		}
-	}
-	else if (match(T_U16)) {
-		if (!speculating()) {
-
-		}
-	}
-	else if (match(T_U32)) {
-		if (!speculating()) {
-
-		}
-	}
-	else if (match(T_U64)) {
-		if (!speculating()) {
-
-		}
-	}
-	else if (match(T_F32)) {
-		if (!speculating()) {
-
-		}
-	}
-	else if (match(T_F64)) {
-		if (!speculating()) {
-
-		}
-	}
-	else if (match(T_LBRACE)) {
-		while (match_constant_expression()) {
-			if (!speculating()) {
-				// do AST stuff
-			}
-		}
-		if (match(T_RBRACE)) {
-			if (!speculating()) {
-				// do AST stuff
-			}
-		}
-		else { // malformed array (missing ']')
-			success = false;
-		}
+	else if (speculate(T_EQUALS)) { // '=' (<compiler-directive> | <type-specifier>)*
+		while (speculate(T_COMPILER_DIRECTIVE) || speculate_type_specifier());
 	}
 	else success = false;
-
+	release();
 	return success;
 }
 
-bool match_literal()
-{
-/*
-<literal>   := <numeric-literal>
-			 | <string-literal>
-			 | TODO: <enum-literal>
-
-<numeric-literal>  := <numeric-literal-decimal>
-					| <numeric-literal-hexidecimal>
-					| <numeric-literal-octal>
-					| <numeric-literal-binary>
-
-<numeric-literal-decimal>	  := [0-9']*(.)?[0-9']+
-<numeric-literal-hexidecimal> := ('0h' | '0H')[0-9a-fA-F']+
-<numeric-literal-octal>		  := ('0o' | '0O')[0-7']+
-<numeric-literal-binary>	  := ('0b' | '0B')[0-1']+
-*/
-	bool success = true;
-	if (match(T_STRING_LITERAL)) {
-		if (!speculating()) {
-			// do AST stuff
-		}
-	}
-	else if (match(T_INT_LITERAL)) {
-		if (!speculating()) {
-			// do AST stuff
-		}
-	}
-	else if (match(T_FLOAT_LITERAL)) {
-		if (!speculating()) {
-			// do AST stuff
-		}
-	}
-	else if (match(T_ID)) { // its an enum literal (unsupported rn)
-		if (!speculating()) {
-
-		}
-	}
-	else success = false;
-	return success;
-}
-
-bool match_type_specifier()
+bool speculate_type_specifier()
 {
 	// this function implements this section of the grammar:
 	// <type-specifier> := <identifier>
@@ -468,77 +671,21 @@ bool match_type_specifier()
 	//					 | <lambda-definition>
 	//					 | <literal>
 	bool success = true;
-	if (match(T_ID)) { // TODO:
-		if (!speculating()) {
-			// do AST stuff
-		}
+	mark();
+	if (speculate(T_ID)) {
+
 	}
-	else if (match_type_primitive()) { // TODO:
-		if (!speculating()) {
-			// do AST stuff
-		}
+	else if (speculate_type_primitive()) {
+
 	}
-	else if (match_lambda_definition()) { // TODO:
-		if (!speculating()) {
-			// do AST stuff
-		}
+	else if (speculate_lambda()) {
+
 	}
-	else if (match_literal()) {
-		if (!speculating()) {
-			// do AST stuff
-		} 
+	else if (speculate_literal()) {
+
 	}
 	else success = false;
+	release();
 	return success;
 }
 
-bool match_identifier()
-{
-	return false;
-}
-
-bool match_lambda_definition()
-{
-	return false;
-}
-
-bool match_statement()
-{
-	return false;
-}
-
-bool match_compiler_directive()
-{
-	return false;
-}
-
-bool match_constant_expression()
-{
-	return false;
-}
-
-//
-//struct variable {
-//	variable(int type, string name) : type(type), name(name) {}
-// 
-//	int type;
-//	string name;
-//};
-//
-//struct var_int : public variable {
-//	var_int(int type, string name, int value) : variable(type, name), value(value){}
-//
-//	int value;
-//};
-//
-//struct var_float : public variable {
-//	var_float(int type, string name, float value) : variable(type, name), value(value){}
-//
-//	float value;
-//};
-//
-//struct var_string : public variable {
-//	var_string(int type, string name, string value) : variable(type, name), value(value){}
-//
-//	string value;
-//};
