@@ -11,8 +11,9 @@
 
 <declaration>         := <identifier> <assignment-operator> <type-specifier> ';'
 
-<assignment-operator> := ':' (<compiler-directive>)* (':' | '=')?
-					  | '=' (<compiler-directive>)*
+<assignment-operator> := ':' (<compiler-directive>)*
+					  |  ':=' (<compiler-directive>)*
+					  |  '::' (<compiler-directive>)*
  
 <context-block> := '{' (<declaration> | <compiler-directive>)* '}'
 
@@ -61,7 +62,7 @@
 					| 'string'
 					| 'bool'
 					| '[' (<constant-expression>)? ']' // array type
-					| '*'	  // pointer type
+					| '*'   // pointer type
 
 <identifier> := [a-zA-Z]([(- | _)a-zA-Z0-9])*
 

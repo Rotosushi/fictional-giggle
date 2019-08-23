@@ -2,6 +2,7 @@
 #include <list>
 #include <vector>
 #include <stack>
+#include <unordered_map>
 #include <iostream>
 
 #include "pink_parser.h"
@@ -11,10 +12,11 @@ using std::string;
 using std::list;
 using std::vector;
 using std::stack;
+using std::unordered_map;
 using std::cout;
 using std::endl;
 
-enum ast_type {
+enum Ast_type {
 	AST_DECLARATION,
 	AST_FUNCTION,
 	AST_SCOPE,
@@ -35,33 +37,48 @@ enum ast_type {
 	AST_BOOL,
 };
 
+enum Type {
+	ERR,
+	INFER,
+	INT,
+	FLOAT,
+	STRING,
+	BOOL,
+};
+
 // because forward declarations are not enough...
 typedef struct _ast {
-	ast_type type;
+	Ast_type ast_type;
 	// yay polymorphism!
 	// TODO: debugging info
 	//int linenum;
 	//int charnum;
 	//string filename;
-	_ast(ast_type type) { type = type; }
+	_ast(Ast_type type) { ast_type = type; }
+	virtual ~_ast() {};
 } _ast;
 
 typedef struct _declaration : public _ast {
 	string id; // while every ID is lexed as a Token, I don't want to type
 	Token lhs; //  decl.id.value everytime we need the identifier
+	Token op;
 	_ast * rhs;
+	Token type;
 	vector<Token> directives;
 	_declaration() : _ast(AST_DECLARATION) {}
 } _declaration;
 
-typedef struct _function : public _ast {
+typedef struct _arg {
 	string id;
-	vector<Token> argument_list;
-	vector<Token> return_list;
-	_ast * body;
-	vector<Token> directives;
-	_function() : _ast(AST_FUNCTION) {}
-} _function;
+	Type type;
+} _arg;
+
+typedef struct _lambda : public _ast {
+	vector<Type> argument_list;
+	vector<Type> return_list;
+	_ast* body;
+	_lambda() : _ast(AST_FUNCTION) {}
+} _lambda;
 
 typedef struct _scope : public _ast {
 	string id;
@@ -152,22 +169,26 @@ typedef struct _alias : public _ast {
 
 typedef struct _int : public _ast {
 	int value;
-	_int() : _ast(AST_INT) {}
+	_int() : _ast(AST_INT), value(0) {}
+	_int(int i) : _ast(AST_INT), value(i) {}
 } _int;
 
 typedef struct _float : public _ast {
 	float value;
-	_float() : _ast(AST_FLOAT) {}
+	_float() : _ast(AST_FLOAT), value(0.0) {}
+	_float(float f) : _ast(AST_FLOAT), value(f) {}
 } _float;
 
 typedef struct _string : public _ast {
 	string value;
 	_string() : _ast(AST_STRING) {}
+	_string(string s) : _ast(AST_STRING), value(s) {}
 } _string;
 
 typedef struct _bool : public _ast {
 	bool value;
-	_bool() : _ast(AST_BOOL) {}
+	_bool() : _ast(AST_BOOL), value(false) {}
+	_bool(bool b) : _ast(AST_BOOL), value(b) {}
 } _bool;
 
 /* language support */
@@ -189,13 +210,19 @@ bool speculate_argument_list();
 bool speculate_return_list();
 bool speculate_lambda_block();
 bool speculate_arg();
-bool speculate_statement();
+bool speculate_assignment_operator();
+bool speculate_type_specifier();
+bool speculate_statement(); //TODO:
 
 void build_alias(_alias& alias);
 void build_struct(_struct& strct);
 void build_union(_union& unn);
-void build_function(_function& fun);
+void build_function(_declaration& decl);
 void build_declaration(_declaration& decl);
+
+void build_lambda(_lambda& fun);
+void build_argument_list(vector<_arg>& args);
+void build_return_list(vector<_arg>& args);
 
 /* backtracking support */
 stack<int>	  marks;  // tokbuf indexes for nested backtracking
@@ -219,9 +246,6 @@ void print_token_buffer() {
 // tokens until the match succeeds or fails. on success the
 // parser unwinds to the start of speculation and reparses the
 // input, except this time it builds the AST of the tokens.
-// TODO: <packrat parser> "stores correctly parsed symbols
-//			so they done need to be reparsed when building
-//			the AST."
 int mark() {
 	marks.push(tokidx);
 	return tokidx;
@@ -328,33 +352,35 @@ bool build_module() {
 	
 	// these are all top level declarations
 	while (tokbuf[tokidx].type != T_EOF) {
+		/* <type-definition> */
 		if (speculate_alias()) {
 			auto a = new _alias;
 			build_alias(*a);
-			top.types.front() = a;
+			top.types.push_back(a);
 		}
 		else if (speculate_struct()) {
 			auto s = new _struct;
 			build_struct(*s);
-			top.types.front() = s;
+			top.types.push_back(s);
 		}
 		else if (speculate_union()) {
 			auto u = new _union;
 			build_union(*u);
-			top.types.front() = u;
+			top.types.push_back(u);
 		}
 		else if (speculate_function()) {
-			auto f = new _function;
+			auto f = new _declaration;
 			build_function(*f);
-			top.types.front() = f;
+			top.decls.push_back(f);
 		}
+		/* <declaration> */
 		else if (speculate_declaration()) {
 			auto d = new _declaration;
 			build_declaration(*d);
-			top.decls.front() = d;
+			top.decls.push_back(d);
 		}
 		else {
-			cout << "Error while parsing, unknown <top-level-declaration>: \n";
+			cout << "Error while parsing, unknown <top-level-declaration>: \n\t";
 			print_token_buffer();
 			return false;
 		}
@@ -401,7 +427,7 @@ bool speculate_function()
 			if (speculate_lambda()) {
 
 			}
-			else success = false();
+			else success = false;
 		}
 		else success = false;
 	}
@@ -435,7 +461,6 @@ bool speculate_declaration()
 bool speculate_type_primitive()
 {
 	bool success = true;
-	mark();
 	if (speculate(T_MAYBE));
 	else if (speculate(T_NONE));
 	else if (speculate(T_U8));
@@ -455,7 +480,6 @@ bool speculate_type_primitive()
 	else if (speculate(T_LBRACE)); //TODO:
 	else if (speculate(T_MULT));   //TODO:
 	else success = false;
-	release();
 	return success;
 }
 
@@ -492,13 +516,12 @@ bool speculate_literal()
 	<numeric-literal-binary>	  := ('b' | 'B')[0-1']+
 	*/
 	bool success = true;
-	mark();
 	if (speculate(T_INT_LITERAL));
 	else if (speculate(T_FLOAT_LITERAL));
 	else if (speculate(T_STRING_LITERAL));
 	else if (speculate(T_TRUE));
 	else if (speculate(T_FALSE));
-	release();
+	else success = false;
 	return success;
 }
 
@@ -613,53 +636,20 @@ bool speculate_lambda_block()
 	return success;
 }
 
-void build_alias(_alias& alias)
-{
-}
-
-void build_struct(_struct& strct)
-{
-}
-
-void build_union(_union& unn)
-{
-}
-
-void build_function(_function& fun)
-{
-}
-
-void build_declaration(_declaration& decl)
-{
-	// this function implements this portion of the grammar:
-	// <declaration> := <identifier> <assignment-operator> <type-specifier> ';'
-	
-}
 
 bool speculate_assignment_operator() {
 	// this function implements this part of the grammar:
-	// <assignment-operator> := ':' (<compiler-directive> | <type-specifier>)* (':' | '=')?
-	//						  | '=' (<compiler-directive> | <type-specifier>)*
+	// <assignment-operator> := ':' (<compiler-directive>)*
+	//						  | ':=' (<compiler-directive>)*
+	//						  | '::' (<compiler-directive>)*
 	bool success = true;
-	mark();
-	if (speculate(T_COLON)) { // ':' (<compiler-directive> | <type-specifier>)* (':' | '=')?
-		while (speculate(T_COMPILER_DIRECTIVE) || speculate_type_specifier());
-
-		if (speculate(T_COLON)) {
-
-		}
-		else if (speculate(T_EQUALS)) {
-
-		}
-		else {
-
-		}
-	}
-	else if (speculate(T_EQUALS)) { // '=' (<compiler-directive> | <type-specifier>)*
-		while (speculate(T_COMPILER_DIRECTIVE) || speculate_type_specifier());
+	if (speculate(T_COLON)
+		|| speculate(T_CONST_ASSIGN)
+		|| speculate(T_DYNAMIC_ASSIGN)) 
+	{ // ':' (<compiler-directive>)*
+		while (speculate(T_COMPILER_DIRECTIVE));
 	}
 	else success = false;
-	release();
 	return success;
 }
 
@@ -671,7 +661,6 @@ bool speculate_type_specifier()
 	//					 | <lambda-definition>
 	//					 | <literal>
 	bool success = true;
-	mark();
 	if (speculate(T_ID)) {
 
 	}
@@ -685,7 +674,167 @@ bool speculate_type_specifier()
 
 	}
 	else success = false;
-	release();
 	return success;
 }
+
+bool speculate_statement()
+{
+	return false;
+}
+
+void build_alias(_alias& alias)
+{
+}
+
+void build_struct(_struct& strct)
+{
+}
+
+void build_union(_union& unn)
+{
+}
+
+void build_function(_declaration& decl)
+{
+}
+
+bool is_type_primitive(Tok tok) {
+	bool success = true;
+	if (tok == T_MAYBE);
+	else if (tok == T_NONE);
+	else if (tok == T_U8);
+	else if (tok == T_U16);
+	else if (tok == T_U32);
+	else if (tok == T_U64);
+	else if (tok == T_S8);
+	else if (tok == T_S16);
+	else if (tok == T_S32);
+	else if (tok == T_S64);
+	else if (tok == T_F32);
+	else if (tok == T_F64);
+	else if (tok == T_INT);
+	else if (tok == T_FLOAT);
+	else if (tok == T_STRING);
+	else if (tok == T_BOOL);
+	// TODO: else if ( '[' (<constant-expression>)? ']' )
+	// TODO: else if ( '*' <type-specifier> )
+	else success = false;
+	return success;
+}
+
+bool is_literal(Tok tok) {
+	bool success = true;
+	if (tok == T_INT_LITERAL);
+	else if (tok == T_FLOAT_LITERAL);
+	else if (tok == T_STRING_LITERAL);
+	else if (tok == T_TRUE);
+	else if (tok == T_FALSE);
+	else success = false;
+	return success;
+}
+
+void build_declaration(_declaration& decl)
+{
+	// this function implements this portion of the grammar:
+	// <declaration> := <identifier> <assignment-operator> <type-specifier> ';'
+	// when this function gets called, we make a few assumptions about
+	// the state of our program:
+	// 1. tokbuf contains the valid syntactic form of a declaration.
+	// 2. tokidx is set to the first symbol of this syntactic form
+
+	/* <identifier> */
+	if (tokbuf[tokidx].type != T_ID) throw;
+	decl.id = tokbuf[tokidx].value;
+	decl.lhs = tokbuf[tokidx];
+	consume();
+	/* <assignment-operator> */
+	/*
+		(':' || '::' || ':=') (<compiler-directive>)*
+	*/
+	decl.op = tokbuf[tokidx];
+	consume();
+
+	while (tokbuf[tokidx].type == T_COMPILER_DIRECTIVE) {
+		decl.directives.push_back(tokbuf[tokidx]);
+		consume();
+	}
+	
+	/* <type-specifier> */
+	if (tokbuf[tokidx].type == T_ID) { // it's a user defined type
+		decl.type = tokbuf[tokidx]; // store the typename in the type
+		consume();
+	}
+	else if (is_type_primitive(tokbuf[tokidx].type)) { // it's a primitive type
+		decl.type = tokbuf[tokidx]; // store the typename here
+		switch (decl.type.type) {
+		case T_INT: {
+			decl.rhs = new _int;
+		}
+		case T_FLOAT: {
+			decl.rhs = new _float;
+
+		}
+		case T_STRING: {
+			decl.rhs = new _string;
+
+		}
+		case T_BOOL: {
+			decl.rhs = new _bool;
+		}
+		}
+		consume();
+	}
+	else if (tokbuf[tokidx].type == T_LPAREN) { // it's a lambda
+		auto l = new _lambda;	// make a new lambda object
+		build_lambda(*l);		// build it from the input
+		decl.rhs = l;			// assign the result to the rhs
+		decl.type = { T_FUNCTION, "" };
+	}
+	else if (is_literal(tokbuf[tokidx].type)) { // it's a literal
+		decl.type = tokbuf[tokidx];
+		consume();
+
+		switch (decl.type.type) {
+		case T_INT_LITERAL: {
+			decl.rhs = new _int(std::stoi(decl.type.value));
+			break;
+		}
+		case T_FLOAT_LITERAL: {
+			decl.rhs = new _float(std::stof(decl.type.value));
+			break;
+		}
+		case T_STRING_LITERAL: {
+			decl.rhs = new _string(decl.type.value);
+			break;
+		}
+		case T_TRUE: {
+			decl.rhs = new _bool(true);
+			break;
+		}
+		case T_FALSE: {
+			decl.rhs = new _bool(false);
+			break;
+		}
+		}
+	}
+	else throw; 
+	if (tokbuf[tokidx].type != T_SEMICOLON) throw;
+	consume();
+}
+
+void build_lambda(_lambda& fun)
+{
+
+}
+
+void build_argument_list(vector<_arg>& args)
+{
+
+}
+
+void build_return_list(vector<_arg>& args)
+{
+
+}
+
 
