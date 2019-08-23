@@ -153,18 +153,19 @@ Token gettok() {
 		while (c != '\'' && c != '\"') {
 			tok.value += c;
 			c = getchar();
-			// ensure we don't consume the EOF
-			if (c == EOF) { // This is probably because of no ending ' or "
-				tok.type = T_ERR;
-				return tok;
-			}
-
-			tok.value += c; // store the trailing ' or "
-			c = getchar();  // prime the next char
-
-			tok.type = T_STRING_LITERAL;
+		}
+		// ensure we don't consume the EOF
+		if (c == EOF) { // This is probably because of no ending ' or "
+			tok.type = T_ERR;
 			return tok;
 		}
+
+		tok.value += c; // store the trailing ' or "
+		c = getchar();  // prime the next char
+
+		tok.type = T_STRING_LITERAL;
+		return tok;
+		
 	}
 
 	if (isoperator(c)) { // else it's an operator or grouping symbol

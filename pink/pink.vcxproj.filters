@@ -53,12 +53,18 @@
     <Text Include="pink_grammar_v4.txt">
       <Filter>Resource Files</Filter>
     </Text>
+    <Text Include="TODO.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pink_lexer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="pink_parser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pink_ast.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

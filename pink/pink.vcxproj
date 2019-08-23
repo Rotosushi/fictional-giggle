@@ -170,8 +170,8 @@
     <Text Include="pink_grammar_v4.txt" />
     <Text Include="test_lexer.txt" />
     <Text Include="test_parser.txt" />
+    <Text Include="TODO.txt" />
   </ItemGroup>
- 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

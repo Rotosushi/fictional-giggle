@@ -1,0 +1,26 @@
+
+%% High Level TODO
+-- Priority: System Critical
+	-- Front End
+		Lexer			- done 
+		Parser			- in progress
+
+	-- Tree Manipulation
+		Tree Walkers	- queued
+
+	-- Back End
+		code output		- queued
+		interpreter		- queued
+
+-- Priority: Expected Feature
+	- Decouple program input from stdin and give user options
+	- Multiple Output Assemblies
+	- Nice Errors
+
+-- Priority: Development Help
+	- Testing Framework; Unit testing and System Testing
+	- Profiling Framework; Feature and Design Analysis
+
+%%
+
+%% Specific TODO

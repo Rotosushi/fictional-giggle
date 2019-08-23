@@ -1,4 +1,11 @@
 
 a := 12;
-b := 1;
-
+b := 1.5;
+c := "Hello, World!";
+d := true;
+e := false;
+f := user_type;
+g : int;
+h : float;
+i : string;
+j : bool;

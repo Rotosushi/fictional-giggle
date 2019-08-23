@@ -368,12 +368,12 @@ bool build_module() {
 			build_union(*u);
 			top.types.push_back(u);
 		}
+		/* <declaration> */
 		else if (speculate_function()) {
 			auto f = new _declaration;
 			build_function(*f);
 			top.decls.push_back(f);
 		}
-		/* <declaration> */
 		else if (speculate_declaration()) {
 			auto d = new _declaration;
 			build_declaration(*d);
@@ -684,18 +684,22 @@ bool speculate_statement()
 
 void build_alias(_alias& alias)
 {
+
 }
 
 void build_struct(_struct& strct)
 {
+
 }
 
 void build_union(_union& unn)
 {
+
 }
 
 void build_function(_declaration& decl)
 {
+
 }
 
 bool is_type_primitive(Tok tok) {
@@ -741,19 +745,21 @@ void build_declaration(_declaration& decl)
 	// the state of our program:
 	// 1. tokbuf contains the valid syntactic form of a declaration.
 	// 2. tokidx is set to the first symbol of this syntactic form
+	//
+	// This function can throw, but shall only do so if either
+	// of the assumptions are invalidated.
 
 	/* <identifier> */
-	if (tokbuf[tokidx].type != T_ID) throw;
+	if (tokbuf[tokidx].type != T_ID) throw; // c-style assert ;P
 	decl.id = tokbuf[tokidx].value;
 	decl.lhs = tokbuf[tokidx];
 	consume();
-	/* <assignment-operator> */
-	/*
-		(':' || '::' || ':=') (<compiler-directive>)*
-	*/
+	/* <assignment-operator> := (':' || '::' || ':=') (<compiler-directive>)* */
 	decl.op = tokbuf[tokidx];
 	consume();
 
+	// this doesn't throw because having no compiler directives
+	// is still a valid declaration.
 	while (tokbuf[tokidx].type == T_COMPILER_DIRECTIVE) {
 		decl.directives.push_back(tokbuf[tokidx]);
 		consume();
@@ -761,11 +767,11 @@ void build_declaration(_declaration& decl)
 	
 	/* <type-specifier> */
 	if (tokbuf[tokidx].type == T_ID) { // it's a user defined type
-		decl.type = tokbuf[tokidx]; // store the typename in the type
+		decl.type = tokbuf[tokidx];    
 		consume();
 	}
 	else if (is_type_primitive(tokbuf[tokidx].type)) { // it's a primitive type
-		decl.type = tokbuf[tokidx]; // store the typename here
+		decl.type = tokbuf[tokidx]; 
 		switch (decl.type.type) {
 		case T_INT: {
 			decl.rhs = new _int;
@@ -817,8 +823,8 @@ void build_declaration(_declaration& decl)
 		}
 		}
 	}
-	else throw; 
-	if (tokbuf[tokidx].type != T_SEMICOLON) throw;
+	else throw; // it wasn't a valid declaration
+	if (tokbuf[tokidx].type != T_SEMICOLON) throw; // all declarations end with a semicolon
 	consume();
 }
 
