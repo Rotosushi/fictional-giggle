@@ -750,7 +750,7 @@ void build_declaration(_declaration& decl)
 	// of the assumptions are invalidated.
 
 	/* <identifier> */
-	if (tokbuf[tokidx].type != T_ID) throw; // c-style assert ;P
+	if (tokbuf[tokidx].type != T_ID) throw; // "c-style assert"
 	decl.id = tokbuf[tokidx].value;
 	decl.lhs = tokbuf[tokidx];
 	consume();
@@ -787,6 +787,7 @@ void build_declaration(_declaration& decl)
 		case T_BOOL: {
 			decl.rhs = new _bool;
 		}
+		// TODO: add support for u8/16/32/64, s8/16/32/64, f32/64
 		}
 		consume();
 	}

@@ -24,3 +24,5 @@
 %%
 
 %% Specific TODO
+
+ TODO: add support for u8/16/32/64, s8/16/32/64, f32/64
