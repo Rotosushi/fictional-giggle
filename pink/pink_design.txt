@@ -142,6 +142,12 @@ unevenness
 	which bias the expressed ideas in a developed artifact.
 
 - "Stop telling me what you are saying and just say it!"
+
+- "If you liked the code you should have put a test around it."
+
+- "Don't bring up performance as a talking point unless you have the
+	data to back up the claim."
+
 %% ~Zen
 
 A program in pink is composed of declarations and statements
@@ -187,7 +193,7 @@ If these are the problems, then how is this language a solution?
 		2) The syntax of the language should make it easy to say what is easy to do.
 			Taking a page out of the python school of thought, the language should be designed for
 			_humans_ and not the computer. The syntax should help the programmer to understand what is happening
-			not obfuscate even the simplest of ideas (looking at you c++, *cough* polymorphism)
+			not obfuscate even the simplest of ideas (looking at you c++ templates)
 
 		3) The syntax and the semantics of the language should help the programmer build
 			the necessary abstractions for small and large programs in a way that is 
@@ -203,15 +209,13 @@ If these are the problems, then how is this language a solution?
 			This is too much of a perfomance hit to be acceptable. We can build better, We deserve better.
 		~Hardware interface~
 			What major language gives you an easy way to inject native assembly into your program?
-			c, c++, do have ways of interfacing. However asm("") is clumsy. What about nice interfaces around
-			hardware devices like SPI, or USB? this is basically non-existant in a public way. C and Linux are the
+			c, c++, do have ways of interfacing. However asm("") is clumsy for multiline statements,
+			and for things like timing delays. What about nice interfaces around
+			hardware devices like SPI, or USB? this is basically non-existant. C and Linux are the
 			best about this. otherwise its up to the hardware vendor.
 		~Interlanguage Interface~
-			Should be able to talk to C
-
-		5) The implementation of the language should make it easy to tinker with the specifics
-			when you need to, but should have well thought out defaults that cover the most
-			common use cases.
+			Should be able to talk to C, and then because everything talks with C
+			we can then interface with other languages.
 
 
 %% Thoughts on things
@@ -221,63 +225,48 @@ If these are the problems, then how is this language a solution?
 	constraints that you tell it to have, this should permeate the
 	design of the language. (instead of '~' and '!' we have '!' and '!!',
 	because this lines up with the operator consistency of '&' and '&&',
-	'|' and '||', and '^' and '^^')
+	'|' and '||', and '^' and '^^' ((also yes, this does change '!=' to
+	'!!=')))
 
 -- this logical consistency lowers the learning curve, because there
 	are less caveats to remember. This lessens cognitive burden and
 	allows programmers to think about their problem, rather then how 
-	to speak the language. This syntatic consistency will hopefully
-	make the language easy to parse, this plus the small feature
-	set, should make lisp stype macros easier to do. Lisp style
-	macros in an imperitive language is the design space that I
-	would like to explore. Eventually moving on to state machine 
-	encoding, and to self modifying code. The easy to parse nature
-	of the language will ease the further development with the language.
-	and it should make it easier to disambiguate parse trees, and to
-	make a deep learning neural network learn less rules before being
-	able to generate code.
-
-	a function declaration is disambiguated by the '->' operator
-	either (<argument-list>) -> (<return-list>) {<block>} or
-	(<argument-list>) -> {<block>}, with the omission of the
-	(<return-list>) giving clear and syntactic indication to
-	the programmer that the return values are going to be deduced 
-	from the {<block>}. 
-	
-	This may help disambiguate between 
-	constructors and function calls. 
-	
-	struct s :: {a: int; b: int;}
-
-	a := s(5, 10);
-
-	although 
-	
-	<identifier> <assignment-op> <type-name> '(' <argument-list> ')' ';'
-
-	is only semantically different based on the type of the identifier
-
-	<identifier> <assignment-op> <function-name> '(' <argument-list> ')' ';'
+	to speak the language. the small feature set should make lisp 
+	stype macros easier to do. Lisp style
+	macros in an imperitive language is a design space that I
+	would like to explore. Additional space includes state machine 
+	encoding, and to self modifying code. 
 
 -- Type Constructors
 	<type-name> '(' <argument-list> ')'
 
 	type construction seems like a necessary language feature.
 	c doesn't have this, and so requires seperate intitialization
-	functions for more complex types. This separation of the type
+	functions for more complex types. and in my opinion this makes
+	for an awkward interface. 
+
+	var : my_struct;
+	init_my_struct(var, ...);
+
+	-vs-
+
+	var := my_struct(...);
+	
+
+	This separation of the type
 	from it's intializer creates cognitive overhead. If types
-	always have a constructor then this pairs each type with it's
-	constructor function. This reduces the cognitive overhead
-	of ensuring that types are valid after declaration 
-	and initialization. 
-	Explicit type construction looks like class construction
-	but it is optional, and dynamic memory allocation should
-	not occur by default. The default constructor should allocate
-	space on the stack frame of the current function.
+	always have a constructor it reduces the cognitive overhead
+	of ensuring that types are valid after declaring them.
+	dynamic memory allocation should not occur by default. 
+	The default constructor should allocate
+	space on the stack frame of the current function. just like
+	c, the semantic rules around static variables should remain 
+	largely consistent with c. while the dynamic memory assumptions
+	will change somewhat.
 	
 
 -- initializer lists for structs
--- vs. declared constructors like jai 
+-- declared constructors like jai 
 
 -- struct a :: {b: int, c: string}
 
@@ -287,6 +276,11 @@ If these are the problems, then how is this language a solution?
 	v4 : a;
 	v4 = alloc (a, someint, somestring);
 
+	new/delete vs alloc/dealloc vs ??
+
+	var := #alloc <type-name> <argument-list>;
+	
+
 
 -- a function call is so far the only syntactic construct that looks 
 	like : <identifier> '(' <argument-list> ')' ';'
@@ -295,10 +289,39 @@ If these are the problems, then how is this language a solution?
 	and     <type-name>     '(' <argument-list> ')' ';'
 	might not be a problem.
 		aside: This also seems like part of an argument for overloading
-				functions.
+				functions as a basic feature.
 	a function is always 'stored' in a variable, but we don't always
-	want programmers to change top level functions, this is solved by
-	the const assignment operator '::', this creates a constant binding
+	want programmers to change top level functions, this is solved in
+	two ways, first the 'fn' declarator. so you can say
+
+	fn f (arg: int) -> {return arg * arg;}
+
+	and second, constant binding to a variable
+
+	var :: (arg: int) -> {return arg * arg;};
+
+	note: declarations always have an ending ';'
+			whereas the function definition, much like
+			the struct, union, and enum do not have an
+			ending ';'. 
+
+-- defining and calling functions
+
+	fn func :: (a: int, b: int) -> (int) {return a + b;}
+
+	fn apply :: (a: [] int, b: int, f: (int, int) -> (int)) {
+		for a { 
+			it = f(it, b);
+		}
+	}
+
+	fn apply :: (a: [] float, b: [] float, f: (float, float) -> (float)) {
+		for a {
+			it = f(it, b[it.index]);
+		}
+	}
+
+	
 
 -- constness is always indicated through the '::' operator.
 	constant functions:

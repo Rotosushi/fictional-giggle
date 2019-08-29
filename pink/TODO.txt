@@ -25,4 +25,13 @@
 
 %% Specific TODO
 
- TODO: add support for u8/16/32/64, s8/16/32/64, f32/64
+ TODO: 
+	add support for u8/16/32/64, s8/16/32/64, f32/64
+
+	build in support for nested block comments
+	(This is a quality of life improvement for
+		copy/paste'ing code)
+
+	enable blocks to successfully parse with '{}'
+	as well as '{' '}'
+

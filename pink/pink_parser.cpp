@@ -30,20 +30,14 @@ enum Ast_type {
 	AST_STRUCT,
 	AST_UNION,
 	AST_ALIAS,
+	AST_TYPECAST,
+	AST_SIZEOF,
+	AST_USERTYPE,
 	AST_ENUM,
 	AST_INT,
 	AST_FLOAT,
 	AST_STRING,
 	AST_BOOL,
-};
-
-enum Type {
-	ERR,
-	INFER,
-	INT,
-	FLOAT,
-	STRING,
-	BOOL,
 };
 
 // because forward declarations are not enough...
@@ -61,31 +55,19 @@ typedef struct _ast {
 typedef struct _declaration : public _ast {
 	string id; // while every ID is lexed as a Token, I don't want to type
 	Token lhs; //  decl.id.value everytime we need the identifier
-	Token op;
+	Token op = {T_ERR, ""};
 	_ast * rhs;
 	Token type;
 	vector<Token> directives;
 	_declaration() : _ast(AST_DECLARATION) {}
 } _declaration;
 
-typedef struct _arg {
-	string id;
-	Type type;
-} _arg;
-
-typedef struct _lambda : public _ast {
-	vector<Type> argument_list;
-	vector<Type> return_list;
-	_ast* body;
-	_lambda() : _ast(AST_FUNCTION) {}
-} _lambda;
-
 typedef struct _scope : public _ast {
 	string id;
-	vector<_ast *> cntxt;
+	vector<_ast*> cntxt;
 	vector<string> symbls;
-	vector<_declaration *> decls;
-	vector<_ast *> stmts;
+	vector<_declaration*> decls;
+	vector<_ast*> stmts;
 	_scope() : _ast(AST_SCOPE) {}
 } _scope;
 
@@ -95,69 +77,100 @@ typedef struct _module : public _ast {
 	vector<string> imports;
 	vector<string> exports;
 	vector<_ast*> cntxt;
-	vector<_declaration *> decls;
+	vector<_declaration*> decls;
 	vector<_ast*> stmts;
 	_module() : _ast(AST_MODULE) {}
 } _module;
 
+typedef struct _arg {
+	string id;
+	Token type;
+	_ast * value = nullptr;
+} _arg;
+
+typedef struct _lambda : public _ast {
+	vector<_arg> argument_list;
+	vector<_arg> return_list;
+	_scope body;
+	_lambda() : _ast(AST_FUNCTION) {}
+} _lambda;
+
 typedef struct _binop : public _ast {
 	Token op;
-	_ast * lhs;
-	_ast * rhs;
+	_ast * lhs = nullptr;
+	_ast * rhs = nullptr;
 	_binop() : _ast(AST_BINOP) {}
 } _binop;
 
 typedef struct _unaryop : public _ast {
 	Token op;
-	_ast * rhs;
+	_ast * rhs = nullptr;
     _unaryop() : _ast(AST_UNARYOP) {}
 } _unaryop;
 
+typedef struct _typecast : public _ast {
+	Token type;
+	_ast* rhs;
+	_typecast() : _ast(AST_TYPECAST) {}
+} _typecast;
+
+typedef struct _sizeof : public _ast {
+	Token type;
+	_ast* expr;
+	_sizeof() : _ast(AST_SIZEOF) {}
+} _sizeof;
+
 typedef struct _if : public _ast {
-	_ast * cond;
-	_ast * true_block;
-	_ast * els;
+	_ast * cond = nullptr;
+	_scope then;
+	_scope els;
 	_if() : _ast(AST_IF) {}
 } _if;
 
 typedef struct _while : public _ast {
 	_ast * cond;
-	_ast * body;
-	_ast * els;
+	_scope body;
+	_scope els;
 	_while() : _ast(AST_WHILE) {}
 } _while;
 
 typedef struct _dowhile : public _ast {
-	_ast * cond;
-	_ast * body;
-	_ast * els;
+	_ast * cond = nullptr;
+	_scope body;
+	_scope els;
 	_dowhile() : _ast(AST_DOWHILE) {}
 } _dowhile;
 
 typedef struct _for : public _ast {
-	_ast * init;
-	_ast * cond;
-	_ast * body;
-	_ast * post;
-	_ast * els;
+	_ast * init = nullptr;
+	_ast * cond = nullptr;
+	_scope body;
+	_ast * post = nullptr;
+	_scope els;
 	_for() : _ast(AST_FOR) {}
 } _for;
 
+typedef struct _usertype : public _ast {
+	string type_name;
+	_ast* value;
+	_usertype() : _ast(AST_USERTYPE) {}
+} _usertype;
+
 typedef struct _struct : public _ast {
 	string id;
-	vector<_ast *> body;
+	vector<_declaration> body;
 	_struct() : _ast(AST_STRUCT) {}
 } _struct;
 
 typedef struct _union : public _ast {
 	string id;
-	vector<_ast *> body;
+	vector<_declaration> body;
 	_union() : _ast(AST_UNION) {}
 } _union;
 
 typedef struct _enum : public _ast {
 	string id;
-	vector<_ast *> body;
+	vector<_declaration> body;
 	_enum() : _ast(AST_ENUM) {}
 } _enum;
 
@@ -203,16 +216,21 @@ bool speculate_declaration();
 
 bool speculate_type_primitive();
 bool speculate_lambda();
+bool speculate_lambda_header();
 bool speculate_literal();
 bool speculate_composite_type_block();
 
 bool speculate_argument_list();
 bool speculate_return_list();
-bool speculate_lambda_block();
 bool speculate_arg();
-bool speculate_assignment_operator();
 bool speculate_type_specifier();
+bool speculate_initializer();
+
 bool speculate_statement(); //TODO:
+bool speculate_expression();
+bool speculate_conditional();
+bool speculate_iteration();
+bool speculate_block();
 
 void build_alias(_alias& alias);
 void build_struct(_struct& strct);
@@ -220,9 +238,19 @@ void build_union(_union& unn);
 void build_function(_declaration& decl);
 void build_declaration(_declaration& decl);
 
+void build_type_specifier(_declaration& decl);
+void build_type_specifier(_alias& alias);
+void build_type_specifier(_arg& arg);
+void build_type_specifier(_typecast& cast);
+void build_type_specifier(_sizeof& expr);
+
+void build_initializer(_declaration& decl);
+
 void build_lambda(_lambda& fun);
+void build_lambda_header(_lambda& fun);
 void build_argument_list(vector<_arg>& args);
 void build_return_list(vector<_arg>& args);
+void build_block(_scope& scope);
 
 /* backtracking support */
 stack<int>	  marks;  // tokbuf indexes for nested backtracking
@@ -262,19 +290,21 @@ void seek(int i) {
 	tokidx = i;
 }
 
-// parsing primitives:
-// compares passed token to the lookahead token
 
+// parsing primitives:
+// returns the current lookahead token
+Token curtok() {
+	return tokbuf[tokidx];
+}
+
+// compares passed token to the lookahead token
 bool speculate(Tok tok) {
-	if (tok == tokbuf[tokidx].type) {
+	if (tok == curtok().type) {
 		consume();
 		return true;
 	} else return false;
 }
 
-Token get_last_match() {
-	return tokbuf[((uint64_t)tokidx - 1)];
-}
 
 /* memoization support */
 
@@ -351,7 +381,7 @@ bool build_module() {
 	sync(1); // prime our input
 	
 	// these are all top level declarations
-	while (tokbuf[tokidx].type != T_EOF) {
+	while (curtok().type != T_EOF) {
 		/* <type-definition> */
 		if (speculate_alias()) {
 			auto a = new _alias;
@@ -424,8 +454,11 @@ bool speculate_function()
 	mark();
 	if (speculate(T_FUNCTION)) {
 		if (speculate(T_ID)) {
-			if (speculate_lambda()) {
+			if (speculate(T_CONST_ASSIGN)) {
+				if (speculate_lambda()) {
 
+				}
+				else success = false;
 			}
 			else success = false;
 		}
@@ -439,19 +472,55 @@ bool speculate_function()
 bool speculate_declaration()
 {
 	// this function implements this portion of the grammar:
-	// <declaration> := <identifier> <assignment-operator> <type-specifier> ';'
+	/*
+<declaration>  := <identifier> ':' <type-specifier> ';'
+				| <identifier> ':' <type-specifier> '=' <initializer> ';'
+				| <identifier> '::' <initializer> ';'
+				| <identifier> ':=' <initializer> ';'
+
+	*/
 	// mark the current spot in the tokbuf so that
 	// we can rewind later
 	bool success = true;
 	mark();
 	if (speculate(T_ID)) {
-		if (speculate_assignment_operator()) {
+		if (speculate(T_COLON)) {
 			if (speculate_type_specifier()) {
 				if (speculate(T_SEMICOLON)) {
-					
-				} else success = false;
-			} else success = false;
-		} else success = false;
+
+				}
+				else if (speculate(T_EQUALS)) {
+					if (speculate_initializer()) {
+						if (speculate(T_SEMICOLON)) {
+
+						}
+						else success = false;
+					}
+					else success = false;
+				}
+				else success = false;
+			}
+			else success = false;
+		}
+		else if (speculate(T_CONST_ASSIGN)) {
+			if (speculate_initializer()) {
+				if (speculate(T_SEMICOLON)) {
+
+				}
+				else success = false;
+			}
+			else success = false;
+		}
+		else if (speculate(T_DYNAMIC_ASSIGN)) {
+			if (speculate_initializer()) {
+				if (speculate(T_SEMICOLON)) {
+
+				}
+				else success = false;
+			}
+			else success = false;
+		}
+		else success = false;
 	} else success = false;
 	release(); // reset the tokidx succeed or fail, 
 			   // we are reparsing either way
@@ -485,20 +554,31 @@ bool speculate_type_primitive()
 
 bool speculate_lambda()
 {
-	/*<lambda-definition> := <argument-list> (<return-list>)? <lambda-block>*/
+	/*<lambda-definition> := <lambda-header> <lambda-body>
+	  <lambda-body> := <block>*/
 	bool success = true;
-	mark();
-	if (speculate_argument_list()) {
-		if (speculate_return_list()) {
-
-		}
-		if (speculate_lambda_block()) {
+	if (speculate_lambda_header()) {
+		if (speculate_block()) {
 
 		}
 		else success = false;
 	}
 	else success = false;
-	release();
+	return success;
+}
+
+bool speculate_lambda_header()
+{
+	bool success = true;
+	if (speculate_argument_list()) {
+		if (speculate(T_ARROW)) {
+			if (speculate_return_list()) {
+
+			}
+		}
+		else success = false;
+	}
+	else success = false;
 	return success;
 }
 
@@ -546,7 +626,6 @@ bool speculate_argument_list()
 {
 	/*<argument-list> := '(' <arg> (',' <arg>)* ')'*/
 	bool success = true;
-	mark();
 	if (speculate(T_LPAREN)) {
 		if (speculate_arg()) {
 
@@ -566,7 +645,6 @@ bool speculate_argument_list()
 		else success = false;
 	}
 	else success = false;
-	release();
 	return success;
 }
 
@@ -574,7 +652,6 @@ bool speculate_arg()
 {
 	/*<arg> := <identifier> (':' <type-specifier>)?*/
 	bool success = true;
-	mark();
 	if (speculate(T_ID)) {
 		if (speculate(T_COLON)) {
 			if (speculate_type_specifier()) {
@@ -584,45 +661,181 @@ bool speculate_arg()
 		}
 	}
 	else success = false;
+	return success;
+}
+
+
+bool speculate_return_list()
+{
+	/*<return-list> := '(' <type-specifier> (',' <type-specifier>)*')' */
+	bool success = true;
+	if (speculate(T_LPAREN)) {
+		if (speculate_type_specifier()) {
+
+		}
+		while (speculate(T_COMMA)) {
+			if (speculate_type_specifier()) {
+
+			}
+			else {
+				success = false;
+				break;
+			}
+		}
+		if (speculate(T_RPAREN)) {
+
+		}
+		else success = false;
+	}
+	else success = false;
+	return success;
+}
+
+
+bool speculate_type_specifier()
+{
+	// this function implements this section of the grammar:
+	// <type-specifier> := <identifier>
+	//					 | <type-primitive>
+	//					 | <lambda-header>
+	bool success = true;
+	if (speculate(T_ID)) {
+
+	}
+	else if (speculate_type_primitive()) {
+
+	}
+	else if (speculate_lambda_header()) {
+
+	}
+	else success = false;
+	return success;
+}
+
+bool speculate_initializer()
+{
+	bool success = true;
+	if (speculate_lambda()) {
+
+	}
+	else if (speculate_literal()) {
+
+	}
+	else if (speculate(T_ID)) {
+
+	}
+	return success;
+}
+
+bool speculate_statement()
+{
+	bool success = true;
+	mark();
+	if (speculate_block()) {
+
+	}
+	else if (speculate_conditional()) {
+
+	}
+	else if (speculate_iteration()) {
+
+	}
+	else if (speculate_expression()) {
+
+	}
+	else success = false;
 	release();
 	return success;
 }
 
-bool speculate_return_list()
+bool speculate_expression()
 {
-	/*<return-list> := '->' <argument-list> */
+	return false;
+}
+
+bool speculate_conditional()
+{
+	/*
+<conditional>  := 'if' '(' <expression> ')' <statement> ('else' <statement>)?
+		// TODO:| 'switch' '(' <expression> ')' <switch-block>
+
+	*/
 	bool success = true;
 	mark();
-	if (speculate(T_ARROW)) {
+	if (speculate(T_IF)) {
 		if (speculate(T_LPAREN)) {
-			if (speculate_arg()) {
+			if (speculate_expression()) {
+				if (speculate(T_RPAREN)) {
+					if (speculate_statement()) {
+						if (speculate(T_ELSE)) {
+							if (speculate_statement()) {
 
-			}
-			while (speculate(T_COMMA)) {
-				if (speculate_arg()) {
-
+							}
+							else success = false;
+						}
+					}
+					else success = false;
 				}
-				else {
-					success = false;
-					break;
-				}
-			}
-			if (speculate(T_RPAREN)) {
-
+				else success = false;
 			}
 			else success = false;
 		}
 		else success = false;
 	}
+	else success = false;
 	release();
 	return success;
 }
 
-bool speculate_lambda_block()
+bool speculate_iteration()
 {
-	/*<lambda-block> := '{' (<declaration> | <statement>)* '}'*/
+	/*
+	<iteration> := 'while' '(' <expression> ')' <statement>
+			 | 'do' <statement> 'while' '(' <expression> ')'
+	// TODO: | 'for' <identifier> 'in' <iterable> <statement>
+
+	*/
 	bool success = true;
 	mark();
+	if (speculate(T_WHILE)) {
+		if (speculate(T_LPAREN)) {
+			if (speculate_expression()) {
+				if (speculate(T_RPAREN)) {
+					if (speculate_statement()) {
+
+					}
+					else success = false;
+				}
+				else success = false;
+			}
+			else success = false;
+		}
+		else success = false;
+	}
+	else if (speculate(T_DO)) {
+		if (speculate_statement()) {
+			if (speculate(T_WHILE)) {
+				if (speculate(T_LPAREN)) {
+					if (speculate_expression()) {
+
+					}
+					else success = false;
+				}
+				else success = false;
+			}
+			else success = false;
+		}
+		else success = false;
+	}
+	else success = false;
+
+	release();
+	return success;
+}
+
+bool speculate_block()
+{
+	bool success = true;
 	if (speculate(T_LBRACKET)) {
 		while (speculate_declaration() || speculate_statement());
 
@@ -632,54 +845,7 @@ bool speculate_lambda_block()
 		else success = false;
 	}
 	else success = false;
-	release();
 	return success;
-}
-
-
-bool speculate_assignment_operator() {
-	// this function implements this part of the grammar:
-	// <assignment-operator> := ':' (<compiler-directive>)*
-	//						  | ':=' (<compiler-directive>)*
-	//						  | '::' (<compiler-directive>)*
-	bool success = true;
-	if (speculate(T_COLON)
-		|| speculate(T_CONST_ASSIGN)
-		|| speculate(T_DYNAMIC_ASSIGN)) 
-	{ // ':' (<compiler-directive>)*
-		while (speculate(T_COMPILER_DIRECTIVE));
-	}
-	else success = false;
-	return success;
-}
-
-bool speculate_type_specifier()
-{
-	// this function implements this section of the grammar:
-	// <type-specifier> := <identifier>
-	//					 | <type-primitive>
-	//					 | <lambda-definition>
-	//					 | <literal>
-	bool success = true;
-	if (speculate(T_ID)) {
-
-	}
-	else if (speculate_type_primitive()) {
-
-	}
-	else if (speculate_lambda()) {
-
-	}
-	else if (speculate_literal()) {
-
-	}
-	else success = false;
-	return success;
-}
-
-bool speculate_statement()
-{
-	return false;
 }
 
 void build_alias(_alias& alias)
@@ -693,11 +859,6 @@ void build_struct(_struct& strct)
 }
 
 void build_union(_union& unn)
-{
-
-}
-
-void build_function(_declaration& decl)
 {
 
 }
@@ -740,108 +901,365 @@ bool is_literal(Tok tok) {
 void build_declaration(_declaration& decl)
 {
 	// this function implements this portion of the grammar:
-	// <declaration> := <identifier> <assignment-operator> <type-specifier> ';'
+	/*
+<declaration>  := <identifier> ':' <type-specifier> ';'
+				| <identifier> ':' <type-specifier> '=' <initializer> ';'
+				| <identifier> '::' <initializer> ';'
+				| <identifier> ':=' <initializer> ';'
+
+	*/
 	// when this function gets called, we make a few assumptions about
 	// the state of our program:
+	// 1. tokbuf contains the valid syntactic form of a declaration.
+	// 2. tokidx is set to the first symbol of this syntactic form
+	// 3. each build_* function shall act like a consume() function,
+	//		so as to leave the curtok() in a valid state for the caller
+	// This function can throw, but shall only do so if either
+	// of the assumptions are invalidated.
+
+	/* <identifier> */
+	if (curtok().type != T_ID) throw; // c-style assert
+	decl.id = curtok().value;
+	decl.lhs = curtok();
+	consume(); // each time the parser querys the state of curtok()
+			   // it shall consume that token.
+	
+	if (curtok().type == T_COLON) {
+		build_type_specifier(decl); // build_* actions act like consume() 
+									// for the state of the token buffer
+		if (curtok().type == T_EQUALS) {
+			build_initializer(decl);
+		}
+		if (decl.op.type == T_ERR) {
+			decl.op = { T_COLON, "" }; // declaration w/out initialization.
+		}
+	}
+	else if (curtok().type == T_CONST_ASSIGN
+		|| curtok().type == T_DYNAMIC_ASSIGN) {
+		build_initializer(decl);
+	}
+	else throw;
+
+	if (curtok().type != T_SEMICOLON) throw; // all declarations end with a semicolon
+	consume();
+}
+
+void build_type_specifier(_declaration& decl)
+{
+	// if this function is called, curtok() == ':'
+	// so we consume it to look at the <type-specifier> token
+	consume();
+	/*
+	<type-specifier>   := <identifier>
+						| <type-primitive>
+						| <lambda-header>
+	*/
+	switch (curtok().type) {
+	case T_ID:
+		decl.type = curtok();
+		consume();
+		break;
+	case T_INT:
+		decl.type = curtok();
+		decl.rhs = new _int;
+		consume();
+		break;
+	case T_FLOAT:
+		decl.type = curtok();
+		decl.rhs = new _float;
+		consume();
+		break;
+	case T_STRING:
+		decl.type = curtok();
+		decl.rhs = new _string;
+		consume();
+		break;
+	case T_BOOL:
+		decl.type = curtok();
+		decl.rhs = new _bool;
+		consume();
+		break;
+	case T_LPAREN:
+		auto l = new _lambda;	
+		build_lambda_header(*l);		
+		decl.rhs = l;			
+		decl.type = { T_FUNCTION, "" };
+		break;
+	}
+}
+
+void build_type_specifier(_alias& alias)
+{
+}
+
+void build_type_specifier(_arg& arg)
+{
+	// when this function is called the context is
+	// <arg> := <identifier> (':' <type-specifier>)?
+	// so curtok() is ':'
+	consume();
+	
+	if (curtok().type == T_LPAREN) { // it's a lambda arg
+		auto lambda = new _lambda;
+		build_argument_list(lambda->argument_list); // build_* functions act like consume()
+													// in their effect on the state of tokbuf
+
+		if (curtok().type != T_ARROW) throw;
+		consume();
+
+		if (curtok().type != T_LPAREN) throw;
+		build_return_list(lambda->return_list);
+
+		arg.type.type = T_FUNCTION;
+		arg.value = lambda;
+	}
+	else { // it's a single token (<identifier> || <type-primitive>
+		arg.type = curtok();
+		consume();
+	}
+}
+
+void build_type_specifier(_typecast& cast)
+{
+}
+
+void build_type_specifier(_sizeof& expr)
+{
+}
+
+void build_initializer(_declaration& decl)
+{
+	/*
+	This function is only ever called in this context:
+<declaration>  := <identifier> ':' <type-specifier> ';'
+			>	| <identifier> ':' <type-specifier> '=' <initializer> ';'
+			>	| <identifier> '::' <initializer> ';'
+			>	| <identifier> ':=' <initializer> ';'
+
+<initializer>  := <lambda-definition>
+				| <literal>
+				| <identifier>
+	*/
+	// there will be a preceding '=' || '::' || ':='
+	if (curtok().type == T_CONST_ASSIGN) {
+		decl.op = curtok();
+	}
+	else {
+		decl.op = { T_DYNAMIC_ASSIGN, ":=" };
+	}
+	consume(); 
+
+	switch (curtok().type) {
+	case T_ID:
+		decl.rhs = new _usertype;
+		decl.type = curtok();
+		consume();
+		break;
+	case T_INT_LITERAL:
+		decl.rhs = new _int(stoi(curtok().value));
+		decl.type = curtok();
+		consume();
+		break;
+	case T_FLOAT_LITERAL:
+		decl.rhs = new _float(stof(curtok().value));
+		decl.type = curtok();
+		consume();
+		break;
+	case T_STRING_LITERAL:
+		decl.rhs = new _string(curtok().value);
+		decl.type = curtok();
+		consume();
+		break;
+	case T_TRUE:
+		decl.rhs = new _bool(true);
+		decl.type = curtok();
+		consume();
+		break;
+	case T_FALSE:
+		decl.rhs = new _bool(false);
+		decl.type = curtok();
+		consume();
+		break;
+	case T_LPAREN:
+		auto lambda = new _lambda;
+		build_lambda(*lambda); // build_* functions act like consume() 
+							   // on the state of the tokbuf.
+		decl.rhs = lambda;
+		decl.type = { T_FUNCTION, "" };
+		break;
+	}
+}
+
+void build_function(_declaration& decl)
+{
+	/*  'fn' <identifier> '::' <lambda-definition>	*/
+	if (curtok().type != T_FUNCTION) throw;
+	consume(); // 'fn'
+
+	if (curtok().type != T_ID) throw;
+	decl.lhs = curtok(); 
+	decl.id = curtok().value;
+	consume(); // <identifier>
+
+	if (curtok().type != T_CONST_ASSIGN) throw;
+	decl.op = curtok();
+	consume(); // '::'
+
+	auto lambda = new _lambda;
+	build_lambda(*lambda);
+	decl.rhs = lambda;
+	decl.type.type = T_FUNCTION;
+}
+
+void build_lambda(_lambda& fun)
+{
+	/* When this function is called, it makes the same
+		assumptions that other build_* functions make.
 	// 1. tokbuf contains the valid syntactic form of a declaration.
 	// 2. tokidx is set to the first symbol of this syntactic form
 	//
 	// This function can throw, but shall only do so if either
 	// of the assumptions are invalidated.
-
-	/* <identifier> */
-	if (tokbuf[tokidx].type != T_ID) throw; // "c-style assert"
-	decl.id = tokbuf[tokidx].value;
-	decl.lhs = tokbuf[tokidx];
-	consume();
-	/* <assignment-operator> := (':' || '::' || ':=') (<compiler-directive>)* */
-	decl.op = tokbuf[tokidx];
-	consume();
-
-	// this doesn't throw because having no compiler directives
-	// is still a valid declaration.
-	while (tokbuf[tokidx].type == T_COMPILER_DIRECTIVE) {
-		decl.directives.push_back(tokbuf[tokidx]);
-		consume();
-	}
+		<lambda-definition> := <lambda-header> <lambda-body> 
+		<lambda-header> := <argument-list> '->' (<return-list>)?
+		<lambda-body> := <block>
+		<block> := '{' (<declaration> | <statement>)* '}'
+		*/
 	
-	/* <type-specifier> */
-	if (tokbuf[tokidx].type == T_ID) { // it's a user defined type
-		decl.type = tokbuf[tokidx];    
-		consume();
-	}
-	else if (is_type_primitive(tokbuf[tokidx].type)) { // it's a primitive type
-		decl.type = tokbuf[tokidx]; 
-		switch (decl.type.type) {
-		case T_INT: {
-			decl.rhs = new _int;
-		}
-		case T_FLOAT: {
-			decl.rhs = new _float;
+	build_lambda_header(fun);
+	build_block(fun.body);
 
-		}
-		case T_STRING: {
-			decl.rhs = new _string;
-
-		}
-		case T_BOOL: {
-			decl.rhs = new _bool;
-		}
-		// TODO: add support for u8/16/32/64, s8/16/32/64, f32/64
-		}
-		consume();
-	}
-	else if (tokbuf[tokidx].type == T_LPAREN) { // it's a lambda
-		auto l = new _lambda;	// make a new lambda object
-		build_lambda(*l);		// build it from the input
-		decl.rhs = l;			// assign the result to the rhs
-		decl.type = { T_FUNCTION, "" };
-	}
-	else if (is_literal(tokbuf[tokidx].type)) { // it's a literal
-		decl.type = tokbuf[tokidx];
-		consume();
-
-		switch (decl.type.type) {
-		case T_INT_LITERAL: {
-			decl.rhs = new _int(std::stoi(decl.type.value));
-			break;
-		}
-		case T_FLOAT_LITERAL: {
-			decl.rhs = new _float(std::stof(decl.type.value));
-			break;
-		}
-		case T_STRING_LITERAL: {
-			decl.rhs = new _string(decl.type.value);
-			break;
-		}
-		case T_TRUE: {
-			decl.rhs = new _bool(true);
-			break;
-		}
-		case T_FALSE: {
-			decl.rhs = new _bool(false);
-			break;
-		}
-		}
-	}
-	else throw; // it wasn't a valid declaration
-	if (tokbuf[tokidx].type != T_SEMICOLON) throw; // all declarations end with a semicolon
-	consume();
 }
 
-void build_lambda(_lambda& fun)
+void build_lambda_header(_lambda& fun)
 {
+	/*
+	<lambda-header> := <argument-list> '->' (<return-list>)?
+	*/
+	build_argument_list(fun.argument_list);
 
+	if (curtok().type != T_ARROW) throw;
+	consume();
+
+	if (curtok().type == T_LPAREN) {
+		build_return_list(fun.return_list);
+	}
 }
 
 void build_argument_list(vector<_arg>& args)
 {
+	/*<arg> := <identifier> (':' <type-specifier>)?*/
+	auto build_arg = [](_arg& a) {
+		if (curtok().type != T_ID) throw;
+		a.id = curtok().value;
+		consume();
+		
+		if (curtok().type == T_COLON) { // ':'
+			build_type_specifier(a);
+		}
+	};
+	/*
+	<argument-list> := '(' (<arg> (',' <arg>)*)? ')'
+	*/
+	if (curtok().type != T_LPAREN) throw;
+	consume(); 
+
+	if (curtok().type == T_ID) {
+		_arg arg;
+		build_arg(arg);
+		args.push_back(arg);
+		while (curtok().type == T_COMMA) {
+			consume(); // ','
+			build_arg(arg);
+			args.push_back(arg);
+		}
+	}
+
+	if (curtok().type != T_RPAREN) throw;
+	consume();
 
 }
 
 void build_return_list(vector<_arg>& args)
 {
+	//<return-list> :='(' (<type-specifier> (',' <type-specifier>)*)? ')'
+	if (curtok().type != T_LPAREN) throw;
+	consume(); // '('
 
+	_arg arg;
+
+	if (curtok().type == T_LPAREN) { // it's a lambda
+		auto lambda = new _lambda;
+		build_argument_list(lambda->argument_list);
+
+		if (curtok().type != T_ARROW) throw;
+		consume();
+
+		if (curtok().type != T_LPAREN) throw;
+		build_return_list(lambda->return_list);
+
+		arg.type.type = T_FUNCTION;
+		arg.value = lambda;
+		args.push_back(arg);
+	}
+	else { // the arg is a single token
+		arg.type = curtok();
+		args.push_back(arg);
+		consume();
+	}
+
+	while (curtok().type == T_COMMA)
+	{
+		consume();
+		if (curtok().type == T_LPAREN) { // it's a lambda
+			auto lambda = new _lambda;
+			build_argument_list(lambda->argument_list);
+
+			if (curtok().type != T_ARROW) throw;
+			consume();
+
+			if (curtok().type != T_LPAREN) throw;
+			build_return_list(lambda->return_list);
+
+			arg.type.type = T_FUNCTION;
+			arg.value = lambda;
+			args.push_back(arg);
+		}
+		else { // the arg is a single token
+			arg.type = curtok();
+			args.push_back(arg);
+			consume();
+		}
+	} 
+	if (curtok().type != T_RPAREN) throw;
+	consume();
+}
+
+void build_block(_scope& scope)
+{
+	/*<lambda-block> := '{' (<declaration> | <statement>)* '}'*/
+	if (curtok().type != T_LBRACKET) throw;
+	consume();
+
+	_declaration* declaration;
+	_ast* statement;
+
+	while (1) {
+		if (speculate_declaration()) {
+			declaration = new _declaration;
+			build_declaration(*declaration);
+			scope.decls.push_back(declaration);
+		}
+		else if (speculate_statement()) {
+			// TODO:
+			//statement = new _statement;
+			//build_statement(*statement);
+			//scope.stmts.push_back(statement);
+		}
+
+		if (curtok().type == T_RBRACKET) break;
+	}
+	consume();
 }
 
 

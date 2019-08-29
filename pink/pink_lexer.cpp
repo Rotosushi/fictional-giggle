@@ -53,6 +53,7 @@ int isoperator(int c) {
 	case '>': case '!': case '^': case ';':
 	case '|': case '&': case '[': case ']':
 	case '{': case '}': case '(': case ')':
+	case ',':
 		return 1;
 	default:
 		return 0;
@@ -225,8 +226,8 @@ Token gettok() {
 		else if (tok.value == "(") tok.type = T_LPAREN;
 		else if (tok.value == ")") tok.type = T_RPAREN;
 		else if (tok.value == ".") tok.type = T_PERIOD;
-		else if (tok.value == ",") tok.type = T_COMMA;
 		else if (tok.value == ";") tok.type = T_SEMICOLON;
+		else if (tok.value == ",") tok.type = T_COMMA;
 		else if (tok.value == "->") tok.type = T_ARROW;
 		else tok.type = T_ERR; // This is an unrecognized token
 		return tok;

@@ -9,13 +9,25 @@
 					  | TODO: 'enum' (<identifier>) ? '::' <enumeration-block>
 					  | 'fn' <identifier> '::' <lambda-definition>
 
-<declaration>         := <identifier> <assignment-operator> <type-specifier> ';'
 
-<assignment-operator> := ':' (<compiler-directive>)*
-					  |  ':=' (<compiler-directive>)*
-					  |  '::' (<compiler-directive>)*
- 
-<context-block> := '{' (<declaration> | <compiler-directive>)* '}'
+<declaration>  := <identifier> ':' <type-specifier> ';'
+				| <identifier> ':' <type-specifier> '=' <initializer> ';'
+				| <identifier> '::' <initializer> ';'
+				| <identifier> ':=' <initializer> ';'
+
+<initializer>  := <lambda-definition>
+				| <literal>
+				| <identifier>
+
+<type-specifier>   := <lambda-header>
+					| <type-primitive>
+					| <identifier>
+
+<lambda-definition> := <lambda-header> <lambda-body> 
+
+<lambda-header> := <argument-list> '->' (<return-list>)?
+<lambda-body> := <block>
+<block> := '{' (<declaration> | <statement>)* '}'
 
 <composite-type-block> := '{' (<declaration>)* '}'
 
@@ -25,24 +37,119 @@
 
 <enum> := <identifier> (':' <numeric-literal>)?
 
-<lambda-definition> := <argument-list> (<return-list>)? <lambda-block>
-
-<argument-list> := '(' <arg> (',' <arg>)* ')'
+<argument-list> := '(' (<arg> (',' <arg>)*)? ')'
 
 <arg> := <identifier> (':' <type-specifier>)?
 
-<return-list> := '->' <argument-list> 
+<return-list> :=  '(' <type-specifier> (',' <type-specifier>)*')'
 
 <lambda-block> := '{' (<declaration> | <statement>)* '}'
 
-<type-specifier>    := <identifier>
-					 | <type-primitive>
-					 | <lambda-definition>
-					 | <literal>
+/// statements
+<statement> := <expression>
+			 | <conditional>
+			 | <iteration>
+			 | <block>
+
+<expression> := (<expr>)?
+
+<expr> := <assignment-expr>
+		| <expr> ',' <assignment-expr>
+
+<assignment-expr> := <ternary-expr>
+				   | <unary-expr> <assignment-operator> <assignment-expr>
+
+<ternary-expr> := <logical-or-expr>
+				| <logical-or-expr> '?' <expr> ':' <ternary-expr>
+
+<logical-or-expr>  := <logical-xor-expr>
+					| <logical-or-expr '||' <logical-xor-expr>
+
+<logical-xor-expr> := <logical-and-expr>
+					| <logical-xor-expr> '^^' <logical-and-expr>
+
+<logical-and-expr> := <bitwise-or-expr>
+					| <logical-and-expr> '&&' <bitwise-or-expr>
+
+<bitwise-or-expr>  := <bitwise-xor-expr>
+					| <bitwise-or-expr> '|' <bitwise-xor-expr>
+
+<bitwise-xor-expr> := <bitwise-and-expr>
+					| <bitwise-xor-expr> '^' <bitwise-and-expr>
+
+<bitwise-and-expr> := <logical-equality-expr>
+					| <bitwise-and-expr> '&' <logical-equality-expr>
+
+<logical-equality-expr> := <logical-relation-expr>
+						 | <logical-equality-expr> '==' <logical-relation-expr>
+						 | <logical-equality-expr> '!!=' <logical-relation-expr>
+
+<logical-relation-expr> := <bitwise-shift-expr>
+						 | <logical-relation-expr> '<' <bitwise-shift-expr>
+						 | <logical-relation-expr> '>' <bitwise-shift-expr>
+						 | <logical-relation-expr> '<=' <bitwise-shift-expr>
+						 | <logical-relation-expr> '>=' <bitwise-shift-expr>
+
+<bitwise-shift-expr> := <arithmetic-additive-expr>
+					  | <bitwise-shift-expr> '<<' <arithmetic-additive-expr>
+					  | <bitwise-shift-expr> '>>' <arithmetic-additive-expr>
+
+<arithmetic-additive-expr> := <arithmetic-multiplicative-expr>
+							| <arithmetic-additive-expr> '+' <arithmetic-multiplicative-expr>
+							| <arithmetic-additive-expr> '-' <arithmetic-multiplicative-expr>
+
+<arithmetic-multiplicative-expr> := <typecast-expr>
+								  | <arithmetic-multiplicative-expr> '*' <typecast-expr>
+								  | <arithmetic-multiplicative-expr> '/' <typecast-expr>
+								  | <arithmetic-multiplicative-expr> '%' <typecast-expr>
+
+<typecast-expr> := <unary-expr>
+				 | 'typecast' <typecast-expr> '::' <type-specifier>
+
+<unary-expr> := <postfix-expr>
+			  | <unary-operator> <typecast-expr>
+			  | 'sizeof' ( <unary-expr> | <type-specifier> )
+
+<postfix-expr> := <primary-expr>
+				| <postfix-expr> '[' <expression> ']'    // array indexing
+				| <postfix-expr> '(' <argument-list> ')' // constructor or function call
+				| <postfix-expr> '.' <identifier>
+
+<primary-expr> := <identifier>
+				| <literal>
+				| '(' <expression> ')'
 
 <literal>  := <numeric-literal>
 			| <string-literal>
-			| TODO: <enum-literal>
+			| <enum-literal>
+
+<conditional>  := 'if' '(' <expression> ')' <statement> 
+				| 'if' '(' <expression> ')' <statement> 'else' <statement>
+		// TODO:| 'switch' '(' <expression> ')' <switch-block>
+
+<iteration> := 'while' '(' <expression> ')' <statement>
+			 | 'do' <statement> 'while' '(' <expression> ')'
+	// TODO: | 'for' <identifier> 'in' <iterable> <statement>
+
+// Constants in the grammar:
+<assignment-operator> :=  '='
+						| '*='
+						| '/='
+						| '%='
+						| '+='
+						| '-='
+						| '<<='
+						| '>>='
+						| '&='
+						| '^='
+						| '|='
+
+<unary-operator> := '&'
+				  | '*'
+				  | '+'
+				  | '-'
+				  | '!'
+				  | '!!'
 
 <type-primitive>   := 'maybe'
 					| 'none'
@@ -62,7 +169,7 @@
 					| 'string'
 					| 'bool'
 					| '[' (<constant-expression>)? ']' // array type
-					| '*'   // pointer type
+					| '*'	  // pointer type
 
 <identifier> := [a-zA-Z]([(- | _)a-zA-Z0-9])*
 
@@ -75,5 +182,4 @@
 <numeric-literal-hexidecimal> := ('0h' | '0H')[0-9a-fA-F']+
 <numeric-literal-octal>		  := ('0o' | '0O')[0-7']+
 <numeric-literal-binary>	  := ('0b' | '0B')[0-1']+
-// TODO: <statement>
-// TODO: <compiler-directive>
+

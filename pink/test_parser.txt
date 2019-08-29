@@ -8,3 +8,20 @@ g : int;
 h : float;
 i : string;
 j : bool;
+k :: 42;
+l :: 105.40;
+m :: "Constant: Hello, World!";
+n :: true;
+o :: false;
+p : int = 108;
+q : float = 420.69;
+r : string = "Type Annotated Dynamic Assign: Hello, World!";
+s : bool = true;
+t : bool = false;
+
+fn func :: (a: int, b: int) -> (int) { }
+fn fnuc :: (c: float, d: float) -> { }
+fn hell :: (e: string, f: string) -> { }
+fn rgrd :: (g: bool, h: bool) -> (string) { }
+
+u := (x: int, y: int) -> (int, int) { } ;
