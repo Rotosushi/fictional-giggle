@@ -418,7 +418,6 @@ bool build_module() {
 	return true;
 }
 
-
 bool speculate_alias()
 {
 	return false;
@@ -569,6 +568,7 @@ bool speculate_lambda()
 
 bool speculate_lambda_header()
 {
+	/*<lambda-header> := <argument-list> '->' (<return-list>)?*/
 	bool success = true;
 	if (speculate_argument_list()) {
 		if (speculate(T_ARROW)) {

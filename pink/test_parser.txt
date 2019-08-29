@@ -19,9 +19,10 @@ r : string = "Type Annotated Dynamic Assign: Hello, World!";
 s : bool = true;
 t : bool = false;
 
-fn func :: (a: int, b: int) -> (int) { }
-fn fnuc :: (c: float, d: float) -> { }
-fn hell :: (e: string, f: string) -> { }
-fn rgrd :: (g: bool, h: bool) -> (string) { }
+fn func :: (a: int, b: int) -> (int) {}
+fn fnuc :: (c: float, d: float) -> {}
+fn hell :: (e: string, f: string) -> {}
+fn rgrd :: (g: bool, h: bool) -> (string) {}
 
-u := (x: int, y: int) -> (int, int) { } ;
+u := (x: int, y: int) -> (int, int) { };
+fn hard :: (first: (a: int, b: int) -> (int), second: int) -> (int) { }

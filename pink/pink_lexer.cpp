@@ -174,63 +174,93 @@ Token gettok() {
 		tok.value += c;
 		c = getchar();
 
-		while (isoperator(c)) {
-			tok.value += c;
-			c = getchar();
+		if (tok.value == "[") {
+			tok.type = T_LBRACE;
+			return tok;
 		}
+		else if (tok.value == "]") { 
+			tok.type = T_RBRACE;
+			return tok;
+		}
+		else if (tok.value == "{") { 
+			tok.type = T_LBRACKET;
+			return tok;
+		}
+		else if (tok.value == "}") {
+			tok.type = T_RBRACKET;
+			return tok;
+		}
+		else if (tok.value == "(") { 
+			tok.type = T_LPAREN;
+			return tok;
+		}
+		else if (tok.value == ")") { 
+			tok.type = T_RPAREN;
+			return tok;
+		}
+		else if (tok.value == ".") { 
+			tok.type = T_PERIOD;
+			return tok;
+		}
+		else if (tok.value == ";") { 
+			tok.type = T_SEMICOLON;
+			return tok;
+		}
+		else if (tok.value == ",") { 
+			tok.type = T_COMMA;
+			return tok;
+		}
+		else {
+			while (isoperator(c)) {
+				tok.value += c;
+				c = getchar();
+			}
 
-		/* assignment operators */
-		if (tok.value == "=")  tok.type = T_EQUALS;
-		else if (tok.value == ":")  tok.type = T_COLON;
-		else if (tok.value == "::") tok.type = T_CONST_ASSIGN;
-		else if (tok.value == ":=") tok.type = T_DYNAMIC_ASSIGN;
-		/* arithmetic operators */
-		else if (tok.value == "+")  tok.type = T_ADD;
-		else if (tok.value == "-")  tok.type = T_SUB;
-		else if (tok.value == "*")  tok.type = T_MULT;
-		else if (tok.value == "/")  tok.type = T_DIV;
-		else if (tok.value == "%")  tok.type = T_MOD;
-		else if (tok.value == "+=") tok.type = T_ADD_ASSIGN;
-		else if (tok.value == "-=") tok.type = T_SUB_ASSIGN;
-		else if (tok.value == "*=") tok.type = T_MULT_ASSIGN;
-		else if (tok.value == "/=") tok.type = T_DIV_ASSIGN;
-		else if (tok.value == "%=") tok.type = T_MOD_ASSIGN;
-		/* bitwise operators */
-		else if (tok.value == "&")  tok.type = T_AND;
-		else if (tok.value == "|")  tok.type = T_OR;
-		else if (tok.value == "^")  tok.type = T_XOR;
-		else if (tok.value == "!")  tok.type = T_NOT;
-		else if (tok.value == "<")  tok.type = T_LSHIFT;
-		else if (tok.value == ">")  tok.type = T_RSHIFT;
-		else if (tok.value == "|=") tok.type = T_OR_ASSIGN;
-		else if (tok.value == "&=") tok.type = T_AND_ASSIGN;
-		else if (tok.value == "^=") tok.type = T_XOR_ASSIGN;
-		else if (tok.value == "<=") tok.type = T_LSHIFT_ASSIGN;
-		else if (tok.value == ">=") tok.type = T_RSHIFT_ASSIGN;
-		/* logic operators */
-		else if (tok.value == "&&")  tok.type = T_LOG_AND;
-		else if (tok.value == "||")  tok.type = T_LOG_OR;
-		else if (tok.value == "^^")  tok.type = T_LOG_XOR;
-		else if (tok.value == "!!")  tok.type = T_LOG_NOT;
-		else if (tok.value == "!!=") tok.type = T_NOT_EQUALS;
-		/* relational operators */
-		else if (tok.value == "<<")  tok.type = T_LOG_LESS;
-		else if (tok.value == ">>")  tok.type = T_LOG_GREATER;
-		else if (tok.value == "<<=") tok.type = T_LOG_LESS_EQUAL;
-		else if (tok.value == ">>=") tok.type = T_LOG_GREATER_EQUAL;
-		/* language symbols */
-		else if (tok.value == "[") tok.type = T_LBRACE;
-		else if (tok.value == "]") tok.type = T_RBRACE;
-		else if (tok.value == "{") tok.type = T_LBRACKET;
-		else if (tok.value == "}") tok.type = T_RBRACKET;
-		else if (tok.value == "(") tok.type = T_LPAREN;
-		else if (tok.value == ")") tok.type = T_RPAREN;
-		else if (tok.value == ".") tok.type = T_PERIOD;
-		else if (tok.value == ";") tok.type = T_SEMICOLON;
-		else if (tok.value == ",") tok.type = T_COMMA;
-		else if (tok.value == "->") tok.type = T_ARROW;
-		else tok.type = T_ERR; // This is an unrecognized token
-		return tok;
+			/* assignment operators */
+			if (tok.value == "=")  tok.type = T_EQUALS;
+			else if (tok.value == ":")  tok.type = T_COLON;
+			else if (tok.value == "::") tok.type = T_CONST_ASSIGN;
+			else if (tok.value == ":=") tok.type = T_DYNAMIC_ASSIGN;
+			/* arithmetic operators */
+			else if (tok.value == "+")  tok.type = T_ADD;
+			else if (tok.value == "-")  tok.type = T_SUB;
+			else if (tok.value == "*")  tok.type = T_MULT;
+			else if (tok.value == "/")  tok.type = T_DIV;
+			else if (tok.value == "%")  tok.type = T_MOD;
+			else if (tok.value == "+=") tok.type = T_ADD_ASSIGN;
+			else if (tok.value == "-=") tok.type = T_SUB_ASSIGN;
+			else if (tok.value == "*=") tok.type = T_MULT_ASSIGN;
+			else if (tok.value == "/=") tok.type = T_DIV_ASSIGN;
+			else if (tok.value == "%=") tok.type = T_MOD_ASSIGN;
+			/* bitwise operators */
+			else if (tok.value == "&")  tok.type = T_AND;
+			else if (tok.value == "|")  tok.type = T_OR;
+			else if (tok.value == "^")  tok.type = T_XOR;
+			else if (tok.value == "!")  tok.type = T_NOT;
+			else if (tok.value == "<")  tok.type = T_LSHIFT;
+			else if (tok.value == ">")  tok.type = T_RSHIFT;
+			else if (tok.value == "|=") tok.type = T_OR_ASSIGN;
+			else if (tok.value == "&=") tok.type = T_AND_ASSIGN;
+			else if (tok.value == "^=") tok.type = T_XOR_ASSIGN;
+			else if (tok.value == "<=") tok.type = T_LSHIFT_ASSIGN;
+			else if (tok.value == ">=") tok.type = T_RSHIFT_ASSIGN;
+			/* logic operators */
+			else if (tok.value == "&&")  tok.type = T_LOG_AND;
+			else if (tok.value == "||")  tok.type = T_LOG_OR;
+			else if (tok.value == "^^")  tok.type = T_LOG_XOR;
+			else if (tok.value == "!!")  tok.type = T_LOG_NOT;
+			else if (tok.value == "!!=") tok.type = T_LOG_NOT_EQUALS;
+			else if (tok.value == "==")  tok.type = T_LOG_EQUALS;
+			/* relational operators */
+			else if (tok.value == "<<")  tok.type = T_LOG_LESS;
+			else if (tok.value == ">>")  tok.type = T_LOG_GREATER;
+			else if (tok.value == "<<=") tok.type = T_LOG_LESS_EQUAL;
+			else if (tok.value == ">>=") tok.type = T_LOG_GREATER_EQUAL;
+			/* language symbols */
+			else if (tok.value == "->") tok.type = T_ARROW;
+			else tok.type = T_ERR; // This is an unrecognized token
+			return tok;
+		}
 	}
 	
 	if (c == '#') { // it's a compiler directive
