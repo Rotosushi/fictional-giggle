@@ -43,7 +43,7 @@ enum Ast_type {
 // because forward declarations are not enough...
 typedef struct _ast {
 	Ast_type ast_type;
-	virtual void visit();
+	//virtual void visit();
 	// yay polymorphism!
 	// TODO: debugging info
 	//int linenum;
@@ -815,9 +815,13 @@ bool speculate_initializer()
 	else if (speculate_literal()) {
 
 	}
+	else if (speculate_expr()) {
+
+	}
 	else if (speculate(T_ID)) {
 
 	}
+	else success = false;
 	return success;
 }
 
@@ -921,6 +925,10 @@ bool speculate_iteration()
 	release();
 	return success;
 }
+
+// TODO: refactor speculate_expression stack too a
+//		https://en.wikipedia.org/wiki/Operator-precedence_parser
+
 
 bool speculate_expression()
 {
@@ -1078,99 +1086,235 @@ bool speculate_logical_equality_expr()
 bool speculate_logical_relation_expr()
 {
 	bool success = true;
-	
+	if (speculate_logical_or_expr()) {
+
+	}
+	else if (speculate_logical_relation_expr()) {
+		if (speculate(T_LOG_LESS));
+		else if (speculate(T_LOG_GREATER));
+		else if (speculate(T_LOG_LESS_EQUAL));
+		else if (speculate(T_LOG_GREATER_EQUAL));
+		else success = false;
+		if (speculate_logical_or_expr());
+		else success = false;
+	}
 	return success;
 }
 
 bool speculate_logical_or_expr()
 {
 	bool success = true;
-
+	if (speculate_logical_xor_expr());
+	else if (speculate_logical_or_expr()) {
+		if (speculate(T_LOG_OR));
+		else success = false;
+		if (speculate_logical_xor_expr());
+		else success = false;
+	}
 	return success;
 }
 
 bool speculate_logical_xor_expr()
 {
 	bool success = true;
-
+	if (speculate_logical_and_expr());
+	else if (speculate_logical_xor_expr()) {
+		if (speculate(T_LOG_XOR));
+		else success = false;
+		if (speculate_logical_and_expr());
+		else success = false;
+	}
 	return success;
 }
 bool speculate_logical_and_expr()
 {
 	bool success = true;
-
+	if (speculate_logical_not_expr());
+	else if (speculate_logical_and_expr()) {
+		if (speculate(T_LOG_AND));
+		else success = false;
+		if (speculate_logical_not_expr());
+		else success = false;
+	}
 	return success;
 }
 bool speculate_logical_not_expr()
 {
 	bool success = true;
-
+	if (speculate_bitwise_or_expr());
+	else if (speculate(T_LOG_NOT)) {
+		if (speculate_logical_not_expr());
+		else success = false;
+	}
+	else success = false;
 	return success;
 }
 bool speculate_bitwise_or_expr() // bitwise expressions should evaluate on the results of arithmetic A << B + C --> A << (B + C)
 {
 	bool success = true;
-
+	if (speculate_bitwise_xor_expr());
+	else if (speculate_bitwise_or_expr()) {
+		if (speculate(T_OR)) {
+			if (speculate_bitwise_xor_expr());
+			else success = false;
+		}
+		else success = false;
+	}
+	else success = false;
 	return success;
 }
 bool speculate_bitwise_xor_expr()
 {
 	bool success = true;
-
+	if (speculate_bitwise_and_expr());
+	else if (speculate_bitwise_xor_expr()) {
+		if (speculate(T_XOR)) {
+			if (speculate_bitwise_and_expr());
+			else success = false;
+		}
+		else success = false;
+	}
+	else success = false;
 	return success; 
 }
 bool speculate_bitwise_and_expr()
 {
 	bool success = true;
-
+	if (speculate_bitwise_not_expr());
+	else if (speculate_bitwise_and_expr()) {
+		if (speculate(T_AND)) {
+			if (speculate_bitwise_not_expr());
+			else success = false;
+		}
+		else success = false;
+	}
+	else success = false;
 	return success;
 }
 bool speculate_bitwise_not_expr()
 {
 	bool success = true;
-
+	if (speculate_bitwise_shift_expr());
+	else if (speculate(T_NOT)) {
+		if (speculate_bitwise_not_expr());
+		else success = false;
+	}
+	else success = false;
 	return success;
 }
 bool speculate_bitwise_shift_expr()
 {
 	bool success = true;
-
+	if (speculate_arithmetic_additive_expr());
+	else if (speculate_bitwise_shift_expr()) {
+		if (speculate(T_LSHIFT)) {
+			if (speculate_arithmetic_additive_expr());
+			else success = false;
+		}
+		else success = false;
+	}
+	else success = false;
 	return success;
 }
 bool speculate_arithmetic_additive_expr()
 {
 	bool success = true;
-
+	if (speculate_arithmetic_multiplicative_expr());
+	else if (speculate_arithmetic_additive_expr()) {
+		if (speculate(T_ADD));
+		else if (speculate(T_SUB));
+		else success = false;
+		if (speculate_arithmetic_multiplicative_expr());
+		else success = false;
+	}
 	return success;
 }
 bool speculate_arithmetic_multiplicative_expr()
 {
 	bool success = true;
-
+	if (speculate_typecast_expr());
+	else if (speculate_arithmetic_multiplicative_expr()) {
+		if (speculate(T_MULT));
+		else if (speculate(T_DIV));
+		else if (speculate(T_MOD));
+		else success = false;
+		if (speculate_typecast_expr());
+		else success = false;
+	}
 	return success;
 }
 bool speculate_typecast_expr()
 {
 	bool success = true;
-
+	if (speculate_unary_expr());
+	else if (speculate(T_TYPECAST)) {
+		if (speculate_typecast_expr()) {
+			if (speculate(T_CONST_ASSIGN)) {
+				if (speculate_type_specifier());
+				else success = false;
+			}
+			else success = false;
+		}
+		else success = false;
+	}
+	else success = false;
 	return success;
 }
 bool speculate_unary_expr()
 {
 	bool success = true;
-
+	if (speculate_postfix_expr());
+	else if (speculate_unary_operator()) {
+		if (speculate_typecast_expr());
+		else success = false;
+	}
+	else if (speculate(T_SIZEOF)) {
+		if (speculate_unary_expr());
+		else if (speculate_type_specifier());
+		else success = false;
+	}
 	return success;
 }
 bool speculate_postfix_expr()
 {
 	bool success = true;
+	if (speculate_primary_expr());
+	else if (speculate_postfix_expr()) {
+		if (speculate(T_LBRACE)) {
+			if (speculate_expression()) {
+				if (speculate(T_RBRACE));
+				else success = false;
+			}
+			else success = false;
+		}
+		else if (speculate(T_PERIOD)) {
+			if (speculate(T_ID));
+			else success = false;
+		}
+		else if (speculate_argument_list()) {
 
+		}
+		else success = false;
+	}
+	else success = false;
 	return success;
 }
 bool speculate_primary_expr() // highest precedence (lower on the AST)
 {
 	bool success = true;
+	if (speculate(T_ID)) {
 
+	}
+	else if (speculate_literal()) {
+
+	}
+	else if (speculate(T_LPAREN)) {
+		if (speculate_expr());
+
+		if (speculate(T_RPAREN));
+		else success = false;
+	}
+	else success = false;
 	return success;
 }
 

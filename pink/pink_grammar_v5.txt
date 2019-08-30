@@ -15,6 +15,7 @@
 <initializer>  := <lambda-definition>
 				| <literal>
 				| <identifier>
+				| <expression>
 
 <type-specifier>   := <lambda-header>
 					| <type-primitive>

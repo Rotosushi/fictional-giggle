@@ -1,3 +1,6 @@
+
+expr := A + B;
+
 a := 12;
 b := 1.5;
 c := "Hello, World!";
