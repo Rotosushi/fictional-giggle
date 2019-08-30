@@ -43,6 +43,7 @@ enum Ast_type {
 // because forward declarations are not enough...
 typedef struct _ast {
 	Ast_type ast_type;
+	virtual void visit();
 	// yay polymorphism!
 	// TODO: debugging info
 	//int linenum;
@@ -60,6 +61,8 @@ typedef struct _declaration : public _ast {
 	Token type;
 	vector<Token> directives;
 	_declaration() : _ast(AST_DECLARATION) {}
+
+	virtual void visit() {}
 } _declaration;
 
 typedef struct _scope : public _ast {
@@ -80,6 +83,8 @@ typedef struct _module : public _ast {
 	vector<_declaration*> decls;
 	vector<_ast*> stmts;
 	_module() : _ast(AST_MODULE) {}
+
+	virtual void visit() {}
 } _module;
 
 typedef struct _arg {
@@ -93,6 +98,8 @@ typedef struct _lambda : public _ast {
 	vector<_arg> return_list;
 	_scope body;
 	_lambda() : _ast(AST_FUNCTION) {}
+
+	virtual void visit() {}
 } _lambda;
 
 typedef struct _binop : public _ast {
@@ -100,24 +107,32 @@ typedef struct _binop : public _ast {
 	_ast * lhs = nullptr;
 	_ast * rhs = nullptr;
 	_binop() : _ast(AST_BINOP) {}
+
+	virtual void visit() {}
 } _binop;
 
 typedef struct _unaryop : public _ast {
 	Token op;
 	_ast * rhs = nullptr;
     _unaryop() : _ast(AST_UNARYOP) {}
+
+	virtual void visit() {}
 } _unaryop;
 
 typedef struct _typecast : public _ast {
 	Token type;
 	_ast* rhs;
 	_typecast() : _ast(AST_TYPECAST) {}
+
+	virtual void visit() {}
 } _typecast;
 
 typedef struct _sizeof : public _ast {
 	Token type;
 	_ast* expr;
 	_sizeof() : _ast(AST_SIZEOF) {}
+
+	virtual void visit() {}
 } _sizeof;
 
 typedef struct _if : public _ast {
@@ -125,6 +140,8 @@ typedef struct _if : public _ast {
 	_scope then;
 	_scope els;
 	_if() : _ast(AST_IF) {}
+
+	virtual void visit() {}
 } _if;
 
 typedef struct _while : public _ast {
@@ -132,6 +149,8 @@ typedef struct _while : public _ast {
 	_scope body;
 	_scope els;
 	_while() : _ast(AST_WHILE) {}
+
+	virtual void visit() {}
 } _while;
 
 typedef struct _dowhile : public _ast {
@@ -139,6 +158,8 @@ typedef struct _dowhile : public _ast {
 	_scope body;
 	_scope els;
 	_dowhile() : _ast(AST_DOWHILE) {}
+
+	virtual void visit() {}
 } _dowhile;
 
 typedef struct _for : public _ast {
@@ -148,36 +169,48 @@ typedef struct _for : public _ast {
 	_ast * post = nullptr;
 	_scope els;
 	_for() : _ast(AST_FOR) {}
+
+	virtual void visit() {}
 } _for;
 
 typedef struct _usertype : public _ast {
 	string type_name;
 	_ast* value;
 	_usertype() : _ast(AST_USERTYPE) {}
+
+	virtual void visit() {}
 } _usertype;
 
 typedef struct _struct : public _ast {
 	string id;
 	vector<_declaration> body;
 	_struct() : _ast(AST_STRUCT) {}
+
+	virtual void visit() {}
 } _struct;
 
 typedef struct _union : public _ast {
 	string id;
 	vector<_declaration> body;
 	_union() : _ast(AST_UNION) {}
+
+	virtual void visit() {}
 } _union;
 
 typedef struct _enum : public _ast {
 	string id;
 	vector<_declaration> body;
 	_enum() : _ast(AST_ENUM) {}
+
+	virtual void visit() {}
 } _enum;
 
 typedef struct _alias : public _ast {
 	Tok alias;
 	Tok type;
 	_alias() : _ast(AST_ALIAS) {}
+
+	virtual void visit() {}
 } _alias;
 
 typedef struct _int : public _ast {
@@ -204,10 +237,6 @@ typedef struct _bool : public _ast {
 	_bool(bool b) : _ast(AST_BOOL), value(b) {}
 } _bool;
 
-/* language support */
-stack<_scope> scopes; // we push new scopes on the stack to declare modules, functions
-					  //	conditionals and loops.
-
 bool speculate_alias();
 bool speculate_struct();
 bool speculate_union();
@@ -227,10 +256,76 @@ bool speculate_type_specifier();
 bool speculate_initializer();
 
 bool speculate_statement(); //TODO:
-bool speculate_expression();
 bool speculate_conditional();
 bool speculate_iteration();
 bool speculate_block();
+bool speculate_expression();
+
+bool speculate_expr(); // lowest precedence (higher on the AST)
+bool speculate_assignment_expr(); // assignments should happen last, after modification/testing happen A = B + C > D ? E * F : G ^ H
+bool speculate_ternary_expr();																		// A = (((B + C) > D) ? (E * F) : (G ^ H))
+bool speculate_logical_equality_expr(); // we should test the logic of fully evaluated expressions A * B == C & D --> (A * B) == (C & D)
+bool speculate_logical_relation_expr();	//															A - C < B --> (A - C) < B
+bool speculate_logical_or_expr();
+bool speculate_logical_xor_expr();
+bool speculate_logical_and_expr();
+bool speculate_logical_not_expr();
+bool speculate_bitwise_or_expr(); // bitwise expressions should evaluate on the results of arithmetic A << B + C --> A << (B + C)
+bool speculate_bitwise_xor_expr();
+bool speculate_bitwise_and_expr();
+bool speculate_bitwise_not_expr();
+bool speculate_bitwise_shift_expr();
+bool speculate_arithmetic_additive_expr();
+bool speculate_arithmetic_multiplicative_expr();
+bool speculate_typecast_expr();
+bool speculate_unary_expr();
+bool speculate_postfix_expr();
+bool speculate_primary_expr(); // highest precedence (lower on the AST)
+
+/*
+	A && B || C == D 
+	-> (A && B) || (C == D)
+
+	A || B ^^ C && D
+	-> (A || (B ^^ (C && D)))
+
+	A && B || C ^^ D
+	-> (A && B) || (C ^^ D)
+
+	A + B == C - D
+	-> (A + B) == (C - D)
+
+	A + B && C & D
+	-> (A + B) && (C & D)
+
+	A + B | D
+	-> ((A + B) | D)
+
+	A - B ^ C | D
+	-> ((A - B) ^ C) | D)
+
+	!A ^ B & C()
+	-> (!A) ^ (B & (C()))
+
+	!A ^ B | C()
+	-> ((!A) ^ B) | (C())
+
+	A & B < C | D
+	-> (A & B) < (C | D)
+
+	A & B < C ^ D | E
+	-> (A & B) < ((C ^ D) | E)
+
+	A < B == C < D
+	-> (A < B) == (C < D)
+
+	A + B | C == D
+	-> ((A + B) | C) == D
+
+	A == B ? C : D 
+	(A == B) ? (C) : (D) 
+*/
+
 
 void build_alias(_alias& alias);
 void build_struct(_struct& strct);
@@ -691,7 +786,6 @@ bool speculate_return_list()
 	return success;
 }
 
-
 bool speculate_type_specifier()
 {
 	// this function implements this section of the grammar:
@@ -746,11 +840,6 @@ bool speculate_statement()
 	else success = false;
 	release();
 	return success;
-}
-
-bool speculate_expression()
-{
-	return false;
 }
 
 bool speculate_conditional()
@@ -830,6 +919,258 @@ bool speculate_iteration()
 	else success = false;
 
 	release();
+	return success;
+}
+
+bool speculate_expression()
+{
+	bool success = true;
+	mark();
+	if (speculate_expr()) {
+
+	} 
+	if (speculate(T_SEMICOLON)) {
+
+	}
+	else success = false;
+	release();
+	return success;
+}
+
+bool speculate_expr()
+{
+	bool success = true;
+	mark();
+	if (speculate_assignment_expr()) {
+
+	}
+	else if (speculate_expr()) {
+		if (speculate(T_COMMA)) {
+			if (speculate_assignment_expr()) {
+
+			}
+			else success = false;
+		}
+		else success = false;
+	}
+	else success = false;
+	release();
+	return success;
+}
+bool speculate_assignment_operator()
+{
+	bool success = true;
+	if (speculate(T_EQUALS)) {
+
+	}
+	else if (speculate(T_ADD_ASSIGN)) {
+
+	}
+	else if (speculate(T_SUB_ASSIGN)) {
+
+	}
+	else if (speculate(T_MULT_ASSIGN)) {
+
+	}
+	else if (speculate(T_DIV_ASSIGN)) {
+
+	}
+	else if (speculate(T_MOD_ASSIGN)) {
+
+	}
+	else if (speculate(T_LSHIFT_ASSIGN)) {
+
+	}
+	else if (speculate(T_RSHIFT_ASSIGN)) {
+
+	}
+	else if (speculate(T_AND_ASSIGN)) {
+
+	}
+	else if (speculate(T_OR_ASSIGN)) {
+
+	}
+	else if (speculate(T_XOR_ASSIGN)) {
+
+	}
+	else success = false;
+	return success;
+}
+
+bool speculate_unary_operator()
+{
+	bool success = true;
+	if (speculate(T_AND)) {
+
+	}
+	else if (speculate(T_MULT)) {
+
+	}
+	else if (speculate(T_ADD)) {
+
+	}
+	else if (speculate(T_SUB)) {
+
+	}
+	else success = false;
+	return success;
+}
+
+bool speculate_assignment_expr()
+{
+	bool success = true;
+	if (speculate_ternary_expr()) {
+
+	}
+	else if (speculate_unary_expr()) {
+		if (speculate_assignment_operator()) {
+
+		}
+	}
+	else success = false;
+	return success;
+}
+
+bool speculate_ternary_expr()
+{
+	bool success = true;
+	if (speculate_logical_equality_expr()) {
+		if (speculate(T_QUESTION)) {
+			if (speculate_ternary_expr()) {
+				if (speculate(T_COLON)) {
+					if (speculate_ternary_expr()) {
+
+					}
+					else success = false;
+				}
+				else success = false;
+			}
+			else success = false;
+		}
+	}
+	else return false;
+	return success;
+}
+
+bool speculate_logical_equality_expr()
+{
+	bool success = true;
+	if (speculate_logical_relation_expr()) {
+
+	}
+	else if (speculate_logical_equality_expr()) {
+		if (speculate(T_LOG_EQUALS)) {
+
+		}
+		else if (speculate(T_LOG_NOT_EQUALS)) {
+
+		}
+		else success = false;
+
+		if (speculate_logical_relation_expr()) {
+
+		}
+		else success = false;
+	}
+	return success;
+}
+
+bool speculate_logical_relation_expr()
+{
+	bool success = true;
+	
+	return success;
+}
+
+bool speculate_logical_or_expr()
+{
+	bool success = true;
+
+	return success;
+}
+
+bool speculate_logical_xor_expr()
+{
+	bool success = true;
+
+	return success;
+}
+bool speculate_logical_and_expr()
+{
+	bool success = true;
+
+	return success;
+}
+bool speculate_logical_not_expr()
+{
+	bool success = true;
+
+	return success;
+}
+bool speculate_bitwise_or_expr() // bitwise expressions should evaluate on the results of arithmetic A << B + C --> A << (B + C)
+{
+	bool success = true;
+
+	return success;
+}
+bool speculate_bitwise_xor_expr()
+{
+	bool success = true;
+
+	return success; 
+}
+bool speculate_bitwise_and_expr()
+{
+	bool success = true;
+
+	return success;
+}
+bool speculate_bitwise_not_expr()
+{
+	bool success = true;
+
+	return success;
+}
+bool speculate_bitwise_shift_expr()
+{
+	bool success = true;
+
+	return success;
+}
+bool speculate_arithmetic_additive_expr()
+{
+	bool success = true;
+
+	return success;
+}
+bool speculate_arithmetic_multiplicative_expr()
+{
+	bool success = true;
+
+	return success;
+}
+bool speculate_typecast_expr()
+{
+	bool success = true;
+
+	return success;
+}
+bool speculate_unary_expr()
+{
+	bool success = true;
+
+	return success;
+}
+bool speculate_postfix_expr()
+{
+	bool success = true;
+
+	return success;
+}
+bool speculate_primary_expr() // highest precedence (lower on the AST)
+{
+	bool success = true;
+
 	return success;
 }
 

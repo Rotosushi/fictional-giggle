@@ -53,7 +53,7 @@ int isoperator(int c) {
 	case '>': case '!': case '^': case ';':
 	case '|': case '&': case '[': case ']':
 	case '{': case '}': case '(': case ')':
-	case ',':
+	case ',': case '?':
 		return 1;
 	default:
 		return 0;
@@ -252,6 +252,7 @@ Token gettok() {
 			else if (tok.value == "!!=") tok.type = T_LOG_NOT_EQUALS;
 			else if (tok.value == "==")  tok.type = T_LOG_EQUALS;
 			/* relational operators */
+			else if (tok.value == "?")   tok.type = T_QUESTION;
 			else if (tok.value == "<<")  tok.type = T_LOG_LESS;
 			else if (tok.value == ">>")  tok.type = T_LOG_GREATER;
 			else if (tok.value == "<<=") tok.type = T_LOG_LESS_EQUAL;
