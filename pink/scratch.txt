@@ -1,0 +1,103 @@
+lookahead := peek next token
+	while lookahead is a binary operator whose precedence is >= min_precedence
+		op := lookahead
+		advance to next token
+		rhs := parse_primary ()
+		lookahead := peek next token
+		while lookahead is a binary operator whose precedence is greater
+				 than op's, or a right-associative operator
+				 whose precedence is equal to op's
+			rhs := parse_expression_1 (rhs, lookahead's precedence)
+			lookahead := peek next token
+		lhs := the result of applying op with operands lhs and rhs
+	return lhs
+
+  A = B * C + D
+
+lhs = A
+cur_prec = 0
+lad = curtok() -> lad = '='
+enter outer while
+op = lad -> op = '='
+consume();
+
+rhs = parse_primary() -> rhs = B
+lad = curtok() -> lad = '*'
+enter inner while
+rhs = parse_expression(rhs, precedence(op))
+	lhs = B
+	cur_prec = 1
+	lad = curtok() -> lad = '*'
+	enter outer while
+	op = lad -> op = '*'
+	consume();
+
+	rhs = parse_primary() -> rhs = C
+	lad = curtok() -> lad = '+'
+	don't enter inner while
+	lhs = new binop(op, lhs, rhs);
+	return lhs
+	<-
+-> rhs = (* B C)
+lad = curtok() -> lad = '+'
+lhs = new binop(op, lhs, rhs)
+-> lhs = (= A (* B C))
+remain in outer while
+op = lad -> op = '+'
+consume();
+
+rhs = parse_primary() -> rhs = D
+lad = curtok() -> lad -> EOL
+don't enter inner while
+
+
+
+
+
+
+
+	'='  '+'   '*'
+p1 b1 p2 b2 p3 b3 p4
+
+lhs = parse_primary() -> lhs = p1
+curr_prec = 0;
+
+lah = b1
+
+op = b1
+rhs = parse_primary() -> rhs = p2
+
+lah = b2
+b2.precedence > b1.precedence
+rhs = parse_expression(rhs, lah.precedence)
+	lhs = rhs -> lhs = p2
+	curr_prec = 1;
+
+	lah = b2
+	op = b2
+	rhs = parse_primary() -> rhs = p3
+	
+	lah = b3
+	b3.precedence > b2.precedence
+	rhs = parse_expression(rhs, lah.precedence)
+		lhs = rhs -> lhs = p3
+		curr_prec = 2
+		
+		lah = b3
+		op = b3
+		rhs = parse_primary() -> rhs -> p4
+		lah = EOL
+		not a token
+		lhs = op(lhs, rhs) -> lhs = (b3 p3 p4)
+		return lhs;
+	not a token
+	lhs = op(lhs, rhs) -> lhs = (b2 p2 (b3 p3 p4))
+	return lhs
+not a token
+lhs = op(lhs, rhs) -> lhs = (b1 p1 (b2 p2 (b3 p3 p4)))
+
+
+
+
+
+

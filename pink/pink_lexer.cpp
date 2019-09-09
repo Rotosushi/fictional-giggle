@@ -233,30 +233,30 @@ Token gettok() {
 			else if (tok.value == "/=") tok.type = T_DIV_ASSIGN;
 			else if (tok.value == "%=") tok.type = T_MOD_ASSIGN;
 			/* bitwise operators */
-			else if (tok.value == "&")  tok.type = T_AND;
-			else if (tok.value == "|")  tok.type = T_OR;
-			else if (tok.value == "^")  tok.type = T_XOR;
-			else if (tok.value == "!")  tok.type = T_NOT;
-			else if (tok.value == "<")  tok.type = T_LSHIFT;
-			else if (tok.value == ">")  tok.type = T_RSHIFT;
-			else if (tok.value == "|=") tok.type = T_OR_ASSIGN;
-			else if (tok.value == "&=") tok.type = T_AND_ASSIGN;
-			else if (tok.value == "^=") tok.type = T_XOR_ASSIGN;
-			else if (tok.value == "<=") tok.type = T_LSHIFT_ASSIGN;
-			else if (tok.value == ">=") tok.type = T_RSHIFT_ASSIGN;
+			else if (tok.value == "&&")  tok.type = T_BITWISE_AND;
+			else if (tok.value == "||")  tok.type = T_BITWISE_OR;
+			else if (tok.value == "^^")  tok.type = T_BITWISE_XOR;
+			else if (tok.value == "!!")  tok.type = T_BITWISE_NOT;
+			else if (tok.value == "<<")  tok.type = T_BITWISE_LSHIFT;
+			else if (tok.value == ">>")  tok.type = T_BITWISE_RSHIFT;
+			else if (tok.value == "||=") tok.type = T_OR_ASSIGN;
+			else if (tok.value == "&&=") tok.type = T_AND_ASSIGN;
+			else if (tok.value == "^^=") tok.type = T_XOR_ASSIGN;
+			else if (tok.value == "<<=") tok.type = T_LSHIFT_ASSIGN;
+			else if (tok.value == ">>=") tok.type = T_RSHIFT_ASSIGN;
 			/* logic operators */
-			else if (tok.value == "&&")  tok.type = T_LOG_AND;
-			else if (tok.value == "||")  tok.type = T_LOG_OR;
-			else if (tok.value == "^^")  tok.type = T_LOG_XOR;
-			else if (tok.value == "!!")  tok.type = T_LOG_NOT;
-			else if (tok.value == "!!=") tok.type = T_LOG_NOT_EQUALS;
+			else if (tok.value == "&")  tok.type = T_LOG_AND;
+			else if (tok.value == "|")  tok.type = T_LOG_OR;
+			else if (tok.value == "^")  tok.type = T_LOG_XOR;
+			else if (tok.value == "!")  tok.type = T_LOG_NOT;
+			else if (tok.value == "!=") tok.type = T_LOG_NOT_EQUALS;
 			else if (tok.value == "==")  tok.type = T_LOG_EQUALS;
 			/* relational operators */
 			else if (tok.value == "?")   tok.type = T_QUESTION;
-			else if (tok.value == "<<")  tok.type = T_LOG_LESS;
-			else if (tok.value == ">>")  tok.type = T_LOG_GREATER;
-			else if (tok.value == "<<=") tok.type = T_LOG_LESS_EQUAL;
-			else if (tok.value == ">>=") tok.type = T_LOG_GREATER_EQUAL;
+			else if (tok.value == "<")  tok.type = T_LOG_LESS;
+			else if (tok.value == ">")  tok.type = T_LOG_GREATER;
+			else if (tok.value == "<=") tok.type = T_LOG_LESS_EQUALS;
+			else if (tok.value == ">=") tok.type = T_LOG_GREATER_EQUALS;
 			/* language symbols */
 			else if (tok.value == "->") tok.type = T_ARROW;
 			else tok.type = T_ERR; // This is an unrecognized token
@@ -281,3 +281,5 @@ Token gettok() {
 				  // numeric literal, string literal, or
 				  // operator, it's unrecognized
 }
+
+

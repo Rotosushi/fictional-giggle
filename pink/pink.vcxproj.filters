@@ -59,6 +59,9 @@
     <Text Include="pink_grammar_v5.txt">
       <Filter>Resource Files</Filter>
     </Text>
+    <Text Include="scratch.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pink_lexer.h">

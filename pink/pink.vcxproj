@@ -169,6 +169,7 @@
     <Text Include="pink_grammar_v3.txt" />
     <Text Include="pink_grammar_v4.txt" />
     <Text Include="pink_grammar_v5.txt" />
+    <Text Include="scratch.txt" />
     <Text Include="test_lexer.txt" />
     <Text Include="test_parser.txt" />
     <Text Include="TODO.txt" />

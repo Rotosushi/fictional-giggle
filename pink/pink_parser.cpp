@@ -17,7 +17,9 @@ using std::cout;
 using std::endl;
 
 enum Ast_type {
+	AST_ERR, 
 	AST_DECLARATION,
+	AST_STATEMENT,
 	AST_FUNCTION,
 	AST_SCOPE,
 	AST_MODULE,
@@ -30,9 +32,12 @@ enum Ast_type {
 	AST_STRUCT,
 	AST_UNION,
 	AST_ALIAS,
-	AST_TYPECAST,
-	AST_SIZEOF,
 	AST_USERTYPE,
+	AST_VAR,
+	AST_ARRAY,
+	AST_FUNCTION_CALL,
+	AST_ITERATOR,
+	AST_MEMBER,
 	AST_ENUM,
 	AST_INT,
 	AST_FLOAT,
@@ -49,7 +54,9 @@ typedef struct _ast {
 	//int linenum;
 	//int charnum;
 	//string filename;
+	_ast() { ast_type = AST_ERR;  }
 	_ast(Ast_type type) { ast_type = type; }
+	
 	virtual ~_ast() {};
 } _ast;
 
@@ -60,8 +67,8 @@ typedef struct _declaration : public _ast {
 	_ast * rhs;
 	Token type;
 	vector<Token> directives;
-	_declaration() : _ast(AST_DECLARATION) {}
 
+	_declaration() : _ast(AST_DECLARATION) {}
 	virtual void visit() {}
 } _declaration;
 
@@ -71,6 +78,7 @@ typedef struct _scope : public _ast {
 	vector<string> symbls;
 	vector<_declaration*> decls;
 	vector<_ast*> stmts;
+
 	_scope() : _ast(AST_SCOPE) {}
 } _scope;
 
@@ -79,17 +87,16 @@ typedef struct _module : public _ast {
 	vector<_ast*> types;
 	vector<string> imports;
 	vector<string> exports;
-	vector<_ast*> cntxt;
-	vector<_declaration*> decls;
-	vector<_ast*> stmts;
-	_module() : _ast(AST_MODULE) {}
+	_scope body;
 
+	_module() : _ast(AST_MODULE) {}
 	virtual void visit() {}
 } _module;
 
 typedef struct _arg {
 	string id;
 	Token type;
+
 	_ast * value = nullptr;
 } _arg;
 
@@ -97,8 +104,8 @@ typedef struct _lambda : public _ast {
 	vector<_arg> argument_list;
 	vector<_arg> return_list;
 	_scope body;
-	_lambda() : _ast(AST_FUNCTION) {}
 
+	_lambda() : _ast(AST_FUNCTION) {}	
 	virtual void visit() {}
 } _lambda;
 
@@ -106,41 +113,27 @@ typedef struct _binop : public _ast {
 	Token op;
 	_ast * lhs = nullptr;
 	_ast * rhs = nullptr;
-	_binop() : _ast(AST_BINOP) {}
 
+	_binop() : _ast(AST_BINOP) {}
+	_binop(Token o, _ast* l, _ast* r)
+		: _ast(AST_BINOP), op(o), lhs(l), rhs(r) {}
 	virtual void visit() {}
 } _binop;
 
-typedef struct _unaryop : public _ast {
+typedef struct _unop : public _ast {
 	Token op;
 	_ast * rhs = nullptr;
-    _unaryop() : _ast(AST_UNARYOP) {}
 
+	_unop() : _ast(AST_UNARYOP) {}
 	virtual void visit() {}
-} _unaryop;
-
-typedef struct _typecast : public _ast {
-	Token type;
-	_ast* rhs;
-	_typecast() : _ast(AST_TYPECAST) {}
-
-	virtual void visit() {}
-} _typecast;
-
-typedef struct _sizeof : public _ast {
-	Token type;
-	_ast* expr;
-	_sizeof() : _ast(AST_SIZEOF) {}
-
-	virtual void visit() {}
-} _sizeof;
+} _unop;
 
 typedef struct _if : public _ast {
 	_ast * cond = nullptr;
 	_scope then;
 	_scope els;
-	_if() : _ast(AST_IF) {}
 
+	_if() : _ast(AST_IF) {}
 	virtual void visit() {}
 } _if;
 
@@ -148,8 +141,8 @@ typedef struct _while : public _ast {
 	_ast * cond;
 	_scope body;
 	_scope els;
-	_while() : _ast(AST_WHILE) {}
 
+	_while() : _ast(AST_WHILE) {}
 	virtual void visit() {}
 } _while;
 
@@ -157,8 +150,8 @@ typedef struct _dowhile : public _ast {
 	_ast * cond = nullptr;
 	_scope body;
 	_scope els;
-	_dowhile() : _ast(AST_DOWHILE) {}
 
+	_dowhile() : _ast(AST_DOWHILE) {}
 	virtual void visit() {}
 } _dowhile;
 
@@ -168,71 +161,116 @@ typedef struct _for : public _ast {
 	_scope body;
 	_ast * post = nullptr;
 	_scope els;
-	_for() : _ast(AST_FOR) {}
 
+	_for() : _ast(AST_FOR) {}
 	virtual void visit() {}
 } _for;
 
 typedef struct _usertype : public _ast {
 	string type_name;
 	_ast* value;
-	_usertype() : _ast(AST_USERTYPE) {}
 
+	_usertype() : _ast(AST_USERTYPE) {}
 	virtual void visit() {}
 } _usertype;
 
 typedef struct _struct : public _ast {
 	string id;
 	vector<_declaration> body;
-	_struct() : _ast(AST_STRUCT) {}
 
+	_struct() : _ast(AST_STRUCT) {}
 	virtual void visit() {}
 } _struct;
 
 typedef struct _union : public _ast {
 	string id;
 	vector<_declaration> body;
-	_union() : _ast(AST_UNION) {}
 
+	_union() : _ast(AST_UNION) {}
 	virtual void visit() {}
 } _union;
 
 typedef struct _enum : public _ast {
 	string id;
 	vector<_declaration> body;
-	_enum() : _ast(AST_ENUM) {}
 
+	_enum() : _ast(AST_ENUM) {}
 	virtual void visit() {}
 } _enum;
+
+typedef struct _array : public _ast {
+	string id;
+	Token type;
+	int length;
+
+	_array() : _ast(AST_ARRAY) {}
+} _array;
+
+typedef struct _iterator : public _ast {
+	string id;
+	_ast* value;
+
+	_iterator() : _ast(AST_ITERATOR) {}
+} _iterator;
+
+typedef struct _member : public _ast {
+	string id;
+
+	_member() : _ast(AST_MEMBER) {}
+} _member;
+
+typedef struct _statement : public _ast {
+	_ast* value;
+
+	_statement() : _ast(AST_STATEMENT) {}
+} _statement;
+
+/* TODO: in pink.v2
+typedef struct _pointer : public _ast {
+	
+} _pointer;
+*/
 
 typedef struct _alias : public _ast {
 	Tok alias;
 	Tok type;
-	_alias() : _ast(AST_ALIAS) {}
 
+	_alias() : _ast(AST_ALIAS) {}
 	virtual void visit() {}
 } _alias;
 
+typedef struct _var : public _ast {
+	string value;
+	vector<_ast*> postops;
+
+	_var() : _ast(AST_VAR) {}
+	_var(string s) : _ast(AST_VAR), value(s) {}
+} _var;
+
 typedef struct _int : public _ast {
 	int value;
+
 	_int() : _ast(AST_INT), value(0) {}
 	_int(int i) : _ast(AST_INT), value(i) {}
 } _int;
 
 typedef struct _float : public _ast {
 	float value;
+
 	_float() : _ast(AST_FLOAT), value(0.0) {}
 	_float(float f) : _ast(AST_FLOAT), value(f) {}
 } _float;
 
 typedef struct _string : public _ast {
 	string value;
+
 	_string() : _ast(AST_STRING) {}
 	_string(string s) : _ast(AST_STRING), value(s) {}
 } _string;
 
 typedef struct _bool : public _ast {
 	bool value;
+
 	_bool() : _ast(AST_BOOL), value(false) {}
 	_bool(bool b) : _ast(AST_BOOL), value(b) {}
 } _bool;
@@ -255,97 +293,295 @@ bool speculate_arg();
 bool speculate_type_specifier();
 bool speculate_initializer();
 
+bool speculate_array_access();
+
 bool speculate_statement(); //TODO:
 bool speculate_conditional();
 bool speculate_iteration();
 bool speculate_block();
+
 bool speculate_expression();
 
-bool speculate_expr(); // lowest precedence (higher on the AST)
-bool speculate_assignment_expr(); // assignments should happen last, after modification/testing happen A = B + C > D ? E * F : G ^ H
-bool speculate_ternary_expr();																		// A = (((B + C) > D) ? (E * F) : (G ^ H))
-bool speculate_logical_equality_expr(); // we should test the logic of fully evaluated expressions A * B == C & D --> (A * B) == (C & D)
-bool speculate_logical_relation_expr();	//															A - C < B --> (A - C) < B
-bool speculate_logical_or_expr();
-bool speculate_logical_xor_expr();
-bool speculate_logical_and_expr();
-bool speculate_logical_not_expr();
-bool speculate_bitwise_or_expr(); // bitwise expressions should evaluate on the results of arithmetic A << B + C --> A << (B + C)
-bool speculate_bitwise_xor_expr();
-bool speculate_bitwise_and_expr();
-bool speculate_bitwise_not_expr();
-bool speculate_bitwise_shift_expr();
-bool speculate_arithmetic_additive_expr();
-bool speculate_arithmetic_multiplicative_expr();
-bool speculate_typecast_expr();
-bool speculate_unary_expr();
-bool speculate_postfix_expr();
-bool speculate_primary_expr(); // highest precedence (lower on the AST)
-
 /*
-	A && B || C == D 
-	-> (A && B) || (C == D)
+	A && B || C == D 	
+	-> ((A && B) || C) == D)
 
-	A || B ^^ C && D
+	A || B ^^ C && D	
 	-> (A || (B ^^ (C && D)))
 
-	A && B || C ^^ D
+	A && B || C ^^ D	
 	-> (A && B) || (C ^^ D)
 
-	A + B == C - D
+	A + B == C - D	
 	-> (A + B) == (C - D)
 
-	A + B && C & D
+	A + B && C & D	
 	-> (A + B) && (C & D)
 
 	A + B | D
 	-> ((A + B) | D)
-
+	
 	A - B ^ C | D
 	-> ((A - B) ^ C) | D)
-
+	
 	!A ^ B & C()
 	-> (!A) ^ (B & (C()))
-
+	
 	!A ^ B | C()
 	-> ((!A) ^ B) | (C())
 
 	A & B < C | D
 	-> (A & B) < (C | D)
-
-	A & B < C ^ D | E
+	
+	A & B < C ^ D | E	
 	-> (A & B) < ((C ^ D) | E)
 
 	A < B == C < D
 	-> (A < B) == (C < D)
 
-	A + B | C == D
+	A + B | C == D	
 	-> ((A + B) | C) == D
 
 	A == B ? C : D 
-	(A == B) ? (C) : (D) 
+	-> (A == B) ? (C) : (D) 
 */
 
+void parse_alias(_alias& alias);
+void parse_struct(_struct& strct);
+void parse_union(_union& unn);
+void parse_function(_declaration& decl);
+void parse_declaration(_declaration& decl);
 
-void build_alias(_alias& alias);
-void build_struct(_struct& strct);
-void build_union(_union& unn);
-void build_function(_declaration& decl);
-void build_declaration(_declaration& decl);
+void parse_type_specifier(_declaration& decl);
+void parse_type_specifier(_alias& alias);
+void parse_type_specifier(_arg& arg);
 
-void build_type_specifier(_declaration& decl);
-void build_type_specifier(_alias& alias);
-void build_type_specifier(_arg& arg);
-void build_type_specifier(_typecast& cast);
-void build_type_specifier(_sizeof& expr);
+void parse_initializer(_declaration& decl);
 
-void build_initializer(_declaration& decl);
+void parse_lambda(_lambda& fun);
+void parse_lambda_header(_lambda& fun);
+void parse_argument_list(vector<_arg>& args);
+void parse_return_list(vector<_arg>& args);
+void parse_block(_scope& scope);
 
-void build_lambda(_lambda& fun);
-void build_lambda_header(_lambda& fun);
-void build_argument_list(vector<_arg>& args);
-void build_return_list(vector<_arg>& args);
-void build_block(_scope& scope);
+void parse_expression(_statement& expr);
+
+void parse_function_call(_lambda& fun);
+void parse_array_access(_iterator& iter);
+void parse_member_access(_member& memb);
+
+/* Precedence Table 
+	right-binding
+	1: '=', '*=', '/=', '%=', '+='
+	'-=', '<<=', '>>=', '&&=', '^^=', '||='
+
+	2: '?:'
+	
+	3: '==', '!!='
+
+	4: '<', '>', '<=', '>='
+
+	5: '|' 
+
+	6: '^'
+
+	7: '&'
+
+	8: '!'
+	
+	9: '||'
+
+	10: '^^'
+
+	11: '&&'
+
+	12: '!!'
+
+	13: '<<', '>>', '<<=', '>>='
+
+	14: '+', '-'
+
+	15: '*', '/', '%'
+
+	16: '[]', '()', '.'
+*/
+unordered_map<Tok, int> precedence;
+
+void init_precedence_table() {
+	precedence[T_EQUALS] = 1;
+	precedence[T_ADD_ASSIGN] = 1;
+	precedence[T_SUB_ASSIGN] = 1;
+	precedence[T_MULT_ASSIGN] = 1;
+	precedence[T_DIV_ASSIGN] = 1;
+	precedence[T_MOD_ASSIGN] = 1;
+	precedence[T_AND_ASSIGN] = 1;
+	precedence[T_XOR_ASSIGN] = 1;
+	precedence[T_OR_ASSIGN] = 1;
+	precedence[T_LSHIFT_ASSIGN] = 1;
+	precedence[T_RSHIFT_ASSIGN] = 1;
+
+	precedence[T_QUESTION] = 2; // ?:
+
+	precedence[T_LOG_EQUALS] = 3;
+	precedence[T_LOG_NOT_EQUALS] = 3;
+
+	precedence[T_LOG_LESS] = 4;
+	precedence[T_LOG_GREATER] = 4;
+	precedence[T_LOG_LESS_EQUALS] = 4;
+	precedence[T_LOG_GREATER_EQUALS] = 4;
+
+	precedence[T_LOG_OR] = 5;
+
+	precedence[T_LOG_XOR] = 6;
+
+	precedence[T_LOG_AND] = 7;
+
+	precedence[T_LOG_NOT] = 8;
+
+	precedence[T_BITWISE_OR] = 9;
+
+	precedence[T_BITWISE_XOR] = 10;
+
+	precedence[T_BITWISE_AND] = 11;
+
+	precedence[T_BITWISE_NOT] = 12;
+
+	precedence[T_BITWISE_LSHIFT] = 13;
+	precedence[T_BITWISE_RSHIFT] = 13;
+
+	precedence[T_ADD] = 14;
+	precedence[T_SUB] = 14;
+
+	precedence[T_MULT] = 15;
+	precedence[T_DIV] = 15;
+	precedence[T_MOD] = 15;
+
+	precedence[T_PERIOD] = 16;
+	precedence[T_LBRACKET] = 16;
+	precedence[T_RBRACKET] = 16;
+	precedence[T_LPAREN] = 16;
+	precedence[T_RPAREN] = 16;
+	precedence[T_COMMA] = 16;
+}
+
+
+/* support functions for the parser 
+
+	observation: is_* functions are all testing
+		for token membership within a -subset- of Tok
+
+		if this pattern appears more, it may be useful to
+		add some sort of 'slicing' or cleaner way of expressing
+		subset or set membership with enums. 
+
+		the other common way that enums are used is 
+		 to make switch statements more readable 
+		switch (enum) {
+			case X:
+			...
+			case X+n:
+		}
+*/
+bool is_type_primitive(Tok tok) {
+	bool success = true;
+	if (tok == T_MAYBE);
+	else if (tok == T_NONE);
+	else if (tok == T_U8);
+	else if (tok == T_U16);
+	else if (tok == T_U32);
+	else if (tok == T_U64);
+	else if (tok == T_S8);
+	else if (tok == T_S16);
+	else if (tok == T_S32);
+	else if (tok == T_S64);
+	else if (tok == T_F32);
+	else if (tok == T_F64);
+	else if (tok == T_INT);
+	else if (tok == T_FLOAT);
+	else if (tok == T_STRING);
+	else if (tok == T_BOOL);
+	// TODO: else if ( '[' (<expression>)? ']' )
+	// TODO: else if ( '*' <type-specifier> )
+	else success = false;
+	return success;
+}
+
+bool is_unop(Tok t) {
+	// valid prefix tokens '-', '+', '*', '&', '!', '!!'
+	if (t == T_ADD)			return true;
+	if (t == T_SUB)			return true;
+	if (t == T_BITWISE_AND) return true;
+	if (t == T_MULT)		return true;
+	if (t == T_BITWISE_NOT) return true;
+	if (t == T_LOG_NOT)		return true;
+	return false;
+}
+
+bool is_binop(Tok t) {
+	/* valid binop tokens: =, +=, -=, *=,
+							/=, %=, ||=, &&=,
+							^^=, >>=, <<=, +,
+							-, *, /, %,
+							||, ^^, &&,
+							|, ^, &, 
+							!=, == 
+	*/
+	if (t == T_EQUALS)				return true;
+	if (t == T_ADD_ASSIGN)			return true;
+	if (t == T_SUB_ASSIGN)			return true;
+	if (t == T_MULT_ASSIGN)			return true;
+	if (t == T_DIV_ASSIGN)			return true;
+	if (t == T_MOD_ASSIGN)			return true;
+	if (t == T_OR_ASSIGN)			return true;
+	if (t == T_XOR_ASSIGN)			return true;
+	if (t == T_AND_ASSIGN)			return true;
+	if (t == T_LSHIFT_ASSIGN)		return true;
+	if (t == T_RSHIFT_ASSIGN)		return true;
+	if (t == T_ADD)					return true;
+	if (t == T_SUB)					return true;
+	if (t == T_MULT)				return true;
+	if (t == T_DIV)					return true;
+	if (t == T_MOD)					return true;
+	if (t == T_BITWISE_OR)			return true;
+	if (t == T_BITWISE_XOR)			return true;
+	if (t == T_BITWISE_AND)			return true;
+	if (t == T_LOG_OR)				return true;
+	if (t == T_LOG_XOR)				return true;
+	if (t == T_LOG_AND)				return true;
+	if (t == T_LOG_EQUALS)			return true;
+	if (t == T_LOG_NOT_EQUALS)		return true;
+	if (t == T_LOG_LESS)			return true;
+	if (t == T_LOG_LESS_EQUALS)		return true;
+	if (t == T_LOG_GREATER)			return true;
+	if (t == T_LOG_GREATER_EQUALS)	return true;
+	return false;
+}
+
+bool is_literal(Tok t) {
+	if (t == T_INT_LITERAL)		return true;
+	if (t == T_FLOAT_LITERAL)	return true;
+	if (t == T_STRING_LITERAL)	return true;
+	if (t == T_TRUE)			return true;
+	if (t == T_FALSE)			return true;
+	return false;
+}
+
+bool is_postop(Tok t) {
+	// postop :=  '(' <arg> (',' <arg>)* ')'
+	//			| '[' <expr> ']'
+	//			| '.' <id>
+	if (t == T_LPAREN)	 return true;
+	if (t == T_LBRACKET) return true;
+	if (t == T_PERIOD)	 return true;
+	return false;
+}
+
+bool is_right_associative(Tok t) {
+	if (is_unop(t)) return true;
+	if (t == T_LOG_NOT) return true;
+	if (t == T_BITWISE_NOT) return true; 
+	return false;
+}
 
 /* backtracking support */
 stack<int>	  marks;  // tokbuf indexes for nested backtracking
@@ -377,12 +613,7 @@ int mark() {
 void release() {
 	int mark = marks.top();
 	marks.pop();
-	seek(mark);
-}
-
-// why does this function exist?
-void seek(int i) {
-	tokidx = i;
+	tokidx = mark; // seek to last mark
 }
 
 
@@ -399,10 +630,6 @@ bool speculate(Tok tok) {
 		return true;
 	} else return false;
 }
-
-
-/* memoization support */
-
 
 // consumes a token in the buffer, replacing with a new token.
 // if not backtracking; resets the token buffer
@@ -473,6 +700,8 @@ bool build_module() {
 	// TODO: top.id = <name-of-file-being-parsed>
 	_module top;
 
+	init_precedence_table();
+
 	sync(1); // prime our input
 	
 	// these are all top level declarations
@@ -480,29 +709,29 @@ bool build_module() {
 		/* <type-definition> */
 		if (speculate_alias()) {
 			auto a = new _alias;
-			build_alias(*a);
+			parse_alias(*a);
 			top.types.push_back(a);
 		}
 		else if (speculate_struct()) {
 			auto s = new _struct;
-			build_struct(*s);
+			parse_struct(*s);
 			top.types.push_back(s);
 		}
 		else if (speculate_union()) {
 			auto u = new _union;
-			build_union(*u);
+			parse_union(*u);
 			top.types.push_back(u);
 		}
 		/* <declaration> */
 		else if (speculate_function()) {
 			auto f = new _declaration;
-			build_function(*f);
-			top.decls.push_back(f);
+			parse_function(*f);
+			top.body.decls.push_back(f);
 		}
 		else if (speculate_declaration()) {
 			auto d = new _declaration;
-			build_declaration(*d);
-			top.decls.push_back(d);
+			parse_declaration(*d);
+			top.body.decls.push_back(d);
 		}
 		else {
 			cout << "Error while parsing, unknown <top-level-declaration>: \n\t";
@@ -640,8 +869,18 @@ bool speculate_type_primitive()
 	else if (speculate(T_FLOAT));
 	else if (speculate(T_STRING));
 	else if (speculate(T_BOOL));
-	else if (speculate(T_LBRACE)); //TODO:
-	else if (speculate(T_MULT));   //TODO:
+	else if (speculate(T_LBRACE)) { // '[' (<expression>)? ']' <type-specifier>
+		if (speculate_expression());
+		if (speculate(T_RBRACE)) {
+			if (speculate_type_specifier());
+			else success = false;
+		}
+		else success = false;
+	}
+	else if (speculate(T_MULT)) { // '*' <type-specifier> (pointer)
+		if (speculate_type_specifier());
+		else success = false;
+	}
 	else success = false;
 	return success;
 }
@@ -791,7 +1030,7 @@ bool speculate_type_specifier()
 	// this function implements this section of the grammar:
 	// <type-specifier> := <identifier>
 	//					 | <type-primitive>
-	//					 | <lambda-header>
+	//					 | <lambda-header> 
 	bool success = true;
 	if (speculate(T_ID)) {
 
@@ -799,8 +1038,12 @@ bool speculate_type_specifier()
 	else if (speculate_type_primitive()) {
 
 	}
-	else if (speculate_lambda_header()) {
-
+	else if (speculate_argument_list()) {
+		if (speculate(T_ARROW)) { 
+			if (speculate_return_list());
+			else success = false;
+		}
+		else success = false;
 	}
 	else success = false;
 	return success;
@@ -815,11 +1058,28 @@ bool speculate_initializer()
 	else if (speculate_literal()) {
 
 	}
-	else if (speculate_expr()) {
+	else if (speculate_expression()) {
 
 	}
 	else if (speculate(T_ID)) {
 
+	}
+	else success = false;
+	return success;
+}
+
+bool speculate_array_access()
+{
+	// '[' <expression> ']'
+	bool success = true;
+	if (speculate(T_LBRACKET)) {
+		if (speculate_expression()) {
+			if (speculate(T_RBRACKET)) {
+
+			}
+			else success = false;
+		}
+		else success = false;
 	}
 	else success = false;
 	return success;
@@ -926,397 +1186,6 @@ bool speculate_iteration()
 	return success;
 }
 
-// TODO: refactor speculate_expression stack too a
-//		https://en.wikipedia.org/wiki/Operator-precedence_parser
-
-
-bool speculate_expression()
-{
-	bool success = true;
-	mark();
-	if (speculate_expr()) {
-
-	} 
-	if (speculate(T_SEMICOLON)) {
-
-	}
-	else success = false;
-	release();
-	return success;
-}
-
-bool speculate_expr()
-{
-	bool success = true;
-	mark();
-	if (speculate_assignment_expr()) {
-
-	}
-	else if (speculate_expr()) {
-		if (speculate(T_COMMA)) {
-			if (speculate_assignment_expr()) {
-
-			}
-			else success = false;
-		}
-		else success = false;
-	}
-	else success = false;
-	release();
-	return success;
-}
-bool speculate_assignment_operator()
-{
-	bool success = true;
-	if (speculate(T_EQUALS)) {
-
-	}
-	else if (speculate(T_ADD_ASSIGN)) {
-
-	}
-	else if (speculate(T_SUB_ASSIGN)) {
-
-	}
-	else if (speculate(T_MULT_ASSIGN)) {
-
-	}
-	else if (speculate(T_DIV_ASSIGN)) {
-
-	}
-	else if (speculate(T_MOD_ASSIGN)) {
-
-	}
-	else if (speculate(T_LSHIFT_ASSIGN)) {
-
-	}
-	else if (speculate(T_RSHIFT_ASSIGN)) {
-
-	}
-	else if (speculate(T_AND_ASSIGN)) {
-
-	}
-	else if (speculate(T_OR_ASSIGN)) {
-
-	}
-	else if (speculate(T_XOR_ASSIGN)) {
-
-	}
-	else success = false;
-	return success;
-}
-
-bool speculate_unary_operator()
-{
-	bool success = true;
-	if (speculate(T_AND)) {
-
-	}
-	else if (speculate(T_MULT)) {
-
-	}
-	else if (speculate(T_ADD)) {
-
-	}
-	else if (speculate(T_SUB)) {
-
-	}
-	else success = false;
-	return success;
-}
-
-bool speculate_assignment_expr()
-{
-	bool success = true;
-	if (speculate_ternary_expr()) {
-
-	}
-	else if (speculate_unary_expr()) {
-		if (speculate_assignment_operator()) {
-
-		}
-	}
-	else success = false;
-	return success;
-}
-
-bool speculate_ternary_expr()
-{
-	bool success = true;
-	if (speculate_logical_equality_expr()) {
-		if (speculate(T_QUESTION)) {
-			if (speculate_ternary_expr()) {
-				if (speculate(T_COLON)) {
-					if (speculate_ternary_expr()) {
-
-					}
-					else success = false;
-				}
-				else success = false;
-			}
-			else success = false;
-		}
-	}
-	else return false;
-	return success;
-}
-
-bool speculate_logical_equality_expr()
-{
-	bool success = true;
-	if (speculate_logical_relation_expr()) {
-
-	}
-	else if (speculate_logical_equality_expr()) {
-		if (speculate(T_LOG_EQUALS)) {
-
-		}
-		else if (speculate(T_LOG_NOT_EQUALS)) {
-
-		}
-		else success = false;
-
-		if (speculate_logical_relation_expr()) {
-
-		}
-		else success = false;
-	}
-	return success;
-}
-
-bool speculate_logical_relation_expr()
-{
-	bool success = true;
-	if (speculate_logical_or_expr()) {
-
-	}
-	else if (speculate_logical_relation_expr()) {
-		if (speculate(T_LOG_LESS));
-		else if (speculate(T_LOG_GREATER));
-		else if (speculate(T_LOG_LESS_EQUAL));
-		else if (speculate(T_LOG_GREATER_EQUAL));
-		else success = false;
-		if (speculate_logical_or_expr());
-		else success = false;
-	}
-	return success;
-}
-
-bool speculate_logical_or_expr()
-{
-	bool success = true;
-	if (speculate_logical_xor_expr());
-	else if (speculate_logical_or_expr()) {
-		if (speculate(T_LOG_OR));
-		else success = false;
-		if (speculate_logical_xor_expr());
-		else success = false;
-	}
-	return success;
-}
-
-bool speculate_logical_xor_expr()
-{
-	bool success = true;
-	if (speculate_logical_and_expr());
-	else if (speculate_logical_xor_expr()) {
-		if (speculate(T_LOG_XOR));
-		else success = false;
-		if (speculate_logical_and_expr());
-		else success = false;
-	}
-	return success;
-}
-bool speculate_logical_and_expr()
-{
-	bool success = true;
-	if (speculate_logical_not_expr());
-	else if (speculate_logical_and_expr()) {
-		if (speculate(T_LOG_AND));
-		else success = false;
-		if (speculate_logical_not_expr());
-		else success = false;
-	}
-	return success;
-}
-bool speculate_logical_not_expr()
-{
-	bool success = true;
-	if (speculate_bitwise_or_expr());
-	else if (speculate(T_LOG_NOT)) {
-		if (speculate_logical_not_expr());
-		else success = false;
-	}
-	else success = false;
-	return success;
-}
-bool speculate_bitwise_or_expr() // bitwise expressions should evaluate on the results of arithmetic A << B + C --> A << (B + C)
-{
-	bool success = true;
-	if (speculate_bitwise_xor_expr());
-	else if (speculate_bitwise_or_expr()) {
-		if (speculate(T_OR)) {
-			if (speculate_bitwise_xor_expr());
-			else success = false;
-		}
-		else success = false;
-	}
-	else success = false;
-	return success;
-}
-bool speculate_bitwise_xor_expr()
-{
-	bool success = true;
-	if (speculate_bitwise_and_expr());
-	else if (speculate_bitwise_xor_expr()) {
-		if (speculate(T_XOR)) {
-			if (speculate_bitwise_and_expr());
-			else success = false;
-		}
-		else success = false;
-	}
-	else success = false;
-	return success; 
-}
-bool speculate_bitwise_and_expr()
-{
-	bool success = true;
-	if (speculate_bitwise_not_expr());
-	else if (speculate_bitwise_and_expr()) {
-		if (speculate(T_AND)) {
-			if (speculate_bitwise_not_expr());
-			else success = false;
-		}
-		else success = false;
-	}
-	else success = false;
-	return success;
-}
-bool speculate_bitwise_not_expr()
-{
-	bool success = true;
-	if (speculate_bitwise_shift_expr());
-	else if (speculate(T_NOT)) {
-		if (speculate_bitwise_not_expr());
-		else success = false;
-	}
-	else success = false;
-	return success;
-}
-bool speculate_bitwise_shift_expr()
-{
-	bool success = true;
-	if (speculate_arithmetic_additive_expr());
-	else if (speculate_bitwise_shift_expr()) {
-		if (speculate(T_LSHIFT)) {
-			if (speculate_arithmetic_additive_expr());
-			else success = false;
-		}
-		else success = false;
-	}
-	else success = false;
-	return success;
-}
-bool speculate_arithmetic_additive_expr()
-{
-	bool success = true;
-	if (speculate_arithmetic_multiplicative_expr());
-	else if (speculate_arithmetic_additive_expr()) {
-		if (speculate(T_ADD));
-		else if (speculate(T_SUB));
-		else success = false;
-		if (speculate_arithmetic_multiplicative_expr());
-		else success = false;
-	}
-	return success;
-}
-bool speculate_arithmetic_multiplicative_expr()
-{
-	bool success = true;
-	if (speculate_typecast_expr());
-	else if (speculate_arithmetic_multiplicative_expr()) {
-		if (speculate(T_MULT));
-		else if (speculate(T_DIV));
-		else if (speculate(T_MOD));
-		else success = false;
-		if (speculate_typecast_expr());
-		else success = false;
-	}
-	return success;
-}
-bool speculate_typecast_expr()
-{
-	bool success = true;
-	if (speculate_unary_expr());
-	else if (speculate(T_TYPECAST)) {
-		if (speculate_typecast_expr()) {
-			if (speculate(T_CONST_ASSIGN)) {
-				if (speculate_type_specifier());
-				else success = false;
-			}
-			else success = false;
-		}
-		else success = false;
-	}
-	else success = false;
-	return success;
-}
-bool speculate_unary_expr()
-{
-	bool success = true;
-	if (speculate_postfix_expr());
-	else if (speculate_unary_operator()) {
-		if (speculate_typecast_expr());
-		else success = false;
-	}
-	else if (speculate(T_SIZEOF)) {
-		if (speculate_unary_expr());
-		else if (speculate_type_specifier());
-		else success = false;
-	}
-	return success;
-}
-bool speculate_postfix_expr()
-{
-	bool success = true;
-	if (speculate_primary_expr());
-	else if (speculate_postfix_expr()) {
-		if (speculate(T_LBRACE)) {
-			if (speculate_expression()) {
-				if (speculate(T_RBRACE));
-				else success = false;
-			}
-			else success = false;
-		}
-		else if (speculate(T_PERIOD)) {
-			if (speculate(T_ID));
-			else success = false;
-		}
-		else if (speculate_argument_list()) {
-
-		}
-		else success = false;
-	}
-	else success = false;
-	return success;
-}
-bool speculate_primary_expr() // highest precedence (lower on the AST)
-{
-	bool success = true;
-	if (speculate(T_ID)) {
-
-	}
-	else if (speculate_literal()) {
-
-	}
-	else if (speculate(T_LPAREN)) {
-		if (speculate_expr());
-
-		if (speculate(T_RPAREN));
-		else success = false;
-	}
-	else success = false;
-	return success;
-}
 
 bool speculate_block()
 {
@@ -1333,57 +1202,249 @@ bool speculate_block()
 	return success;
 }
 
-void build_alias(_alias& alias)
+// TODO: refactor speculate_expression stack too a
+//		https://en.wikipedia.org/wiki/Operator-precedence_parser
+
+/* 
+parse_expression ()
+	return parse_expression_1 (parse_primary (), 0)
+
+parse_expression_1 (lhs, min_precedence)
+	lookahead := peek next token
+	while lookahead is a binary operator whose precedence is >= min_precedence
+		op := lookahead
+		advance to next token
+		rhs := parse_primary ()
+		lookahead := peek next token
+		while lookahead is a binary operator whose precedence is greater
+				 than op's, or a right-associative operator
+				 whose precedence is equal to op's
+			rhs := parse_expression_1 (rhs, lookahead's precedence)
+			lookahead := peek next token
+		lhs := the result of applying op with operands lhs and rhs
+	return lhs
+
+	
+
+	Precedence Table: 
+	:right-binding
+	1: '=', '*=', '/=', '%=', '+='
+	'-=', '<<=', '>>=', '&&=', '^^=', '||='
+	:left-binding
+	2: '?:'
+	3: '==', '!='
+	4: '<', '>', '<=', '>='
+	5: '|' 
+	6: '^'
+	7: '&'
+	8: '!'
+	9: '||'
+	10: '^^'
+	11: '&&'
+	12: '!!'
+	13: '<<', '>>'
+	14: '+', '-'
+	15: '*', '/', '%'
+	16: '[]', '()', '.', ','
+*/
+
+
+
+bool _speculate_expression();
+bool _speculate_id();
+bool _speculate_unop();
+bool _speculate_binop();
+bool _speculate_literal();
+bool _speculate_postop();
+bool _speculate_lparen();
+bool _speculate_rparen();
+bool _speculate_fcall();
+
+stack<int> parens;
+
+bool speculate_expression()
 {
-
-}
-
-void build_struct(_struct& strct)
-{
-
-}
-
-void build_union(_union& unn)
-{
-
-}
-
-bool is_type_primitive(Tok tok) {
 	bool success = true;
-	if (tok == T_MAYBE);
-	else if (tok == T_NONE);
-	else if (tok == T_U8);
-	else if (tok == T_U16);
-	else if (tok == T_U32);
-	else if (tok == T_U64);
-	else if (tok == T_S8);
-	else if (tok == T_S16);
-	else if (tok == T_S32);
-	else if (tok == T_S64);
-	else if (tok == T_F32);
-	else if (tok == T_F64);
-	else if (tok == T_INT);
-	else if (tok == T_FLOAT);
-	else if (tok == T_STRING);
-	else if (tok == T_BOOL);
-	// TODO: else if ( '[' (<constant-expression>)? ']' )
-	// TODO: else if ( '*' <type-specifier> )
+	if (_speculate_expression());
 	else success = false;
 	return success;
 }
 
-bool is_literal(Tok tok) {
-	bool success = true;
-	if (tok == T_INT_LITERAL);
-	else if (tok == T_FLOAT_LITERAL);
-	else if (tok == T_STRING_LITERAL);
-	else if (tok == T_TRUE);
-	else if (tok == T_FALSE);
-	else success = false;
-	return success;
+bool _speculate_expression() {
+	// an expression is started by <id>, <literal>, <unop>, '('
+	//  or immediately ended by ')', ';'
+	if (curtok().type == T_ID)
+		return _speculate_id();
+	else if (is_literal(curtok().type))
+		return _speculate_literal();
+	else if (is_unop(curtok().type))
+		return _speculate_unop();
+	else if (curtok().type == T_LPAREN)
+		return _speculate_lparen();
+	else if (curtok().type == T_RPAREN) // empty expressions are valid
+		return _speculate_rparen();
+	else if (curtok().type == T_SEMICOLON) // empty expressions are valid
+		return true;
+	else return false;
 }
 
-void build_declaration(_declaration& decl)
+bool _speculate_id() {
+	// <id> can be followed by <binop>, <postop>, '(', ')', or ';'
+	consume(); // consume <id>
+	if (is_binop(curtok().type))
+		return _speculate_binop();
+	if (is_postop(curtok().type))
+		return _speculate_postop();
+	if (curtok().type == T_RPAREN)
+		return _speculate_rparen();
+	if (curtok().type == T_LPAREN)
+		return _speculate_fcall();
+	if (curtok().type == T_SEMICOLON)
+		return true;
+	return false;
+}
+
+bool _speculate_binop() {
+	// <binop> can be followed by <unop>, <id>, '(', or <literal>
+	consume(); // consume <binop>
+	if (is_unop(curtok().type))
+		return _speculate_unop();
+	if (is_literal(curtok().type))
+		return _speculate_literal();
+	if (curtok().type == T_ID)
+		return _speculate_id();
+	if (curtok().type == T_LPAREN)
+		return _speculate_lparen();
+	return false;
+}
+
+bool _speculate_unop() {
+	// <unop> can be followed by <unop>, <id>, or <literal>
+	consume(); // consume <unop>
+	if (is_unop(curtok().type))
+		return _speculate_unop();
+	if (is_literal(curtok().type))
+		return _speculate_literal();
+	if (curtok().type == T_ID)
+		return _speculate_id();
+	if (curtok().type == T_LPAREN)
+		return _speculate_lparen();
+	return false;
+}
+
+bool _speculate_literal() {
+	// <literal> can be followed by <binop>, ')' or ';'
+	consume();
+	if (is_binop(curtok().type))
+		return _speculate_binop();
+	if (curtok().type == T_RPAREN)
+		return _speculate_rparen();
+	if (curtok().type == T_SEMICOLON && parens.size() == 0)
+		return true;
+	return false;
+}
+
+bool _speculate_postop() {
+	// <postop> can be followed by <postop>, <binop>, or ';'
+	// consume <postop>
+	if (speculate_argument_list());
+	else if (speculate_array_access());
+	else if (curtok().type == T_PERIOD) {
+		consume();
+		if (curtok().type != T_ID) return false;
+		consume();
+	}
+	else return false; // malformed postop == malformed expression
+	// if we reach this point curtok will now be the next token
+	
+	if (is_postop(curtok().type))
+		return _speculate_postop();
+	if (is_binop(curtok().type))
+		return _speculate_binop();
+	if (curtok().type == T_RPAREN)
+		return _speculate_rparen();
+	if (curtok().type == T_SEMICOLON && parens.size() == 0)
+		return true;
+	return false;
+}
+
+bool _speculate_lparen() {
+	// '(' can be followed by <expr>
+	consume();
+	parens.push(0); // push an open paren on the stack that needs closing
+	return _speculate_expression();
+}
+
+bool _speculate_rparen() {
+	// ')' can be followed by '(', ')', <binop>, ';' or be the terminal character
+	consume();
+	parens.pop();
+
+	if (is_binop(curtok().type))
+		return _speculate_binop();
+	if (curtok().type == T_LPAREN)
+		return _speculate_fcall();
+	if (curtok().type == T_SEMICOLON && parens.size() == 0)
+		return true;
+	if (curtok().type == T_RPAREN) {
+		if (parens.size() == 0) return true;
+		return _speculate_rparen();
+	}
+	return false;
+}
+
+bool _speculate_fcall()
+{
+	// <fcall> := <id> '(' <carg> (',' <carg>)* ')'
+	// <carg> := <id> | <literal> | <lambda>
+	auto _speculate_carg = []() {
+		if (curtok().type == T_ID) {
+			consume();
+			return true;
+		}
+		else if (is_literal(curtok().type)) {
+			consume();
+			return true;
+		}
+		else if (speculate_lambda()) {
+			return true;
+		}
+
+	};
+
+	consume(); // eat '('
+
+	// <carg> (',' <carg>)*
+	if (_speculate_carg()) {
+		while (curtok().type == T_COMMA) {
+			consume(); // eat ','
+			if (_speculate_carg());
+		}
+	}
+
+	if (curtok().type != T_RPAREN) return false;
+	consume(); // eat ')'
+	return true;
+}
+
+/* build_* functions */
+
+void parse_alias(_alias& alias)
+{
+
+}
+
+void parse_struct(_struct& strct)
+{
+
+}
+
+void parse_union(_union& unn)
+{
+
+}
+
+void parse_declaration(_declaration& decl)
 {
 	// this function implements this portion of the grammar:
 	/*
@@ -1410,10 +1471,10 @@ void build_declaration(_declaration& decl)
 			   // it shall consume that token.
 	
 	if (curtok().type == T_COLON) {
-		build_type_specifier(decl); // build_* actions act like consume() 
+		parse_type_specifier(decl); // build_* actions act like consume() 
 									// for the state of the token buffer
 		if (curtok().type == T_EQUALS) {
-			build_initializer(decl);
+			parse_initializer(decl);
 		}
 		if (decl.op.type == T_ERR) {
 			decl.op = { T_COLON, "" }; // declaration w/out initialization.
@@ -1421,7 +1482,7 @@ void build_declaration(_declaration& decl)
 	}
 	else if (curtok().type == T_CONST_ASSIGN
 		|| curtok().type == T_DYNAMIC_ASSIGN) {
-		build_initializer(decl);
+		parse_initializer(decl);
 	}
 	else throw;
 
@@ -1429,7 +1490,7 @@ void build_declaration(_declaration& decl)
 	consume();
 }
 
-void build_type_specifier(_declaration& decl)
+void parse_type_specifier(_declaration& decl)
 {
 	// if this function is called, curtok() == ':'
 	// so we consume it to look at the <type-specifier> token
@@ -1440,7 +1501,7 @@ void build_type_specifier(_declaration& decl)
 						| <lambda-header>
 	*/
 	switch (curtok().type) {
-	case T_ID:
+	case T_ID: // <identifier>
 		decl.type = curtok();
 		consume();
 		break;
@@ -1464,20 +1525,20 @@ void build_type_specifier(_declaration& decl)
 		decl.rhs = new _bool;
 		consume();
 		break;
-	case T_LPAREN:
+	case T_LPAREN: // <lambda-header>
 		auto l = new _lambda;	
-		build_lambda_header(*l);		
+		parse_lambda_header(*l);		
 		decl.rhs = l;			
 		decl.type = { T_FUNCTION, "" };
 		break;
 	}
 }
 
-void build_type_specifier(_alias& alias)
+void parse_type_specifier(_alias& alias)
 {
 }
 
-void build_type_specifier(_arg& arg)
+void parse_type_specifier(_arg& arg)
 {
 	// when this function is called the context is
 	// <arg> := <identifier> (':' <type-specifier>)?
@@ -1486,14 +1547,14 @@ void build_type_specifier(_arg& arg)
 	
 	if (curtok().type == T_LPAREN) { // it's a lambda arg
 		auto lambda = new _lambda;
-		build_argument_list(lambda->argument_list); // build_* functions act like consume()
+		parse_argument_list(lambda->argument_list); // build_* functions act like consume()
 													// in their effect on the state of tokbuf
 
 		if (curtok().type != T_ARROW) throw;
 		consume();
 
 		if (curtok().type != T_LPAREN) throw;
-		build_return_list(lambda->return_list);
+		parse_return_list(lambda->return_list);
 
 		arg.type.type = T_FUNCTION;
 		arg.value = lambda;
@@ -1504,15 +1565,8 @@ void build_type_specifier(_arg& arg)
 	}
 }
 
-void build_type_specifier(_typecast& cast)
-{
-}
 
-void build_type_specifier(_sizeof& expr)
-{
-}
-
-void build_initializer(_declaration& decl)
+void parse_initializer(_declaration& decl)
 {
 	/*
 	This function is only ever called in this context:
@@ -1567,7 +1621,7 @@ void build_initializer(_declaration& decl)
 		break;
 	case T_LPAREN:
 		auto lambda = new _lambda;
-		build_lambda(*lambda); // build_* functions act like consume() 
+		parse_lambda(*lambda); // build_* functions act like consume() 
 							   // on the state of the tokbuf.
 		decl.rhs = lambda;
 		decl.type = { T_FUNCTION, "" };
@@ -1575,7 +1629,7 @@ void build_initializer(_declaration& decl)
 	}
 }
 
-void build_function(_declaration& decl)
+void parse_function(_declaration& decl)
 {
 	/*  'fn' <identifier> '::' <lambda-definition>	*/
 	if (curtok().type != T_FUNCTION) throw;
@@ -1591,15 +1645,15 @@ void build_function(_declaration& decl)
 	consume(); // '::'
 
 	auto lambda = new _lambda;
-	build_lambda(*lambda);
+	parse_lambda(*lambda);
 	decl.rhs = lambda;
 	decl.type.type = T_FUNCTION;
 }
 
-void build_lambda(_lambda& fun)
+void parse_lambda(_lambda& fun)
 {
 	/* When this function is called, it makes the same
-		assumptions that other build_* functions make.
+		assumptions that other parse_* functions make.
 	// 1. tokbuf contains the valid syntactic form of a declaration.
 	// 2. tokidx is set to the first symbol of this syntactic form
 	//
@@ -1611,27 +1665,27 @@ void build_lambda(_lambda& fun)
 		<block> := '{' (<declaration> | <statement>)* '}'
 		*/
 	
-	build_lambda_header(fun);
-	build_block(fun.body);
+	parse_lambda_header(fun);
+	parse_block(fun.body);
 
 }
 
-void build_lambda_header(_lambda& fun)
+void parse_lambda_header(_lambda& fun)
 {
 	/*
 	<lambda-header> := <argument-list> '->' (<return-list>)?
 	*/
-	build_argument_list(fun.argument_list);
+	parse_argument_list(fun.argument_list);
 
 	if (curtok().type != T_ARROW) throw;
 	consume();
 
 	if (curtok().type == T_LPAREN) {
-		build_return_list(fun.return_list);
+		parse_return_list(fun.return_list);
 	}
 }
 
-void build_argument_list(vector<_arg>& args)
+void parse_argument_list(vector<_arg>& args)
 {
 	/*<arg> := <identifier> (':' <type-specifier>)?*/
 	auto build_arg = [](_arg& a) {
@@ -1640,7 +1694,7 @@ void build_argument_list(vector<_arg>& args)
 		consume();
 		
 		if (curtok().type == T_COLON) { // ':'
-			build_type_specifier(a);
+			parse_type_specifier(a);
 		}
 	};
 	/*
@@ -1665,7 +1719,7 @@ void build_argument_list(vector<_arg>& args)
 
 }
 
-void build_return_list(vector<_arg>& args)
+void parse_return_list(vector<_arg>& args)
 {
 	//<return-list> :='(' (<type-specifier> (',' <type-specifier>)*)? ')'
 	if (curtok().type != T_LPAREN) throw;
@@ -1675,13 +1729,13 @@ void build_return_list(vector<_arg>& args)
 
 	if (curtok().type == T_LPAREN) { // it's a lambda
 		auto lambda = new _lambda;
-		build_argument_list(lambda->argument_list);
+		parse_argument_list(lambda->argument_list);
 
 		if (curtok().type != T_ARROW) throw;
 		consume();
 
 		if (curtok().type != T_LPAREN) throw;
-		build_return_list(lambda->return_list);
+		parse_return_list(lambda->return_list);
 
 		arg.type.type = T_FUNCTION;
 		arg.value = lambda;
@@ -1698,13 +1752,13 @@ void build_return_list(vector<_arg>& args)
 		consume();
 		if (curtok().type == T_LPAREN) { // it's a lambda
 			auto lambda = new _lambda;
-			build_argument_list(lambda->argument_list);
+			parse_argument_list(lambda->argument_list);
 
 			if (curtok().type != T_ARROW) throw;
 			consume();
 
 			if (curtok().type != T_LPAREN) throw;
-			build_return_list(lambda->return_list);
+			parse_return_list(lambda->return_list);
 
 			arg.type.type = T_FUNCTION;
 			arg.value = lambda;
@@ -1720,7 +1774,7 @@ void build_return_list(vector<_arg>& args)
 	consume();
 }
 
-void build_block(_scope& scope)
+void parse_block(_scope& scope)
 {
 	/*<lambda-block> := '{' (<declaration> | <statement>)* '}'*/
 	if (curtok().type != T_LBRACKET) throw;
@@ -1732,7 +1786,7 @@ void build_block(_scope& scope)
 	while (1) {
 		if (speculate_declaration()) {
 			declaration = new _declaration;
-			build_declaration(*declaration);
+			parse_declaration(*declaration);
 			scope.decls.push_back(declaration);
 		}
 		else if (speculate_statement()) {
@@ -1747,4 +1801,159 @@ void build_block(_scope& scope)
 	consume();
 }
 
+void parse_function_call(_lambda& fun)
+{
+	// '(' (<carg> (',' <carg>)*)? ')'
+	// <carg> := <id> | <literal> | <lambda>
+	auto parse_carg = [](_arg& arg) {
+		if (curtok().type == T_ID) {
+			arg.id = curtok().value;
+			arg.type = curtok();
+			consume();
+		}
+		else if (is_literal(curtok().type)) {
+			arg.type = curtok();
+			consume();
+		}
+		else {
+			auto l = new _lambda;
+			parse_lambda(*l);
+		}
+	};
+	
+	consume(); // eat '('
+	if (curtok().type != T_RPAREN) { 
+		_arg arg;
+		parse_carg(arg);
+		fun.argument_list.push_back(arg);
+		while (curtok().type == T_COMMA) {
+			consume();
+			parse_carg(arg);
+			fun.argument_list.push_back(arg);
+		}
+	}
+	
+	if (curtok().type != T_RPAREN) throw;
+	consume(); // eat ')'
+}
+
+void parse_array_access(_iterator& iter)
+{
+	// '[' <expression> ']'
+	consume(); // eat '['
+	_statement expr;
+	parse_expression(expr);
+	iter.value = expr.value;
+
+	if (curtok().type != T_RBRACKET) throw;
+	consume(); // eat ']'
+}
+
+void parse_member_access(_member& memb)
+{
+	// <id> '.' <id>
+	consume(); // eat '.'
+	if (curtok().type != T_ID) throw;
+	memb.id = curtok().value;
+	consume(); // eat <id>
+}
+
+_ast* parse_postop() {
+	_lambda* fun;
+	_iterator* iter;
+	_member* memb;
+	switch (curtok().type) {
+	case T_LPAREN:
+		fun = new _lambda;
+		parse_function_call(*fun);
+		return fun;
+	case T_LBRACKET:
+		iter = new _iterator;
+		parse_array_access(*iter);
+		return iter;
+	case T_PERIOD:
+		memb = new _member;
+		parse_member_access(*memb);
+		return memb;
+	default:
+		throw;
+	}
+}
+
+_ast* parse_primary_expr() {
+	// A primary expression is the base grapheme
+	// that expressions are composed of. They have the
+	// highest precedence and must be fully evaluated
+	// before unops or binops can be evaluated.
+	// primary expressions: <id> (<postop>)*, <literal>, '(' <expression> ')'
+	Token i, f, s;
+	switch (curtok().type) {
+	case T_ID:
+		auto var = new _var(curtok().value);
+		consume(); // eat <id>
+		while (is_postop(curtok().type))
+			var->postops.push_back(parse_postop());
+		return var;
+	case T_LPAREN:
+		consume(); // eat '('
+
+		auto expr = _parse_expression(parse_primary_expr(), 0);
+
+		if (curtok().type != T_RPAREN) throw;
+		consume(); // eat ')'
+		return expr;
+	case T_ADD: case T_SUB: case T_MULT: 
+	case T_LOG_AND: case T_LOG_NOT: case T_BITWISE_NOT:
+		auto unop = new _unop;
+
+		unop->op = curtok();
+		consume();
+		unop->rhs = parse_primary_expr();
+		
+		return unop;
+	case T_INT_LITERAL:
+		i = curtok();
+		consume();
+		return new _int(stoi(i.value));
+	case T_FLOAT_LITERAL:
+		f = curtok();
+		consume();
+		return new _float(stof(f.value));
+	case T_STRING_LITERAL:
+		s = curtok();
+		consume();
+		return new _string(s.value);
+	case T_TRUE:
+		consume();
+		return new _bool(true);
+	case T_FALSE:
+		consume();
+		return new _bool(false);
+	default: throw;
+	}
+}
+
+_ast* _parse_expression(_ast* lhs, int min_prec) 
+{
+	// lhs = <primary>
+	auto lad = curtok(); // lad - lookahead
+	while (is_binop(lad.type) && precedence[lad.type] >= min_prec) {
+		auto op = lad;
+		consume(); // safe to eat op
+		auto rhs = parse_primary_expr(); // eat <primary>
+		lad = curtok();
+		while (is_binop(lad.type) && (precedence[lad.type] > precedence[op.type]))
+		{
+			rhs = _parse_expression(rhs, precedence[lad.type]);
+			lad = curtok();
+		}
+		lhs = new _binop(op, lhs, rhs);
+	}
+	return lhs;
+}
+
+void parse_expression(_statement& expr) {
+	// parse_primary_expr() will advance curtok to the next token
+	expr.value = _parse_expression(parse_primary_expr(), 0);
+}
 

@@ -15,7 +15,8 @@
 <initializer>  := <lambda-definition>
 				| <literal>
 				| <identifier>
-				| <expression>
+				| <expr>
+
 
 <type-specifier>   := <lambda-header>
 					| <type-primitive>
@@ -53,41 +54,41 @@
 
 <logical-equality-expr> := <logical-relation-expr>
 						 | <logical-equality-expr> '==' <logical-relation-expr>
-						 | <logical-equality-expr> '!!=' <logical-relation-expr>
+						 | <logical-equality-expr> '!=' <logical-relation-expr>
 
 <logical-relation-expr> := <logical-or-expr>
-						 | <logical-relation-expr> '<<' <logical-or-expr>
-						 | <logical-relation-expr> '>>' <logical-or-expr>
-						 | <logical-relation-expr> '<<=' <logical-or-expr>
-						 | <logical-relation-expr> '>>=' <logical-or-expr>
+						 | <logical-relation-expr> '<' <logical-or-expr>
+						 | <logical-relation-expr> '>' <logical-or-expr>
+						 | <logical-relation-expr> '<=' <logical-or-expr>
+						 | <logical-relation-expr> '>=' <logical-or-expr>
 
 <logical-or-expr := <logical-xor-expr>
-				  | <logical-or-expr> '||' <logical-xor-expr>
+				  | <logical-or-expr> '|' <logical-xor-expr>
 
 <logical-xor-expr> := <logical-and-expr>
-					| <logical-xor-expr> '^^' <logical-and-expr>
+					| <logical-xor-expr> '^' <logical-and-expr>
 
 <logical-and-expr> := <logical-not-expr>
-					| <logical-and-expr> '&&' <logical-not-expr>
+					| <logical-and-expr> '&' <logical-not-expr>
 
 <logical-not-expr> := <bitwise-or-expr>
-					| '!!' <logical-not-expr>
+					| '!' <logical-not-expr>
 
 <bitwise-or-expr>  := <bitwise-xor-expr>
-					| <bitwise-or-expr> '|' <bitwise-xor-expr>
+					| <bitwise-or-expr> '||' <bitwise-xor-expr>
 
 <bitwise-xor-expr> := <bitwise-and-expr>
-					| <bitwise-xor-expr> '^' <bitwise-end-expr>
+					| <bitwise-xor-expr> '^^' <bitwise-end-expr>
 
 <bitwise-and-expr> := <bitwise-not-expr>
-					| <bitwise-and-expr> '&' <bitwise-not-expr>
+					| <bitwise-and-expr> '&&' <bitwise-not-expr>
 
 <bitwise-not-expr> := <bitwise-shift-expr>
-					| '!' <bitwise-not-expr>
+					| '!!' <bitwise-not-expr>
 
 <bitwise-shift-expr> := <arithmetic-additive-expr>
-					  | <bitwise-shift-expr> '<' <arithmetic-additive-expr>
-					  | <bitwise-shift-expr> '>' <arithmetic-additive-expr>
+					  | <bitwise-shift-expr> '<<' <arithmetic-additive-expr>
+					  | <bitwise-shift-expr> '>>' <arithmetic-additive-expr>
 
 <arithmetic-additive-expr> := <arithmetic-multiplicative-expr>
 							| <arithmetic-additive-expr> '+' <arithmetic-multiplicative-expr>
@@ -98,6 +99,10 @@
 								  | <arithmetic-multiplicative-expr> '/' <typecast-expr>
 								  | <arithmetic-multiplicative-expr> '%' <typecast-expr>
 
+// TODO: Remove <typecast-expr> and 'sizeof' from the
+// grammar, their function will be replaced by stdlib
+// function calls. then they inherit precedence via
+// '()'
 <typecast-expr> := <unary-expr>
 				 | 'typecast' <typecast-expr> '::' <type-specifier>
 
