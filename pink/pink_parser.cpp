@@ -275,13 +275,16 @@ typedef struct _bool : public _ast {
 	_bool(bool b) : _ast(AST_BOOL), value(b) {}
 } _bool;
 
-bool speculate_alias();
-bool speculate_struct();
-bool speculate_union();
+bool try_speculate_alias();
+bool try_speculate_struct();
+bool try_speculate_union();
+bool try_speculate_function();
 bool speculate_function();
+bool try_speculate_declaration();
 bool speculate_declaration();
 
 bool speculate_type_primitive();
+bool try_speculate_lambda();
 bool speculate_lambda();
 bool speculate_lambda_header();
 bool speculate_literal();
@@ -295,56 +298,14 @@ bool speculate_initializer();
 
 bool speculate_array_access();
 
-bool speculate_statement(); //TODO:
+bool speculate_statement();
+bool try_speculate_conditional();
 bool speculate_conditional();
+bool try_speculate_iteration();
 bool speculate_iteration();
 bool speculate_block();
 
 bool speculate_expression();
-
-/*
-	A && B || C == D 	
-	-> ((A && B) || C) == D)
-
-	A || B ^^ C && D	
-	-> (A || (B ^^ (C && D)))
-
-	A && B || C ^^ D	
-	-> (A && B) || (C ^^ D)
-
-	A + B == C - D	
-	-> (A + B) == (C - D)
-
-	A + B && C & D	
-	-> (A + B) && (C & D)
-
-	A + B | D
-	-> ((A + B) | D)
-	
-	A - B ^ C | D
-	-> ((A - B) ^ C) | D)
-	
-	!A ^ B & C()
-	-> (!A) ^ (B & (C()))
-	
-	!A ^ B | C()
-	-> ((!A) ^ B) | (C())
-
-	A & B < C | D
-	-> (A & B) < (C | D)
-	
-	A & B < C ^ D | E	
-	-> (A & B) < ((C ^ D) | E)
-
-	A < B == C < D
-	-> (A < B) == (C < D)
-
-	A + B | C == D	
-	-> ((A + B) | C) == D
-
-	A == B ? C : D 
-	-> (A == B) ? (C) : (D) 
-*/
 
 void parse_alias(_alias& alias);
 void parse_struct(_struct& strct);
@@ -365,13 +326,13 @@ void parse_return_list(vector<_arg>& args);
 void parse_block(_scope& scope);
 
 void parse_expression(_statement& expr);
+_ast* _parse_expression(_ast* lhs, int min_prec);
 
 void parse_function_call(_lambda& fun);
 void parse_array_access(_iterator& iter);
 void parse_member_access(_member& memb);
 
 /* Precedence Table 
-	right-binding
 	1: '=', '*=', '/=', '%=', '+='
 	'-=', '<<=', '>>=', '&&=', '^^=', '||='
 
@@ -576,13 +537,6 @@ bool is_postop(Tok t) {
 	return false;
 }
 
-bool is_right_associative(Tok t) {
-	if (is_unop(t)) return true;
-	if (t == T_LOG_NOT) return true;
-	if (t == T_BITWISE_NOT) return true; 
-	return false;
-}
-
 /* backtracking support */
 stack<int>	  marks;  // tokbuf indexes for nested backtracking
 vector<Token> tokbuf; // buffer of tokens
@@ -673,7 +627,7 @@ bool speculating() {
 	return (marks.size() > 0);
 }
 
-bool build_module() {
+bool parse_module() {
 	// this function implements this segment of the grammar:
 	//		"a program is composed of zero or more top level declarations
 	//			followed by the 'EOF' token."
@@ -707,28 +661,28 @@ bool build_module() {
 	// these are all top level declarations
 	while (curtok().type != T_EOF) {
 		/* <type-definition> */
-		if (speculate_alias()) {
+		if (try_speculate_alias()) {
 			auto a = new _alias;
 			parse_alias(*a);
 			top.types.push_back(a);
 		}
-		else if (speculate_struct()) {
+		else if (try_speculate_struct()) {
 			auto s = new _struct;
 			parse_struct(*s);
 			top.types.push_back(s);
 		}
-		else if (speculate_union()) {
+		else if (try_speculate_union()) {
 			auto u = new _union;
 			parse_union(*u);
 			top.types.push_back(u);
 		}
 		/* <declaration> */
-		else if (speculate_function()) {
+		else if (try_speculate_function()) {
 			auto f = new _declaration;
 			parse_function(*f);
 			top.body.decls.push_back(f);
 		}
-		else if (speculate_declaration()) {
+		else if (try_speculate_declaration()) {
 			auto d = new _declaration;
 			parse_declaration(*d);
 			top.body.decls.push_back(d);
@@ -742,12 +696,12 @@ bool build_module() {
 	return true;
 }
 
-bool speculate_alias()
+bool try_speculate_alias()
 {
 	return false;
 }
 
-bool speculate_struct() {
+bool try_speculate_struct() {
 	/// <struct> := 'struct' (<identifier>)? '::' <composite-type-block>
 	bool success = true;
 	mark();
@@ -765,16 +719,24 @@ bool speculate_struct() {
 	return success;
 }
 
-bool speculate_union()
+bool try_speculate_union()
 {
 	return false;
+}
+
+bool try_speculate_function()
+{
+	bool success = true;
+	mark();
+	success = speculate_function();
+	release();
+	return success;
 }
 
 bool speculate_function()
 {
 	/* 'fn' <identifier> '::' <lambda-definition> */
 	bool success = true;
-	mark();
 	if (speculate(T_FUNCTION)) {
 		if (speculate(T_ID)) {
 			if (speculate(T_CONST_ASSIGN)) {
@@ -788,6 +750,14 @@ bool speculate_function()
 		else success = false;
 	}
 	else success = false;
+	return success;
+}
+
+bool try_speculate_declaration()
+{
+	bool success = true;
+	mark();
+	success = speculate_declaration();
 	release();
 	return success;
 }
@@ -805,7 +775,6 @@ bool speculate_declaration()
 	// mark the current spot in the tokbuf so that
 	// we can rewind later
 	bool success = true;
-	mark();
 	if (speculate(T_ID)) {
 		if (speculate(T_COLON)) {
 			if (speculate_type_specifier()) {
@@ -845,8 +814,6 @@ bool speculate_declaration()
 		}
 		else success = false;
 	} else success = false;
-	release(); // reset the tokidx succeed or fail, 
-			   // we are reparsing either way
 	return success;
 }
 
@@ -882,6 +849,14 @@ bool speculate_type_primitive()
 		else success = false;
 	}
 	else success = false;
+	return success;
+}
+
+bool try_speculate_lambda() {
+	bool success = true;
+	mark();
+	success = speculate_lambda();
+	release();
 	return success;
 }
 
@@ -942,7 +917,6 @@ bool speculate_literal()
 bool speculate_composite_type_block() {
 	/* <composite-type-block> := '{' (<declaration>)* '}' */
 	bool success = true;
-	mark();
 	if (speculate(T_LBRACKET)) { // '{'
 		while (speculate_declaration()); // (<declaration>)*
 
@@ -952,7 +926,6 @@ bool speculate_composite_type_block() {
 		else success = false;
 	}
 	else success = false;
-	release();
 	return success;
 }
 
@@ -1088,7 +1061,6 @@ bool speculate_array_access()
 bool speculate_statement()
 {
 	bool success = true;
-	mark();
 	if (speculate_block()) {
 
 	}
@@ -1102,6 +1074,14 @@ bool speculate_statement()
 
 	}
 	else success = false;
+	return success;
+}
+
+bool try_speculate_conditional()
+{
+	bool success = true;
+	mark();
+	success = speculate_conditional();
 	release();
 	return success;
 }
@@ -1114,7 +1094,6 @@ bool speculate_conditional()
 
 	*/
 	bool success = true;
-	mark();
 	if (speculate(T_IF)) {
 		if (speculate(T_LPAREN)) {
 			if (speculate_expression()) {
@@ -1136,9 +1115,18 @@ bool speculate_conditional()
 		else success = false;
 	}
 	else success = false;
+	return success;
+}
+
+bool try_speculate_iteration()
+{
+	bool success = true;
+	mark();
+	success = speculate_iteration();
 	release();
 	return success;
 }
+
 
 bool speculate_iteration()
 {
@@ -1149,7 +1137,6 @@ bool speculate_iteration()
 
 	*/
 	bool success = true;
-	mark();
 	if (speculate(T_WHILE)) {
 		if (speculate(T_LPAREN)) {
 			if (speculate_expression()) {
@@ -1181,8 +1168,6 @@ bool speculate_iteration()
 		else success = false;
 	}
 	else success = false;
-
-	release();
 	return success;
 }
 
@@ -1202,54 +1187,8 @@ bool speculate_block()
 	return success;
 }
 
-// TODO: refactor speculate_expression stack too a
-//		https://en.wikipedia.org/wiki/Operator-precedence_parser
-
-/* 
-parse_expression ()
-	return parse_expression_1 (parse_primary (), 0)
-
-parse_expression_1 (lhs, min_precedence)
-	lookahead := peek next token
-	while lookahead is a binary operator whose precedence is >= min_precedence
-		op := lookahead
-		advance to next token
-		rhs := parse_primary ()
-		lookahead := peek next token
-		while lookahead is a binary operator whose precedence is greater
-				 than op's, or a right-associative operator
-				 whose precedence is equal to op's
-			rhs := parse_expression_1 (rhs, lookahead's precedence)
-			lookahead := peek next token
-		lhs := the result of applying op with operands lhs and rhs
-	return lhs
-
-	
-
-	Precedence Table: 
-	:right-binding
-	1: '=', '*=', '/=', '%=', '+='
-	'-=', '<<=', '>>=', '&&=', '^^=', '||='
-	:left-binding
-	2: '?:'
-	3: '==', '!='
-	4: '<', '>', '<=', '>='
-	5: '|' 
-	6: '^'
-	7: '&'
-	8: '!'
-	9: '||'
-	10: '^^'
-	11: '&&'
-	12: '!!'
-	13: '<<', '>>'
-	14: '+', '-'
-	15: '*', '/', '%'
-	16: '[]', '()', '.', ','
-*/
-
-
-
+// these are functions that should only be called from
+// _speculate_expression(), hence the leading '_'
 bool _speculate_expression();
 bool _speculate_id();
 bool _speculate_unop();
@@ -1259,6 +1198,8 @@ bool _speculate_postop();
 bool _speculate_lparen();
 bool _speculate_rparen();
 bool _speculate_fcall();
+bool _speculate_array();
+bool _speculate_period();
 
 stack<int> parens;
 
@@ -1283,7 +1224,7 @@ bool _speculate_expression() {
 		return _speculate_lparen();
 	else if (curtok().type == T_RPAREN) // empty expressions are valid
 		return _speculate_rparen();
-	else if (curtok().type == T_SEMICOLON) // empty expressions are valid
+	else if (curtok().type == T_SEMICOLON && parens.size() == 0) // empty expressions are valid
 		return true;
 	else return false;
 }
@@ -1299,7 +1240,7 @@ bool _speculate_id() {
 		return _speculate_rparen();
 	if (curtok().type == T_LPAREN)
 		return _speculate_fcall();
-	if (curtok().type == T_SEMICOLON)
+	if (curtok().type == T_SEMICOLON && parens.size() == 0)
 		return true;
 	return false;
 }
@@ -1409,7 +1350,7 @@ bool _speculate_fcall()
 		else if (speculate_lambda()) {
 			return true;
 		}
-
+		return false;
 	};
 
 	consume(); // eat '('
@@ -1424,10 +1365,22 @@ bool _speculate_fcall()
 
 	if (curtok().type != T_RPAREN) return false;
 	consume(); // eat ')'
-	return true;
+	switch (curtok().type) {
+
+	}
 }
 
-/* build_* functions */
+bool _speculate_array()
+{
+	return false;
+}
+
+bool _speculate_period()
+{
+	return false;
+}
+
+/* parse_* functions */
 
 void parse_alias(_alias& alias)
 {
@@ -1565,7 +1518,6 @@ void parse_type_specifier(_arg& arg)
 	}
 }
 
-
 void parse_initializer(_declaration& decl)
 {
 	/*
@@ -1576,57 +1528,49 @@ void parse_initializer(_declaration& decl)
 			>	| <identifier> ':=' <initializer> ';'
 
 <initializer>  := <lambda-definition>
-				| <literal>
-				| <identifier>
+				| <expression> 
+
 	*/
+	_statement statement;
+	_lambda* lambda;
 	// there will be a preceding '=' || '::' || ':='
 	if (curtok().type == T_CONST_ASSIGN) {
 		decl.op = curtok();
 	}
-	else {
+	else { 
 		decl.op = { T_DYNAMIC_ASSIGN, ":=" };
 	}
-	consume(); 
+	consume();
 
-	switch (curtok().type) {
-	case T_ID:
-		decl.rhs = new _usertype;
-		decl.type = curtok();
-		consume();
-		break;
-	case T_INT_LITERAL:
-		decl.rhs = new _int(stoi(curtok().value));
-		decl.type = curtok();
-		consume();
-		break;
-	case T_FLOAT_LITERAL:
-		decl.rhs = new _float(stof(curtok().value));
-		decl.type = curtok();
-		consume();
-		break;
-	case T_STRING_LITERAL:
-		decl.rhs = new _string(curtok().value);
-		decl.type = curtok();
-		consume();
-		break;
-	case T_TRUE:
-		decl.rhs = new _bool(true);
-		decl.type = curtok();
-		consume();
-		break;
-	case T_FALSE:
-		decl.rhs = new _bool(false);
-		decl.type = curtok();
-		consume();
-		break;
-	case T_LPAREN:
-		auto lambda = new _lambda;
-		parse_lambda(*lambda); // build_* functions act like consume() 
-							   // on the state of the tokbuf.
-		decl.rhs = lambda;
-		decl.type = { T_FUNCTION, "" };
-		break;
+	// speculate_expression is normally called in a context where
+	// we want the input to advance if it is successfull, such as
+	// <conditional> or <iteration>, in the context of this function
+	// we want to unwind the input after speculation, hence this wrapper
+	// function.
+	auto try_speculate_expression = []() {
+		bool success = true;
+		mark();
+		success = speculate_expression();
+		release();
+		return success;
+	};
+
+	/*
+		In theory parse_expression handles the cases of a single <id>, <literal>, or <fcall>
+		so the only distinction that needs to be made is between defining a new function
+		using lambda syntax and the rhs being an expression.
+	*/
+	if (try_speculate_expression()) { 
+		parse_expression(statement);
+		decl.rhs = statement.value;
 	}
+	else if (try_speculate_lambda()) {
+		lambda = new _lambda;
+		parse_lambda(*lambda);
+		decl.rhs = lambda;
+	}
+	else throw;
+	
 }
 
 void parse_function(_declaration& decl)
@@ -1764,7 +1708,7 @@ void parse_return_list(vector<_arg>& args)
 			arg.value = lambda;
 			args.push_back(arg);
 		}
-		else { // the arg is a single token
+		else { // the arg is a single token, <id>, <primitive>, or <user-type>
 			arg.type = curtok();
 			args.push_back(arg);
 			consume();
@@ -1778,10 +1722,10 @@ void parse_block(_scope& scope)
 {
 	/*<lambda-block> := '{' (<declaration> | <statement>)* '}'*/
 	if (curtok().type != T_LBRACKET) throw;
-	consume();
+	consume(); // eat '{'
 
 	_declaration* declaration;
-	_ast* statement;
+	_statement* statement;
 
 	while (1) {
 		if (speculate_declaration()) {
@@ -1790,15 +1734,14 @@ void parse_block(_scope& scope)
 			scope.decls.push_back(declaration);
 		}
 		else if (speculate_statement()) {
-			// TODO:
-			//statement = new _statement;
-			//build_statement(*statement);
-			//scope.stmts.push_back(statement);
+			statement = new _statement;
+			parse_expression(*statement);
+			scope.stmts.push_back(statement);
 		}
 
 		if (curtok().type == T_RBRACKET) break;
 	}
-	consume();
+	consume(); // eat '}'
 }
 
 void parse_function_call(_lambda& fun)
@@ -1822,7 +1765,7 @@ void parse_function_call(_lambda& fun)
 	};
 	
 	consume(); // eat '('
-	if (curtok().type != T_RPAREN) { 
+	if (curtok().type != T_RPAREN) { // empty arg list is semantically valid
 		_arg arg;
 		parse_carg(arg);
 		fun.argument_list.push_back(arg);
@@ -1884,12 +1827,15 @@ _ast* parse_primary_expr() {
 	// A primary expression is the base grapheme
 	// that expressions are composed of. They have the
 	// highest precedence and must be fully evaluated
-	// before unops or binops can be evaluated.
-	// primary expressions: <id> (<postop>)*, <literal>, '(' <expression> ')'
+	// before binops can be evaluated.
+	// primary expressions: <id> (<postop>)*, <literal>, '(' <expression> ')', <unop> <primary>
 	Token i, f, s;
+	_var* var;
+	_ast* expr;
+	_unop* unop;
 	switch (curtok().type) {
-	case T_ID:
-		auto var = new _var(curtok().value);
+	case T_ID: 
+		var = new _var(curtok().value);
 		consume(); // eat <id>
 		while (is_postop(curtok().type))
 			var->postops.push_back(parse_postop());
@@ -1897,14 +1843,14 @@ _ast* parse_primary_expr() {
 	case T_LPAREN:
 		consume(); // eat '('
 
-		auto expr = _parse_expression(parse_primary_expr(), 0);
+		expr = _parse_expression(parse_primary_expr(), 0);
 
 		if (curtok().type != T_RPAREN) throw;
 		consume(); // eat ')'
 		return expr;
 	case T_ADD: case T_SUB: case T_MULT: 
 	case T_LOG_AND: case T_LOG_NOT: case T_BITWISE_NOT:
-		auto unop = new _unop;
+		unop = new _unop;
 
 		unop->op = curtok();
 		consume();
@@ -1939,8 +1885,8 @@ _ast* _parse_expression(_ast* lhs, int min_prec)
 	auto lad = curtok(); // lad - lookahead
 	while (is_binop(lad.type) && precedence[lad.type] >= min_prec) {
 		auto op = lad;
-		consume(); // safe to eat op
-		auto rhs = parse_primary_expr(); // eat <primary>
+		consume(); 
+		auto rhs = parse_primary_expr();
 		lad = curtok();
 		while (is_binop(lad.type) && (precedence[lad.type] > precedence[op.type]))
 		{
@@ -1952,6 +1898,27 @@ _ast* _parse_expression(_ast* lhs, int min_prec)
 	return lhs;
 }
 
+/*  parse_expression
+	https://en.wikipedia.org/wiki/Operator-precedence_parser
+
+
+	Precedence Table:
+	1: '=', '*=', '/=', '%=', '+='
+		'-=', '<<=', '>>=', '&&=', '^^=', '||='
+	2: '?:' // maybe remove ternary as it is a shorthand if-then-else instead of its own semantic construct?
+	3: '==', '!='
+	4: '<', '>', '<=', '>='
+	5: '|'
+	6: '^'
+	7: '&'
+	8: '||'
+	9: '^^'
+	10: '&&'
+	11: '<<', '>>'
+	12: '+', '-'
+	13: '*', '/', '%'
+	14: '[]', '()', '.', '!', '!!'
+*/
 void parse_expression(_statement& expr) {
 	// parse_primary_expr() will advance curtok to the next token
 	expr.value = _parse_expression(parse_primary_expr(), 0);

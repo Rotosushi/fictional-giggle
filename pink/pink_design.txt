@@ -498,19 +498,51 @@ If these are the problems, then how is this language a solution?
 	//				i:
 	//			}
 
-
-
-	// {constrained-block} -> {evaluate-to-bool}
-	//						| {iterable}
-	//						| {statement}
-	//						| {declaration}
-	//						| {operator}
-	//						| {operator-assignment}
-	//						| {operator-logical}
-	//						| {operator-arithmetic}
-	//						| {operator-bitwise}
-
 ///
+/*
+	A && B || C == D 	
+	-> ((A && B) || C) == D)
+
+	A || B ^^ C && D	
+	-> (A || (B ^^ (C && D)))
+
+	A && B || C ^^ D	
+	-> (A && B) || (C ^^ D)
+
+	A + B == C - D	
+	-> (A + B) == (C - D)
+
+	A + B && C & D	
+	-> (A + B) && (C & D)
+
+	A + B | D
+	-> ((A + B) | D)
+	
+	A - B ^ C | D
+	-> ((A - B) ^ C) | D)
+	
+	!A ^ B & C()
+	-> (!A) ^ (B & (C()))
+	
+	!A ^ B | C()
+	-> ((!A) ^ B) | (C())
+
+	A & B < C | D
+	-> (A & B) < (C | D)
+	
+	A & B < C ^ D | E	
+	-> (A & B) < ((C ^ D) | E)
+
+	A < B == C < D
+	-> (A < B) == (C < D)
+
+	A + B | C == D	
+	-> ((A + B) | C) == D
+
+	A == B ? C : D 
+	-> (A == B) ? (C) : (D) 
+*/
+
 
 %% ~Thoughts on things
 

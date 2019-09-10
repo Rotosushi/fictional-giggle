@@ -402,7 +402,7 @@ void test_lexer() {
 */
 
 void test_parser() {
-	build_module();
+	parse_module();
 }
 
 int main()

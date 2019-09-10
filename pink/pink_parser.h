@@ -15,6 +15,6 @@ void sync(int);
 bool speculating();
 
 // the main parse function
-bool build_module();
+bool parse_module();
 
 
