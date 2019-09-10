@@ -532,7 +532,7 @@ bool is_postop(Tok t) {
 	//			| '[' <expr> ']'
 	//			| '.' <id>
 	if (t == T_LPAREN)	 return true;
-	if (t == T_LBRACKET) return true;
+	if (t == T_LBRACE)	 return true;
 	if (t == T_PERIOD)	 return true;
 	return false;
 }
@@ -1025,16 +1025,10 @@ bool speculate_type_specifier()
 bool speculate_initializer()
 {
 	bool success = true;
-	if (speculate_lambda()) {
-
-	}
-	else if (speculate_literal()) {
-
+	if (try_speculate_lambda()) {
+		speculate_lambda();
 	}
 	else if (speculate_expression()) {
-
-	}
-	else if (speculate(T_ID)) {
 
 	}
 	else success = false;
@@ -1045,9 +1039,9 @@ bool speculate_array_access()
 {
 	// '[' <expression> ']'
 	bool success = true;
-	if (speculate(T_LBRACKET)) {
+	if (speculate(T_LBRACE)) {
 		if (speculate_expression()) {
-			if (speculate(T_RBRACKET)) {
+			if (speculate(T_RBRACE)) {
 
 			}
 			else success = false;
@@ -1197,18 +1191,12 @@ bool _speculate_literal();
 bool _speculate_postop();
 bool _speculate_lparen();
 bool _speculate_rparen();
-bool _speculate_fcall();
-bool _speculate_array();
-bool _speculate_period();
 
 stack<int> parens;
 
 bool speculate_expression()
 {
-	bool success = true;
-	if (_speculate_expression());
-	else success = false;
-	return success;
+	return _speculate_expression();
 }
 
 bool _speculate_expression() {
@@ -1216,21 +1204,23 @@ bool _speculate_expression() {
 	//  or immediately ended by ')', ';'
 	if (curtok().type == T_ID)
 		return _speculate_id();
-	else if (is_literal(curtok().type))
+	if (is_literal(curtok().type))
 		return _speculate_literal();
-	else if (is_unop(curtok().type))
+	if (is_unop(curtok().type))
 		return _speculate_unop();
-	else if (curtok().type == T_LPAREN)
+	if (curtok().type == T_LPAREN)
 		return _speculate_lparen();
-	else if (curtok().type == T_RPAREN) // empty expressions are valid
+	if (curtok().type == T_RPAREN) // empty expressions are valid
 		return _speculate_rparen();
-	else if (curtok().type == T_SEMICOLON && parens.size() == 0) // empty expressions are valid
+	if (curtok().type == T_SEMICOLON && parens.size() == 0) // empty expressions are valid
 		return true;
-	else return false;
+	
+	while (parens.size() > 0) parens.pop();
+	return false;
 }
 
 bool _speculate_id() {
-	// <id> can be followed by <binop>, <postop>, '(', ')', or ';'
+	// <id> can be followed by <binop>, <postop>, '(', ')', '[', ']', '.', or ';'
 	consume(); // consume <id>
 	if (is_binop(curtok().type))
 		return _speculate_binop();
@@ -1238,10 +1228,15 @@ bool _speculate_id() {
 		return _speculate_postop();
 	if (curtok().type == T_RPAREN)
 		return _speculate_rparen();
-	if (curtok().type == T_LPAREN)
-		return _speculate_fcall();
+	// this may be questionable, but when <id> is followed by ']', ']' is assumed to be a terminal character 
+	// for the case of array (pointer) math:
+	//		A[B + C] = D;
+	if (curtok().type == T_RBRACE) 
+		return true;
 	if (curtok().type == T_SEMICOLON && parens.size() == 0)
 		return true;
+
+	while (parens.size() > 0) parens.pop();
 	return false;
 }
 
@@ -1256,6 +1251,8 @@ bool _speculate_binop() {
 		return _speculate_id();
 	if (curtok().type == T_LPAREN)
 		return _speculate_lparen();
+
+	while (parens.size() > 0) parens.pop();
 	return false;
 }
 
@@ -1270,6 +1267,8 @@ bool _speculate_unop() {
 		return _speculate_id();
 	if (curtok().type == T_LPAREN)
 		return _speculate_lparen();
+
+	while (parens.size() > 0) parens.pop();
 	return false;
 }
 
@@ -1282,6 +1281,8 @@ bool _speculate_literal() {
 		return _speculate_rparen();
 	if (curtok().type == T_SEMICOLON && parens.size() == 0)
 		return true;
+
+	while (parens.size() > 0) parens.pop();
 	return false;
 }
 
@@ -1292,11 +1293,16 @@ bool _speculate_postop() {
 	else if (speculate_array_access());
 	else if (curtok().type == T_PERIOD) {
 		consume();
-		if (curtok().type != T_ID) return false;
+		if (curtok().type != T_ID) {
+			while (parens.size() > 0) parens.pop();
+			return false;
+		}
 		consume();
 	}
-	else return false; // malformed postop == malformed expression
-	// if we reach this point curtok will now be the next token
+	else { // malformed postop == malformed expression
+		while (parens.size() > 0) parens.pop();
+		return false;
+	}
 	
 	if (is_postop(curtok().type))
 		return _speculate_postop();
@@ -1306,6 +1312,8 @@ bool _speculate_postop() {
 		return _speculate_rparen();
 	if (curtok().type == T_SEMICOLON && parens.size() == 0)
 		return true;
+
+	while (parens.size() > 0) parens.pop();
 	return false;
 }
 
@@ -1317,66 +1325,19 @@ bool _speculate_lparen() {
 }
 
 bool _speculate_rparen() {
-	// ')' can be followed by '(', ')', <binop>, ';' or be the terminal character
+	// ')' can be followed by ')', <binop>, ';' or be the terminal character
 	consume();
 	parens.pop();
 
 	if (is_binop(curtok().type))
 		return _speculate_binop();
-	if (curtok().type == T_LPAREN)
-		return _speculate_fcall();
 	if (curtok().type == T_SEMICOLON && parens.size() == 0)
 		return true;
 	if (curtok().type == T_RPAREN) {
 		if (parens.size() == 0) return true;
 		return _speculate_rparen();
 	}
-	return false;
-}
-
-bool _speculate_fcall()
-{
-	// <fcall> := <id> '(' <carg> (',' <carg>)* ')'
-	// <carg> := <id> | <literal> | <lambda>
-	auto _speculate_carg = []() {
-		if (curtok().type == T_ID) {
-			consume();
-			return true;
-		}
-		else if (is_literal(curtok().type)) {
-			consume();
-			return true;
-		}
-		else if (speculate_lambda()) {
-			return true;
-		}
-		return false;
-	};
-
-	consume(); // eat '('
-
-	// <carg> (',' <carg>)*
-	if (_speculate_carg()) {
-		while (curtok().type == T_COMMA) {
-			consume(); // eat ','
-			if (_speculate_carg());
-		}
-	}
-
-	if (curtok().type != T_RPAREN) return false;
-	consume(); // eat ')'
-	switch (curtok().type) {
-
-	}
-}
-
-bool _speculate_array()
-{
-	return false;
-}
-
-bool _speculate_period()
-{
+	while (parens.size() > 0) parens.pop();
 	return false;
 }
 
@@ -1788,7 +1749,7 @@ void parse_array_access(_iterator& iter)
 	parse_expression(expr);
 	iter.value = expr.value;
 
-	if (curtok().type != T_RBRACKET) throw;
+	if (curtok().type != T_RBRACE) throw;
 	consume(); // eat ']'
 }
 
@@ -1810,7 +1771,7 @@ _ast* parse_postop() {
 		fun = new _lambda;
 		parse_function_call(*fun);
 		return fun;
-	case T_LBRACKET:
+	case T_LBRACE:
 		iter = new _iterator;
 		parse_array_access(*iter);
 		return iter;

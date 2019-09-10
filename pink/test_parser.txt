@@ -6,7 +6,9 @@ lamb := (x: int, y: int) -> (int, int) { };
 
 lamb_hard := (max: (a: int, b: int) -> (bool), a: int, b: int) -> (int) {};
 
-expr_hard := A() * B() + -C;
+expr1 := A() * B() + -C;
+
+expr2 := A(B, C)[D + E * F - G].H * *I == J; 
 
 a := 12;
 b := 1.5;

@@ -138,6 +138,14 @@ Token gettok() {
 			}
 		}
 
+		// if all this loop picks up is the period char,
+		// then it's not a floating point literal, it's
+		// the operator '.'
+		if (tok.value == ".") {
+			tok.type = T_PERIOD;
+			return tok;
+		}
+
 		if (has_fractional) {
 			tok.type = T_FLOAT_LITERAL;
 			return tok;
