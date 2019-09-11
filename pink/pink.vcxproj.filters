@@ -27,6 +27,9 @@
     <ClCompile Include="pink_ast.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="pink_utilities.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="pink_examples.txt">
@@ -71,6 +74,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="pink_ast.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pink_utilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -542,7 +542,40 @@ If these are the problems, then how is this language a solution?
 	A == B ? C : D 
 	-> (A == B) ? (C) : (D) 
 */
+/*
+Token := (<op1> | <op2> | .. | <opn> )
+	-->
+		if ( <<lookahead-predicts-op1>> ) { <<match-op1>> }
+		else if ( <<lookahead-predicts-op2>> ) { <<match-op2>> }
+		..
+		else if ( <<lookahead-predicts-opn>> ) { <<match-opn>> }
+		else <<unknown-token-error>> // no viable alternatives
 
+	Token := (optional-opt)? (op1 | op2)
+	-->
+		if (<lookahead-predicts-optional-opt) { match-optional-opt }
+		if (<lookahead-predicts-op1) {match-op1}
+		else if (<lookahead-predicts-op2) {match-op2}
+		else <unknown-token>
+
+	Token := (one-or-more-opt)+ (op1 | op2)
+	-->
+		do { // ( .. )+
+			<<code-matching-one-or-more-opts>>
+		} while ( <<lookahead-predicts-an-alternative-of-the-one-or-more-opts>> )
+		if (<lookahead-predicts-op1) {match-op1}
+		else if (<lookahead-predicts-op2) {match-op2}
+		else <unknown-token>
+
+	Token := (zero-or-more-opts)* (opt1 | opt2)
+	-->
+		while (<<lookahead-predicts-an-alternative-of-the-zero-or-more-opts>> ) {
+			<<code-matching-zero-or-more-opts>>
+		}
+		if (<lookahead-predicts-op1) {match-op1}
+		else if (<lookahead-predicts-op2) {match-op2}
+		else <unknown-token>
+*/
 
 %% ~Thoughts on things
 

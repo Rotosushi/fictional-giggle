@@ -1,52 +1,48 @@
 #include <string>
-
 using std::string;
+#include <iostream>
+#include <fstream>
+using std::ifstream;
 
 #include "pink_lexer.h"
 
-/*
-Token := (<op1> | <op2> | .. | <opn> )
-	-->
-		if ( <<lookahead-predicts-op1>> ) { <<match-op1>> }
-		else if ( <<lookahead-predicts-op2>> ) { <<match-op2>> }
-		..
-		else if ( <<lookahead-predicts-opn>> ) { <<match-opn>> }
-		else <<unknown-token-error>> // no viable alternatives
+ifstream infile;
+string instring;
+int input_state = 0;
 
-	Token := (optional-opt)? (op1 | op2)
-	-->
-		if (<lookahead-predicts-optional-opt) { match-optional-opt }
-		if (<lookahead-predicts-op1) {match-op1}
-		else if (<lookahead-predicts-op2) {match-op2}
-		else <unknown-token>
+void lexer::set_infile(char* filename)
+{
+	infile.open(filename);
+	input_state = 1;
+}
 
-	Token := (one-or-more-opt)+ (op1 | op2)
-	-->
-		do { // ( .. )+
-			<<code-matching-one-or-more-opts>>
-		} while ( <<lookahead-predicts-an-alternative-of-the-one-or-more-opts>> )
-		if (<lookahead-predicts-op1) {match-op1}
-		else if (<lookahead-predicts-op2) {match-op2}
-		else <unknown-token>
+void lexer::set_instring(string input)
+{
+	instring = input;
+	input_state = 2;
+}
 
-	Token := (zero-or-more-opts)* (opt1 | opt2)
-	-->
-		while (<<lookahead-predicts-an-alternative-of-the-zero-or-more-opts>> ) {
-			<<code-matching-zero-or-more-opts>>
-		}
-		if (<lookahead-predicts-op1) {match-op1}
-		else if (<lookahead-predicts-op2) {match-op2}
-		else <unknown-token>
-*/
+int lexer::get_char()
+{
+	auto string_getchar = [](string s) {
+		static int i = 0;
+		if (i < s.size()) return s[i++];
+	};
+	switch (input_state) {
+	case 0: return getchar();
+	case 1: return infile.get();
+	case 2: return string_getchar(instring);
+	}
+}
 
-int isidentifier(int c) {
+int lexer::isidentifier(int c) {
 	if (isalnum(c) || c == '_' || c == '-') {
 		return 1;
 	}
 	return 0;
 }
 
-int isoperator(int c) {
+int lexer::isoperator(int c) {
 	switch (c) {
 	case '=': case ':': case '*': case '/':
 	case '%': case '+': case '-': case '<':
@@ -60,7 +56,7 @@ int isoperator(int c) {
 	}
 }
 
-Token gettok() {
+Token lexer::gettok() {
 	static int c = ' '; // prime the input
 	Token tok;
 

@@ -155,11 +155,13 @@
     <ClCompile Include="pink_lexer.cpp" />
     <ClCompile Include="pink_parser.cpp" />
     <ClCompile Include="pink_ast.cpp" />
+    <ClCompile Include="pink_utilities.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pink_lexer.h" />
     <ClInclude Include="pink_parser.h" />
     <ClInclude Include="pink_ast.h" />
+    <ClInclude Include="pink_utilities.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="c_grammar.txt" />

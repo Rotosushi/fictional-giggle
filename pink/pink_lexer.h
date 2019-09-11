@@ -92,6 +92,15 @@ typedef struct {
 	std::string value;
 } Token;
 
-Token gettok();
+class lexer {
+public:
+	Token gettok();
+	void set_infile(char* filename);
+	void set_instring(string input);
+private:
+	int get_char();
+	int isidentifier(int c);
+	int isoperator(int c);
+};
 
 
