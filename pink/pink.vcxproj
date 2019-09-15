@@ -161,6 +161,7 @@
     <ClInclude Include="pink_lexer.h" />
     <ClInclude Include="pink_parser.h" />
     <ClInclude Include="pink_ast.h" />
+    <ClInclude Include="pink_semantic_analysis.h" />
     <ClInclude Include="pink_utilities.h" />
   </ItemGroup>
   <ItemGroup>

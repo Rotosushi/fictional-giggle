@@ -19,62 +19,39 @@ using std::endl;
 using std::stoi;
 using std::stof;
 
-_module* parser::parse_module()
+_module* _parser::parse_module()
 {
 	auto top = new _module;
 
-	init_precedence_table();
-
 	sync(1);
 
+	/* <module> := (<top-level-declaration>)* <EOF> */
 	while (curtok().type != T_EOF) {
-		if (try_speculate_alias()) {
-			auto a = new _alias;
-			parse_alias(*a);
-			top->types.push_back(a);
-		}
-		else if (try_speculate_struct()) {
-			auto s = new _struct;
-			parse_struct(*s);
-			top->types.push_back(s);
-		}
-		else if (try_speculate_union()) {
-			auto u = new _union;
-			parse_union(*u);
-			top->types.push_back(u);
-		}
-		else if (try_speculate_function()) {
-			auto f = new _declaration;
-			parse_function(*f);
-			top->body.decls.push_back(f);
-		}
-		else if (try_speculate_declaration()) {
-			auto d = new _declaration;
-			parse_declaration(*d);
-			top->body.decls.push_back(d);
-		}
-		else {
-			cout << "parser error: unknown top level declaration: \n";
-			print_token_buffer(tokidx);
-			return nullptr;
-		}
+		parse_top_level_declaration(*top);
 	}
+
 	return top;
 }
 
-_module* parser::parse_module(char* filename)
+_module* _parser::parse_module(char* filename)
 {
 	lex.set_infile(filename);
 	return parse_module();
 }
 
-_module* parser::parse_module(string s)
+_module* _parser::parse_module(string s)
 {
 	lex.set_instring(s);
 	return parse_module();
 }
 
-void parser::init_precedence_table()
+_parser::_parser()
+{
+	init_precedence_table();
+	init_valid_list();
+}
+
+void _parser::init_precedence_table()
 {
 	precedence[T_EQUALS]				= 1;
 	precedence[T_ADD_ASSIGN]			= 1;
@@ -115,39 +92,51 @@ void parser::init_precedence_table()
 	precedence[T_MOD]					= 12;
 }
 
-void parser::print_token_buffer()
+void _parser::init_valid_list()
+{
+	valid_list[AST_INT] = { AST_INT, AST_FLOAT, };
+	valid_list[AST_FLOAT] = { AST_FLOAT, AST_INT, };
+}
+
+void _parser::print_token_buffer()
 {
 	for (auto i : tokbuf)
 		cout << "token type: "  << i.type  << ' '
 		     << "token value: " << i.value << endl;
 }
 
-void parser::print_token_buffer(int i)
+void _parser::print_token_buffer(int i)
 {
 	for (int j = i; j < tokbuf.size(); j++)
 		cout << "token type: "  << tokbuf[j].type  << ' '
 		     << "token value: " << tokbuf[j].value << endl;
 }
 
-int parser::mark()
+void _parser::parser_error(const char* str)
+{
+	cout << "parser error: " << str << "\n";
+	print_token_buffer(tokidx);
+}
+
+int _parser::mark()
 {
 	marks.push(tokidx);
 	return tokidx;
 }
 
-void parser::release()
+void _parser::release()
 {
 	int mark = marks.top();
 	marks.pop();
 	tokidx = mark; // seek to mark
 }
 
-Token parser::curtok()
+_token _parser::curtok()
 {
 	return tokbuf[tokidx];
 }
 
-bool parser::speculate(Tok tok)
+bool _parser::speculate(_tok tok)
 {
 	if (tok == curtok().type) {
 		consume();
@@ -156,7 +145,7 @@ bool parser::speculate(Tok tok)
 	else return false;
 }
 
-void parser::consume()
+void _parser::consume()
 {
 	tokidx++; // "consume" the token
 			  // recall that this is a backtracking parser,
@@ -182,7 +171,7 @@ void parser::consume()
 			 // and we need to prime the next token.
 }
 
-void parser::sync(int i)
+void _parser::sync(int i)
 {
 	if ((size_t)((uint64_t)tokidx + i) > tokbuf.size()) { // do we need more tokens than we have?
 		int n = (tokidx + i) - tokbuf.size(); // how many more do we need?
@@ -190,12 +179,12 @@ void parser::sync(int i)
 	}
 }
 
-bool parser::speculating()
+bool _parser::speculating()
 {
 	return marks.size() > 0;
 }
 
-bool parser::is_unop(Tok t)
+bool _parser::is_unop(_tok t)
 {
 	// valid prefix tokens '-', '+', '*', '&', '!', '!!'
 	if (t == T_ADD)			return true;
@@ -207,7 +196,7 @@ bool parser::is_unop(Tok t)
 	return false;
 }
 
-bool parser::is_binop(Tok t)
+bool _parser::is_binop(_tok t)
 {
 	/* valid binop tokens: =, +=, -=, *=,
 							/=, %=, ||=, &&=,
@@ -248,7 +237,7 @@ bool parser::is_binop(Tok t)
 	return false; 
 }
 
-bool parser::is_literal(Tok t)
+bool _parser::is_literal(_tok t)
 {
 	if (t == T_INT_LITERAL)		return true;
 	if (t == T_FLOAT_LITERAL)	return true;
@@ -258,7 +247,7 @@ bool parser::is_literal(Tok t)
 	return false;
 }
 
-bool parser::is_postop(Tok t)
+bool _parser::is_postop(_tok t)
 {
 	// postop :=  '(' <arg> (',' <arg>)* ')'
 //			| '[' <expr> ']'
@@ -269,7 +258,106 @@ bool parser::is_postop(Tok t)
 	return false;
 }
 
-bool parser::try_speculate_declaration()
+bool _parser::analyze(_declaration& decl, _scope& current_scope)
+{
+	/*
+	about declarations
+		what type is it?
+		is this name taken?
+	*/
+	if (current_scope.already_in_scope(decl)) {
+		parser_error("declaration uses previously defined identifier.");
+		return false;
+	}
+
+	// this declaration is a lambda
+	if (decl.rhs->ast_type == AST_FUNCTION) {
+		auto rhs = (_lambda*)decl.rhs;
+		for (auto dec : rhs->body.decls) {
+			analyze(dec, rhs->body);
+		}
+	}
+	// this declaration is the result of an expression
+	else if (decl.rhs->ast_type == AST_BINOP) {
+		auto rhs = (_binop*)decl.rhs;
+		analyze(*rhs, current_scope);
+	}
+
+}
+
+_ast_type _parser::analyze(_binop& binop, _scope& current_scope)
+{
+	_ast_type lhs_type, rhs_type;
+	if (binop.lhs->ast_type == AST_BINOP) {
+		auto lhs = (_binop*)binop.lhs;
+		if ((lhs_type = analyze(*lhs, current_scope)) == AST_ERR)
+			return AST_ERR;
+	}
+	else {
+		lhs_type = binop.lhs->ast_type;
+	}
+
+	if (binop.rhs->ast_type == AST_BINOP) {
+		auto rhs = (_binop*)binop.rhs;
+		if ((rhs_type = analyze(*rhs, current_scope)) == AST_ERR)
+			return AST_ERR;
+	}
+	else {
+		rhs_type = binop.rhs->ast_type;
+	}
+
+	return valid_for(binop.op.type, lhs_type, rhs_type);
+}
+
+_ast_type _parser::valid_for(_tok tok, _ast_type lhs_type, _ast_type rhs_type)
+{
+	switch (tok) {
+	case T_EQUALS:
+		if (lhs_type == AST_VAR && rhs_type == AST_INT)
+			return AST_INT;
+		if (lhs_type == AST_VAR && rhs_type == AST_FLOAT)
+			return AST_FLOAT;
+		if (lhs_type == AST_VAR && rhs_type == AST_STRING)
+			return AST_STRING;
+		if (lhs_type == AST_VAR && rhs_type == AST_BOOL)
+			return AST_BOOL;
+	case T_ADD:
+
+	case T_SUB:
+
+	case T_MULT:
+
+	case T_DIV:
+
+	case T_MOD:
+
+	case T_BITWISE_OR:
+
+	case T_BITWISE_XOR:
+
+	case T_BITWISE_AND:
+
+	case T_LOG_OR:
+
+	case T_LOG_XOR:
+
+	case T_LOG_AND:
+
+	case T_LOG_EQUALS:
+
+	case T_LOG_NOT_EQUALS:
+
+	case T_LOG_LESS:
+
+	case T_LOG_LESS_EQUALS:
+
+	case T_LOG_GREATER:
+
+	case T_LOG_GREATER_EQUALS:
+	}
+}
+
+bool _parser::try_speculate_declaration()
 {
 	bool success = true;
 	mark();
@@ -278,7 +366,7 @@ bool parser::try_speculate_declaration()
 	return success;
 }
 
-bool parser::try_speculate_alias()
+bool _parser::try_speculate_alias()
 {
 	bool success = true;
 	mark();
@@ -287,7 +375,7 @@ bool parser::try_speculate_alias()
 	return success;
 }
 
-bool parser::try_speculate_struct()
+bool _parser::try_speculate_struct()
 {
 	bool success = true;
 	mark();
@@ -296,7 +384,7 @@ bool parser::try_speculate_struct()
 	return success;
 }
 
-bool parser::try_speculate_union()
+bool _parser::try_speculate_union()
 {
 	bool success = true;
 	mark();
@@ -305,7 +393,7 @@ bool parser::try_speculate_union()
 	return success;
 }
 
-bool parser::try_speculate_function()
+bool _parser::try_speculate_function()
 {
 	bool success = true;
 	mark();
@@ -314,7 +402,7 @@ bool parser::try_speculate_function()
 	return success;
 }
 
-bool parser::try_speculate_lambda()
+bool _parser::try_speculate_lambda()
 {
 	bool success = true;
 	mark();
@@ -323,7 +411,7 @@ bool parser::try_speculate_lambda()
 	return success;
 }
 
-bool parser::try_speculate_conditional()
+bool _parser::try_speculate_conditional()
 {
 	bool success = true;
 	mark();
@@ -332,7 +420,7 @@ bool parser::try_speculate_conditional()
 	return success;
 }
 
-bool parser::try_speculate_iteration()
+bool _parser::try_speculate_iteration()
 {
 	bool success = true;
 	mark();
@@ -341,7 +429,7 @@ bool parser::try_speculate_iteration()
 	return success;
 }
 
-bool parser::try_speculate_expression()
+bool _parser::try_speculate_expression()
 {
 	bool success = true;
 	mark();
@@ -350,7 +438,7 @@ bool parser::try_speculate_expression()
 	return success;
 }
 
-bool parser::speculate_declaration()
+bool _parser::speculate_declaration()
 {
 	/*
 		<declaration>  := <identifier> ':' <type-specifier> ';'
@@ -403,7 +491,7 @@ bool parser::speculate_declaration()
 	return success;
 }
 
-bool parser::speculate_type_specifier()
+bool _parser::speculate_type_specifier()
 {
 	/*
 		<type-specifier>	:= <identifier>
@@ -428,7 +516,7 @@ bool parser::speculate_type_specifier()
 	return success;
 }
 
-bool parser::speculate_type_primitive()
+bool _parser::speculate_type_primitive()
 {
 	bool success = true;
 	if (speculate(T_MAYBE));
@@ -463,7 +551,7 @@ bool parser::speculate_type_primitive()
 	return success;
 }
 
-bool parser::speculate_initializer()
+bool _parser::speculate_initializer()
 {
 	bool success = true;
 	if (try_speculate_lambda()) {
@@ -476,7 +564,7 @@ bool parser::speculate_initializer()
 	return success;
 }
 
-bool parser::speculate_alias()
+bool _parser::speculate_alias()
 {
 	bool success = true;
 	if (speculate(T_ALIAS)) {
@@ -495,7 +583,7 @@ bool parser::speculate_alias()
 	return success;
 }
 
-bool parser::speculate_struct()
+bool _parser::speculate_struct()
 {
 	bool success = true;
 	if (speculate(T_STRUCT)) {
@@ -513,7 +601,7 @@ bool parser::speculate_struct()
 	return success;
 }
 
-bool parser::speculate_union()
+bool _parser::speculate_union()
 {
 	bool success = true;
 	if (speculate(T_UNION)) {
@@ -531,7 +619,7 @@ bool parser::speculate_union()
 	return success;
 }
 
-bool parser::speculate_composite_type_block()
+bool _parser::speculate_composite_type_block()
 {
 	bool success = true;
 	if (speculate(T_LBRACKET)) {
@@ -544,7 +632,7 @@ bool parser::speculate_composite_type_block()
 	return success;
 }
 
-bool parser::speculate_function()
+bool _parser::speculate_function()
 {
 	bool success = true;
 	if (speculate(T_FUNCTION)) {
@@ -563,7 +651,7 @@ bool parser::speculate_function()
 	return success;
 }
 
-bool parser::speculate_lambda()
+bool _parser::speculate_lambda()
 {
 	/*
 		<lambda-definition> := <lambda-header> <lambda-body>
@@ -580,7 +668,7 @@ bool parser::speculate_lambda()
 	return success;
 }
 
-bool parser::speculate_lambda_header()
+bool _parser::speculate_lambda_header()
 {
 	/*
 		<lambda-header> := <argument-list> '->' (<return-list>)?
@@ -598,7 +686,7 @@ bool parser::speculate_lambda_header()
 	return success;
 }
 
-bool parser::speculate_argument_list()
+bool _parser::speculate_argument_list()
 {
 	/*
 		<argument-list> := '(' <arg> (',' <arg>)* ')'
@@ -626,7 +714,7 @@ bool parser::speculate_argument_list()
 	return success;
 }
 
-bool parser::speculate_arg()
+bool _parser::speculate_arg()
 {
 	/*
 		<arg> := <identifier> (':' <type-specifier>)?
@@ -644,7 +732,7 @@ bool parser::speculate_arg()
 	return success;
 }
 
-bool parser::speculate_return_list()
+bool _parser::speculate_return_list()
 {
 	/*
 		<return-list> := '(' <type-specifier> (',' <type-specifier>)*')' 
@@ -672,7 +760,7 @@ bool parser::speculate_return_list()
 	return success;
 }
 
-bool parser::speculate_statement()
+bool _parser::speculate_statement()
 {
 	bool success = true;
 	if (speculate_block()) {
@@ -691,7 +779,7 @@ bool parser::speculate_statement()
 	return success;
 }
 
-bool parser::speculate_conditional()
+bool _parser::speculate_conditional()
 {
 	/*
 		<conditional>  := 'if' '(' <expression> ')' <statement> ('else' <statement>)?
@@ -722,7 +810,7 @@ bool parser::speculate_conditional()
 	return success;
 }
 
-bool parser::speculate_iteration()
+bool _parser::speculate_iteration()
 {
 	/*
 		<iteration> := 'while' '(' <expression> ')' <statement>
@@ -765,7 +853,7 @@ bool parser::speculate_iteration()
 	return success;
 }
 
-bool parser::speculate_block()
+bool _parser::speculate_block()
 {
 	bool success = true;
 	if (speculate(T_LBRACKET)) {
@@ -780,7 +868,7 @@ bool parser::speculate_block()
 	return success;
 }
 
-bool parser::speculate_expression()
+bool _parser::speculate_expression()
 {
 	// an expression is started by <id>, <literal>, <unop>, '('
 	//  or immediately ended by ')', ';'
@@ -798,7 +886,7 @@ bool parser::speculate_expression()
 		return true;
 }
 
-bool parser::speculate_literal()
+bool _parser::speculate_literal()
 {
 	// <literal> can be followed by <binop>, ')' or ';'
 	consume();
@@ -813,7 +901,7 @@ bool parser::speculate_literal()
 	return false;
 }
 
-bool parser::speculate_id()
+bool _parser::speculate_id()
 {
 	// <id> can be followed by <binop>, <postop>, '(', ')', '[', ']', '.', or ';'
 	consume(); // consume <id>
@@ -835,7 +923,7 @@ bool parser::speculate_id()
 	return false;
 }
 
-bool parser::speculate_binop()
+bool _parser::speculate_binop()
 {
 	// <binop> can be followed by <unop>, <id>, '(', or <literal>
 	consume(); // consume <binop>
@@ -852,7 +940,7 @@ bool parser::speculate_binop()
 	return false;
 }
 
-bool parser::speculate_unop()
+bool _parser::speculate_unop()
 {
 	// <unop> can be followed by <unop>, <id>, or <literal>
 	consume(); // consume <unop>
@@ -869,13 +957,15 @@ bool parser::speculate_unop()
 	return false;
 }
 
-bool parser::speculate_postop()
+bool _parser::speculate_postop()
 {
 	// <postop> can be followed by <postop>, <binop>, or ';'
 	// consume <postop>
 	if (speculate_argument_list());
 	else if (speculate(T_LBRACE)) {
-		if (speculate_expression());
+		if (speculate_expression()) {
+
+		}
 		if (speculate(T_RBRACE));
 		else return false;
 	}
@@ -903,7 +993,7 @@ bool parser::speculate_postop()
 	return false;
 }
 
-bool parser::speculate_lparen()
+bool _parser::speculate_lparen()
 {
 	// '(' can be followed by <expr>
 	consume();
@@ -911,7 +1001,7 @@ bool parser::speculate_lparen()
 	return speculate_expression();
 }
 
-bool parser::speculate_rparen()
+bool _parser::speculate_rparen()
 {
 	// ')' can be followed by ')', <binop>, ';' or be the terminal character
 	consume();
@@ -929,7 +1019,41 @@ bool parser::speculate_rparen()
 	return false;
 }
 
-void parser::parse_declaration(_declaration& decl)
+void _parser::parse_top_level_declaration(_module& top)
+{
+	if (try_speculate_alias()) {
+		auto a = new _alias;
+		parse_alias(*a);
+		top.types.push_back(a);
+	}
+	else if (try_speculate_struct()) {
+		auto s = new _struct;
+		parse_struct(*s);
+		top.types.push_back(s);
+	}
+	else if (try_speculate_union()) {
+		auto u = new _union;
+		parse_union(*u);
+		top.types.push_back(u);
+	}
+	else if (try_speculate_function()) {
+		auto f = new _function;
+		parse_function(*f);
+		// resolve(*f)
+		// typecheck(*f)
+		top.types.push_back(f);
+	}
+	else if (try_speculate_declaration()) {
+		auto d = new _declaration;
+		parse_declaration(*d);
+		top.body.decls.push_back(*d);
+	}
+	else {
+		parser_error("unknown top level declaration:");
+	}
+}
+
+void _parser::parse_declaration(_declaration& decl)
 {
 	// this function implements this portion of the grammar:
 	/*
@@ -975,7 +1099,7 @@ void parser::parse_declaration(_declaration& decl)
 	consume();
 }
 
-void parser::parse_type_specifier(_declaration& decl)
+void _parser::parse_type_specifier(_declaration& decl)
 {
 	// if this function is called, curtok() == ':'
 	// so we consume it to look at the <type-specifier> token
@@ -1019,12 +1143,7 @@ void parser::parse_type_specifier(_declaration& decl)
 	}
 }
 
-void parser::parse_type_specifier(_alias& alias)
-{
-
-}
-
-void parser::parse_type_specifier(_arg& arg)
+void _parser::parse_type_specifier(_arg& arg)
 {
 	// when this function is called the context is
 	// <arg> := <identifier> (':' <type-specifier>)?
@@ -1051,7 +1170,7 @@ void parser::parse_type_specifier(_arg& arg)
 	}
 }
 
-void parser::parse_initializer(_declaration& decl)
+void _parser::parse_initializer(_declaration& decl)
 {
 	/*
 	This function is only ever called in this context:
@@ -1091,19 +1210,21 @@ void parser::parse_initializer(_declaration& decl)
 	else throw;
 }
 
-void parser::parse_expression(_statement& expr)
+void _parser::parse_expression(_statement& expr)
 {
 	expr.value = _parse_expression(parse_primary_expr(), 0);
 }
 
-void parser::parse_expression(_ast* expr)
+void _parser::parse_expression(_ast* expr)
 {
 	expr = _parse_expression(parse_primary_expr(), 0);
 }
 
-_ast* parser::_parse_expression(_ast* lhs, int min_prec)
+
+// _parse_expression is an operator precedence parser
+// https://en.wikipedia.org/wiki/Operator-precedence_parser
+_ast* _parser::_parse_expression(_ast* lhs, int min_prec)
 {
-	// lhs = <primary>
 	auto lad = curtok(); // lad - lookahead
 	while (is_binop(lad.type) && precedence[lad.type] >= min_prec) {
 		auto op = lad;
@@ -1120,7 +1241,7 @@ _ast* parser::_parse_expression(_ast* lhs, int min_prec)
 	return lhs;
 }
 
-_ast* parser::parse_postop()
+_ast* _parser::parse_postop()
 {
 	_lambda* fun;
 	_iterator* iter;
@@ -1143,14 +1264,20 @@ _ast* parser::parse_postop()
 	}
 }
 
-_ast* parser::parse_primary_expr()
+_ast* _parser::parse_primary_expr()
 {
-	// A primary expression is the base grapheme
-	// that expressions are composed of. They have the
-	// highest precedence and must be fully evaluated
-	// before binops can be evaluated.
-	// primary expressions: <id> (<postop>)*, <literal>, '(' <expression> ')', <unop> <primary>
-	Token i, f, s;
+	/*
+	A primary expression is the base grapheme
+		 that expressions are composed of. They have the
+		 highest precedence and must be fully evaluated
+		 before binops can be evaluated.
+
+	   <primary-expression> := <id> (<postop>)*
+							  | <literal>
+							  | '(' <expression> ')'
+							  | <unop> <primary-expression>
+	*/
+	_token i, f, s;
 	_var* var;
 	_ast* expr;
 	_unop* unop;
@@ -1200,10 +1327,10 @@ _ast* parser::parse_primary_expr()
 	}
 }
 
-void parser::parse_function_call(_lambda& fun)
+void _parser::parse_function_call(_lambda& fun)
 {
 	// '(' (<carg> (',' <carg>)*)? ')'
-	// <carg> := <id> | <literal> | <lambda>
+	// <carg> := <id> | <literal> | <lambda-definition>
 	auto parse_carg = [this](_arg& arg) {
 		if (curtok().type == T_ID) {
 			arg.id = curtok().value;
@@ -1236,7 +1363,7 @@ void parser::parse_function_call(_lambda& fun)
 	consume(); // eat ')'
 }
 
-void parser::parse_array_access(_iterator& iter)
+void _parser::parse_array_access(_iterator& iter)
 {
 	// '[' <expression> ']'
 	consume(); // eat '['
@@ -1248,7 +1375,7 @@ void parser::parse_array_access(_iterator& iter)
 	consume(); // eat ']'
 }
 
-void parser::parse_member_access(_member& memb)
+void _parser::parse_member_access(_member& memb)
 {
 	// <id> '.' <id>
 	consume(); // eat '.'
@@ -1257,7 +1384,7 @@ void parser::parse_member_access(_member& memb)
 	consume(); // eat <id>
 }
 
-void parser::parse_alias(_alias& alias)
+void _parser::parse_alias(_alias& alias)
 {
 	if (curtok().type == T_ALIAS) {
 		consume();
@@ -1273,7 +1400,7 @@ void parser::parse_alias(_alias& alias)
 	else throw;
 }
 
-void parser::parse_struct(_struct& strct)
+void _parser::parse_struct(_struct& strct)
 {
 	if (curtok().type == T_STRUCT) {
 		consume();
@@ -1283,12 +1410,12 @@ void parser::parse_struct(_struct& strct)
 		}
 		if (curtok().type != T_CONST_ASSIGN) throw;
 		consume();
-		speculate_composite_type_block(strct.body);
+		parse_composite_type_block(strct.body);
 	}
 	else throw;
 }
 
-void parser::parse_union(_union& unn)
+void _parser::parse_union(_union& unn)
 {
 	if (curtok().type == T_UNION) {
 		consume();
@@ -1298,13 +1425,13 @@ void parser::parse_union(_union& unn)
 		}
 		if (curtok().type != T_CONST_ASSIGN) throw;
 		consume();
-		speculate_composite_type_block(unn.body);
+		parse_composite_type_block(unn.body);
 	}
 	else throw;
 
 }
 
-void parser::parse_composite_type_block(vector<_declaration>& decls)
+void _parser::parse_composite_type_block(vector<_declaration>& decls)
 {
 	if (curtok().type == T_RBRACKET) {
 		consume();
@@ -1320,28 +1447,23 @@ void parser::parse_composite_type_block(vector<_declaration>& decls)
 	else throw;
 }
 
-void parser::parse_function(_declaration& decl)
+void _parser::parse_function(_function& fun)
 {
 	/*  'fn' <identifier> '::' <lambda-definition>	*/
 	if (curtok().type != T_FUNCTION) throw;
 	consume(); // 'fn'
 
 	if (curtok().type != T_ID) throw;
-	decl.lhs = curtok();
-	decl.id = curtok().value;
+	fun.id = curtok().value;
 	consume(); // <identifier>
 
 	if (curtok().type != T_CONST_ASSIGN) throw;
-	decl.op = curtok();
 	consume(); // '::'
 
-	auto lambda = new _lambda;
-	parse_lambda(*lambda);
-	decl.rhs = lambda;
-	decl.type.type = T_FUNCTION;
+	parse_lambda(fun);
 }
 
-void parser::parse_lambda(_lambda& fun)
+void _parser::parse_lambda(_lambda& fun)
 {
 	/* When this function is called, it makes the same
 		assumptions that other parse_* functions make.
@@ -1360,7 +1482,7 @@ void parser::parse_lambda(_lambda& fun)
 	parse_block(fun.body);
 }
 
-void parser::parse_lambda_header(_lambda& fun)
+void _parser::parse_lambda_header(_lambda& fun)
 {
 	/*
 	<lambda-header> := <argument-list> '->' (<return-list>)?
@@ -1375,7 +1497,7 @@ void parser::parse_lambda_header(_lambda& fun)
 	}
 }
 
-void parser::parse_argument_list(vector<_arg>& args)
+void _parser::parse_argument_list(vector<_arg>& args)
 {
 	/*<arg> := <identifier> (':' <type-specifier>)?*/
 	auto build_arg = [this](_arg& a) {
@@ -1408,7 +1530,7 @@ void parser::parse_argument_list(vector<_arg>& args)
 	consume();
 }
 
-void parser::parse_return_list(vector<_arg>& args)
+void _parser::parse_return_list(vector<_arg>& args)
 {
 	//<return-list> :='(' (<type-specifier> (',' <type-specifier>)*)? ')'
 	if (curtok().type != T_LPAREN) throw;
@@ -1463,7 +1585,7 @@ void parser::parse_return_list(vector<_arg>& args)
 	consume();
 }
 
-void parser::parse_statement(_ast* stmt)
+void _parser::parse_statement(_ast* stmt)
 {
 	if (curtok().type == T_LBRACKET) {
 		auto block = new _scope;
@@ -1493,7 +1615,7 @@ void parser::parse_statement(_ast* stmt)
 	else throw;
 }
 
-void parser::parse_iteration(_while& loop)
+void _parser::parse_iteration(_while& loop)
 {
 	/*
 		<iteration> := 'while' '(' (<expr>)? ')' <statement>
@@ -1511,7 +1633,7 @@ void parser::parse_iteration(_while& loop)
 	else throw;
 }
 
-void parser::parse_iteration(_dowhile& loop)
+void _parser::parse_iteration(_dowhile& loop)
 {
 	if (curtok().type == T_DO) {
 		consume();
@@ -1527,7 +1649,7 @@ void parser::parse_iteration(_dowhile& loop)
 	else throw;
 }
 
-void parser::parse_conditional(_if& conditional)
+void _parser::parse_conditional(_if& conditional)
 {
 	/*
 	<conditional>  := 'if' '(' (<expr>)? ')' <statement> 
@@ -1549,7 +1671,7 @@ void parser::parse_conditional(_if& conditional)
 	else throw;
 }
 
-void parser::parse_block(_scope& scope)
+void _parser::parse_block(_scope& scope)
 {
 	/*<lambda-block> := '{' (<declaration> | <statement>)* '}'*/
 	if (curtok().type != T_LBRACKET) throw;
@@ -1562,12 +1684,14 @@ void parser::parse_block(_scope& scope)
 		if (speculate_declaration()) {
 			declaration = new _declaration;
 			parse_declaration(*declaration);
-			scope.decls.push_back(declaration);
+			scope.decls.push_back(*declaration);
+			delete declaration;
 		}
 		else if (speculate_statement()) {
 			statement = new _statement;
 			parse_expression(*statement);
-			scope.stmts.push_back(statement);
+			scope.stmts.push_back(*statement);
+			delete statement;
 		}
 
 		if (curtok().type == T_RBRACKET) break;

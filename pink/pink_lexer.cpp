@@ -6,43 +6,41 @@ using std::ifstream;
 
 #include "pink_lexer.h"
 
-ifstream infile;
-string instring;
-int input_state = 0;
-
-void lexer::set_infile(char* filename)
+void _lexer::set_infile(char* filename)
 {
 	infile.open(filename);
 	input_state = 1;
 }
 
-void lexer::set_instring(string input)
+void _lexer::set_instring(string input)
 {
 	instring = input;
 	input_state = 2;
 }
 
-int lexer::get_char()
+int _lexer::get_char()
 {
-	auto string_getchar = [](string s) {
+	auto string_getchar = [](string s) -> int {
 		static int i = 0;
 		if (i < s.size()) return s[i++];
+		else return EOF;
 	};
 	switch (input_state) {
 	case 0: return getchar();
 	case 1: return infile.get();
 	case 2: return string_getchar(instring);
+	default: throw;
 	}
 }
 
-int lexer::isidentifier(int c) {
+int _lexer::isidentifier(int c) {
 	if (isalnum(c) || c == '_' || c == '-') {
 		return 1;
 	}
 	return 0;
 }
 
-int lexer::isoperator(int c) {
+int _lexer::isoperator(int c) {
 	switch (c) {
 	case '=': case ':': case '*': case '/':
 	case '%': case '+': case '-': case '<':
@@ -56,12 +54,12 @@ int lexer::isoperator(int c) {
 	}
 }
 
-Token lexer::gettok() {
+_token _lexer::gettok() {
 	static int c = ' '; // prime the input
-	Token tok;
+	_token tok;
 
 	while (isspace(c)) { // ignore whitespace
-		c = getchar();
+		c = get_char();
 	}
 
 	if (c == EOF) {
@@ -72,10 +70,10 @@ Token lexer::gettok() {
 
 	if (isalpha(c)) { // could be an identifier, a type-primitive, or a keyword
 		tok.value += c;
-		c = getchar();
+		c = get_char();
 		while (isidentifier(c)) { // consume the next word
 			tok.value += c;
-			c = getchar();
+			c = get_char();
 		}
 
 		if (tok.value == "int")			  tok.type = T_INT;
@@ -117,17 +115,17 @@ Token lexer::gettok() {
 		bool has_fractional = c == '.' ? true : false;
 
 		tok.value += c;
-		c = getchar();
+		c = get_char();
 
 		while (isdigit(c) || c == '.') { // consume the whole number
 			if (c == '.') has_fractional = true;
 			tok.value += c;
-			c = getchar();
+			c = get_char();
 
 			if (c == '.' && has_fractional) {    // this is a malformed numer
 				while (c != '\n' && c != '\r') { // grab the rest of the line
 					tok.value += c;
-					c = getchar();
+					c = get_char();
 				}
 				tok.type = T_ERR;
 				return tok;
@@ -153,11 +151,11 @@ Token lexer::gettok() {
 
 	if (c == '\'' || c == '\"') { // it's a string literal
 		tok.value += c;
-		c = getchar();
+		c = get_char();
 
 		while (c != '\'' && c != '\"') {
 			tok.value += c;
-			c = getchar();
+			c = get_char();
 		}
 		// ensure we don't consume the EOF
 		if (c == EOF) { // This is probably because of no ending ' or "
@@ -166,7 +164,7 @@ Token lexer::gettok() {
 		}
 
 		tok.value += c; // store the trailing ' or "
-		c = getchar();  // prime the next char
+		c = get_char();  // prime the next char
 
 		tok.type = T_STRING_LITERAL;
 		return tok;
@@ -176,7 +174,7 @@ Token lexer::gettok() {
 	if (isoperator(c)) { // else it's an operator or grouping symbol
 		// operators are all parsed one symbol at a time
 		tok.value += c;
-		c = getchar();
+		c = get_char();
 
 		if (tok.value == "[") {
 			tok.type = T_LBRACE;
@@ -217,7 +215,7 @@ Token lexer::gettok() {
 		else {
 			while (isoperator(c)) {
 				tok.value += c;
-				c = getchar();
+				c = get_char();
 			}
 
 			/* assignment operators */
@@ -270,14 +268,18 @@ Token lexer::gettok() {
 	
 	if (c == '#') { // it's a compiler directive
 		tok.value += c;
-		c = getchar();
+		c = get_char();
 
 		while (isidentifier(c)) {
 			tok.value += c;
-			c = getchar();
+			c = get_char();
 		}
 		tok.type = T_COMPILER_DIRECTIVE;
 		return tok;
+	}
+
+	if (c == '$') { // it's a comment, consume until EOL or EOF
+		while (c != '\n' && c != '\r' && c != EOF) c = get_char();
 	}
 
 	tok.type = T_ERR;

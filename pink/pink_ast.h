@@ -6,7 +6,7 @@ using std::string;
 using std::vector;
 #include "pink_lexer.h"
 
-enum Ast_type {
+enum _ast_type {
 	AST_ERR,
 	AST_DECLARATION,
 	AST_STATEMENT,
@@ -35,10 +35,9 @@ enum Ast_type {
 	AST_BOOL,
 };
 
-
 // because forward declarations are not enough...
 typedef struct _ast {
-	Ast_type ast_type;
+	_ast_type ast_type;
 	//virtual void visit();
 	// yay polymorphism!
 	// TODO: debugging info
@@ -46,29 +45,54 @@ typedef struct _ast {
 	//int charnum;
 	//string filename;
 	_ast() { ast_type = AST_ERR; }
-	_ast(Ast_type type) { ast_type = type; }
+	_ast(_ast_type type) { ast_type = type; }
 
 	virtual ~_ast() {};
 } _ast;
 
 typedef struct _declaration : public _ast {
 	string id; // while every ID is lexed as a Token, I don't want to type
-	Token lhs; //  decl.id.value everytime we need the identifier
-	Token op = { T_ERR, "" };
+	_token lhs; //  decl.id.value everytime we need the identifier
+	_token op = { T_ERR, "" };
 	_ast* rhs;
-	Token type;
-	vector<Token> directives;
+	_token type;
+	vector<_token> directives;
 
 	_declaration() : _ast(AST_DECLARATION) {}
+	bool operator==(const _declaration& rhs)
+	{
+		return this->id == rhs.id;
+	}
+
 	virtual void visit() {}
 } _declaration;
 
+typedef struct _statement : public _ast {
+	_ast* value;
+
+	_statement() : _ast(AST_STATEMENT) {}
+} _statement;
+
+
 typedef struct _scope : public _ast {
 	string id;
-	vector<_ast*> cntxt;
-	vector<string> symbls;
-	vector<_declaration*> decls;
-	vector<_ast*> stmts;
+	vector<_declaration> cntxt;
+	vector<_declaration> decls;
+	vector<_statement> stmts;
+
+	bool already_in_scope(_declaration& decl) {
+		for (auto item : decls) {
+			if (item == decl) return true;
+		}
+		return false;
+	}
+
+	bool already_in_context(_declaration& decl) {
+		for (auto item : cntxt) {
+			if (item == decl) return true;
+		}
+		return false;
+	}
 
 	_scope() : _ast(AST_SCOPE) {}
 } _scope;
@@ -86,7 +110,7 @@ typedef struct _module : public _ast {
 
 typedef struct _arg {
 	string id;
-	Token type;
+	_token type;
 
 	_ast* value = nullptr;
 } _arg;
@@ -100,19 +124,25 @@ typedef struct _lambda : public _ast {
 	virtual void visit() {}
 } _lambda;
 
+typedef struct _function : public _lambda {
+	string id;
+
+	_function() {}
+} _function;
+
 typedef struct _binop : public _ast {
-	Token op;
+	_token op;
 	_ast* lhs = nullptr;
 	_ast* rhs = nullptr;
 
 	_binop() : _ast(AST_BINOP) {}
-	_binop(Token o, _ast* l, _ast* r)
+	_binop(_token o, _ast* l, _ast* r)
 		: _ast(AST_BINOP), op(o), lhs(l), rhs(r) {}
 	virtual void visit() {}
 } _binop;
 
 typedef struct _unop : public _ast {
-	Token op;
+	_token op;
 	_ast* rhs = nullptr;
 
 	_unop() : _ast(AST_UNARYOP) {}
@@ -191,7 +221,7 @@ typedef struct _enum : public _ast {
 
 typedef struct _array : public _ast {
 	string id;
-	Token type;
+	_token type;
 	int length;
 
 	_array() : _ast(AST_ARRAY) {}
@@ -210,11 +240,6 @@ typedef struct _member : public _ast {
 	_member() : _ast(AST_MEMBER) {}
 } _member;
 
-typedef struct _statement : public _ast {
-	_ast* value;
-
-	_statement() : _ast(AST_STATEMENT) {}
-} _statement;
 
 /* TODO: in pink.v2
 typedef struct _pointer : public _ast {
@@ -224,7 +249,7 @@ typedef struct _pointer : public _ast {
 
 typedef struct _alias : public _ast {
 	string alias;
-	Token type;
+	_token type;
 
 	_alias() : _ast(AST_ALIAS) {}
 	virtual void visit() {}

@@ -176,11 +176,8 @@ Why make a new programming language?
 		c++ fails in its verbosity (partly inherited, mostly added), 
 			semantic overhead, and its plethora of features
 		Dynamicly Typed and Garbage Collected languages fail
-			in the computational overhead of garbage collection,
-			the mental overhead of duck typing
-			and the complexity of the languages implementation.
-			if an advanced user wants to get in and tinker, they in theory can,
-			but its always far more complex a design than should be required.
+			in the computational overhead of garbage collection and
+			the mental overhead of duck typing.
 
 If these are the problems, then how is this language a solution?
 	what are the design goals of pink?
@@ -201,21 +198,21 @@ If these are the problems, then how is this language a solution?
 
 		4) The language should help you with the hardest of problems! 
 		~Multithreading & Parrellelism.
-			This is something that will be built into the language, and will have low-level and high-level
-			abstractions, plus the plumbing required to get between. 
+			These are the source of many eisen-bugs, and can be difficult to use
+			correctly. This will be built into the language.
 		~Dynamic Memory management~.
 			This is a major sticking point of the language, C did it 80% correctly, but the 20% they didn't do
-			bit new programmers so much they wanted to do away with the problem entirely. hence, Garbage Collection.
-			This is too much of a perfomance hit to be acceptable. We can build better, We deserve better.
+			bit new programmers so much they wanted to do away with the problem entirely.
+			garbage collection is too much of a perfomance hit to be acceptable being
+			the only way the language handles dynamic memory.
 		~Hardware interface~
 			What major language gives you an easy way to inject native assembly into your program?
 			c, c++, do have ways of interfacing. However asm("") is clumsy for multiline statements,
-			and for things like timing delays. What about nice interfaces around
+			and for things like timing and delays. What about nice interfaces around
 			hardware devices like SPI, or USB? this is basically non-existant. C and Linux are the
-			best about this. otherwise its up to the hardware vendor.
+			best about this but its up to the hardware vendor.
 		~Interlanguage Interface~
-			Should be able to talk to C, and then because everything talks with C
-			we can then interface with other languages.
+			Should be able to talk to C, what if there were a way 
 
 
 %% Thoughts on things
@@ -280,8 +277,15 @@ If these are the problems, then how is this language a solution?
 
 	var := #alloc <type-name> <argument-list>;
 	
+-- typecast
+	(<type-name>)<identifier>
+		i argue bad; because it isn't explicit that there is a cast
 
-
+	option 1:
+		'cast' '('<typename>',' <identifier>')'
+		- reads like a function call
+		- could be implemented using planned feature: reflection
+			()
 -- a function call is so far the only syntactic construct that looks 
 	like : <identifier> '(' <argument-list> ')' ';'
 	if type construction calls a function, then the semantic difference
@@ -584,7 +588,7 @@ Token := (<op1> | <op2> | .. | <opn> )
 - functions
 - conditionals and loops
 - variables with primitive types
-- operations
+- expressions
 
 // v2 goals : the dynamic language
 - pointers
@@ -596,6 +600,9 @@ Token := (<op1> | <op2> | .. | <opn> )
 - macros (programmer ast manipulation)
 - concurrency
 
+// v4 goals : optimization
+- make the compiler fast
+- make the output code fast
 %%
 
 // research

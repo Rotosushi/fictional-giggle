@@ -47,9 +47,11 @@ char* substr(char* str, char* query)
 
 		if (query[j] == '\0') { // if we have reached the end of our query, str contains query
 			_substr = (char*)malloc(j);
-			if (_substr != nullptr) 
-				for (int n = 0; n < j; n++) 
+			if (_substr != nullptr) {
+				for (int n = 0; n < j; n++)
 					_substr[n] = str[(i - j) + n];
+				_substr[j] = '\0';
+			}
 			break;
 		} 
 

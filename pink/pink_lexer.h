@@ -1,6 +1,11 @@
 #pragma once
+#include <string>
+using std::string;
+#include <iostream>
+#include <fstream>
+using std::ifstream;
 
-enum Tok {
+enum _tok {
 	T_EOF,
 	T_ERR,
 	T_MAYBE,
@@ -88,16 +93,20 @@ enum Tok {
 };
 
 typedef struct {
-	Tok type;
+	_tok type;
 	std::string value;
-} Token;
+} _token;
 
-class lexer {
+class _lexer {
 public:
-	Token gettok();
+	_token gettok();
 	void set_infile(char* filename);
 	void set_instring(string input);
 private:
+	ifstream infile;
+	string instring;
+	int input_state = 0;
+
 	int get_char();
 	int isidentifier(int c);
 	int isoperator(int c);
