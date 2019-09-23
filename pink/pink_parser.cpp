@@ -19,7 +19,7 @@ using std::endl;
 using std::stoi;
 using std::stof;
 
-_module* _parser::parse_module()
+_module* old_parser::parse_module()
 {
 	auto top = new _module;
 
@@ -27,31 +27,45 @@ _module* _parser::parse_module()
 
 	/* <module> := (<top-level-declaration>)* <EOF> */
 	while (curtok().type != T_EOF) {
-		parse_top_level_declaration(*top);
+		auto decl = parse_top_level_declaration();
+
+		if (decl != nullptr) {
+			switch (decl->ast_type) {
+			case AST_VARDECL:
+				auto dec = (_declaration*)decl;
+
+				if (top->resolve(dec->var.id) != nullptr)
+					parser_error("variable already defined");
+				else
+					top->define(*dec);
+
+				san.resolve_declaration(*dec, top->body);
+			}
+		}
+		else break;
 	}
 
 	return top;
 }
 
-_module* _parser::parse_module(char* filename)
+_module* old_parser::parse_module(char* filename)
 {
 	lex.set_infile(filename);
 	return parse_module();
 }
 
-_module* _parser::parse_module(string s)
+_module* old_parser::parse_module(string s)
 {
 	lex.set_instring(s);
 	return parse_module();
 }
 
-_parser::_parser()
+old_parser::old_parser()
 {
 	init_precedence_table();
-	init_valid_list();
 }
 
-void _parser::init_precedence_table()
+void old_parser::init_precedence_table()
 {
 	precedence[T_EQUALS]				= 1;
 	precedence[T_ADD_ASSIGN]			= 1;
@@ -92,51 +106,45 @@ void _parser::init_precedence_table()
 	precedence[T_MOD]					= 12;
 }
 
-void _parser::init_valid_list()
-{
-	valid_list[AST_INT] = { AST_INT, AST_FLOAT, };
-	valid_list[AST_FLOAT] = { AST_FLOAT, AST_INT, };
-}
-
-void _parser::print_token_buffer()
+void old_parser::print_token_buffer()
 {
 	for (auto i : tokbuf)
 		cout << "token type: "  << i.type  << ' '
 		     << "token value: " << i.value << endl;
 }
 
-void _parser::print_token_buffer(int i)
+void old_parser::print_token_buffer(int i)
 {
 	for (int j = i; j < tokbuf.size(); j++)
 		cout << "token type: "  << tokbuf[j].type  << ' '
 		     << "token value: " << tokbuf[j].value << endl;
 }
 
-void _parser::parser_error(const char* str)
+void old_parser::parser_error(const char* str)
 {
 	cout << "parser error: " << str << "\n";
 	print_token_buffer(tokidx);
 }
 
-int _parser::mark()
+int old_parser::mark()
 {
 	marks.push(tokidx);
 	return tokidx;
 }
 
-void _parser::release()
+void old_parser::release()
 {
 	int mark = marks.top();
 	marks.pop();
 	tokidx = mark; // seek to mark
 }
 
-_token _parser::curtok()
+old_token old_parser::curtok()
 {
 	return tokbuf[tokidx];
 }
 
-bool _parser::speculate(_tok tok)
+bool old_parser::speculate(_tok tok)
 {
 	if (tok == curtok().type) {
 		consume();
@@ -145,7 +153,7 @@ bool _parser::speculate(_tok tok)
 	else return false;
 }
 
-void _parser::consume()
+void old_parser::consume()
 {
 	tokidx++; // "consume" the token
 			  // recall that this is a backtracking parser,
@@ -171,7 +179,7 @@ void _parser::consume()
 			 // and we need to prime the next token.
 }
 
-void _parser::sync(int i)
+void old_parser::sync(int i)
 {
 	if ((size_t)((uint64_t)tokidx + i) > tokbuf.size()) { // do we need more tokens than we have?
 		int n = (tokidx + i) - tokbuf.size(); // how many more do we need?
@@ -179,12 +187,12 @@ void _parser::sync(int i)
 	}
 }
 
-bool _parser::speculating()
+bool old_parser::speculating()
 {
 	return marks.size() > 0;
 }
 
-bool _parser::is_unop(_tok t)
+bool old_parser::is_unop(_tok t)
 {
 	// valid prefix tokens '-', '+', '*', '&', '!', '!!'
 	if (t == T_ADD)			return true;
@@ -196,7 +204,7 @@ bool _parser::is_unop(_tok t)
 	return false;
 }
 
-bool _parser::is_binop(_tok t)
+bool old_parser::is_binop(_tok t)
 {
 	/* valid binop tokens: =, +=, -=, *=,
 							/=, %=, ||=, &&=,
@@ -237,7 +245,7 @@ bool _parser::is_binop(_tok t)
 	return false; 
 }
 
-bool _parser::is_literal(_tok t)
+bool old_parser::is_literal(_tok t)
 {
 	if (t == T_INT_LITERAL)		return true;
 	if (t == T_FLOAT_LITERAL)	return true;
@@ -247,7 +255,7 @@ bool _parser::is_literal(_tok t)
 	return false;
 }
 
-bool _parser::is_postop(_tok t)
+bool old_parser::is_postop(_tok t)
 {
 	// postop :=  '(' <arg> (',' <arg>)* ')'
 //			| '[' <expr> ']'
@@ -258,106 +266,8 @@ bool _parser::is_postop(_tok t)
 	return false;
 }
 
-bool _parser::analyze(_declaration& decl, _scope& current_scope)
-{
-	/*
-	about declarations
-		what type is it?
-		is this name taken?
-	*/
-	if (current_scope.already_in_scope(decl)) {
-		parser_error("declaration uses previously defined identifier.");
-		return false;
-	}
 
-	// this declaration is a lambda
-	if (decl.rhs->ast_type == AST_FUNCTION) {
-		auto rhs = (_lambda*)decl.rhs;
-		for (auto dec : rhs->body.decls) {
-			analyze(dec, rhs->body);
-		}
-	}
-	// this declaration is the result of an expression
-	else if (decl.rhs->ast_type == AST_BINOP) {
-		auto rhs = (_binop*)decl.rhs;
-		analyze(*rhs, current_scope);
-	}
-
-}
-
-_ast_type _parser::analyze(_binop& binop, _scope& current_scope)
-{
-	_ast_type lhs_type, rhs_type;
-	if (binop.lhs->ast_type == AST_BINOP) {
-		auto lhs = (_binop*)binop.lhs;
-		if ((lhs_type = analyze(*lhs, current_scope)) == AST_ERR)
-			return AST_ERR;
-	}
-	else {
-		lhs_type = binop.lhs->ast_type;
-	}
-
-	if (binop.rhs->ast_type == AST_BINOP) {
-		auto rhs = (_binop*)binop.rhs;
-		if ((rhs_type = analyze(*rhs, current_scope)) == AST_ERR)
-			return AST_ERR;
-	}
-	else {
-		rhs_type = binop.rhs->ast_type;
-	}
-
-	return valid_for(binop.op.type, lhs_type, rhs_type);
-}
-
-_ast_type _parser::valid_for(_tok tok, _ast_type lhs_type, _ast_type rhs_type)
-{
-	switch (tok) {
-	case T_EQUALS:
-		if (lhs_type == AST_VAR && rhs_type == AST_INT)
-			return AST_INT;
-		if (lhs_type == AST_VAR && rhs_type == AST_FLOAT)
-			return AST_FLOAT;
-		if (lhs_type == AST_VAR && rhs_type == AST_STRING)
-			return AST_STRING;
-		if (lhs_type == AST_VAR && rhs_type == AST_BOOL)
-			return AST_BOOL;
-	case T_ADD:
-
-	case T_SUB:
-
-	case T_MULT:
-
-	case T_DIV:
-
-	case T_MOD:
-
-	case T_BITWISE_OR:
-
-	case T_BITWISE_XOR:
-
-	case T_BITWISE_AND:
-
-	case T_LOG_OR:
-
-	case T_LOG_XOR:
-
-	case T_LOG_AND:
-
-	case T_LOG_EQUALS:
-
-	case T_LOG_NOT_EQUALS:
-
-	case T_LOG_LESS:
-
-	case T_LOG_LESS_EQUALS:
-
-	case T_LOG_GREATER:
-
-	case T_LOG_GREATER_EQUALS:
-	}
-}
-
-bool _parser::try_speculate_declaration()
+bool old_parser::try_speculate_declaration()
 {
 	bool success = true;
 	mark();
@@ -366,7 +276,7 @@ bool _parser::try_speculate_declaration()
 	return success;
 }
 
-bool _parser::try_speculate_alias()
+bool old_parser::try_speculate_alias()
 {
 	bool success = true;
 	mark();
@@ -375,7 +285,7 @@ bool _parser::try_speculate_alias()
 	return success;
 }
 
-bool _parser::try_speculate_struct()
+bool old_parser::try_speculate_struct()
 {
 	bool success = true;
 	mark();
@@ -384,7 +294,7 @@ bool _parser::try_speculate_struct()
 	return success;
 }
 
-bool _parser::try_speculate_union()
+bool old_parser::try_speculate_union()
 {
 	bool success = true;
 	mark();
@@ -393,7 +303,7 @@ bool _parser::try_speculate_union()
 	return success;
 }
 
-bool _parser::try_speculate_function()
+bool old_parser::try_speculate_function()
 {
 	bool success = true;
 	mark();
@@ -402,7 +312,7 @@ bool _parser::try_speculate_function()
 	return success;
 }
 
-bool _parser::try_speculate_lambda()
+bool old_parser::try_speculate_lambda()
 {
 	bool success = true;
 	mark();
@@ -411,7 +321,7 @@ bool _parser::try_speculate_lambda()
 	return success;
 }
 
-bool _parser::try_speculate_conditional()
+bool old_parser::try_speculate_conditional()
 {
 	bool success = true;
 	mark();
@@ -420,7 +330,7 @@ bool _parser::try_speculate_conditional()
 	return success;
 }
 
-bool _parser::try_speculate_iteration()
+bool old_parser::try_speculate_iteration()
 {
 	bool success = true;
 	mark();
@@ -429,7 +339,7 @@ bool _parser::try_speculate_iteration()
 	return success;
 }
 
-bool _parser::try_speculate_expression()
+bool old_parser::try_speculate_expression()
 {
 	bool success = true;
 	mark();
@@ -438,7 +348,7 @@ bool _parser::try_speculate_expression()
 	return success;
 }
 
-bool _parser::speculate_declaration()
+bool old_parser::speculate_declaration()
 {
 	/*
 		<declaration>  := <identifier> ':' <type-specifier> ';'
@@ -476,7 +386,7 @@ bool _parser::speculate_declaration()
 			}
 			else success = false;
 		}
-		else if (speculate(T_DYNAMIC_ASSIGN)) {
+		else if (speculate(T_DEFINE_ASSIGN)) {
 			if (speculate_initializer()) {
 				if (speculate(T_SEMICOLON)) {
 
@@ -491,7 +401,7 @@ bool _parser::speculate_declaration()
 	return success;
 }
 
-bool _parser::speculate_type_specifier()
+bool old_parser::speculate_type_specifier()
 {
 	/*
 		<type-specifier>	:= <identifier>
@@ -516,7 +426,7 @@ bool _parser::speculate_type_specifier()
 	return success;
 }
 
-bool _parser::speculate_type_primitive()
+bool old_parser::speculate_type_primitive()
 {
 	bool success = true;
 	if (speculate(T_MAYBE));
@@ -551,7 +461,7 @@ bool _parser::speculate_type_primitive()
 	return success;
 }
 
-bool _parser::speculate_initializer()
+bool old_parser::speculate_initializer()
 {
 	bool success = true;
 	if (try_speculate_lambda()) {
@@ -564,7 +474,7 @@ bool _parser::speculate_initializer()
 	return success;
 }
 
-bool _parser::speculate_alias()
+bool old_parser::speculate_alias()
 {
 	bool success = true;
 	if (speculate(T_ALIAS)) {
@@ -583,7 +493,7 @@ bool _parser::speculate_alias()
 	return success;
 }
 
-bool _parser::speculate_struct()
+bool old_parser::speculate_struct()
 {
 	bool success = true;
 	if (speculate(T_STRUCT)) {
@@ -601,7 +511,7 @@ bool _parser::speculate_struct()
 	return success;
 }
 
-bool _parser::speculate_union()
+bool old_parser::speculate_union()
 {
 	bool success = true;
 	if (speculate(T_UNION)) {
@@ -619,7 +529,7 @@ bool _parser::speculate_union()
 	return success;
 }
 
-bool _parser::speculate_composite_type_block()
+bool old_parser::speculate_composite_type_block()
 {
 	bool success = true;
 	if (speculate(T_LBRACKET)) {
@@ -632,7 +542,7 @@ bool _parser::speculate_composite_type_block()
 	return success;
 }
 
-bool _parser::speculate_function()
+bool old_parser::speculate_function()
 {
 	bool success = true;
 	if (speculate(T_FUNCTION)) {
@@ -651,7 +561,7 @@ bool _parser::speculate_function()
 	return success;
 }
 
-bool _parser::speculate_lambda()
+bool old_parser::speculate_lambda()
 {
 	/*
 		<lambda-definition> := <lambda-header> <lambda-body>
@@ -668,7 +578,7 @@ bool _parser::speculate_lambda()
 	return success;
 }
 
-bool _parser::speculate_lambda_header()
+bool old_parser::speculate_lambda_header()
 {
 	/*
 		<lambda-header> := <argument-list> '->' (<return-list>)?
@@ -686,7 +596,7 @@ bool _parser::speculate_lambda_header()
 	return success;
 }
 
-bool _parser::speculate_argument_list()
+bool old_parser::speculate_argument_list()
 {
 	/*
 		<argument-list> := '(' <arg> (',' <arg>)* ')'
@@ -714,7 +624,7 @@ bool _parser::speculate_argument_list()
 	return success;
 }
 
-bool _parser::speculate_arg()
+bool old_parser::speculate_arg()
 {
 	/*
 		<arg> := <identifier> (':' <type-specifier>)?
@@ -732,7 +642,7 @@ bool _parser::speculate_arg()
 	return success;
 }
 
-bool _parser::speculate_return_list()
+bool old_parser::speculate_return_list()
 {
 	/*
 		<return-list> := '(' <type-specifier> (',' <type-specifier>)*')' 
@@ -760,7 +670,7 @@ bool _parser::speculate_return_list()
 	return success;
 }
 
-bool _parser::speculate_statement()
+bool old_parser::speculate_statement()
 {
 	bool success = true;
 	if (speculate_block()) {
@@ -779,7 +689,7 @@ bool _parser::speculate_statement()
 	return success;
 }
 
-bool _parser::speculate_conditional()
+bool old_parser::speculate_conditional()
 {
 	/*
 		<conditional>  := 'if' '(' <expression> ')' <statement> ('else' <statement>)?
@@ -810,7 +720,7 @@ bool _parser::speculate_conditional()
 	return success;
 }
 
-bool _parser::speculate_iteration()
+bool old_parser::speculate_iteration()
 {
 	/*
 		<iteration> := 'while' '(' <expression> ')' <statement>
@@ -853,7 +763,7 @@ bool _parser::speculate_iteration()
 	return success;
 }
 
-bool _parser::speculate_block()
+bool old_parser::speculate_block()
 {
 	bool success = true;
 	if (speculate(T_LBRACKET)) {
@@ -868,7 +778,7 @@ bool _parser::speculate_block()
 	return success;
 }
 
-bool _parser::speculate_expression()
+bool old_parser::speculate_expression()
 {
 	// an expression is started by <id>, <literal>, <unop>, '('
 	//  or immediately ended by ')', ';'
@@ -886,7 +796,7 @@ bool _parser::speculate_expression()
 		return true;
 }
 
-bool _parser::speculate_literal()
+bool old_parser::speculate_literal()
 {
 	// <literal> can be followed by <binop>, ')' or ';'
 	consume();
@@ -901,7 +811,7 @@ bool _parser::speculate_literal()
 	return false;
 }
 
-bool _parser::speculate_id()
+bool old_parser::speculate_id()
 {
 	// <id> can be followed by <binop>, <postop>, '(', ')', '[', ']', '.', or ';'
 	consume(); // consume <id>
@@ -923,7 +833,7 @@ bool _parser::speculate_id()
 	return false;
 }
 
-bool _parser::speculate_binop()
+bool old_parser::speculate_binop()
 {
 	// <binop> can be followed by <unop>, <id>, '(', or <literal>
 	consume(); // consume <binop>
@@ -940,7 +850,7 @@ bool _parser::speculate_binop()
 	return false;
 }
 
-bool _parser::speculate_unop()
+bool old_parser::speculate_unop()
 {
 	// <unop> can be followed by <unop>, <id>, or <literal>
 	consume(); // consume <unop>
@@ -957,7 +867,7 @@ bool _parser::speculate_unop()
 	return false;
 }
 
-bool _parser::speculate_postop()
+bool old_parser::speculate_postop()
 {
 	// <postop> can be followed by <postop>, <binop>, or ';'
 	// consume <postop>
@@ -993,7 +903,7 @@ bool _parser::speculate_postop()
 	return false;
 }
 
-bool _parser::speculate_lparen()
+bool old_parser::speculate_lparen()
 {
 	// '(' can be followed by <expr>
 	consume();
@@ -1001,7 +911,7 @@ bool _parser::speculate_lparen()
 	return speculate_expression();
 }
 
-bool _parser::speculate_rparen()
+bool old_parser::speculate_rparen()
 {
 	// ')' can be followed by ')', <binop>, ';' or be the terminal character
 	consume();
@@ -1019,41 +929,40 @@ bool _parser::speculate_rparen()
 	return false;
 }
 
-void _parser::parse_top_level_declaration(_module& top)
+_ast* old_parser::parse_top_level_declaration()
 {
 	if (try_speculate_alias()) {
 		auto a = new _alias;
 		parse_alias(*a);
-		top.types.push_back(a);
+		return a;
 	}
 	else if (try_speculate_struct()) {
 		auto s = new _struct;
 		parse_struct(*s);
-		top.types.push_back(s);
+		return s;
 	}
 	else if (try_speculate_union()) {
 		auto u = new _union;
 		parse_union(*u);
-		top.types.push_back(u);
+		return u;
 	}
 	else if (try_speculate_function()) {
 		auto f = new _function;
 		parse_function(*f);
-		// resolve(*f)
-		// typecheck(*f)
-		top.types.push_back(f);
+		return f;
 	}
 	else if (try_speculate_declaration()) {
 		auto d = new _declaration;
 		parse_declaration(*d);
-		top.body.decls.push_back(*d);
+		return d;
 	}
 	else {
 		parser_error("unknown top level declaration:");
+		return nullptr;
 	}
 }
 
-void _parser::parse_declaration(_declaration& decl)
+void old_parser::parse_declaration(_declaration& decl)
 {
 	// this function implements this portion of the grammar:
 	/*
@@ -1074,8 +983,7 @@ void _parser::parse_declaration(_declaration& decl)
 
 	/* <identifier> */
 	if (curtok().type != T_ID) throw; // c-style assert
-	decl.id = curtok().value;
-	decl.lhs = curtok();
+	decl.var.id = curtok().value;
 	consume(); // each time the parser querys the state of curtok()
 			   // it shall consume that token.
 
@@ -1090,7 +998,7 @@ void _parser::parse_declaration(_declaration& decl)
 		}
 	}
 	else if (curtok().type == T_CONST_ASSIGN
-		|| curtok().type == T_DYNAMIC_ASSIGN) {
+		|| curtok().type == T_DEFINE_ASSIGN) {
 		parse_initializer(decl);
 	}
 	else throw;
@@ -1099,7 +1007,7 @@ void _parser::parse_declaration(_declaration& decl)
 	consume();
 }
 
-void _parser::parse_type_specifier(_declaration& decl)
+void old_parser::parse_type_specifier(_declaration& decl)
 {
 	// if this function is called, curtok() == ':'
 	// so we consume it to look at the <type-specifier> token
@@ -1111,26 +1019,26 @@ void _parser::parse_type_specifier(_declaration& decl)
 	*/
 	switch (curtok().type) {
 	case T_ID: // <identifier>
-		decl.type = curtok();
+		decl.var.type = _VAR;
 		consume();
 		break;
 	case T_INT:
-		decl.type = curtok();
+		decl.var.type = _INT;
 		decl.rhs = new _int;
 		consume();
 		break;
 	case T_FLOAT:
-		decl.type = curtok();
+		decl.var.type = _FLOAT;
 		decl.rhs = new _float;
 		consume();
 		break;
 	case T_STRING:
-		decl.type = curtok();
+		decl.var.type = _STRING;
 		decl.rhs = new _string;
 		consume();
 		break;
 	case T_BOOL:
-		decl.type = curtok();
+		decl.var.type = _BOOL;
 		decl.rhs = new _bool;
 		consume();
 		break;
@@ -1138,12 +1046,12 @@ void _parser::parse_type_specifier(_declaration& decl)
 		auto l = new _lambda;
 		parse_lambda_header(*l);
 		decl.rhs = l;
-		decl.type = { T_FUNCTION, "" };
+		decl.var.type = _LAMBDA;
 		break;
 	}
 }
 
-void _parser::parse_type_specifier(_arg& arg)
+void old_parser::parse_type_specifier(_arg& arg)
 {
 	// when this function is called the context is
 	// <arg> := <identifier> (':' <type-specifier>)?
@@ -1170,7 +1078,7 @@ void _parser::parse_type_specifier(_arg& arg)
 	}
 }
 
-void _parser::parse_initializer(_declaration& decl)
+void old_parser::parse_initializer(_declaration& decl)
 {
 	/*
 	This function is only ever called in this context:
@@ -1183,14 +1091,14 @@ void _parser::parse_initializer(_declaration& decl)
 				| <expression>
 
 	*/
-	_statement statement;
+	_ast* expr;
 	_lambda* lambda;
 	// there will be a preceding '=' || '::' || ':='
 	if (curtok().type == T_CONST_ASSIGN) {
 		decl.op = curtok();
 	}
 	else {
-		decl.op = { T_DYNAMIC_ASSIGN, ":=" };
+		decl.op = { T_DEFINE_ASSIGN, ":=" };
 	}
 	consume();
 	/*
@@ -1199,23 +1107,25 @@ void _parser::parse_initializer(_declaration& decl)
 		using lambda syntax and the rhs being an expression.
 	*/
 	if (try_speculate_expression()) {
-		parse_expression(statement);
-		decl.rhs = statement.value;
+		parse_expression(expr);
+		decl.rhs = expr;
+		// the type of the variable is unknown until we resolve it
 	}
 	else if (try_speculate_lambda()) {
 		lambda = new _lambda;
 		parse_lambda(*lambda);
 		decl.rhs = lambda;
+		decl.var.type = _LAMBDA;
 	}
 	else throw;
 }
 
-void _parser::parse_expression(_statement& expr)
+void old_parser::parse_expression(_statement& expr)
 {
 	expr.value = _parse_expression(parse_primary_expr(), 0);
 }
 
-void _parser::parse_expression(_ast* expr)
+void old_parser::parse_expression(_ast* expr)
 {
 	expr = _parse_expression(parse_primary_expr(), 0);
 }
@@ -1223,7 +1133,7 @@ void _parser::parse_expression(_ast* expr)
 
 // _parse_expression is an operator precedence parser
 // https://en.wikipedia.org/wiki/Operator-precedence_parser
-_ast* _parser::_parse_expression(_ast* lhs, int min_prec)
+_ast* old_parser::_parse_expression(_ast* lhs, int min_prec)
 {
 	auto lad = curtok(); // lad - lookahead
 	while (is_binop(lad.type) && precedence[lad.type] >= min_prec) {
@@ -1241,7 +1151,7 @@ _ast* _parser::_parse_expression(_ast* lhs, int min_prec)
 	return lhs;
 }
 
-_ast* _parser::parse_postop()
+_ast* old_parser::parse_postop()
 {
 	_lambda* fun;
 	_iterator* iter;
@@ -1264,7 +1174,7 @@ _ast* _parser::parse_postop()
 	}
 }
 
-_ast* _parser::parse_primary_expr()
+_ast* old_parser::parse_primary_expr()
 {
 	/*
 	A primary expression is the base grapheme
@@ -1277,7 +1187,7 @@ _ast* _parser::parse_primary_expr()
 							  | '(' <expression> ')'
 							  | <unop> <primary-expression>
 	*/
-	_token i, f, s;
+	old_token i, f, s;
 	_var* var;
 	_ast* expr;
 	_unop* unop;
@@ -1327,7 +1237,28 @@ _ast* _parser::parse_primary_expr()
 	}
 }
 
-void _parser::parse_function_call(_lambda& fun)
+_tok old_parser::predict_type(_ast* expr)
+{
+	switch (expr->ast_type) {
+	case AST_BINOP:
+		switch (((_binop*)expr)->op.type) {
+		case T_ADD: case T_SUB: case T_MULT:  
+		}
+	case AST_UNOP:
+
+	case AST_VAR:
+
+	case AST_INT:
+
+	case AST_FLOAT:
+
+	case AST_STRING:
+
+	case AST_BOOL:
+	}
+}
+
+void old_parser::parse_function_call(_lambda& fun)
 {
 	// '(' (<carg> (',' <carg>)*)? ')'
 	// <carg> := <id> | <literal> | <lambda-definition>
@@ -1363,7 +1294,7 @@ void _parser::parse_function_call(_lambda& fun)
 	consume(); // eat ')'
 }
 
-void _parser::parse_array_access(_iterator& iter)
+void old_parser::parse_array_access(_iterator& iter)
 {
 	// '[' <expression> ']'
 	consume(); // eat '['
@@ -1375,7 +1306,7 @@ void _parser::parse_array_access(_iterator& iter)
 	consume(); // eat ']'
 }
 
-void _parser::parse_member_access(_member& memb)
+void old_parser::parse_member_access(_member& memb)
 {
 	// <id> '.' <id>
 	consume(); // eat '.'
@@ -1384,7 +1315,7 @@ void _parser::parse_member_access(_member& memb)
 	consume(); // eat <id>
 }
 
-void _parser::parse_alias(_alias& alias)
+void old_parser::parse_alias(_alias& alias)
 {
 	if (curtok().type == T_ALIAS) {
 		consume();
@@ -1400,7 +1331,7 @@ void _parser::parse_alias(_alias& alias)
 	else throw;
 }
 
-void _parser::parse_struct(_struct& strct)
+void old_parser::parse_struct(_struct& strct)
 {
 	if (curtok().type == T_STRUCT) {
 		consume();
@@ -1415,7 +1346,7 @@ void _parser::parse_struct(_struct& strct)
 	else throw;
 }
 
-void _parser::parse_union(_union& unn)
+void old_parser::parse_union(_union& unn)
 {
 	if (curtok().type == T_UNION) {
 		consume();
@@ -1431,7 +1362,7 @@ void _parser::parse_union(_union& unn)
 
 }
 
-void _parser::parse_composite_type_block(vector<_declaration>& decls)
+void old_parser::parse_composite_type_block(vector<_declaration>& decls)
 {
 	if (curtok().type == T_RBRACKET) {
 		consume();
@@ -1447,7 +1378,7 @@ void _parser::parse_composite_type_block(vector<_declaration>& decls)
 	else throw;
 }
 
-void _parser::parse_function(_function& fun)
+void old_parser::parse_function(_function& fun)
 {
 	/*  'fn' <identifier> '::' <lambda-definition>	*/
 	if (curtok().type != T_FUNCTION) throw;
@@ -1463,7 +1394,7 @@ void _parser::parse_function(_function& fun)
 	parse_lambda(fun);
 }
 
-void _parser::parse_lambda(_lambda& fun)
+void old_parser::parse_lambda(_lambda& fun)
 {
 	/* When this function is called, it makes the same
 		assumptions that other parse_* functions make.
@@ -1482,7 +1413,7 @@ void _parser::parse_lambda(_lambda& fun)
 	parse_block(fun.body);
 }
 
-void _parser::parse_lambda_header(_lambda& fun)
+void old_parser::parse_lambda_header(_lambda& fun)
 {
 	/*
 	<lambda-header> := <argument-list> '->' (<return-list>)?
@@ -1497,7 +1428,7 @@ void _parser::parse_lambda_header(_lambda& fun)
 	}
 }
 
-void _parser::parse_argument_list(vector<_arg>& args)
+void old_parser::parse_argument_list(vector<_arg>& args)
 {
 	/*<arg> := <identifier> (':' <type-specifier>)?*/
 	auto build_arg = [this](_arg& a) {
@@ -1530,7 +1461,7 @@ void _parser::parse_argument_list(vector<_arg>& args)
 	consume();
 }
 
-void _parser::parse_return_list(vector<_arg>& args)
+void old_parser::parse_return_list(vector<_arg>& args)
 {
 	//<return-list> :='(' (<type-specifier> (',' <type-specifier>)*)? ')'
 	if (curtok().type != T_LPAREN) throw;
@@ -1585,7 +1516,7 @@ void _parser::parse_return_list(vector<_arg>& args)
 	consume();
 }
 
-void _parser::parse_statement(_ast* stmt)
+void old_parser::parse_statement(_ast* stmt)
 {
 	if (curtok().type == T_LBRACKET) {
 		auto block = new _scope;
@@ -1615,7 +1546,7 @@ void _parser::parse_statement(_ast* stmt)
 	else throw;
 }
 
-void _parser::parse_iteration(_while& loop)
+void old_parser::parse_iteration(_while& loop)
 {
 	/*
 		<iteration> := 'while' '(' (<expr>)? ')' <statement>
@@ -1633,7 +1564,7 @@ void _parser::parse_iteration(_while& loop)
 	else throw;
 }
 
-void _parser::parse_iteration(_dowhile& loop)
+void old_parser::parse_iteration(_dowhile& loop)
 {
 	if (curtok().type == T_DO) {
 		consume();
@@ -1649,7 +1580,7 @@ void _parser::parse_iteration(_dowhile& loop)
 	else throw;
 }
 
-void _parser::parse_conditional(_if& conditional)
+void old_parser::parse_conditional(_if& conditional)
 {
 	/*
 	<conditional>  := 'if' '(' (<expr>)? ')' <statement> 
@@ -1671,7 +1602,7 @@ void _parser::parse_conditional(_if& conditional)
 	else throw;
 }
 
-void _parser::parse_block(_scope& scope)
+void old_parser::parse_block(_scope& scope)
 {
 	/*<lambda-block> := '{' (<declaration> | <statement>)* '}'*/
 	if (curtok().type != T_LBRACKET) throw;

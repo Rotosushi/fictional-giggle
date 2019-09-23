@@ -6,19 +6,19 @@ using std::ifstream;
 
 #include "pink_lexer.h"
 
-void _lexer::set_infile(char* filename)
+void old_lexer::set_infile(char* filename)
 {
 	infile.open(filename);
 	input_state = 1;
 }
 
-void _lexer::set_instring(string input)
+void old_lexer::set_instring(string input)
 {
 	instring = input;
 	input_state = 2;
 }
 
-int _lexer::get_char()
+int old_lexer::get_char()
 {
 	auto string_getchar = [](string s) -> int {
 		static int i = 0;
@@ -33,14 +33,14 @@ int _lexer::get_char()
 	}
 }
 
-int _lexer::isidentifier(int c) {
+int old_lexer::isidentifier(int c) {
 	if (isalnum(c) || c == '_' || c == '-') {
 		return 1;
 	}
 	return 0;
 }
 
-int _lexer::isoperator(int c) {
+int old_lexer::isoperator(int c) {
 	switch (c) {
 	case '=': case ':': case '*': case '/':
 	case '%': case '+': case '-': case '<':
@@ -54,9 +54,9 @@ int _lexer::isoperator(int c) {
 	}
 }
 
-_token _lexer::gettok() {
+old_token old_lexer::gettok() {
 	static int c = ' '; // prime the input
-	_token tok;
+	old_token tok;
 
 	while (isspace(c)) { // ignore whitespace
 		c = get_char();
@@ -222,7 +222,7 @@ _token _lexer::gettok() {
 			if (tok.value == "=")  tok.type = T_EQUALS;
 			else if (tok.value == ":")  tok.type = T_COLON;
 			else if (tok.value == "::") tok.type = T_CONST_ASSIGN;
-			else if (tok.value == ":=") tok.type = T_DYNAMIC_ASSIGN;
+			else if (tok.value == ":=") tok.type = T_DEFINE_ASSIGN;
 			/* arithmetic operators */
 			else if (tok.value == "+")  tok.type = T_ADD;
 			else if (tok.value == "-")  tok.type = T_SUB;

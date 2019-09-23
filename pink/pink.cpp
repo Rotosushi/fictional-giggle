@@ -8,7 +8,7 @@ using std::string;
 #include "pink_parser.h"
 #include "pink_utilities.h"
 
-_parser par;
+old_parser par;
 
 void print_manual() {
 	cout << "Usage:\n\t '--help' prints this message\n"

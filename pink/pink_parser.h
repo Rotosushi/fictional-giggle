@@ -5,28 +5,28 @@ using std::stack;
 using std::unordered_map;
 #include "pink_lexer.h"
 #include "pink_ast.h"
+#include "pink_semantic_analysis.h"
 
-class _parser {
+class old_parser {
 public:
 	_module* parse_module();
 	_module* parse_module(char* filename);
 	_module* parse_module(string s);
 
-	_parser();
+	old_parser();
 private:
 	/* _parser internal variables */
-	_lexer lex;
+	old_lexer lex;
+	_semantic_analyzer san;
 	unordered_map<_tok, int> precedence;
-	unordered_map<_ast_type, vector<_ast_type>> valid_list;
 	stack<int>		marks;
-	vector<_token>	tokbuf;
+	vector<old_token>	tokbuf;
 	int				tokidx;
 	stack<int> parens;
 
 	/* support functions+ */
 	/* general */
 	void init_precedence_table();
-	void init_valid_list();
 	void print_token_buffer();
 	void print_token_buffer(int i);
 	void parser_error(const char* str);
@@ -36,7 +36,7 @@ private:
 	void release();
 
 	/* parsing primitives */
-	_token curtok();
+	old_token curtok();
 	bool  speculate(_tok tok);
 	void  consume();
 	void  sync(int i);
@@ -47,10 +47,6 @@ private:
 	bool is_literal(_tok t);
 	bool is_postop(_tok t);
 
-	/* semantic analysis */
-	bool analyze(_declaration& decl, _scope& current_scope);
-	_ast_type analyze(_binop& op, _scope& current_scope);
-	_ast_type valid_for(_tok tok, _ast_type lhs_type, _ast_type rhs_type);
 	/* parser speculation functions */
 	/*
 	try_* functions rewind their input 
@@ -117,7 +113,7 @@ private:
 		information and create _ast nodes to build
 		the Intermediate Representation of the program.
 	*/
-	void parse_top_level_declaration(_module& top);
+	_ast* parse_top_level_declaration();
 	void parse_declaration(_declaration& decl);
 
 	void parse_type_specifier(_declaration& decl);
@@ -130,6 +126,7 @@ private:
 	_ast* _parse_expression(_ast* lhs, int min_prec);
 	_ast* parse_postop();
 	_ast* parse_primary_expr();
+	_tok predict_type(_ast* expr);
 
 	void parse_function_call(_lambda& fun);
 	void parse_array_access(_iterator& iter);

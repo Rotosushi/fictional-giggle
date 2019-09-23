@@ -33,7 +33,7 @@ enum _tok {
 	T_PERIOD,
 	T_COMMA,
 	T_CONST_ASSIGN,
-	T_DYNAMIC_ASSIGN,
+	T_DEFINE_ASSIGN,
 	T_ADD_ASSIGN, 
 	T_SUB_ASSIGN,  
 	T_MULT_ASSIGN,
@@ -81,6 +81,8 @@ enum _tok {
 	T_F32,
 	T_F64,
 	T_FUNCTION,
+	T_LAMBDA,
+	T_INFER,
 	T_TYPECAST,
 	T_SIZEOF,
 	T_IF,
@@ -95,11 +97,11 @@ enum _tok {
 typedef struct {
 	_tok type;
 	std::string value;
-} _token;
+} old_token;
 
-class _lexer {
+class old_lexer {
 public:
-	_token gettok();
+	old_token gettok();
 	void set_infile(char* filename);
 	void set_instring(string input);
 private:

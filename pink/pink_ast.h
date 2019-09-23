@@ -5,16 +5,23 @@ using std::string;
 #include <vector>
 using std::vector;
 #include "pink_lexer.h"
+#include "pink_type.h"
 
+/* 
+this _ast_type is reaching for the right idea
+but is too early into the program, this needs to
+be refactored into a new class _symbol
+*/
 enum _ast_type {
 	AST_ERR,
-	AST_DECLARATION,
+	AST_VARDECL,
 	AST_STATEMENT,
 	AST_FUNCTION,
+	AST_LAMBDA,
 	AST_SCOPE,
 	AST_MODULE,
 	AST_BINOP,
-	AST_UNARYOP,
+	AST_UNOP,
 	AST_IF,
 	AST_WHILE,
 	AST_DOWHILE,
@@ -50,18 +57,25 @@ typedef struct _ast {
 	virtual ~_ast() {};
 } _ast;
 
-typedef struct _declaration : public _ast {
-	string id; // while every ID is lexed as a Token, I don't want to type
-	_token lhs; //  decl.id.value everytime we need the identifier
-	_token op = { T_ERR, "" };
-	_ast* rhs;
-	_token type;
-	vector<_token> directives;
+typedef struct _var : public _ast {
+	string id;
+	_type type = _NONE;
+	vector<_ast*> postops;
 
-	_declaration() : _ast(AST_DECLARATION) {}
+	_var() : _ast(AST_VAR) {}
+	_var(string s) : _ast(AST_VAR), id(s) {}
+} _var;
+
+typedef struct _declaration : public _ast {
+	_var var;
+	old_token op = { T_ERR, "" };
+	_ast* rhs;
+	vector<old_token> directives;
+
+	_declaration() : _ast(AST_VARDECL) {}
 	bool operator==(const _declaration& rhs)
 	{
-		return this->id == rhs.id;
+		return this->var.id == rhs.var.id;
 	}
 
 	virtual void visit() {}
@@ -75,23 +89,18 @@ typedef struct _statement : public _ast {
 
 
 typedef struct _scope : public _ast {
-	string id;
-	vector<_declaration> cntxt;
 	vector<_declaration> decls;
 	vector<_statement> stmts;
 
-	bool already_in_scope(_declaration& decl) {
-		for (auto item : decls) {
-			if (item == decl) return true;
+	_declaration* resolve(string id) {
+		for (auto dec : decls) {
+			if (dec.var.id == id) return &dec;
 		}
-		return false;
+		return nullptr;;
 	}
 
-	bool already_in_context(_declaration& decl) {
-		for (auto item : cntxt) {
-			if (item == decl) return true;
-		}
-		return false;
+	void define(_declaration& decl) {
+		decls.push_back(decl);
 	}
 
 	_scope() : _ast(AST_SCOPE) {}
@@ -100,9 +109,46 @@ typedef struct _scope : public _ast {
 typedef struct _module : public _ast {
 	string id;
 	vector<_ast*> types;
-	vector<string> imports;
-	vector<string> exports;
 	_scope body;
+
+	void define(_declaration& decl) {
+		body.define(decl);
+	}
+
+	_declaration* resolve(string id) {
+		return body.resolve(id);
+	}
+
+	void define_type(_ast* type) {
+		types.push_back(type);
+	}
+
+	_ast* resolve_type(string id) {
+		for (auto type : types) {
+			switch (type->ast_type) {
+			case AST_ALIAS:
+				if (((_alias*)type)->alias == id) {
+					return type;
+				}
+				break;
+			case AST_STRUCT:
+				if (((_struct*)type)->id == id) {
+					return type;
+				}
+				break;
+			case AST_UNION:
+				if (((_union*)type)->id == id) {
+					return type;
+				}
+				break;
+			case AST_FUNCTION:
+				if (((_function*)type)->id == id) {
+					return type;
+				}
+				break;
+			}
+		}
+	}
 
 	_module() : _ast(AST_MODULE) {}
 	virtual void visit() {}
@@ -110,7 +156,7 @@ typedef struct _module : public _ast {
 
 typedef struct _arg {
 	string id;
-	_token type;
+	old_token type;
 
 	_ast* value = nullptr;
 } _arg;
@@ -131,21 +177,21 @@ typedef struct _function : public _lambda {
 } _function;
 
 typedef struct _binop : public _ast {
-	_token op;
+	old_token op;
 	_ast* lhs = nullptr;
 	_ast* rhs = nullptr;
 
 	_binop() : _ast(AST_BINOP) {}
-	_binop(_token o, _ast* l, _ast* r)
+	_binop(old_token o, _ast* l, _ast* r)
 		: _ast(AST_BINOP), op(o), lhs(l), rhs(r) {}
 	virtual void visit() {}
 } _binop;
 
 typedef struct _unop : public _ast {
-	_token op;
+	old_token op;
 	_ast* rhs = nullptr;
 
-	_unop() : _ast(AST_UNARYOP) {}
+	_unop() : _ast(AST_UNOP) {}
 	virtual void visit() {}
 } _unop;
 
@@ -221,7 +267,7 @@ typedef struct _enum : public _ast {
 
 typedef struct _array : public _ast {
 	string id;
-	_token type;
+	old_token type;
 	int length;
 
 	_array() : _ast(AST_ARRAY) {}
@@ -249,19 +295,11 @@ typedef struct _pointer : public _ast {
 
 typedef struct _alias : public _ast {
 	string alias;
-	_token type;
+	old_token type;
 
 	_alias() : _ast(AST_ALIAS) {}
 	virtual void visit() {}
 } _alias;
-
-typedef struct _var : public _ast {
-	string value;
-	vector<_ast*> postops;
-
-	_var() : _ast(AST_VAR) {}
-	_var(string s) : _ast(AST_VAR), value(s) {}
-} _var;
 
 typedef struct _int : public _ast {
 	int value;

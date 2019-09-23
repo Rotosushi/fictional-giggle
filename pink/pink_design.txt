@@ -598,9 +598,10 @@ Token := (<op1> | <op2> | .. | <opn> )
 // v3 goals : high level programming constructs
 - polymorphism
 - macros (programmer ast manipulation)
+- reflection
 - concurrency
 
-// v4 goals : optimization
+// vn goals : optimization
 - make the compiler fast
 - make the output code fast
 %%
@@ -608,4 +609,7 @@ Token := (<op1> | <op2> | .. | <opn> )
 // research
 - processor primitives
 -- compare-and-swap, atomic load/store, atomic rmw
+
+- dynamic vs. static vs. capture scope
+-- maybe allow the programmer to specify?
 
