@@ -62,11 +62,34 @@ private:
 	bool is_postop(_token t);
 
 	/* parsing functions */
-	_ast* parse_module_level_declaration();
-	_ast* parse_declaration();
-	_ast* parse_function_definition();
+	void parse_module_level_declaration(_module& mdl);
+
+	void parse_declaration(_vardecl& decl);
 
 	void parse_type_specifier(_vardecl& decl);
+	void parse_type_specifier(_arg& arg);
+
+	void parse_initializer(_vardecl& decl);
+
+	void parse_function_definition(_fndecl& fn);
+
+	void parse_lambda(_lambda& fn);
 	void parse_lambda_header(_lambda& fn);
-	void parse_lambda_body()
+	void parse_lambda_body(_lambda& fn);
+	void parse_argument_list(vector<_arg>& args);
+	void parse_return_list(vector<_arg>& args);
+
+	void parse_expression(_ast* expr);
+	_ast* _parse_expression(_ast* lhs, int min_prec);
+	_ast* _parse_postop();
+	_ast* _parse_primary_expr();
+
+	_lambda* _parse_function_call();
+
+	void parse_conditional(_if& conditional);
+	void parse_iteration(_while& loop);
+
+	void parse_statement(_ast* expr);
+
+	void parse_block(_scope& body);
 };

@@ -35,6 +35,7 @@
 <argument-list> := '(' (<arg> (',' <arg>)*)? ')'
 
 <arg> := <identifier> (':' <type-specifier>)?
+	   | <expression>
 
 <return-list> :=  '(' <type-specifier> (',' <type-specifier>)*')'
 

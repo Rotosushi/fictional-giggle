@@ -35,7 +35,6 @@ enum _token {
 	T_LOG_AND,
 	T_LOG_XOR,
 	T_LOG_OR,
-	T_LOG_NOT,
 	T_LOG_EQUALS,
 	T_LOG_NOT_EQUALS,
 	T_LOG_LESS,
@@ -70,3 +69,5 @@ enum _token {
 	T_TRUE,
 	T_FALSE,
 };
+
+string token_to_string(_token t);

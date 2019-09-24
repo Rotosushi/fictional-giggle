@@ -159,9 +159,11 @@
     <ClCompile Include="pink_ast.cpp" />
     <ClCompile Include="pink_semantic_analysis.cpp" />
     <ClCompile Include="pink_utilities.cpp" />
+    <ClCompile Include="token.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ast.h" />
+    <ClInclude Include="error.h" />
     <ClInclude Include="lexer.h" />
     <ClInclude Include="parser.h" />
     <ClInclude Include="pink_lexer.h" />

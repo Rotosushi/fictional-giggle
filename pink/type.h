@@ -6,6 +6,7 @@ enum _type {
 	_TEXT,
 	_BOOL,
 	_LAMBDA,
+	_VAR,
 	_DEF,
 	/* TODO:
 		_ARRAY,
