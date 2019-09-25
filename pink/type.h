@@ -1,13 +1,15 @@
 #pragma once
 
 enum _type {
+	_NONE,
 	_INT,
 	_FLOAT,
 	_TEXT,
 	_BOOL,
 	_LAMBDA,
 	_VAR,
-	_DEF,
+	_DEDUCE,
+	
 	/* TODO:
 		_ARRAY,
 		_PTR,

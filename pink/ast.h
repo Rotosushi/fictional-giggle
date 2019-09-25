@@ -14,8 +14,11 @@ enum _ast_type {
 	AST_VAR,
 	AST_VARDECL,
 	AST_ARG,
+	AST_RARG,
+	AST_CARG,
 	AST_LAMBDA,
 	AST_FNDECL,
+	AST_FCALL,
 	AST_IF,
 	AST_WHILE,
 	AST_BINOP,
@@ -56,6 +59,15 @@ typedef struct _vardecl : public _ast {
 	_token op;
 	_ast* rhs;
 
+	void clear() {
+		lhs.id = "";
+		lhs.type = _NONE;
+		lhs.value = nullptr;
+		lhs.postops.clear();
+		op = T_ERR;
+		rhs = nullptr;
+	}
+
 	_vardecl() : _ast(AST_VARDECL), lhs(), op(), rhs() {}
 	_vardecl(_var l, _token o, _ast* r) : _ast(AST_VARDECL) {
 		lhs = l;
@@ -66,7 +78,7 @@ typedef struct _vardecl : public _ast {
 
 typedef struct _scope : public _ast {
 	map <string, _vardecl> variables;
-	vector <_ast*> expressions;
+	vector <_ast*> statements;
 
 	_vardecl& resolve(string id) {
 		return variables.at(id);
@@ -76,10 +88,10 @@ typedef struct _scope : public _ast {
 		variables[decl.lhs.id] = decl;
 	}
 
-	_scope() : _ast(AST_SCOPE), variables(), expressions() {}
+	_scope() : _ast(AST_SCOPE), variables(), statements() {}
 	_scope(map<string, _vardecl> v, vector<_ast*> e) : _ast(AST_SCOPE) {
 		variables = v;
-		expressions = e;
+		statements = e;
 	}
 } _scope;
 
@@ -96,18 +108,55 @@ typedef struct _arg : public _ast {
 	}
 } _arg;
 
+typedef struct _rarg : public _ast {
+	string id;
+	_type type;
+	_ast* value;
+
+	_rarg() : _ast(AST_RARG), id(), type(), value() {}
+	_rarg(string i, _type t, _ast* v) : _ast(AST_RARG) {
+		id = i;
+		type = t;
+		value = v;
+	}
+} _rarg;
+
+typedef struct _carg : public _ast {
+	string id;
+	_type type;
+	_ast* value;
+
+	_carg() : _ast(AST_CARG), id(), type(), value() {}
+	_carg(string i, _type t, _ast* v) : _ast(AST_CARG) {
+		id = i;
+		type = t;
+		value = v;
+	}
+} _carg;
+
 typedef struct _lambda : public _ast {
 	vector<_arg> argument_list;
-	vector<_arg> return_list;
+	vector<_rarg> return_list;
 	_scope body;
 
 	_lambda() : _ast(AST_LAMBDA), argument_list(), return_list(), body() {}
-	_lambda(vector<_arg> a, vector<_arg> r, _scope b) : _ast(AST_LAMBDA) {
+	_lambda(vector<_arg> a, vector<_rarg> r, _scope b) : _ast(AST_LAMBDA) {
 		argument_list = a;
 		return_list = r;
 		body = b;
 	}
 } _lambda;
+
+typedef struct _fcall : public _ast {
+	vector<_carg> argument_list;
+	vector<_rarg> return_list;
+
+	_fcall() : _ast(AST_FCALL), argument_list(), return_list() {}
+	_fcall(vector<_carg> a, vector<_rarg> r) : _ast(AST_FCALL) {
+		argument_list = a;
+		return_list = r;
+	}
+} _fcall;
 
 typedef struct _fndecl : public _ast {
 	string id;

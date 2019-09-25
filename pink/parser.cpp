@@ -12,7 +12,7 @@ _module* _parser::parse_module()
 
 	/* <module> := (<module-level-declaration>)* EOF */
 
-	while (curtok != T_EOF) {
+	while (curtok() != T_EOF) {
 		parse_module_level_declaration(*top);
 	}
 
@@ -50,14 +50,65 @@ void _parser::init_precedence_table()
 	ptable[T_MOD] = 12;
 }
 
-void _parser::nexttok()
+_token _parser::curtok()
 {
-	curtok = lexer.gettok();
+	return tokbuf[tokidx];
 }
 
-string _parser::gettext()
+void _parser::nexttok()
 {
-	return lexer.gettext();
+	tokidx++;
+
+	if (tokidx == tokbuf.size() && !speculating()) {
+		tokidx = 0;
+		tokbuf.clear();
+		texbuf.clear();
+	}
+
+	sync(1);
+}
+
+string _parser::curtext()
+{
+	return texbuf[tokidx];
+}
+
+int _parser::mark()
+{
+	marks.push(tokidx);
+	return tokidx;
+}
+
+void _parser::release()
+{
+	int mark = marks.top();
+	marks.pop();
+	tokidx = mark;
+}
+
+bool _parser::speculate(_token t)
+{
+	if (t == curtok()) {
+		nexttok();
+		return true;
+	}
+	else return false;
+}
+
+bool _parser::speculating()
+{
+	return marks.size() > 0;
+}
+
+void _parser::sync(int i)
+{
+	if ((size_t)((uint64_t)tokidx + i) > tokbuf.size()) { // do we need more tokens than we have?
+		int n = (tokidx + i) - tokbuf.size(); // how many more do we need?
+		for (int i = 0; i < n; i++) {
+			tokbuf.push_back(lexer.gettok());  // get n tokens
+			texbuf.push_back(lexer.gettext()); // get text for each token
+		}
+	}
 }
 
 bool _parser::is_unop(_token t)
@@ -126,7 +177,7 @@ bool _parser::is_postop(_token t)
 
 void _parser::parse_module_level_declaration(_module& mdl)
 {
-	switch (curtok) {
+	switch (curtok()) {
 	case T_ID:
 		auto vardecl = new _vardecl;
 		parse_declaration(*vardecl);
@@ -149,7 +200,7 @@ void _parser::parse_module_level_declaration(_module& mdl)
 		else
 			throw _parser_error("function already defined: ", fndecl->id); 
 		break;
-	default: throw _parser_error("invalid top level declaration: ", gettext()); 
+	default: throw _parser_error("invalid top level declaration: ", curtext()); 
 	}
 }
 
@@ -163,23 +214,23 @@ void _parser::parse_declaration(_vardecl& decl)
 
 	*/
 	
-	if (curtok != T_ID) throw _parser_error("declaration doesn't start with identifier, instead got: ", curtok); // parser error
-	decl.lhs.id = gettext();
+	if (curtok() != T_ID) throw _parser_error("declaration doesn't start with identifier, instead got: ", curtok); // parser error
+	decl.lhs.id = curtext();
 	nexttok();
 
-	switch (curtok) {
+	switch (curtok()) {
 	case T_COLON:
-		decl.op = curtok;
+		decl.op = curtok();
 		nexttok(); // eat ':'
 		parse_type_specifier(decl);
 
-		if (curtok == T_EQ) {
+		if (curtok() == T_EQ) {
 			decl.op = T_COLON_EQ;
 			nexttok();
 			parse_initializer(decl);
 		} 
 
-		if (curtok != T_SEMICOLON) {
+		if (curtok() != T_SEMICOLON) {
 			throw _parser_error("declaration doesn't end with ';'. instead got: ", curtok);
 		}
 		else {
@@ -187,12 +238,12 @@ void _parser::parse_declaration(_vardecl& decl)
 		}
 		break;
 	case T_COLON_EQ:
-		decl.op = curtok;
+		decl.op = curtok();
 		nexttok(); // eat ':='
 		parse_initializer(decl);
 		break;
 	case T_COLON_COLON:
-		decl.op = curtok;
+		decl.op = curtok();
 		nexttok(); // eat '::'
 		parse_initializer(decl);
 		break;
@@ -216,12 +267,11 @@ void _parser::parse_lambda_header(_lambda& fn)
 
 	parse_argument_list(fn.argument_list);
 
-	if (curtok != T_ARROW) throw _parser_error("argument list not followed by '->'. instead got: ", curtok); 
+	if (curtok() != T_ARROW) throw _parser_error("argument list not followed by '->'. instead got: ", curtok); 
 	nexttok();
 
-	if (curtok == T_LPAREN)
+	if (curtok() == T_LPAREN)
 		parse_return_list(fn.return_list);
-
 }
 
 void _parser::parse_lambda_body(_lambda& fn)
@@ -231,91 +281,105 @@ void _parser::parse_lambda_body(_lambda& fn)
 
 void _parser::parse_argument_list(vector<_arg>& args)
 {
-	/*<arg> := <identifier> (':' <type-specifier>)?*/
-	auto build_arg = [this](_arg& a) {
-		if (curtok != T_ID) throw;
-		a.id = gettext();
-		nexttok();
-
-		if (curtok == T_COLON) { // ':'
-			parse_type_specifier(a);
-		}
-	};
 	/*
 	<argument-list> := '(' (<arg> (',' <arg>)*)? ')'
 	*/
-	if (curtok != T_LPAREN) throw;
+	if (curtok() != T_LPAREN) throw;
 	nexttok();
 
-	if (curtok == T_ID) {
+	if (curtok() == T_ID) {
 		_arg arg;
-		build_arg(arg);
+		parse_arg(arg);
 		args.push_back(arg);
-		while (curtok == T_COMMA) {
+		while (curtok() == T_COMMA) {
 			nexttok(); // ','
-			build_arg(arg);
+			parse_arg(arg);
 			args.push_back(arg);
 		}
 	}
 
-	if (curtok != T_RPAREN) throw;
+	if (curtok() != T_RPAREN) throw;
 	nexttok();
 }
 
-void _parser::parse_return_list(vector<_arg>& args)
+void _parser::parse_arg(_arg& arg)
+{
+	/*
+	<arg> := <identifier> (':' <type-specifier>)?
+		   | <expr>
+	*/
+	if (speculate_type_annotated_arg()) {
+		arg.id = curtext();
+		nexttok();
+
+		if (curtok() == T_COLON) {
+			nexttok();
+			parse_type_specifier(arg);
+		}
+		else {
+			arg.type = _DEDUCE;
+		}
+	}
+	else {
+		arg.type = _DEDUCE; // throw the task of figuring out the type down the line
+		parse_expression(arg.value);
+	}
+}
+
+void _parser::parse_return_list(vector<_rarg>& rargs)
 {
 	//<return-list> :='(' (<type-specifier> (',' <type-specifier>)*)? ')'
-	auto build_rarg = [this](_arg& arg) {
-		_lambda* l;
-		switch (curtok) {
-		case T_ID:
-			arg.type = _DEF;
-			arg.id = gettext();
-			nexttok();
-			return;
-		case T_INT:
-			arg.type = _INT;
-			arg.value = new _int(stoi(gettext()));
-			nexttok();
-			return;
-		case T_FLOAT:
-			arg.type = _FLOAT;
-			arg.value = new _float(stof(gettext()));
-			nexttok();
-			return;
-		case T_TEXT:
-			arg.type = _TEXT;
-			arg.value = new _text(gettext());
-			nexttok();
-			return;
-		case T_LPAREN:
-			l = new _lambda;
-			parse_lambda_header(*l);
-
-			arg.type = _LAMBDA;
-			arg.value = l;
-			break;
-		default: throw; // parser error
-		}
-	};
 	
-	if (curtok != T_LPAREN) throw;
+	if (curtok() != T_LPAREN) throw;
 	nexttok(); // eat '('
 
-	_arg arg;
+	_rarg rarg;
 
-	if (curtok != T_RPAREN) {
-		build_rarg(arg); // eat <type-specifier>
-		args.push_back(arg);
-		while (curtok == T_COMMA) {
+	if (curtok() != T_RPAREN) {
+		parse_rarg(rarg); // eat <type-specifier>
+		rargs.push_back(rarg);
+		while (curtok() == T_COMMA) {
 			nexttok(); // eat ','
-			build_rarg(arg);
-			args.push_back(arg);
+			parse_rarg(rarg);
+			rargs.push_back(rarg);
 		}
 	}
 
-	if (curtok != T_RPAREN) throw;
+	if (curtok() != T_RPAREN) throw;
 	nexttok(); // eat ')'
+}
+
+void _parser::parse_rarg(_rarg& rarg)
+{
+	// <rarg> := <id> | <type-primitive> | <lambda-header>
+	_lambda* l;
+	switch (curtok()) {
+	case T_ID:
+		rarg.id = curtext();
+		rarg.type = _DEDUCE;
+		break;
+	case T_INT:
+		rarg.type = _INT;
+		break;
+	case T_FLOAT:
+		rarg.type = _FLOAT;
+		break;
+	case T_TEXT:
+		rarg.type = _TEXT;
+		break;
+	case T_BOOL:
+		rarg.type = _BOOL;
+		break;
+	case T_LPAREN:
+		l = new _lambda;
+
+		rarg.type = _LAMBDA;
+		parse_lambda_header(*l);
+
+		rarg.value = l;
+		break;
+	default: throw;
+	}
 }
 
 void _parser::parse_expression(_ast* expr)
@@ -325,16 +389,16 @@ void _parser::parse_expression(_ast* expr)
 
 _ast* _parser::_parse_expression(_ast* lhs, int min_prec)
 {
-	auto lad = curtok; // lad - lookahead
+	auto lad = curtok(); // lad - lookahead
 	while (is_binop(lad) && ptable[lad] >= min_prec) {
 		auto op = lad;
 		nexttok();
 		auto rhs = _parse_primary_expr();
-		lad = curtok;
+		lad = curtok();
 		while (is_binop(lad) && (ptable[lad] > ptable[op]))
 		{
 			rhs = _parse_expression(rhs, ptable[lad]);
-			lad = curtok;
+			lad = curtok();
 		}
 		lhs = new _binop(op, lhs, rhs);
 	}
@@ -343,8 +407,8 @@ _ast* _parser::_parse_expression(_ast* lhs, int min_prec)
 
 _ast* _parser::_parse_postop()
 {
-	_lambda* fn;
-	switch (curtok) {
+	_fcall* fn;
+	switch (curtok()) {
 	case T_LPAREN:
 		fn = _parse_function_call();
 		return fn;
@@ -353,7 +417,7 @@ _ast* _parser::_parse_postop()
 
 		case T_PERIOD:
 	*/
-	default: throw; // parser error
+	default: throw _parser_error("unrecognized postop token, expected ')' got: ", curtok()); // parser error
 	}
 }
 
@@ -374,12 +438,12 @@ _ast* _parser::_parse_primary_expr()
 	_ast* expr;
 	_unop* unop;
 	string value;
-	switch (curtok) {
+	switch (curtok()) {
 	case T_ID:
 		var = new _var;
-		var->id = gettext();
+		var->id = curtext();
 		nexttok(); // eat <id>
-		while (is_postop(curtok))
+		while (is_postop(curtok()))
 			var->postops.push_back(_parse_postop());
 		return var;
 	case T_LPAREN:
@@ -387,28 +451,28 @@ _ast* _parser::_parse_primary_expr()
 
 		expr = _parse_expression(_parse_primary_expr(), 0);
 
-		if (curtok != T_RPAREN) throw;
+		if (curtok() != T_RPAREN) throw;
 		nexttok(); // eat ')'
 		return expr;
 	case T_ADD: case T_SUB: case T_MULT:
 	case T_LOG_AND: case T_LOG_NOT: case T_BIT_NOT:
 		unop = new _unop;
 
-		unop->op = curtok;
+		unop->op = curtok();
 		nexttok();
 		unop->rhs = _parse_primary_expr();
 
 		return unop;
 	case T_LITERAL_INT:
-		value = gettext();
+		value = curtext();
 		nexttok();
 		return new _int(stoi(value));
 	case T_LITERAL_FLOAT:
-		value = gettext();
+		value = curtext();
 		nexttok();
 		return new _float(stof(value));
 	case T_LITERAL_TEXT:
-		value = gettext();
+		value = curtext();
 		nexttok();
 		return new _text(value);
 	case T_TRUE:
@@ -421,60 +485,82 @@ _ast* _parser::_parse_primary_expr()
 	}
 }
 
-_lambda* _parser::_parse_function_call()
+_fcall* _parser::_parse_function_call()
 {
 	// '(' (<carg> (',' <carg>)*)? ')'
-	// <carg> := <id> | <literal> | <lambda-definition>
-	auto parse_carg = [this](_arg& arg) {
-		switch (curtok) {
-		case T_ID:
-			arg.id = gettext();
-			arg.type = _VAR;
-			break;
-		case T_LITERAL_INT:
-			arg.type = _INT;
-			arg.value = new _int(stoi(gettext()));
-			break;
-		case T_LITERAL_FLOAT:
-			arg.type = _FLOAT;
-			arg.value = new _float(stof(gettext()));
-			break;
-		case T_LITERAL_TEXT:
-			arg.type = _TEXT;
-			arg.value = new _text(gettext());
-			break;
-		case T_LPAREN:
-			arg.type = _LAMBDA;
-			arg.value = new _lambda;
-			parse_lambda(*((_lambda*)arg.value));
-			return;
-		}
-		nexttok();
-	};
 
-	if (curtok != T_LPAREN) throw;
+	if (curtok() != T_LPAREN) throw;
 	nexttok(); // eat '('
 
-	auto fn = new _lambda;
+	auto fn = new _fcall;
 
-	if (curtok != T_RPAREN) { // empty arg list is semantically valid
-		_arg arg;
-		parse_carg(arg); // eat <arg>
-		fn->argument_list.push_back(arg);
+	if (curtok() != T_RPAREN) { // empty arg list is semantically valid
+		_carg carg;
+		parse_carg(carg); // eat <arg>
+		fn->argument_list.push_back(carg);
 
-		while (curtok == T_COMMA) {
+		while (curtok() == T_COMMA) {
 			nexttok(); // eat ','
-			parse_carg(arg); // eat <arg>
-			fn->argument_list.push_back(arg);
+			parse_carg(carg); // eat <arg>
+			fn->argument_list.push_back(carg);
 		}
 	}
 
-	if (curtok != T_RPAREN) throw;
+	if (curtok() != T_RPAREN) throw;
 	nexttok(); // eat ')'
+
+	return fn;
+}
+
+void _parser::parse_carg(_carg& carg)
+{
+	// <carg> := <id> | <literal> | <lambda-definition>
+	switch (curtok()) {
+	case T_ID:
+		carg.id = curtext();
+		carg.type = _VAR;
+		break;
+	case T_LITERAL_INT:
+		carg.type = _INT;
+		carg.value = new _int(stoi(curtext()));
+		break;
+	case T_LITERAL_FLOAT:
+		carg.type = _FLOAT;
+		carg.value = new _float(stof(curtext()));
+		break;
+	case T_LITERAL_TEXT:
+		carg.type = _TEXT;
+		carg.value = new _text(curtext());
+		break;
+	case T_LPAREN:
+		carg.type = _LAMBDA;
+		carg.value = new _lambda;
+		parse_lambda(*((_lambda*)carg.value));
+		return;
+	}
+	nexttok();
 }
 
 void _parser::parse_conditional(_if& conditional)
 {
+	/*
+	<conditional>  := 'if' '(' (<expr>)? ')' <statement>
+				| 'if' '(' (<expr>)? ')' <statement> 'else' <statement>
+	*/
+	if (curtok() == T_IF) {
+		nexttok();
+		if (curtok() != T_LPAREN) throw;
+		nexttok();
+		parse_expression(conditional.cond);
+		if (curtok() != T_RPAREN) throw;
+		nexttok();
+		parse_statement(conditional.then);
+		if (curtok() == T_ELSE) {
+			nexttok();
+			parse_statement(conditional.els);
+		}
+	}
+	else throw;
 }
 
 void _parser::parse_iteration(_while& loop)
@@ -492,9 +578,10 @@ void _parser::parse_type_specifier(_vardecl& decl)
 					  | <type-primitive>
 					  | <identifier>
 	*/
-	switch (curtok) {
+	switch (curtok()) {
 	case T_ID:
-		decl.lhs.type = _DEF;
+		decl.lhs.id = curtext();
+		decl.lhs.type = _DEDUCE;
 		break;
 	case T_INT:
 		decl.lhs.type = _INT;
@@ -533,7 +620,7 @@ void _parser::parse_type_specifier(_arg& arg)
 	// so curtok() is ':'
 	nexttok();
 	_lambda* lambda;
-	switch (curtok) {
+	switch (curtok()) {
 	case T_LPAREN: // it's a lambda arg
 		lambda = new _lambda;
 		parse_lambda_header(*lambda);
@@ -541,7 +628,8 @@ void _parser::parse_type_specifier(_arg& arg)
 		arg.value = lambda;
 		break;
 	case T_ID:
-		arg.type = _DEF;
+		arg.id = curtext();
+		arg.type = _DEDUCE;
 		nexttok();
 		break;
 	case T_INT:
@@ -570,12 +658,10 @@ void _parser::parse_initializer(_vardecl& decl)
 	<initializer>  := <lambda-definition>
 					| <expression>
 	*/
-	// this grammer may need speculation........:(
-	try {
-		
-	}
-	catch (...) {
-
+	if (speculate_lambda());
+	else {
+		decl.lhs.type = _DEDUCE;
+		parse_expression(decl.rhs);
 	}
 }
 
@@ -585,11 +671,472 @@ void _parser::parse_block(_scope& body)
 	/* <block> :=
 			'{' (<declaration> | <statement>)* '}'
 	*/
-	if (curtok != T_LBRACKET) throw;
+	if (curtok() != T_LBRACKET) throw;
 	nexttok();
+
+	_vardecl d;
+	_ast* s;
 
 	do {
-
-	} while (curtok != T_RBRACKET); // there is a whole class of missing '}' errors we will want to report here
+		if (speculate_declaration()) {
+			parse_declaration(d);
+			body.define(d);
+			d.clear();
+		}
+		else if (speculate_statement()) {
+			parse_statement(s);
+			body.statements.push_back(s);
+			s = nullptr;
+		}
+	} while (curtok() != T_RBRACKET); // there is a whole class of missing '}' errors we will want to report here
 	nexttok();
 }
+
+bool _parser::speculate_declaration()
+{
+	bool success = true;
+	if (speculate(T_ID)) {
+		if (speculate(T_COLON)) {
+			if (speculate_type_specifier()) {
+				if (speculate(T_SEMICOLON)) {
+
+				}
+				else if (speculate(T_EQ)) {
+					if (speculate_initializer()) {
+						if (speculate(T_SEMICOLON)) {
+
+						}
+						else success = false;
+					}
+					else success = false;
+				}
+				else success = false;
+			}
+			else success = false;
+		}
+		else if (speculate(T_COLON_EQ) || speculate(T_COLON_COLON)) {
+			if (speculate_initializer()) {
+				if (speculate(T_SEMICOLON)) {
+
+				}
+				else success = false;
+			}
+			else success = false;
+		}
+		else success = false;
+	}
+	else success = false;
+	return success;
+}
+
+bool _parser::speculate_statement()
+{
+	bool success = true;
+	if (speculate_block()) {
+
+	}
+	else if (speculate_conditional()) {
+
+	}
+	else if (speculate_iteration()) {
+
+	}
+	else if (speculate_expression()) {
+
+	}
+	else success = false;
+	return success;
+}
+
+bool _parser::speculate_block()
+{
+	bool success = true;
+	if (speculate(T_LBRACKET)) {
+		while (speculate_declaration() || speculate_statement());
+
+		if (speculate(T_RBRACKET)) {
+
+		}
+		else success = false;
+	}
+	else success = false;
+	return success;
+}
+
+bool _parser::speculate_iteration()
+{
+	/*
+		<iteration> := 'while' '(' <expression> ')' <statement>
+					 | 'do' <statement> 'while' '(' <expression> ')'
+			// TODO: | 'for' <identifier> 'in' <iterable> <statement>
+
+	*/
+	bool success = true;
+	if (speculate(T_WHILE)) {
+		if (speculate(T_LPAREN)) {
+			if (speculate_expression()) {
+				if (speculate(T_RPAREN)) {
+					if (speculate_statement()) {
+
+					}
+					else success = false;
+				}
+				else success = false;
+			}
+			else success = false;
+		}
+		else success = false;
+	}
+	else success = false;
+
+	return success;
+}
+
+bool _parser::speculate_conditional()
+{
+	/*
+		<conditional>  := 'if' '(' <expression> ')' <statement> ('else' <statement>)?
+				// TODO:| 'switch' '(' <expression> ')' <switch-block>
+	*/
+	bool success = true;
+	if (speculate(T_IF)) {
+		if (speculate(T_LPAREN)) {
+			if (speculate_expression()) {
+				if (speculate(T_RPAREN)) {
+					if (speculate_statement()) {
+						if (speculate(T_ELSE)) {
+							if (speculate_statement()) {
+
+							}
+							else success = false;
+						}
+					}
+					else success = false;
+				}
+				else success = false;
+			}
+			else success = false;
+		}
+		else success = false;
+	}
+	else success = false;
+	return success;
+}
+
+bool _parser::speculate_id()
+{
+	// <id> can be followed by <binop>, <postop>, '(', ')', '[', ']', '.', or ';'
+	nexttok(); // consume <id>
+	if (is_binop(curtok()))
+		return speculate_binop();
+	if (is_postop(curtok()))
+		return speculate_postop();
+	if (curtok() == T_RPAREN)
+		return speculate_rparen();
+	// this may be questionable, but when <id> is followed by ']', ']' is assumed to be a terminal character 
+	// for the case of array (pointer) math:
+	//		A[B + C] = D;
+	if (curtok() == T_RBRACE)
+		return true;
+	if (curtok() == T_SEMICOLON && parens.size() == 0)
+		return true;
+
+	while (parens.size() > 0) parens.pop();
+	return false;
+}
+
+bool _parser::speculate_literal()
+{
+	// <literal> can be followed by <binop>, ')' or ';'
+	nexttok();
+	if (is_binop(curtok()))
+		return speculate_binop();
+	if (curtok() == T_RPAREN)
+		return speculate_rparen();
+	if (curtok() == T_SEMICOLON && parens.size() == 0)
+		return true;
+
+	while (parens.size() > 0) parens.pop();
+	return false;
+}
+
+bool _parser::speculate_unop()
+{
+	// <unop> can be followed by <unop>, <id>, or <literal>
+	nexttok(); // consume <unop>
+	if (is_unop(curtok()))
+		return speculate_unop();
+	if (is_literal(curtok()))
+		return speculate_literal();
+	if (curtok() == T_ID)
+		return speculate_id();
+	if (curtok() == T_LPAREN)
+		return speculate_lparen();
+
+	while (parens.size() > 0) parens.pop();
+	return false;
+}
+
+bool _parser::speculate_binop()
+{
+	// <binop> can be followed by <unop>, <id>, '(', or <literal>
+	nexttok(); // consume <binop>
+	if (is_unop(curtok()))
+		return speculate_unop();
+	if (is_literal(curtok()))
+		return speculate_literal();
+	if (curtok() == T_ID)
+		return speculate_id();
+	if (curtok() == T_LPAREN)
+		return speculate_lparen();
+}
+
+bool _parser::speculate_postop()
+{
+	// <postop> can be followed by <postop>, <binop>, or ';'
+	// consume <postop>
+	if (speculate_argument_list());
+	else if (speculate(T_LBRACE)) {
+		if (speculate_expression()) {
+
+		}
+		if (speculate(T_RBRACE));
+		else return false;
+	}
+	else { // malformed postop == malformed expression
+		while (parens.size() > 0) parens.pop();
+		return false;
+	}
+
+	if (is_postop(curtok()))
+		return speculate_postop();
+	if (is_binop(curtok()))
+		return speculate_binop();
+	if (curtok() == T_RPAREN)
+		return speculate_rparen();
+	if (curtok() == T_SEMICOLON && parens.size() == 0)
+		return true;
+
+	while (parens.size() > 0) parens.pop();
+	return false;
+}
+
+bool _parser::speculate_lparen()
+{
+	// '(' can be followed by <expr>
+	nexttok();
+	parens.push(0); // push an open paren on the stack that needs closing
+	return speculate_expression();
+}
+
+bool _parser::speculate_rparen()
+{
+	// ')' can be followed by ')', <binop>, ';' or be the terminal character
+	nexttok();
+	parens.pop();
+
+	if (is_binop(curtok()))
+		return speculate_binop();
+	if (curtok() == T_SEMICOLON && parens.size() == 0)
+		return true;
+	if (curtok() == T_RPAREN) {
+		if (parens.size() == 0) return true;
+		return speculate_rparen();
+	}
+	while (parens.size() > 0) parens.pop();
+	return false;
+}
+
+bool _parser::speculate_expression()
+{
+	// an expression is started by <id>, <literal>, <unop>, '('
+	//  or immediately ended by ')' or ';'
+	if (speculate(T_ID))
+		return speculate_id();
+	if (is_literal(curtok()))
+		return speculate_literal();
+	if (is_unop(curtok()))
+		return speculate_unop();
+	if (speculate(T_LPAREN))
+		return speculate_lparen();
+	if (speculate(T_RPAREN)) // empty expressions are valid
+		return speculate_rparen();
+	if (speculate(T_SEMICOLON) && parens.size() == 0) // empty expressions are valid
+		return true;
+}
+
+bool _parser::speculate_type_annotated_arg()
+{
+	bool success = true;
+	mark();
+	if (speculate(T_ID)) {
+		if (speculate(T_COLON)) {
+			if (speculate_type_specifier()) {
+
+			}
+			else success = false;
+		}
+	}
+	else success = false;
+	release();
+	return success;
+}
+
+bool _parser::speculate_initializer()
+{
+	bool success = true;
+	if (speculate_lambda());
+	else if (speculate_expression());
+	else success = false;
+	return success;
+}
+
+bool _parser::speculate_type_specifier()
+{
+	/*
+		<type-specifier>	:= <identifier>
+							 | <type-primitive>
+							 | <lambda-header>
+	*/
+	bool success = true;
+	if (speculate(T_ID));
+	else if (speculate_literal());
+	else if (speculate_type_primitive());
+	else if (speculate_argument_list()) {
+		if (speculate(T_ARROW)) {
+			if (speculate_return_list());
+			else success = false;
+		}
+		else success = false;
+	}
+	else success = false;
+	return success;
+}
+
+bool _parser::speculate_type_primitive()
+{
+	bool success = true;
+	if (speculate(T_INT));
+	else if (speculate(T_FLOAT));
+	else if (speculate(T_TEXT));
+	else if (speculate(T_BOOL));
+	else success = false;
+	return success;
+}
+
+bool _parser::speculate_lambda()
+{
+	bool success = true;
+	if (speculate_lambda_header()) {
+		if (speculate(T_ARROW)) {
+			if (speculate_return_list());
+
+			if (speculate_lambda_body());
+			else success = false;
+		}
+		else success = false;
+	}
+	else success = false;
+
+	return success;
+}
+
+bool _parser::speculate_lambda_header()
+{
+	/*
+		<lambda-header> := <argument-list> '->' (<return-list>)?
+	*/
+	bool success = true;
+	if (speculate_argument_list()) {
+		if (speculate(T_ARROW)) {
+			if (speculate_return_list()) {
+
+			}
+		}
+		else success = false;
+	}
+	else success = false;
+	return success;
+}
+
+bool _parser::speculate_lambda_body()
+{
+	return speculate_block();
+}
+
+bool _parser::speculate_argument_list()
+{
+	bool success = true;
+	if (speculate(T_LPAREN)) {
+		if (speculate_arg()) {
+
+		}
+		while (speculate(T_COMMA)) {
+			if (speculate_arg()) {
+
+			}
+			else {
+				success = false;
+				break;
+			}
+		}
+		if (speculate(T_RPAREN)) {
+
+		}
+		else success = false;
+	}
+	else success = false;
+	return success;
+}
+
+bool _parser::speculate_return_list()
+{
+	/*
+		<return-list> := '(' <type-specifier> (',' <type-specifier>)*')'
+	*/
+	bool success = true;
+	if (speculate(T_LPAREN)) {
+		if (speculate_type_specifier()) {
+
+		}
+		while (speculate(T_COMMA)) {
+			if (speculate_type_specifier()) {
+
+			}
+			else {
+				success = false;
+				break;
+			}
+		}
+		if (speculate(T_RPAREN)) {
+
+		}
+		else success = false;
+	}
+	else success = false;
+	return success;
+}
+
+bool _parser::speculate_arg()
+{
+	/*
+		<arg> := <identifier> (':' <type-specifier>)?
+	*/
+	bool success = true;
+	if (speculate(T_ID)) {
+		if (speculate(T_COLON)) {
+			if (speculate_type_specifier()) {
+
+			}
+			else success = false;
+		}
+	}
+	else if (speculate(T_LITERAL_INT));
+	else if (speculate(T_LITERAL_FLOAT));
+	else if (speculate(T_LITERAL_TEXT));
+	else if (speculate(T_TRUE));
+	else if (speculate(T_FALSE));
+	else success = false;
+	return success;
+}
+
