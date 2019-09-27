@@ -8,7 +8,7 @@ lamb_hard := (max: (a: int, b: int) -> (bool), a: int, b: int) -> (int) {};
 
 expr1 := A() * B() + -C;
 
-expr2 := A(B, C)[D + E * F - G].H * *I == J; 
+expr2 := A(B, C) * *I == J; 
 
 a := 12;
 b := 1.5;
@@ -18,7 +18,7 @@ e := false;
 f := user_type;
 g : int;
 h : float;
-i : string;
+i : text;
 j : bool;
 k :: 42;
 l :: 105.40;
@@ -27,7 +27,7 @@ n :: true;
 o :: false;
 p : int = 108;
 q : float = 420.69;
-r : string = "Type Annotated Dynamic Assign: Hello, World!";
+r : text = "Type Annotated Dynamic Assign: Hello, World!";
 s : bool = true;
 t : bool = false;
 

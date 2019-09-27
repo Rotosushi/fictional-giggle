@@ -1,4 +1,6 @@
 #pragma once
+#include <string>
+using std::string;
 
 enum _token {
 	/* internal */

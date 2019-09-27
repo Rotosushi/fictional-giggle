@@ -6,6 +6,8 @@ using std::stack;
 using std::string;
 #include <map>
 using std::map;
+#include <iostream>
+using std::ifstream;
 
 #include "token.h"
 #include "type.h"
@@ -14,9 +16,14 @@ using std::map;
 
 
 class _parser {
+public:
 	_module* parse_module();
+	_module* parse_module(string input);
+	_module* parse_module(ifstream& input);
 
-	_parser();
+	_parser() {
+		init_precedence_table();
+	}
 private:
 	_lexer lexer;
 	map<_token, int> ptable;
@@ -73,7 +80,7 @@ private:
 	void parse_return_list(vector<_rarg>& rargs);
 	void parse_rarg(_rarg& rarg);
 
-	void parse_expression(_ast* expr);
+	_ast* parse_expression();
 	_ast* _parse_expression(_ast* lhs, int min_prec);
 	_ast* _parse_postop();
 	_ast* _parse_primary_expr();
@@ -83,6 +90,7 @@ private:
 
 	void parse_conditional(_if& conditional);
 	void parse_iteration(_while& loop);
+	void parse_iteration(_dowhile& loop);
 
 	void parse_statement(_ast* expr);
 
@@ -97,22 +105,24 @@ private:
 	bool speculate_iteration();
 	bool speculate_conditional();
 
-	bool speculate_id();
-	bool speculate_literal();
-	bool speculate_unop();
-	bool speculate_binop();
-	bool speculate_postop();
-	bool speculate_lparen();
-	bool speculate_rparen();
+	bool speculate_id_expr();
+	bool speculate_literal_expr();
+	bool speculate_unop_expr();
+	bool speculate_binop_expr();
+	bool speculate_postop_expr();
+	bool speculate_lparen_expr();
+	bool speculate_rparen_expr();
 
 	bool speculate_expression();
 
 	bool speculate_type_annotated_arg();
 
 	bool speculate_initializer();
+	bool speculate_literal();
 	bool speculate_type_specifier();
 	bool speculate_type_primitive();
 	bool speculate_lambda();
+	bool speculate_lambda_and_unwind();
 	bool speculate_lambda_header();
 	bool speculate_lambda_body();
 	bool speculate_argument_list();

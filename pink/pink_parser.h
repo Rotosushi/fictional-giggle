@@ -17,7 +17,7 @@ public:
 private:
 	/* _parser internal variables */
 	old_lexer lex;
-	_semantic_analyzer san;
+	//_semantic_analyzer san;
 	unordered_map<_tok, int> precedence;
 	stack<int>		marks;
 	vector<old_token>	tokbuf;

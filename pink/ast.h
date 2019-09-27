@@ -21,6 +21,7 @@ enum _ast_type {
 	AST_FCALL,
 	AST_IF,
 	AST_WHILE,
+	AST_DOWHILE,
 	AST_BINOP,
 	AST_UNOP,
 	AST_SCOPE,
@@ -194,6 +195,20 @@ typedef struct _while : public _ast {
 		els  = e;
 	}
 } _while;
+
+typedef struct _dowhile : public _ast {
+	_ast* cond;
+	_ast* body;
+	_ast* els;
+
+	_dowhile() : _ast(AST_DOWHILE), cond(nullptr), body(nullptr), els(nullptr) {}
+	_dowhile(_ast* c, _ast* b, _ast* e) : _ast(AST_DOWHILE) {
+		cond = c;
+		body = b;
+		els = e;
+	}
+
+} _dowhile;
 
 typedef struct _binop : public _ast {
 	_token op;

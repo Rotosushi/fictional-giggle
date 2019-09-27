@@ -178,9 +178,9 @@ string _lexer::gettext()
 	return text;
 }
 
-void _lexer::set_infile(char* filename)
+void _lexer::set_infile(ifstream& input)
 {
-	infile.open(filename);
+	infile.swap(input);
 	input_state = 1;
 }
 
@@ -193,7 +193,7 @@ void _lexer::set_instring(string input)
 int _lexer::_getchar()
 {
 	auto string_getchar = [](string s) -> int {
-		static int i = 0;
+		static unsigned int i = 0;
 		if (i < s.size()) return s[i++];
 		else return EOF;
 	};

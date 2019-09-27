@@ -93,8 +93,12 @@ typedef struct _scope : public _ast {
 	vector<_statement> stmts;
 
 	_declaration* resolve(string id) {
+		int i = 0;
 		for (auto dec : decls) {
-			if (dec.var.id == id) return &dec;
+			i++;
+			if (dec.var.id == id) {
+				return &decls[i];
+			}
 		}
 		return nullptr;;
 	}
@@ -122,7 +126,7 @@ typedef struct _module : public _ast {
 	void define_type(_ast* type) {
 		types.push_back(type);
 	}
-
+	/*
 	_ast* resolve_type(string id) {
 		for (auto type : types) {
 			switch (type->ast_type) {
@@ -149,6 +153,7 @@ typedef struct _module : public _ast {
 			}
 		}
 	}
+	*/
 
 	_module() : _ast(AST_MODULE) {}
 	virtual void visit() {}

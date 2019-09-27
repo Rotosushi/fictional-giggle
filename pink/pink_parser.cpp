@@ -39,7 +39,7 @@ _module* old_parser::parse_module()
 				else
 					top->define(*dec);
 
-				san.resolve_declaration(*dec, top->body);
+				//san.resolve_declaration(*dec, top->body);
 			}
 		}
 		else break;
@@ -794,6 +794,7 @@ bool old_parser::speculate_expression()
 		return speculate_rparen();
 	if (curtok().type == T_SEMICOLON && parens.size() == 0) // empty expressions are valid
 		return true;
+	return false;
 }
 
 bool old_parser::speculate_literal()
@@ -1091,7 +1092,7 @@ void old_parser::parse_initializer(_declaration& decl)
 				| <expression>
 
 	*/
-	_ast* expr;
+	_ast* expr = nullptr;
 	_lambda* lambda;
 	// there will be a preceding '=' || '::' || ':='
 	if (curtok().type == T_CONST_ASSIGN) {
@@ -1236,7 +1237,7 @@ _ast* old_parser::parse_primary_expr()
 	default: throw;
 	}
 }
-
+/*
 _tok old_parser::predict_type(_ast* expr)
 {
 	switch (expr->ast_type) {
@@ -1257,6 +1258,7 @@ _tok old_parser::predict_type(_ast* expr)
 	case AST_BOOL:
 	}
 }
+*/
 
 void old_parser::parse_function_call(_lambda& fun)
 {

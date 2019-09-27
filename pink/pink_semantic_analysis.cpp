@@ -1,5 +1,5 @@
 #include "pink_semantic_analysis.h"
-
+/*
 bool _semantic_analyzer::typecheck(_ast* expr, _scope& module_scope)
 {
 	if (_typecheck(expr, module_scope) != AST_ERR)
@@ -18,7 +18,7 @@ bool _semantic_analyzer::typecheck(_ast * expr, _scope& module_scope, _scope& cu
 
 _ast_type _semantic_analyzer::_typecheck(_ast* expr, _scope& module_scope)
 {
-	/* 
+	
 	expr could be a single function call, 
 		array derefrence, literal, or a complex tree mixing
 		ops and primary expressions.
@@ -36,7 +36,7 @@ _ast_type _semantic_analyzer::_typecheck(_ast* expr, _scope& module_scope)
 	then the parent node need only worry about the types
 	of it's immediate children.
 	
-	*/
+	
 	switch (expr->ast_type) {
 	case AST_BINOP:
 		// if there is a multilayer tree of binops,
@@ -165,3 +165,4 @@ _ast_type _semantic_analyzer::tok_to_ast_type(_tok tok)
 		return AST_VAR;
 	}
 }
+*/

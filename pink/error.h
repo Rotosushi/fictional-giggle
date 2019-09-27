@@ -23,6 +23,7 @@ public:
 
 	_parser_error(string s, _token t, string id = "") : _error() {
 		contents = "parser error : ";
+		contents += s;
 		if (t == T_ID) contents += id;
 		else contents += token_to_string(t);
 	}

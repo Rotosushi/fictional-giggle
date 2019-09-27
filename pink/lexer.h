@@ -9,7 +9,7 @@ class _lexer {
 public:	
 	_token gettok();
 	string gettext();
-	void set_infile(char* filename);
+	void set_infile(ifstream& input);
 	void set_instring(string input);
 
 private:

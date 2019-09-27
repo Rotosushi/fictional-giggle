@@ -4,11 +4,13 @@
 using std::cout;
 #include <string>
 using std::string;
-#include "pink_lexer.h"
-#include "pink_parser.h"
+/*#include "pink_lexer.h"
+#include "pink_parser.h"*/
 #include "pink_utilities.h"
 
-old_parser par;
+#include "parser.h"
+
+_parser par;
 
 void print_manual() {
 	cout << "Usage:\n\t '--help' prints this message\n"
