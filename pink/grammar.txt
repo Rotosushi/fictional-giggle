@@ -5,6 +5,8 @@
 							| <declaration>
 
 <type-definition> := 'fn' <identifier> '::' <lambda-definition>
+				   | 'struct' <identifier> '::' <struct-block>
+
 		// TODO:   | ('struct' | 'union') <identifier> '::' <composite-type-block>
 		// TODO:   | 'enum' <identifier> '::' <enumeration-block>
 		// TODO:   | 'alias' '(' <identifier> ',' <type-specifier> ')'
@@ -12,6 +14,12 @@
 		// TODO:   | <thread>
 		// TODO:   | <tuple>
 
+<struct-block> := '{' (<identifier> ':' <type-specifier> ';')* '}'
+
+// tuples are unnamed structs, but instead of declaring a new type that can be initialized
+// they hold local variables, or new variables.
+<tuple-block> := '{' ( (<identifier> | <type-specifier>) ';')* '}'
+ 
 <declaration>  := <identifier> ':' <type-specifier> ('=' <initializer>)? ';'
 				| <identifier> ('::' | ':=') <initializer> ';'
 
@@ -23,6 +31,12 @@
 <type-specifier> := <lambda-header>
 				  | <type-primitive>
 				  | <identifier>
+				  | <array-type>
+				  | <composite-type-block>
+
+// <expr> has to resolve to something that can be used to count with
+<array-type> := '[' <expr> ']' <type-specifier>
+				  
 
 <lambda-definition> := <lambda-header> <lambda-body> 
 
@@ -43,6 +57,7 @@
 			 | <conditional>
 			 | <iteration>
 			 | <block>
+
 
 <expression> := (<expr>)? ';'
 

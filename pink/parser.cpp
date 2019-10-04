@@ -75,7 +75,16 @@ _token _parser::curtok()
 
 void _parser::nexttok()
 {
-	tokidx++;
+	tokidx++;// "consume" the token
+			  // recall that this is a backtracking parser,
+			  // so we cannot remove a token from the buffer
+			  // in case we need to reparse it, so we instead
+			  // move the pointer one position along the buffer,
+			  // this means that the next function to try and
+			  // "match" a token will look at the next token
+			  // in sequence instead of the same token. Since
+			  // all consumption is done through this function
+			  // the program will be able to reparse the input.
 
 	if (tokidx == tokbuf.size() && !speculating()) {
 		tokidx = 0;
@@ -83,7 +92,10 @@ void _parser::nexttok()
 		texbuf.clear();
 	}
 
-	sync(1);
+	sync(1); // get a new token to replace the consumed token.
+			 // either we have a semifull buffer and sync
+			 // is a noop, or we have a full or empty buffer
+			 // and we need to prime the next token.
 }
 
 string _parser::curtext()
@@ -207,8 +219,8 @@ void _parser::parse_module_level_declaration(_module& mdl)
 			This code kinda stinks becuase it uses
 			exceptions in regular control flow.
 
-			were there an optional type, this pattern would
-			be clean
+			were there an optional type, this pattern could
+			be cleaner
 		*/
 
 		
@@ -295,7 +307,6 @@ void _parser::parse_function_definition(_fndecl& fn)
 
 	parse_lambda(fn.fn);
 }
-
 
 void _parser::parse_lambda(_lambda& fn)
 {
@@ -451,16 +462,22 @@ _ast* _parser::_parse_expression(_ast* lhs, int min_prec)
 _ast* _parser::_parse_postop()
 {
 	_fcall* fn;
+	_member_access* ma;
+	_array_access* aa;
 	switch (curtok()) {
 	case T_LPAREN:
 		fn = _parse_function_call();
 		return fn;
-	/* TODO:
-		case T_LBRACE:
 
-		case T_PERIOD:
-	*/
-	default: throw _parser_error("unrecognized postop token, expected ')' got: ", curtok()); // parser error
+	case T_LBRACKET:
+		aa = _parse_array_access();
+		return aa;
+
+	case T_PERIOD:
+		ma = _parse_member_access();
+		return ma;
+	
+	default: throw _parser_error("unrecognized postop token, expected '(' | '.' | '[' got: ", curtok()); // parser error
 	}
 }
 
@@ -557,32 +574,48 @@ _fcall* _parser::_parse_function_call()
 
 void _parser::parse_carg(_carg& carg)
 {
-	// <carg> := <id> | <literal> | <lambda-definition>
-	switch (curtok()) {
-	case T_ID:
-		carg.id = curtext();
-		carg.type = _VAR;
-		break;
-	case T_LITERAL_INT:
-		carg.type = _INT;
-		carg.value = new _int(stoi(curtext()));
-		break;
-	case T_LITERAL_FLOAT:
-		carg.type = _FLOAT;
-		carg.value = new _float(stof(curtext()));
-		break;
-	case T_LITERAL_TEXT:
-		carg.type = _TEXT;
-		carg.value = new _text(curtext());
-		break;
-	case T_LPAREN:
-		carg.type = _LAMBDA;
-		carg.value = new _lambda;
-		parse_lambda(*((_lambda*)carg.value));
-		return;
-	default: throw _parser_error("invalid function call argument, expected: identifier, or literal, or lambda definition, instead got: ", curtok());
+	// <carg> := <expr> | <lambda-definition>
+	if (speculate_expression_and_unwind()) {
+		carg.value = parse_expression();
 	}
+	else {
+		auto lam = new _lambda;
+		parse_lambda(*lam);
+		carg.value = lam;
+	}
+}
+
+_member_access* _parser::_parse_member_access()
+{
+
+	// <member-access> = '.' <identifier>
+	if (curtok() != T_PERIOD) throw;
 	nexttok();
+
+	if (curtok() != T_ID) throw;
+	auto memb = new _member_access;
+	memb->member_id = curtext();
+
+	nexttok();
+
+	return memb;
+}
+
+_array_access* _parser::_parse_array_access()
+{
+	// '[' <expr> ']'
+	_array_access* aa;
+
+	if (curtok() != T_LBRACKET) throw;
+	nexttok();
+
+	aa = new _array_access;
+	aa->offset_expression = parse_expression();
+
+	if (curtok() != T_RBRACKET) throw;
+	nexttok();
+
+	return aa;
 }
 
 void _parser::parse_conditional(_if& conditional)
@@ -598,10 +631,10 @@ void _parser::parse_conditional(_if& conditional)
 		conditional.cond = parse_expression();
 		if (curtok() != T_RPAREN)  throw _parser_error("invalid if, expected ')', instead got: ", curtok());
 		nexttok();
-		parse_statement(conditional.then);
+		conditional.then = parse_statement();
 		if (curtok() == T_ELSE) {
 			nexttok();
-			parse_statement(conditional.els);
+			conditional.els = parse_statement();
 		}
 	}
 	else  throw _parser_error("invalid if, expected 'if', instead got: ", curtok());
@@ -616,7 +649,7 @@ void _parser::parse_iteration(_while& loop)
 		loop.cond = parse_expression();
 		if (curtok() != T_RPAREN) throw _parser_error("invalid while, expected ')', instead got: ", curtok());;
 		nexttok();
-		parse_statement(loop.body);
+		loop.body = parse_statement();
 	}
 	else throw _parser_error("invalid while, expected 'while', instead got: ", curtok());;
 }
@@ -625,7 +658,7 @@ void _parser::parse_iteration(_dowhile& loop)
 {
 	if (curtok() == T_DO) {
 		nexttok();
-		parse_statement(loop.body);
+		loop.body = parse_statement();
 		if (curtok() != T_WHILE) throw _parser_error("invalid do while, expected 'while', instead got: ", curtok());;
 		nexttok();
 		if (curtok() != T_LPAREN) throw _parser_error("invalid do while, expected '(', instead got: ", curtok());;
@@ -637,32 +670,47 @@ void _parser::parse_iteration(_dowhile& loop)
 	else throw _parser_error("invalid do while, expected 'do', instead got: ", curtok());;
 }
 
-void _parser::parse_statement(_ast* stmt)
+_ast* _parser::parse_statement()
 {
 	if (curtok() == T_LBRACE) {
 		auto block = new _scope;
 		parse_block(*block);
-		stmt = block;
+		return block;
 	}
 	else if (curtok() == T_IF) {
 		auto cond = new _if;
 		parse_conditional(*cond);
-		stmt = cond;
+		return cond;
 	}
 	else if (curtok() == T_WHILE) {
 		auto loop = new _while;
 		parse_iteration(*loop);
-		stmt = loop;
+		return loop;
 	}
 	else if (curtok() == T_DO) {
 		auto loop = new _dowhile;
 		parse_iteration(*loop);
-		stmt = loop;
+		return loop;
+	}
+	else if (curtok() == T_RETURN) {
+		nexttok();
+
+		auto ret = new _return;
+		ret->rhs = parse_expression();
+		
+		if (curtok() != T_SEMICOLON) throw;
+		nexttok();
+
+		return ret;
 	}
 	else { // the only other choice is an expression
 		_ast* st = nullptr;
 		st = parse_expression();
-		stmt = st;
+		
+		if (curtok() != T_SEMICOLON) throw;
+		nexttok();
+
+		return st;
 	}
 }
 
@@ -675,8 +723,9 @@ void _parser::parse_type_specifier(_vardecl& decl)
 	*/
 	switch (curtok()) {
 	case T_ID:
-		decl.lhs.id = curtext();
+		decl.lhs.tname = curtext();
 		decl.lhs.type = _DEDUCE;
+		decl.rhs = nullptr;
 		break;
 	case T_INT:
 		decl.lhs.type = _INT;
@@ -762,7 +811,6 @@ void _parser::parse_initializer(_vardecl& decl)
 	}
 }
 
-
 void _parser::parse_block(_scope& body)
 {
 	/* <block> :=
@@ -776,14 +824,14 @@ void _parser::parse_block(_scope& body)
 	int n = 0, m = 0;
 
 	do {
-		if (speculate_declaration()) {
+		if (speculate_declaration_and_unwind()) {
 			parse_declaration(d);
 			body.define(d);
 			d.clear();
 			n++;
 		}
-		else if (speculate_statement()) {
-			parse_statement(s);
+		else if (speculate_statement_and_unwind()) {
+			s = parse_statement();
 			body.statements.push_back(s);
 			s = nullptr;
 			n++;
@@ -839,6 +887,15 @@ bool _parser::speculate_declaration()
 	return success;
 }
 
+bool _parser::speculate_declaration_and_unwind()
+{
+	bool success = true;
+	mark();
+	success = speculate_declaration();
+	release();
+	return success;
+}
+
 bool _parser::speculate_statement()
 {
 	bool success = true;
@@ -851,10 +908,22 @@ bool _parser::speculate_statement()
 	else if (speculate_iteration()) {
 
 	}
+	else if (speculate_return()) {
+
+	}
 	else if (speculate_expression()) {
 
 	}
 	else success = false;
+	return success;
+}
+
+bool _parser::speculate_statement_and_unwind()
+{
+	bool success = true;
+	mark();
+	success = speculate_statement();
+	release();
 	return success;
 }
 
@@ -927,6 +996,19 @@ bool _parser::speculate_conditional()
 			}
 			else success = false;
 		}
+		else success = false;
+	}
+	else success = false;
+	return success;
+}
+
+bool _parser::speculate_return()
+{
+	bool success = true;
+	if (speculate(T_RETURN)) {
+		if (speculate_expression());
+
+		if (speculate(T_SEMICOLON));
 		else success = false;
 	}
 	else success = false;
@@ -1038,17 +1120,22 @@ bool _parser::speculate_lparen_expr()
 bool _parser::speculate_rparen_expr()
 {
 	// ')' can be followed by ')', <binop>, ';' or be the terminal character
+	if (parens.size() > 0)
+		parens.pop();
+	else if (parens.size() == 0) // if we don't have any open sub-expressions
+								 // we assume that the rparen is terminating the expression
+		return true;
+
 	nexttok();
-	parens.pop();
 
 	if (is_binop(curtok()))
 		return speculate_binop_expr();
 	if (curtok() == T_SEMICOLON && parens.size() == 0)
 		return true;
 	if (curtok() == T_RPAREN) {
-		if (parens.size() == 0) return true;
 		return speculate_rparen_expr();
 	}
+
 	while (parens.size() > 0) parens.pop();
 	return false;
 }
@@ -1057,19 +1144,28 @@ bool _parser::speculate_expression()
 {
 	// an expression is started by <id>, <literal>, <unop>, '('
 	//  or immediately ended by ')' or ';'
-	if (speculate(T_ID))
+	if (curtok() == T_ID)
 		return speculate_id_expr();
 	if (is_literal(curtok()))
 		return speculate_literal_expr();
 	if (is_unop(curtok()))
 		return speculate_unop_expr();
-	if (speculate(T_LPAREN))
+	if (curtok() == T_LPAREN)
 		return speculate_lparen_expr();
-	if (speculate(T_RPAREN)) // empty expressions are valid
+	if (curtok() == T_RPAREN) // empty expressions are valid
 		return speculate_rparen_expr();
-	if (speculate(T_SEMICOLON) && parens.size() == 0) // empty expressions are valid
+	if (curtok() == T_SEMICOLON && parens.size() == 0) // empty expressions are valid
 		return true;
 	return false;
+}
+
+bool _parser::speculate_expression_and_unwind()
+{
+	bool success = true;
+	mark();
+	success = speculate_expression();
+	release();
+	return success;
 }
 
 bool _parser::speculate_type_annotated_arg()
@@ -1245,9 +1341,13 @@ bool _parser::speculate_arg()
 {
 	/*
 		<arg> := <identifier> (':' <type-specifier>)?
+				| <expr>
 	*/
 	bool success = true;
-	if (speculate(T_ID)) {
+	if (speculate_expression_and_unwind()) {
+		speculate_expression();
+	}
+	else if (speculate(T_ID)) {
 		if (speculate(T_COLON)) {
 			if (speculate_type_specifier()) {
 
@@ -1255,12 +1355,6 @@ bool _parser::speculate_arg()
 			else success = false;
 		}
 	}
-	else if (speculate(T_LITERAL_INT));
-	else if (speculate(T_LITERAL_FLOAT));
-	else if (speculate(T_LITERAL_TEXT));
-	else if (speculate(T_TRUE));
-	else if (speculate(T_FALSE));
 	else success = false;
 	return success;
 }
-

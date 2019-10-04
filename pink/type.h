@@ -1,6 +1,7 @@
 #pragma once
 
 enum _type {
+	_ERR,
 	_NONE,
 	_INT,
 	_FLOAT,

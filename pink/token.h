@@ -60,6 +60,7 @@ enum _token {
 	T_WHILE,
 	T_FN,
 	T_ID,
+	T_RETURN,
 	/* types */
 	T_INT,
 	T_FLOAT,

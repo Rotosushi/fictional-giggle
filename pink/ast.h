@@ -24,6 +24,11 @@ enum _ast_type {
 	AST_DOWHILE,
 	AST_BINOP,
 	AST_UNOP,
+	AST_RETURN,
+	AST_MEMBER,
+	AST_STRUCT,
+	AST_UNION,
+	AST_TUPLE,
 	AST_SCOPE,
 	AST_MODULE,
 	AST_INT,
@@ -43,14 +48,14 @@ typedef struct _ast {
 typedef struct _var : public _ast {
 	string id;
 	_type type;
-	_ast* value;
+	string tname;
 	vector<_ast*> postops;
 
-	_var() : _ast(AST_VAR), id(), type(), postops() {}
-	_var(string i, _type t, _ast* v, vector<_ast*> p) : _ast(AST_VAR) {
+	_var() : _ast(AST_VAR), id(), type(_DEDUCE), tname(), postops() {}
+	_var(string i, _type t, string v, vector<_ast*> p) : _ast(AST_VAR) {
 		id = i;
 		type = t;
-		value = v;
+		tname = v;
 		postops = p;
 	}
 } _var;
@@ -62,8 +67,8 @@ typedef struct _vardecl : public _ast {
 
 	void clear() {
 		lhs.id = "";
-		lhs.type = _NONE;
-		lhs.value = nullptr;
+		lhs.type = _ERR;
+		lhs.tname.clear();
 		lhs.postops.clear();
 		op = T_ERR;
 		rhs = nullptr;
@@ -148,17 +153,6 @@ typedef struct _lambda : public _ast {
 	}
 } _lambda;
 
-typedef struct _fcall : public _ast {
-	vector<_carg> argument_list;
-	vector<_rarg> return_list;
-
-	_fcall() : _ast(AST_FCALL), argument_list(), return_list() {}
-	_fcall(vector<_carg> a, vector<_rarg> r) : _ast(AST_FCALL) {
-		argument_list = a;
-		return_list = r;
-	}
-} _fcall;
-
 typedef struct _fndecl : public _ast {
 	string id;
 	_lambda fn;
@@ -169,6 +163,36 @@ typedef struct _fndecl : public _ast {
 		fn = f;
 	}
 } _fndecl;
+
+typedef struct _member : public _ast {
+	string id;
+	_ast* type;
+
+	_member() : _ast(AST_MEMBER), id(), type(nullptr) {}
+	_member(string i, _ast* a) : _ast(AST_MEMBER) {
+		id = i;
+		type = a;
+	}
+} _member;
+
+typedef struct _struct : public _ast {
+	string id;
+	vector<_member> members;
+
+	_struct() : _ast(AST_STRUCT), id(), members() {}
+} _struct;
+
+typedef struct _tuple : public _ast {
+	vector<_member> members;
+
+	_tuple() : _ast(AST_TUPLE), members() {}
+} _tuple;
+
+typedef struct _array : public _ast {
+	string id;
+	unsigned int length;
+	_ast* type;
+} _array;
 
 typedef struct _if : public _ast {
 	_ast* cond;
@@ -215,7 +239,7 @@ typedef struct _binop : public _ast {
 	_ast* lhs;
 	_ast* rhs;
 
-	_binop() : _ast(AST_BINOP), lhs(nullptr), rhs(nullptr) {}
+	_binop() : _ast(AST_BINOP), op(T_ERR), lhs(nullptr), rhs(nullptr) {}
 	_binop(_token o, _ast* l, _ast* r) : _ast(AST_BINOP) {
 		op = o;
 		lhs = l;
@@ -233,6 +257,34 @@ typedef struct _unop : public _ast {
 		rhs = r;
 	}
 } _unop;
+
+typedef struct _return : public _ast {
+	_ast* rhs;
+
+	_return() : _ast(AST_RETURN) {}
+	_return(_ast* a) : _ast(AST_RETURN) {
+		rhs = a;
+	}
+} _return;
+
+typedef struct _fcall : public _ast {
+	vector<_carg> argument_list;
+	vector<_rarg> return_list;
+
+	_fcall() : _ast(AST_FCALL), argument_list(), return_list() {}
+	_fcall(vector<_carg> a, vector<_rarg> r) : _ast(AST_FCALL) {
+		argument_list = a;
+		return_list = r;
+	}
+} _fcall;
+
+typedef struct _member_access : public _ast {
+	string member_id;
+} _member_access;
+
+typedef struct _array_access : public _ast {
+	_ast* offset_expression;
+} _array_access;
 
 typedef struct _module : public _ast {
 	string id;

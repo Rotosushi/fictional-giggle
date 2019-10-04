@@ -6,7 +6,7 @@ using std::cout;
 using std::string;
 /*#include "pink_lexer.h"
 #include "pink_parser.h"*/
-#include "pink_utilities.h"
+#include "utilities.h"
 
 #include "parser.h"
 
@@ -52,7 +52,7 @@ int main(int argc, char** argv)
 		typecheck declarations of primitives
 		typecheck expressions of primitives
 		typecheck functions of primitives
-		typecheck if statements 
+		typecheck if statements
 		typecheck do/while loops
 		types: int, float, string, bool
 
@@ -67,9 +67,10 @@ int main(int argc, char** argv)
 
 	// later -> optimize code
 
-	// assemble code
-
 	// output assembly
+
+	// assemble to binary
+	
 
 	return 0;
 }

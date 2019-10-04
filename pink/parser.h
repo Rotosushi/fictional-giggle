@@ -70,6 +70,13 @@ private:
 
 	void parse_initializer(_vardecl& decl);
 
+	void parse_struct(_struct& stct);
+	void parse_tuple(_tuple& tpl);
+
+	void parse_member(_member& mem);
+
+	void parse_array(_array& arr);
+
 	void parse_function_definition(_fndecl& fn);
 
 	void parse_lambda(_lambda& fn);
@@ -88,22 +95,30 @@ private:
 	_fcall* _parse_function_call();
 	void parse_carg(_carg& carg);
 
+	_member_access* _parse_member_access();
+
+	_array_access* _parse_array_access();
+
 	void parse_conditional(_if& conditional);
 	void parse_iteration(_while& loop);
 	void parse_iteration(_dowhile& loop);
 
-	void parse_statement(_ast* expr);
+	_ast* parse_statement();
 
 	void parse_block(_scope& body);
 
 	/* speculation functions */
 	bool speculate_declaration();
+	bool speculate_declaration_and_unwind();
 	bool speculate_statement();
+	bool speculate_statement_and_unwind();
 
 	bool speculate_block();
 
 	bool speculate_iteration();
 	bool speculate_conditional();
+
+	bool speculate_return();
 
 	bool speculate_id_expr();
 	bool speculate_literal_expr();
@@ -114,6 +129,7 @@ private:
 	bool speculate_rparen_expr();
 
 	bool speculate_expression();
+	bool speculate_expression_and_unwind();
 
 	bool speculate_type_annotated_arg();
 

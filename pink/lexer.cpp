@@ -43,6 +43,7 @@ _token _lexer::gettok()
 		if (text == "do")	 return T_DO;
 		if (text == "while") return T_WHILE;
 		if (text == "fn")	 return T_FN;
+		if (text == "return") return T_RETURN;
 		return T_ID;
 	}
 

@@ -154,11 +154,8 @@
     <ClCompile Include="lexer.cpp" />
     <ClCompile Include="parser.cpp" />
     <ClCompile Include="pink.cpp" />
-    <ClCompile Include="pink_lexer.cpp" />
-    <ClCompile Include="pink_parser.cpp" />
-    <ClCompile Include="pink_ast.cpp" />
-    <ClCompile Include="pink_semantic_analysis.cpp" />
-    <ClCompile Include="pink_utilities.cpp" />
+    <ClCompile Include="semantic_analysis.cpp" />
+    <ClCompile Include="utilities.cpp" />
     <ClCompile Include="token.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -166,15 +163,11 @@
     <ClInclude Include="error.h" />
     <ClInclude Include="lexer.h" />
     <ClInclude Include="parser.h" />
-    <ClInclude Include="pink_lexer.h" />
-    <ClInclude Include="pink_parser.h" />
-    <ClInclude Include="pink_ast.h" />
-    <ClInclude Include="pink_semantic_analysis.h" />
-    <ClInclude Include="pink_symbol.h" />
     <ClInclude Include="pink_type.h" />
-    <ClInclude Include="pink_utilities.h" />
+    <ClInclude Include="semantic_analysis.h" />
     <ClInclude Include="token.h" />
     <ClInclude Include="type.h" />
+    <ClInclude Include="utilities.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="c_grammar.txt" />

@@ -1,4 +1,19 @@
 
+fn double :: (i : int) -> {
+	return i * i;
+}
+
+fn factorial :: (n : int) -> {
+	if (n == 1 | n == 0) {
+		return 1;
+	} else {
+		return n * factorial(n - 1);
+	}
+}
+
+fn doubledouble :: (i: int, j: int) -> (int, int) {
+	return i * i, j * j;
+}
 
 expr := (A + B) * C / (D == E) || F;
 
@@ -8,7 +23,7 @@ lamb_hard := (max: (a: int, b: int) -> (bool), a: int, b: int) -> (int) {};
 
 expr1 := A() * B() + -C;
 
-expr2 := A(B, C) * *I == J; 
+expr2 := A(B, C)[D + E * F].G * *I == J; 
 
 a := 12;
 b := 1.5;
