@@ -58,9 +58,13 @@ enum _token {
 	T_ELSE,
 	T_DO,
 	T_WHILE,
-	T_FN,
+
 	T_ID,
 	T_RETURN,
+	T_MODULE,
+	T_IMPORT,
+	T_EXPORT,
+	T_BEGIN,
 	/* types */
 	T_INT,
 	T_FLOAT,
@@ -71,6 +75,8 @@ enum _token {
 	T_LITERAL_TEXT,
 	T_TRUE,
 	T_FALSE,
+	T_FN,
+	T_STRUCT,
 };
 
 string token_to_string(_token t);

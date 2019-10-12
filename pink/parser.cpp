@@ -14,7 +14,7 @@ _module* _parser::parse_module()
 
 	while (curtok() != T_EOF) {
 		try {
-			parse_module_level_declaration(*top);
+			parse_module_declaration(*top);
 		}
 		catch (_parser_error err) {
 			cout << err.what() << endl;
@@ -39,33 +39,35 @@ _module* _parser::parse_module(ifstream& input)
 
 void _parser::init_precedence_table()
 {
-	ptable[T_EQ] = 1;
+	ptable[T_COMMA] = 1;
 
-	ptable[T_LOG_EQUALS] = 2;
-	ptable[T_LOG_NOT_EQUALS] = 2;
+	ptable[T_EQ] = 2;
 
-	ptable[T_LOG_LESS] = 3;
-	ptable[T_LOG_GREATER] = 3;
-	ptable[T_LOG_LESS_EQUALS] = 3;
-	ptable[T_LOG_GREATER_EQUALS] = 3;
+	ptable[T_LOG_EQUALS] = 3;
+	ptable[T_LOG_NOT_EQUALS] = 3;
 
-	ptable[T_LOG_OR] = 4;
-	ptable[T_LOG_XOR] = 5;
-	ptable[T_LOG_AND] = 6;
+	ptable[T_LOG_LESS] = 4;
+	ptable[T_LOG_GREATER] = 4;
+	ptable[T_LOG_LESS_EQUALS] = 4;
+	ptable[T_LOG_GREATER_EQUALS] = 4;
 
-	ptable[T_BIT_OR] = 7;
-	ptable[T_BIT_XOR] = 8;
-	ptable[T_BIT_AND] = 9;
+	ptable[T_LOG_OR] = 5;
+	ptable[T_LOG_XOR] = 6;
+	ptable[T_LOG_AND] = 7;
 
-	ptable[T_BIT_LSHIFT] = 10;
-	ptable[T_BIT_RSHIFT] = 10;
+	ptable[T_BIT_OR] = 8;
+	ptable[T_BIT_XOR] = 9;
+	ptable[T_BIT_AND] = 10;
 
-	ptable[T_ADD] = 11;
-	ptable[T_SUB] = 11;
+	ptable[T_BIT_LSHIFT] = 11;
+	ptable[T_BIT_RSHIFT] = 11;
 
-	ptable[T_MULT] = 12;
-	ptable[T_DIV] = 12;
-	ptable[T_MOD] = 12;
+	ptable[T_ADD] = 12;
+	ptable[T_SUB] = 12;
+
+	ptable[T_MULT] = 13;
+	ptable[T_DIV] = 13;
+	ptable[T_MOD] = 13;
 }
 
 _token _parser::curtok()
@@ -181,6 +183,7 @@ bool _parser::is_binop(_token t)
 	if (t == T_LOG_LESS_EQUALS)		return true;
 	if (t == T_LOG_GREATER)			return true;
 	if (t == T_LOG_GREATER_EQUALS)	return true;
+	if (t == T_COMMA)				return true;
 	return false;
 }
 
@@ -205,15 +208,24 @@ bool _parser::is_postop(_token t)
 	return false;
 }
 
-void _parser::parse_module_level_declaration(_module& mdl)
+bool _parser::is_module_keyword(_token t)
+{	
+	if (curtok() == T_IMPORT) return true;
+	if (curtok() == T_EXPORT) return true;
+	if (curtok() == T_BEGIN) return true;
+	return false;
+}
+
+void _parser::parse_module_declaration(_module& mdl)
 {
 	bool threw = false;
 	_vardecl* vardecl;
 	_fndecl* fndecl;
+	_struct* stctdecl;
 	switch (curtok()) {
 	case T_ID:
 		vardecl = new _vardecl;
-		parse_declaration(*vardecl);
+		parse_variable_declaration(*vardecl);
 
 		/*
 			This code kinda stinks becuase it uses
@@ -222,7 +234,6 @@ void _parser::parse_module_level_declaration(_module& mdl)
 			were there an optional type, this pattern could
 			be cleaner
 		*/
-
 		
 		try {
 			mdl.body.resolve(vardecl->lhs.id);
@@ -242,11 +253,113 @@ void _parser::parse_module_level_declaration(_module& mdl)
 		else
 			throw _parser_error("function already defined: ", fndecl->id); 
 		break;
+
+	case T_STRUCT:
+		stctdecl = new _struct;
+		parse_struct(*stctdecl);
+		if (mdl.resolve_type(stctdecl->id) == nullptr)
+			mdl.define_type(stctdecl);
+		else
+			throw _parser_error("struct already defined: ", stctdecl->id);
+		break;
+	case T_MODULE:
+		if (mdl.import_list.size() > 0 ||
+			mdl.export_list.size() > 0 ||
+			mdl.main_fn.size() > 0)
+			throw _parser_error("module definition block already parsed", mdl.id);
+		
+		parse_module_definition(mdl);
+		break;
 	default: throw _parser_error("invalid top level declaration: ", curtext()); 
 	}
 }
 
-void _parser::parse_declaration(_vardecl& decl)
+void _parser::parse_module_definition(_module& mdl)
+{
+	/*
+	<module-definition> := 'module' '::' <module-definition-block>
+
+	<module-definition-block> := '{' (<module-keyword-expression>)* '}'
+
+	<module-keyword-expression> := 'import' <id> (',' <id>)* ';'
+								 | 'export' <id> (',' <id>)* ';'
+								 | 'begin' <id> ';'
+
+	*/
+	if (curtok() != T_MODULE) throw;
+	nexttok();
+
+	if (curtok() != T_COLON_COLON) throw;
+	nexttok();
+
+	if (curtok() != T_LBRACE) throw;
+	nexttok();
+
+	while (is_module_keyword(curtok())) {
+		parse_module_keyword(mdl);
+	}
+
+	if (curtok() != T_RBRACE) throw;
+	nexttok();
+}
+
+void _parser::parse_module_keyword(_module& mdl)
+{
+	/*
+	<module-keyword-expression> := 'import' <id> (',' <id>)* ';'
+								 | 'export' <id> (',' <id>)* ';'
+								 | 'begin' <id> ';'
+	*/
+	switch (curtok()) {
+	case T_IMPORT:
+		nexttok();
+
+		if (curtok() != T_ID) throw;
+		mdl.import_list.push_back(curtext());
+
+		while (curtok() == T_COMMA) {
+			nexttok();
+
+			if (curtok() != T_ID) throw;
+			mdl.import_list.push_back(curtext());
+		}
+
+		if (curtok() != T_SEMICOLON) throw;
+		nexttok();
+
+		break;
+	case T_EXPORT:
+		nexttok();
+
+		if (curtok() != T_ID) throw;
+		mdl.export_list.push_back(curtext());
+
+		while (curtok() == T_COMMA) {
+			nexttok();
+
+			if (curtok() != T_ID) throw;
+			mdl.export_list.push_back(curtext());
+		}
+
+		if (curtok() != T_SEMICOLON) throw;
+		nexttok();
+		break;
+	case T_BEGIN:
+		nexttok();
+
+		if (curtok() != T_ID) throw;
+		mdl.main_fn = curtext();
+		nexttok();
+
+		if (curtok() != T_SEMICOLON) throw;
+		nexttok();
+		
+		break;
+	default: throw;
+	}
+}
+
+void _parser::parse_variable_declaration(_vardecl& decl)
 {
 	/*
 <declaration>  := <identifier> ':' <type-specifier> ';'
@@ -264,7 +377,7 @@ void _parser::parse_declaration(_vardecl& decl)
 	case T_COLON:
 		decl.op = curtok();
 		nexttok(); // eat ':'
-		parse_type_specifier(decl);
+		parse_type_specifier(decl.lhs.tspec);
 
 		if (curtok() == T_EQ) {
 			decl.op = T_COLON_EQ;
@@ -358,8 +471,7 @@ void _parser::parse_argument_list(vector<_arg>& args)
 void _parser::parse_arg(_arg& arg)
 {
 	/*
-	<arg> := <identifier> (':' <type-specifier>)?
-		   | <expr>
+	<arg> := <identifier> ':' <type-specifier>
 	*/
 	if (speculate_type_annotated_arg()) {
 		arg.id = curtext();
@@ -367,73 +479,38 @@ void _parser::parse_arg(_arg& arg)
 
 		if (curtok() == T_COLON) {
 			nexttok();
-			parse_type_specifier(arg);
+			parse_type_specifier(arg.tspec);
 		}
 		else {
-			arg.type = _DEDUCE;
+			throw; // TODO: PARSER ERROR
 		}
 	}
 	else {
-		arg.type = _DEDUCE; // throw the task of figuring out the type down the line
-		arg.value = parse_expression();
+		throw; // TODO: PARSER ERROR
 	}
 }
 
-void _parser::parse_return_list(vector<_rarg>& rargs)
+void _parser::parse_return_list(vector<_arg>& rargs)
 {
 	//<return-list> :='(' (<type-specifier> (',' <type-specifier>)*)? ')'
 	
 	if (curtok() != T_LPAREN) throw _parser_error("invalid return list, missing '(', instead got: ", curtok());
 	nexttok(); // eat '('
 
-	_rarg rarg;
+	_arg rarg;
 
 	if (curtok() != T_RPAREN) {
-		parse_rarg(rarg); // eat <type-specifier>
+		parse_type_specifier(rarg.tspec); // eat <type-specifier>
 		rargs.push_back(rarg);
 		while (curtok() == T_COMMA) {
 			nexttok(); // eat ','
-			parse_rarg(rarg);
+			parse_type_specifier(rarg.tspec);
 			rargs.push_back(rarg);
 		}
 	}
 
 	if (curtok() != T_RPAREN) throw _parser_error("invalid return list, missing ')', instead got: ", curtok());
 	nexttok(); // eat ')'
-}
-
-void _parser::parse_rarg(_rarg& rarg)
-{
-	// <rarg> := <id> | <type-primitive> | <lambda-header>
-	_lambda* l;
-	switch (curtok()) {
-	case T_ID:
-		rarg.id = curtext();
-		rarg.type = _DEDUCE;
-		break;
-	case T_INT:
-		rarg.type = _INT;
-		break;
-	case T_FLOAT:
-		rarg.type = _FLOAT;
-		break;
-	case T_TEXT:
-		rarg.type = _TEXT;
-		break;
-	case T_BOOL:
-		rarg.type = _BOOL;
-		break;
-	case T_LPAREN:
-		l = new _lambda;
-
-		rarg.type = _LAMBDA;
-		parse_lambda_header(*l);
-
-		rarg.value = l;
-		break;
-	default: throw _parser_error("unrecognized return argument, expected: identifier or type primitive or lambda type, instead got: ", curtok());
-	}
-	nexttok();
 }
 
 _ast* _parser::parse_expression()
@@ -462,19 +539,19 @@ _ast* _parser::_parse_expression(_ast* lhs, int min_prec)
 _ast* _parser::_parse_postop()
 {
 	_fcall* fn;
-	_member_access* ma;
-	_array_access* aa;
+	_named_member* ma;
+	_positional_member* aa;
 	switch (curtok()) {
-	case T_LPAREN:
+	case T_LPAREN: // '(' predicts a function call 
 		fn = _parse_function_call();
 		return fn;
 
-	case T_LBRACKET:
-		aa = _parse_array_access();
+	case T_LBRACKET: // '[' predicts positional access (tuple, array, etc) 
+		aa = _parse_positional_access();
 		return aa;
 
-	case T_PERIOD:
-		ma = _parse_member_access();
+	case T_PERIOD: // '.' predicts named member access (struct, module)
+		ma = _parse_named_access();
 		return ma;
 	
 	default: throw _parser_error("unrecognized postop token, expected '(' | '.' | '[' got: ", curtok()); // parser error
@@ -491,22 +568,24 @@ _ast* _parser::_parse_primary_expr()
 
 	   <primary-expression> := <id> (<postop>)*
 							  | <literal>
+							  | <tuple>
 							  | '(' <expression> ')'
 							  | <unop> <primary-expression>
 	*/
 	_var* var;
 	_ast* expr;
 	_unop* unop;
-	string value;
+	_tuple* tuple;
+	string literal;
 	switch (curtok()) {
-	case T_ID:
+	case T_ID: // variable name
 		var = new _var;
 		var->id = curtext();
 		nexttok(); // eat <id>
 		while (is_postop(curtok()))
 			var->postops.push_back(_parse_postop());
 		return var;
-	case T_LPAREN:
+	case T_LPAREN: // sub-expression
 		nexttok(); // eat '('
 
 		expr = _parse_expression(_parse_primary_expr(), 0);
@@ -514,7 +593,12 @@ _ast* _parser::_parse_primary_expr()
 		if (curtok() != T_RPAREN) throw _parser_error("invalid primary expression, while parsing parenthised expression expected closing ')', instead got: ", curtok());
 		nexttok(); // eat ')'
 		return expr;
-	case T_ADD: case T_SUB: case T_MULT:
+	case T_LBRACE: // '{' predicts a tuple
+		tuple = new _tuple;
+		parse_tuple(*tuple);
+		return tuple;
+		break;  
+	case T_ADD: case T_SUB: case T_MULT: // prefix expression (unop)
 	case T_LOG_AND: case T_LOG_NOT: case T_BIT_NOT:
 		unop = new _unop;
 
@@ -524,23 +608,36 @@ _ast* _parser::_parse_primary_expr()
 
 		return unop;
 	case T_LITERAL_INT:
-		value = curtext();
+		literal = curtext();
 		nexttok();
-		return new _int(stoi(value));
+		return new _int(stoi(literal));
 	case T_LITERAL_FLOAT:
-		value = curtext();
+		literal = curtext();
 		nexttok();
-		return new _float(stof(value));
+		return new _float(stof(literal));
 	case T_LITERAL_TEXT:
-		value = curtext();
+		literal = curtext();
 		nexttok();
-		return new _text(value);
+		return new _text(literal);
 	case T_TRUE:
 		nexttok();
 		return new _bool(true);
 	case T_FALSE:
 		nexttok();
 		return new _bool(false);
+	/*
+		hypothesis ->
+			if we are parsing a bracketed or parenthized
+			expression, and there is no expression 
+			curtok() will be ')' or ']'. meaning we can return
+			a null value. 
+
+		this might break the compiler...
+	*/
+	case T_RPAREN:
+		return nullptr;
+	case T_RBRACKET:
+		return nullptr;
 	default: throw _parser_error("invalid primary expression, expected: identifier or unary expression or parenthised expression or literal, instead got: ", curtok());
 	}
 }
@@ -555,7 +652,7 @@ _fcall* _parser::_parse_function_call()
 	auto fn = new _fcall;
 
 	if (curtok() != T_RPAREN) { // empty arg list is semantically valid
-		_carg carg;
+		_arg carg;
 		parse_carg(carg); // eat <arg>
 		fn->argument_list.push_back(carg);
 
@@ -572,20 +669,22 @@ _fcall* _parser::_parse_function_call()
 	return fn;
 }
 
-void _parser::parse_carg(_carg& carg)
+void _parser::parse_carg(_arg& carg)
 {
-	// <carg> := <expr> | <lambda-definition>
+	// <carg> := <expr> | <lambda-definition> 
 	if (speculate_expression_and_unwind()) {
-		carg.value = parse_expression();
+		carg.tspec.type = _DEDUCE;
+		carg.tspec.expr = parse_expression();
 	}
 	else {
 		auto lam = new _lambda;
 		parse_lambda(*lam);
-		carg.value = lam;
+		carg.tspec.type = _LAMBDA;
+		carg.tspec.expr = lam;
 	}
 }
 
-_member_access* _parser::_parse_member_access()
+_named_member* _parser::_parse_named_access()
 {
 
 	// <member-access> = '.' <identifier>
@@ -593,7 +692,7 @@ _member_access* _parser::_parse_member_access()
 	nexttok();
 
 	if (curtok() != T_ID) throw;
-	auto memb = new _member_access;
+	auto memb = new _named_member;
 	memb->member_id = curtext();
 
 	nexttok();
@@ -601,15 +700,15 @@ _member_access* _parser::_parse_member_access()
 	return memb;
 }
 
-_array_access* _parser::_parse_array_access()
+_positional_member* _parser::_parse_positional_access()
 {
 	// '[' <expr> ']'
-	_array_access* aa;
+	_positional_member* aa;
 
 	if (curtok() != T_LBRACKET) throw;
 	nexttok();
 
-	aa = new _array_access;
+	aa = new _positional_member;
 	aa->offset_expression = parse_expression();
 
 	if (curtok() != T_RBRACKET) throw;
@@ -714,82 +813,63 @@ _ast* _parser::parse_statement()
 	}
 }
 
-void _parser::parse_type_specifier(_vardecl& decl)
+void _parser::parse_type_specifier(_type_specifier& tspec)
 {
-	/*
-	<type-specifier> := <lambda-header>
-					  | <type-primitive>
-					  | <identifier>
-	*/
+	_lambda* l;
+	_array* a;
+	_tuple* t;
 	switch (curtok()) {
 	case T_ID:
-		decl.lhs.tname = curtext();
-		decl.lhs.type = _DEDUCE;
-		decl.rhs = nullptr;
+		tspec.type = _DEDUCE;
+		tspec.name = curtext();
 		break;
 	case T_INT:
-		decl.lhs.type = _INT;
-		decl.rhs = new _int;
+		tspec.type = _INT;
 		break;
 	case T_FLOAT:
-		decl.lhs.type = _FLOAT;
-		decl.rhs = new _float;
+		tspec.type = _FLOAT;
 		break;
 	case T_TEXT:
-		decl.lhs.type = _TEXT;
-		decl.rhs = new _text;
+		tspec.type = _TEXT;
 		break;
 	case T_BOOL:
-		decl.lhs.type = _BOOL;
-		decl.rhs = new _bool;
+		tspec.type = _BOOL;
 		break;
 	case T_LPAREN:
-		decl.lhs.type = _LAMBDA;
-		decl.rhs = new _lambda;
-		parse_lambda_header(*((_lambda*)decl.rhs));
-		return; // parse_* functions act like nexttok(), and
-		        // we don't want to eat an extra token, 
-				// hence the early return.
-	default: 
-		throw _parser_error("invalid type specifier, expected: identifier or type primitive or lambda type, instead got: ", curtok());
+		tspec.type = _LAMBDA;
+		l = new _lambda;
+		parse_lambda_header(*l);
+		tspec.expr = l;
+		break;
+	case T_LBRACE:
+		tspec.type = _ARRAY;
+		a = new _array;
+		parse_array_type(*a);
+		tspec.expr = a;
+		break;
+	case T_LBRACKET:
+		tspec.type = _TUPLE;
+		t = new _tuple;
+		parse_type_tuple(*t);
+		tspec.expr = t;
+		break;
+	default: throw;
 	}
-	nexttok(); // eat the single token type-specifier.
 }
 
-void _parser::parse_type_specifier(_arg& arg)
+_ast* _parser::parse_initializer()
 {
-	// when this function is called the context is
-	// <arg> := <identifier> (':' <type-specifier>)?
-	_lambda* lambda;
-	switch (curtok()) {
-	case T_LPAREN: // it's a lambda arg
-		lambda = new _lambda;
-		parse_lambda_header(*lambda);
-		arg.type = _LAMBDA;
-		arg.value = lambda;
-		break;
-	case T_ID:
-		arg.id = curtext();
-		arg.type = _DEDUCE;
-		nexttok();
-		break;
-	case T_INT:
-		arg.type = _INT;
-		nexttok();
-		break;
-	case T_FLOAT:
-		arg.type = _FLOAT;
-		nexttok();
-		break;
-	case T_TEXT:
-		arg.type = _TEXT;
-		nexttok();
-		break;
-	case T_BOOL:
-		arg.type = _BOOL;
-		nexttok();
-		break;
-	default: throw _parser_error("invalid type specifier, expected: identifier or type primitive or lambda type, instead got: ", curtok());
+	/*
+		<initializer>  := <lambda-definition>
+						| <expression>
+		*/
+	if (speculate_lambda_and_unwind()) {
+		auto lambda = new _lambda;
+		parse_lambda(*lambda);
+		return lambda;
+	}
+	else {
+		return parse_expression();
 	}
 }
 
@@ -802,13 +882,127 @@ void _parser::parse_initializer(_vardecl& decl)
 	if (speculate_lambda_and_unwind()) {
 		auto lambda = new _lambda;
 		parse_lambda(*lambda);
-		decl.lhs.type = _LAMBDA;
 		decl.rhs = lambda;
 	}
 	else {
-		decl.lhs.type = _DEDUCE;
 		decl.rhs = parse_expression();
 	}
+}
+
+void _parser::parse_struct(_struct& stct)
+{
+	if (curtok() != T_STRUCT) throw;
+	nexttok();
+
+	if (curtok() != T_ID) throw;
+	stct.id = curtext();
+	nexttok();
+
+	if (curtok() != T_COLON_COLON) throw;
+	nexttok();
+
+	parse_struct_block(stct);
+}
+
+void _parser::parse_struct_block(_struct& stct)
+{
+	// '{' (<identifier> ':' <type-specifier> ( ';')* '}'
+	if (curtok() != T_LBRACE) throw;
+	nexttok();
+
+	while (curtok() == T_ID) {
+		parse_struct_member(stct);
+	}
+
+	if (curtok() != T_RBRACE) throw;
+	nexttok();
+}
+
+
+void _parser::parse_struct_member(_struct& stct)
+{
+	_member mem;
+	// <identifier> ':' <type-specifier> ('=' <initializer>)? ';'
+	if (curtok() != T_ID) throw;
+	mem.id = curtext();
+	nexttok();
+
+	if (curtok() != T_COLON) throw;
+	nexttok();
+
+	parse_type_specifier(mem.tspec);
+
+	if (curtok() == T_EQ) {
+		nexttok();
+		mem.initializer = parse_initializer();
+	}
+
+	if (curtok() != T_SEMICOLON) throw;
+	nexttok();
+	
+	stct.members.push_back(mem);
+}
+
+void _parser::parse_tuple(_tuple& tpl)
+{
+	_member mem;
+
+	// '{' <tuple-member> (',' <tuple-member>)* '}'
+	if (curtok() != T_LBRACE) throw;
+	nexttok();
+
+	mem.tspec.type = _DEDUCE;
+	mem.initializer = parse_initializer();
+	tpl.members.push_back(mem);
+
+	while (curtok() == T_COMMA) {
+		nexttok();
+
+		mem.tspec.type = _DEDUCE;
+		mem.initializer = parse_initializer();
+		tpl.members.push_back(mem);
+	}
+
+	if (curtok() != T_RBRACE) throw;
+	nexttok();
+}
+
+void _parser::parse_type_tuple(_tuple& tpl)
+{
+	_member mem;
+
+	/*
+	<type-tuple> := '{' <type-tuple-member> (',' <type-tuple-member>)* '}'
+	*/
+	if (curtok() != T_LBRACE) throw;
+	nexttok();
+
+	parse_type_specifier(mem.tspec);
+	tpl.members.push_back(mem);
+
+	while (curtok() == T_COMMA) {
+		nexttok();
+
+		parse_type_specifier(mem.tspec);
+		tpl.members.push_back(mem);
+	}
+
+	if (curtok() != T_RBRACE) throw;
+	nexttok();
+}
+
+void _parser::parse_array_type(_array& arr)
+{
+	// '[' (<expr>)? ']' <type-specifier>
+	if (curtok() != T_LBRACKET) throw;
+	nexttok();
+
+	arr.length_expr = parse_expression();
+
+	if (curtok() != T_RBRACKET) throw;
+	nexttok();
+
+	parse_type_specifier(arr.tspec);
 }
 
 void _parser::parse_block(_scope& body)
@@ -825,7 +1019,7 @@ void _parser::parse_block(_scope& body)
 
 	do {
 		if (speculate_declaration_and_unwind()) {
-			parse_declaration(d);
+			parse_variable_declaration(d);
 			body.define(d);
 			d.clear();
 			n++;
@@ -1017,7 +1211,7 @@ bool _parser::speculate_return()
 
 bool _parser::speculate_id_expr()
 {
-	// <id> can be followed by <binop>, <postop>, '(', ')', '[', ']', '.', or ';'
+	// <id> can be followed by <binop>, <postop>,  or ';'
 	nexttok(); // consume <id>
 	if (is_binop(curtok()))
 		return speculate_binop_expr();
@@ -1071,7 +1265,7 @@ bool _parser::speculate_unop_expr()
 
 bool _parser::speculate_binop_expr()
 {
-	// <binop> can be followed by <unop>, <id>, '(', or <literal>
+	// <binop> can be followed by <unop>, <id>, '(', '{', or <literal>
 	nexttok(); // consume <binop>
 	if (is_unop(curtok()))
 		return speculate_unop_expr();
@@ -1081,6 +1275,8 @@ bool _parser::speculate_binop_expr()
 		return speculate_id_expr();
 	if (curtok() == T_LPAREN)
 		return speculate_lparen_expr();
+	if (curtok() == T_RBRACE)
+		return speculate_tuple_in_expr();
 
 	while (parens.size() > 0) parens.pop();
 	return false;
@@ -1140,9 +1336,39 @@ bool _parser::speculate_rparen_expr()
 	return false;
 }
 
+bool _parser::speculate_tuple_in_expr()
+{
+	// a tuple in an expression is predicted with a
+	// '{' following a <binop>, or starting an expression.
+	nexttok(); // eat '{'
+
+	if (speculate_initializer()) {
+		while (curtok() == T_COMMA)
+			speculate_initializer();
+	}
+
+	if (curtok() == T_RBRACE) {
+		nexttok(); // eat '}'
+		// a tuple can be followed by <binop>, or could end
+		// the expression
+		if (is_binop(curtok()))
+			return speculate_binop_expr();
+		if (curtok() == T_RPAREN) // ) ends the current expression or subexpression.
+			return speculate_rparen_expr(); 
+		if (curtok() == T_RBRACKET) // ] ends a well formed expression
+			return true;
+		if (curtok() == T_SEMICOLON) // ; ends a well formed expression
+			return true;
+	}
+	else {
+		while (parens.size() > 0) parens.pop();
+		return false;
+	}
+}
+
 bool _parser::speculate_expression()
 {
-	// an expression is started by <id>, <literal>, <unop>, '('
+	// an expression is started by <id>, <literal>, '{', <unop>, '('
 	//  or immediately ended by ')' or ';'
 	if (curtok() == T_ID)
 		return speculate_id_expr();
@@ -1154,6 +1380,8 @@ bool _parser::speculate_expression()
 		return speculate_lparen_expr();
 	if (curtok() == T_RPAREN) // empty expressions are valid
 		return speculate_rparen_expr();
+	if (curtok() == T_LBRACE)
+		return speculate_tuple_in_expr();
 	if (curtok() == T_SEMICOLON && parens.size() == 0) // empty expressions are valid
 		return true;
 	return false;
@@ -1225,6 +1453,15 @@ bool _parser::speculate_type_specifier()
 		else success = false;
 	}
 	else success = false;
+	return success;
+}
+
+bool _parser::speculate_type_specifier_and_unwind()
+{
+	bool success = true;
+	mark();
+	success = speculate_type_specifier();
+	release();
 	return success;
 }
 

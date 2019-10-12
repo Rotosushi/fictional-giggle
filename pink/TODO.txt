@@ -34,16 +34,6 @@
 
 	typecast(), sizeof()
 
-	tokbuf grows to hold all the tokens that have been parsed,
-	and never resets it's size. theoretically we should be able
-	to clear the token buffer after each grapheme has been parsed.
-	but each call to consume() leaves the buffer with at least
-	one token in queue. i.e. after a declaration is parsed and pushed
-	onto the list of declarations for the current scope, tokbuf
-	will contain the first token of the next declaration or statement
-	to be parsed (along with the already parsed declaration).
-	this means that we will end up allocating the entire 
-	parse unit (file, module) each time we call the parser. This could become
-	a problem for very large parse units.
+	
 
 %%

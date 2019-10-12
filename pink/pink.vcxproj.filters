@@ -30,6 +30,9 @@
     <ClCompile Include="utilities.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="semantic_analysis.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="pink_examples.txt">
@@ -65,6 +68,9 @@
     <Text Include="scratch.txt">
       <Filter>Resource Files</Filter>
     </Text>
+    <Text Include="grammar_v6.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
     <Text Include="grammar.txt">
       <Filter>Resource Files</Filter>
     </Text>
@@ -92,6 +98,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="utilities.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="semantic_analysis.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

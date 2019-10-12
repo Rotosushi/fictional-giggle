@@ -3,6 +3,7 @@
 enum _type {
 	_ERR,
 	_NONE,
+	_MAYBE,
 	_INT,
 	_FLOAT,
 	_TEXT,
@@ -10,6 +11,9 @@ enum _type {
 	_LAMBDA,
 	_VAR,
 	_DEDUCE,
+	_STRUCT,
+	_ARRAY,
+	_TUPLE,
 	
 	/* TODO:
 		_ARRAY,

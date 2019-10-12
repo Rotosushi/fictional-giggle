@@ -60,23 +60,32 @@ private:
 	bool is_literal(_token t);
 	bool is_postop(_token t);
 
+	bool is_module_keyword(_token t);
+
 	/* parsing functions */
-	void parse_module_level_declaration(_module& mdl);
+	/* Module parsing */
+	void parse_module_declaration(_module& mdl);
 
-	void parse_declaration(_vardecl& decl);
+	void parse_module_definition(_module& mdl);
+	void parse_module_keyword(_module& mdl);
 
-	void parse_type_specifier(_vardecl& decl);
-	void parse_type_specifier(_arg& arg);
-
+	/* Variable parsing */
+	void parse_variable_declaration(_vardecl& decl);
+	void parse_type_specifier(_type_specifier& tspec);
+	_ast* parse_initializer();
 	void parse_initializer(_vardecl& decl);
 
+	/* composite type parsing */
 	void parse_struct(_struct& stct);
+	void parse_struct_block(_struct& stct);
+	void parse_struct_member(_struct& stct);
+
 	void parse_tuple(_tuple& tpl);
+	void parse_type_tuple(_tuple& tpl);
 
-	void parse_member(_member& mem);
+	void parse_array_type(_array& arr);
 
-	void parse_array(_array& arr);
-
+	/* function parsing */
 	void parse_function_definition(_fndecl& fn);
 
 	void parse_lambda(_lambda& fn);
@@ -84,21 +93,22 @@ private:
 	void parse_lambda_body(_lambda& fn);
 	void parse_argument_list(vector<_arg>& args);
 	void parse_arg(_arg& arg);
-	void parse_return_list(vector<_rarg>& rargs);
-	void parse_rarg(_rarg& rarg);
+	void parse_return_list(vector<_arg>& rargs);
 
+	/* expression parsing */
 	_ast* parse_expression();
 	_ast* _parse_expression(_ast* lhs, int min_prec);
 	_ast* _parse_postop();
 	_ast* _parse_primary_expr();
 
 	_fcall* _parse_function_call();
-	void parse_carg(_carg& carg);
+	void parse_carg(_arg& carg);
 
-	_member_access* _parse_member_access();
+	_named_member* _parse_named_access();
 
-	_array_access* _parse_array_access();
+	_positional_member* _parse_positional_access();
 
+	/* statement parsing */
 	void parse_conditional(_if& conditional);
 	void parse_iteration(_while& loop);
 	void parse_iteration(_dowhile& loop);
@@ -127,6 +137,7 @@ private:
 	bool speculate_postop_expr();
 	bool speculate_lparen_expr();
 	bool speculate_rparen_expr();
+	bool speculate_tuple_in_expr();
 
 	bool speculate_expression();
 	bool speculate_expression_and_unwind();
@@ -136,6 +147,7 @@ private:
 	bool speculate_initializer();
 	bool speculate_literal();
 	bool speculate_type_specifier();
+	bool speculate_type_specifier_and_unwind();
 	bool speculate_type_primitive();
 	bool speculate_lambda();
 	bool speculate_lambda_and_unwind();

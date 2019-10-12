@@ -11,11 +11,10 @@ using std::map;
 
 enum _ast_type {
 	AST_ERR,
+	AST_TYPE_SPECIFIER,
 	AST_VAR,
 	AST_VARDECL,
 	AST_ARG,
-	AST_RARG,
-	AST_CARG,
 	AST_LAMBDA,
 	AST_FNDECL,
 	AST_FCALL,
@@ -43,21 +42,36 @@ typedef struct _ast {
 	_ast() { ast_type = AST_ERR; }
 	_ast(_ast_type a_t) { ast_type = a_t; }
 	virtual ~_ast() {}
+
 } _ast;
+
+typedef struct _type_specifier : public _ast {
+	_type type;
+	string name;
+	_ast* expr;
+
+	_type_specifier() : _ast(AST_TYPE_SPECIFIER), type(), name(), expr(nullptr) {}
+
+	bool operator==(_type_specifier& rhs) {
+		if (type != rhs.type) return false;
+		if (name != rhs.name) return false;
+		if (expr == nullptr) {
+			if (expr != rhs.expr) return false;
+		}
+		else {
+			switch (expr->ast_type) {
+				// lots of code goes here me thinks
+			}
+		}
+	}
+} _type_specifier;
 
 typedef struct _var : public _ast {
 	string id;
-	_type type;
-	string tname;
+	_type_specifier tspec;
 	vector<_ast*> postops;
 
-	_var() : _ast(AST_VAR), id(), type(_DEDUCE), tname(), postops() {}
-	_var(string i, _type t, string v, vector<_ast*> p) : _ast(AST_VAR) {
-		id = i;
-		type = t;
-		tname = v;
-		postops = p;
-	}
+	_var() : _ast(AST_VAR), id(), tspec(), postops() {}
 } _var;
 
 typedef struct _vardecl : public _ast {
@@ -67,19 +81,15 @@ typedef struct _vardecl : public _ast {
 
 	void clear() {
 		lhs.id = "";
-		lhs.type = _ERR;
-		lhs.tname.clear();
+		lhs.tspec.type = _ERR;
+		lhs.tspec.expr = nullptr;
+		lhs.tspec.name = "";
 		lhs.postops.clear();
 		op = T_ERR;
 		rhs = nullptr;
 	}
 
 	_vardecl() : _ast(AST_VARDECL), lhs(), op(), rhs() {}
-	_vardecl(_var l, _token o, _ast* r) : _ast(AST_VARDECL) {
-		lhs = l;
-		op = o;
-		rhs = r;
-	}
 } _vardecl;
 
 typedef struct _scope : public _ast {
@@ -103,54 +113,18 @@ typedef struct _scope : public _ast {
 
 typedef struct _arg : public _ast {
 	string id;
-	_type type;
-	_ast* value;
+	_type_specifier tspec;
 
-	_arg() : _ast(AST_ARG), id(), type(), value() {}
-	_arg(string i, _type t, _ast* v) : _ast(AST_ARG) {
-		id = i;
-		type = t;
-		value = v;
-	}
+	_arg() : _ast(AST_ARG), id() {}
 } _arg;
 
-typedef struct _rarg : public _ast {
-	string id;
-	_type type;
-	_ast* value;
-
-	_rarg() : _ast(AST_RARG), id(), type(), value() {}
-	_rarg(string i, _type t, _ast* v) : _ast(AST_RARG) {
-		id = i;
-		type = t;
-		value = v;
-	}
-} _rarg;
-
-typedef struct _carg : public _ast {
-	string id;
-	_type type;
-	_ast* value;
-
-	_carg() : _ast(AST_CARG), id(), type(), value() {}
-	_carg(string i, _type t, _ast* v) : _ast(AST_CARG) {
-		id = i;
-		type = t;
-		value = v;
-	}
-} _carg;
 
 typedef struct _lambda : public _ast {
 	vector<_arg> argument_list;
-	vector<_rarg> return_list;
+	vector<_arg> return_list;
 	_scope body;
 
 	_lambda() : _ast(AST_LAMBDA), argument_list(), return_list(), body() {}
-	_lambda(vector<_arg> a, vector<_rarg> r, _scope b) : _ast(AST_LAMBDA) {
-		argument_list = a;
-		return_list = r;
-		body = b;
-	}
 } _lambda;
 
 typedef struct _fndecl : public _ast {
@@ -166,12 +140,12 @@ typedef struct _fndecl : public _ast {
 
 typedef struct _member : public _ast {
 	string id;
-	_ast* type;
+	_type_specifier tspec;
+	_ast* initializer;
 
-	_member() : _ast(AST_MEMBER), id(), type(nullptr) {}
-	_member(string i, _ast* a) : _ast(AST_MEMBER) {
+	_member() : _ast(AST_MEMBER), id(), tspec(), initializer() {}
+	_member(string i, _type t, _ast* a) : _ast(AST_MEMBER) {
 		id = i;
-		type = a;
 	}
 } _member;
 
@@ -190,8 +164,8 @@ typedef struct _tuple : public _ast {
 
 typedef struct _array : public _ast {
 	string id;
-	unsigned int length;
-	_ast* type;
+	_type_specifier tspec;
+	_ast* length_expr;
 } _array;
 
 typedef struct _if : public _ast {
@@ -262,32 +236,28 @@ typedef struct _return : public _ast {
 	_ast* rhs;
 
 	_return() : _ast(AST_RETURN) {}
-	_return(_ast* a) : _ast(AST_RETURN) {
-		rhs = a;
-	}
 } _return;
 
 typedef struct _fcall : public _ast {
-	vector<_carg> argument_list;
-	vector<_rarg> return_list;
+	vector<_arg> argument_list;
+	vector<_arg> return_list;
 
 	_fcall() : _ast(AST_FCALL), argument_list(), return_list() {}
-	_fcall(vector<_carg> a, vector<_rarg> r) : _ast(AST_FCALL) {
-		argument_list = a;
-		return_list = r;
-	}
 } _fcall;
 
-typedef struct _member_access : public _ast {
+typedef struct _named_member : public _ast {
 	string member_id;
 } _member_access;
 
-typedef struct _array_access : public _ast {
+typedef struct _positional_member : public _ast {
 	_ast* offset_expression;
 } _array_access;
 
 typedef struct _module : public _ast {
 	string id;
+	vector <string> import_list;
+	vector <string> export_list;
+	string main_fn;
 	vector<_ast*> types;
 	_scope body;
 
@@ -302,13 +272,18 @@ typedef struct _module : public _ast {
 				if (((_fndecl*)t)->id == id)
 					return t;
 				break;
-			/* TODO:
-				case AST_STRUCT:
-				case AST_UNION:
-			*/
+			case AST_STRUCT:
+				if (((_struct*)t)->id == id)
+					return t;
+				break;
 			}
 		}
 		return nullptr;
+	}
+
+	bool operator==(_module& rhs) {
+		if (id != rhs.id) return false;
+		if (main_fn != rhs.main_fn) return false;
 	}
 
 } _module;

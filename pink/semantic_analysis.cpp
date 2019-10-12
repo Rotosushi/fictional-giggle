@@ -97,7 +97,7 @@ bool _semantic_analyzer::typecheck_function(_fndecl& fn)
 
 _type _semantic_analyzer::typecheck_expression(_ast* expr)
 {
-	
+	return _type();
 }
 
 bool _semantic_analyzer::typecheck_lambda(_lambda& l)

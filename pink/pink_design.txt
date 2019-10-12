@@ -504,11 +504,21 @@ If these are the problems, then how is this language a solution?
 
 ///
 /*
+	A = B, C = D, E = F
+	-> (, (A = B) (, (C = D) (E = F)))
+	',' binds looser than '='; so that EQ expressions
+	 are kept together.
+
 	A && B || C == D 	
 	-> ((A && B) || C) == D)
+	boolean expressions bind looser than bitwise expressions
+	, one usually wants to test the value of fully evaluated
+		expressions.
 
 	A || B ^^ C && D	
 	-> (A || (B ^^ (C && D)))
+
+	|| -> ^^ -> &&
 
 	A && B || C ^^ D	
 	-> (A && B) || (C ^^ D)
@@ -541,10 +551,7 @@ If these are the problems, then how is this language a solution?
 	-> (A < B) == (C < D)
 
 	A + B | C == D	
-	-> ((A + B) | C) == D
-
-	A == B ? C : D 
-	-> (A == B) ? (C) : (D) 
+	-> ((A + B) | C) == D 
 */
 /*
 Token := (<op1> | <op2> | .. | <opn> )
@@ -585,17 +592,17 @@ Token := (<op1> | <op2> | .. | <opn> )
 
 %% Goals
 // v1 goals : the static language
-- functions
-- conditionals and loops
+- functions with primitive types
+- conditionals and loops with primitive types
 - variables with primitive types
-- expressions
+- expressions with primitive types
 
 // v2 goals : the dynamic language
 - pointers
 - composite types
-- allocators, these will be registered in the context block
+- dynamic memory
 
-// v3 goals : high level programming constructs
+// v3 goals : features!
 - polymorphism
 - macros (programmer ast manipulation)
 - reflection

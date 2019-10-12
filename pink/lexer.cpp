@@ -44,6 +44,9 @@ _token _lexer::gettok()
 		if (text == "while") return T_WHILE;
 		if (text == "fn")	 return T_FN;
 		if (text == "return") return T_RETURN;
+		if (text == "import") return T_IMPORT;
+		if (text == "export") return T_EXPORT;
+		if (text == "begin") return T_BEGIN;
 		return T_ID;
 	}
 

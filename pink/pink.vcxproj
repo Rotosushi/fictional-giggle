@@ -155,6 +155,7 @@
     <ClCompile Include="parser.cpp" />
     <ClCompile Include="pink.cpp" />
     <ClCompile Include="semantic_analysis.cpp" />
+    <ClCompile Include="testing.cpp" />
     <ClCompile Include="utilities.cpp" />
     <ClCompile Include="token.cpp" />
   </ItemGroup>
@@ -165,6 +166,7 @@
     <ClInclude Include="parser.h" />
     <ClInclude Include="pink_type.h" />
     <ClInclude Include="semantic_analysis.h" />
+    <ClInclude Include="testing.h" />
     <ClInclude Include="token.h" />
     <ClInclude Include="type.h" />
     <ClInclude Include="utilities.h" />
@@ -172,6 +174,7 @@
   <ItemGroup>
     <Text Include="c_grammar.txt" />
     <Text Include="grammar.txt" />
+    <Text Include="grammar_v6.txt" />
     <Text Include="pink_design.txt" />
     <Text Include="pink_examples.txt" />
     <Text Include="pink_grammar.txt" />

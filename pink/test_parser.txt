@@ -1,5 +1,9 @@
 
+
+
 fn double :: (i : int) -> {
+	a = 2, b = 45, c = 64;
+
 	return i * i;
 }
 
