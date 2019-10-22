@@ -2,6 +2,7 @@
 using std::string;
 
 #include "token.h"
+#include "error.h"
 
 string token_to_string(_token t)
 {
@@ -53,10 +54,12 @@ string token_to_string(_token t)
 	case T_DO: return "do";
 	case T_WHILE: return "while";
 	case T_FN: return "fn";
+	case T_RECORD: return "record";
 
 	case T_INT:  return "int";
 	case T_FLOAT: return "float";
 	case T_TEXT: return "text";
 	case T_BOOL: return "bool";
+	default: throw _parser_error("internal error: bad token in token-to-string:", t);
 	}
 }

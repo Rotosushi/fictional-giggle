@@ -12,7 +12,13 @@ public:
 	void set_infile(ifstream& input);
 	void set_instring(string input);
 
+	_lexer() {
+		c = ' ';
+		i = 0;
+	}
 private:
+	int c;
+	unsigned int i;
 	int input_state = 0;
 	ifstream infile;
 	string instring;

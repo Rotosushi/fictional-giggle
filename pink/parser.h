@@ -23,6 +23,7 @@ public:
 
 	_parser() {
 		init_precedence_table();
+		reset_internal_state();
 	}
 private:
 	_lexer lexer;
@@ -39,6 +40,7 @@ private:
 	/* support functions */
 	/* general */
 	void init_precedence_table();
+	void reset_internal_state();
 
 	/* token handling */
 	_token curtok();
@@ -76,9 +78,9 @@ private:
 	void parse_initializer(_vardecl& decl);
 
 	/* composite type parsing */
-	void parse_struct(_struct& stct);
-	void parse_struct_block(_struct& stct);
-	void parse_struct_member(_struct& stct);
+	void parse_record(_record& stct);
+	void parse_record_block(_record& stct);
+	void parse_record_member(_record& stct);
 
 	void parse_tuple(_tuple& tpl);
 	void parse_type_tuple(_tuple& tpl);
@@ -104,9 +106,8 @@ private:
 	_fcall* _parse_function_call();
 	void parse_carg(_arg& carg);
 
-	_named_member* _parse_named_access();
-
-	_positional_member* _parse_positional_access();
+	_named_member_access* _parse_named_access();
+	_positional_member_access* _parse_positional_access();
 
 	/* statement parsing */
 	void parse_conditional(_if& conditional);
@@ -138,6 +139,8 @@ private:
 	bool speculate_lparen_expr();
 	bool speculate_rparen_expr();
 	bool speculate_tuple_in_expr();
+	bool speculate_positional_access();
+	bool speculate_named_access();
 
 	bool speculate_expression();
 	bool speculate_expression_and_unwind();

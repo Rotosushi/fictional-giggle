@@ -2,12 +2,13 @@
 
 #include <iostream>
 using std::cout;
+using std::endl;
 #include <string>
 using std::string;
 /*#include "pink_lexer.h"
 #include "pink_parser.h"*/
 #include "utilities.h"
-
+#include "testing.h"
 #include "parser.h"
 
 _parser par;
@@ -35,12 +36,28 @@ int main(int argc, char** argv)
 		free(opt);
 	}
 
+	_test_results parser_results;
+
+	try {
+		test_parser(parser_results);
+	}
+	catch (_parser_error err) {
+		cout << err.what() << endl;
+		exit(1);
+	}
+
+	for (auto test : parser_results) {
+		cout << "Test: "   << test.name
+			 << "\nPassed: " << (test.passed == true ? "true" : "false") << endl;
+	}
+
+	/*
 	_module* module;
 	if (infile.size() > 0)
 		module = par.parse_module(infile);
 	else
 		module = par.parse_module();
-
+	*/
 	// TODO:
 	/* 
 	/ semantic analysis:
@@ -65,13 +82,12 @@ int main(int argc, char** argv)
 		actual parameter mismatch
 	*/
 
-	// later -> optimize code
+	// future -> optimize code
 
 	// output assembly
 
 	// assemble to binary
 	
-
-	return 0;
+	return 0; // funny thought; this return 0 will probably be untouched all the way into the final version...
 }
 

@@ -9,7 +9,7 @@ enum _type {
 	_BOOL,
 	_VAR,
 	_LAMBDA,
-	_STRUCT,
+	_RECORD,
 	_UNION,
 	_ARRAY,
 	_POINTER,

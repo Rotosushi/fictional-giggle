@@ -21,6 +21,37 @@ class _parser_error : public _error {
 public:
 	virtual const char* what() { return contents.c_str(); }
 
+	_parser_error(const char* file, int lineno, string s) : _error() {
+		contents = "file: ";
+		contents += file;
+		contents += " line: ";
+		contents += to_string(lineno);
+		contents += " parser error : ";
+		contents += s;
+	}
+
+	_parser_error(const char* file, int lineno, string s, string t) : _error() {
+		contents = "file: ";
+		contents += file;
+		contents += " line: ";
+		contents += to_string(lineno);
+		contents += " parser error : ";
+		contents += s;
+		contents += t;
+	}
+
+	_parser_error(const char* file, int lineno, string s, _token t, string id = "") : _error() {
+		contents = "file: ";
+		contents += file;
+		contents += " line: ";
+		contents += to_string(lineno);
+		contents += " parser error : ";
+		contents += s;
+		contents += " : ";
+		if (t == T_ID) contents += id;
+		else contents += token_to_string(t);
+	}
+
 	_parser_error(string s, _token t, string id = "") : _error() {
 		contents = "parser error : ";
 		contents += s;

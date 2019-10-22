@@ -7,7 +7,6 @@ using std::string;
 
 _token _lexer::gettok()
 {
-	static int c = ' ';
 	text.clear(); // reset text buffer
 
 	while (isspace(c)) { // ignore whitespace
@@ -43,6 +42,8 @@ _token _lexer::gettok()
 		if (text == "do")	 return T_DO;
 		if (text == "while") return T_WHILE;
 		if (text == "fn")	 return T_FN;
+		if (text == "record") return T_RECORD;
+		if (text == "module") return T_MODULE;
 		if (text == "return") return T_RETURN;
 		if (text == "import") return T_IMPORT;
 		if (text == "export") return T_EXPORT;
@@ -81,7 +82,6 @@ _token _lexer::gettok()
 	}
 
 	if (c == '\'') { // literal text
-		text += c;
 		c = _getchar();
 
 		while (c != '\'') {
@@ -93,13 +93,12 @@ _token _lexer::gettok()
 			if (c == EOF) return T_ERR;
 		}
 
-		text += c; // eat the trailing '
+		// eat the trailing '
 		c = _getchar(); // prime the next char
 		return T_LITERAL_TEXT;
 	}
 
 	if (c == '\"') { // literal text
-		text += c;
 		c = _getchar();
 
 		while (c != '\"') {
@@ -110,8 +109,8 @@ _token _lexer::gettok()
 			// also this is an error.
 			if (c == EOF) return T_ERR;
 		}
-
-		text += c; // eat the trailing '
+		
+		// eat the trailing '
 		c = _getchar(); // prime the next char
 		return T_LITERAL_TEXT;
 	}
@@ -175,6 +174,9 @@ _token _lexer::gettok()
 		if (text == ">>=") return T_BIT_RSHIFT_EQ;
 		return T_ERR;
 	}
+
+	// if it's none of the above its an error
+	return T_ERR;
 }
 
 string _lexer::gettext()
@@ -184,20 +186,25 @@ string _lexer::gettext()
 
 void _lexer::set_infile(ifstream& input)
 {
+	i = 0;
+	c = ' ';
+	infile.close();
 	infile.swap(input);
 	input_state = 1;
 }
 
 void _lexer::set_instring(string input)
 {
+	i = 0;
+	c = ' ';
+	instring.clear();
 	instring = input;
 	input_state = 2;
 }
 
 int _lexer::_getchar()
 {
-	auto string_getchar = [](string s) -> int {
-		static unsigned int i = 0;
+	auto string_getchar = [this](string s) -> int {
 		if (i < s.size()) return s[i++];
 		else return EOF;
 	};

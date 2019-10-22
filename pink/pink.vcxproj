@@ -151,6 +151,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ast.cpp" />
     <ClCompile Include="lexer.cpp" />
     <ClCompile Include="parser.cpp" />
     <ClCompile Include="pink.cpp" />
@@ -181,6 +182,7 @@
     <Text Include="pink_grammar_v3.txt" />
     <Text Include="pink_grammar_v4.txt" />
     <Text Include="pink_grammar_v5.txt" />
+    <Text Include="pink_polymorphism.txt" />
     <Text Include="scratch.txt" />
     <Text Include="test_lexer.txt" />
     <Text Include="test_parser.txt" />

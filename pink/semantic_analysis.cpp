@@ -11,7 +11,7 @@ bool _semantic_analyzer::typecheck_module(_module& m)
 	curr_module = m;
 	// first we need to resolve the type of the declarations
 	for (auto var : m.body.variables) {
-		auto vartype = var.second.lhs.type;
+		auto vartype = var.second.lhs.tspec.type;
 		auto op = var.second.op;
 
 		if (op == T_COLON) { // only a <type-specifier>
@@ -23,7 +23,7 @@ bool _semantic_analyzer::typecheck_module(_module& m)
 			switch (vartype) {
 			case _DEDUCE:
 				// deduce type here
-				dec = m.resolve_type(var.second.lhs.tname);
+				dec = m.resolve_type(var.second.lhs.tspec.name);
 				break;
 			case _LAMBDA:
 				// typecheck the lambda 
@@ -54,7 +54,7 @@ bool _semantic_analyzer::typecheck_module(_module& m)
 					// var.second.lhs.type = m.resolve_type(var.second.lhs.tname);
 				}
 				else if (is_intrinsic_type(expr_type)) {
-					var.second.lhs.type = expr_type;
+					var.second.lhs.tspec.type = expr_type;
 				}
 				else {
 

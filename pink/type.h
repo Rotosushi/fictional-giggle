@@ -11,7 +11,7 @@ enum _type {
 	_LAMBDA,
 	_VAR,
 	_DEDUCE,
-	_STRUCT,
+	_RECORD,
 	_ARRAY,
 	_TUPLE,
 	

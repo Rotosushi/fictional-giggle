@@ -141,6 +141,8 @@ unevenness
 	some creation paths are easier than others, 
 	which bias the expressed ideas in a developed artifact.
 
+
+TLDR:
 - "Stop telling me what you are saying and just say it!"
 
 - "If you liked the code you should have put a test around it."
@@ -149,6 +151,8 @@ unevenness
 	data to back up the claim."
 
 %% ~Zen
+
+%% top level thoughts:
 
 A program in pink is composed of declarations and statements
 	Declarations:
@@ -212,7 +216,7 @@ If these are the problems, then how is this language a solution?
 			hardware devices like SPI, or USB? this is basically non-existant. C and Linux are the
 			best about this but its up to the hardware vendor.
 		~Interlanguage Interface~
-			Should be able to talk to C, what if there were a way 
+			Should be able to talk to C 
 
 
 %% Thoughts on things
@@ -306,7 +310,7 @@ If these are the problems, then how is this language a solution?
 
 	note: declarations always have an ending ';'
 			whereas the function definition, much like
-			the struct, union, and enum do not have an
+			the record, do not have an
 			ending ';'. 
 
 -- defining and calling functions
@@ -335,13 +339,32 @@ If these are the problems, then how is this language a solution?
 		fun := (a: int, b: [] int) -> {return for i in b {c += a + i}}
 
 	constant type definitions
-		struct my_type :: { v: int; w: float; }
+		record my_type :: { v: int; w: float; }
 
 	constants in code
 		my_constant :: "this string is constant";
 		mY_other_constant :: 42;
 
+-- pointers
 
+	two kinds, both nilable, 
+	non-owning pointers (refrences) *
+	owning pointers     (pointers) !*
+
+	?? refrence counted pointer (counted refrence) #*
+	   :gives the same behavior as c++ shared_ptr ?? 
+
+	refrences are just that, a refrence to some memory, 
+		:these have all the same pitfalls and advantages of
+		c-style pointers.
+	pointers own the memory they point to, when they go out of
+	scope, so does the memory.
+		:these have all the power of a pointer, but negate a lot
+		of the pitfalls of c-style pointers, much like
+		unique_ptr in c++.
+
+
+	// variable capture v. dynamic scope
 	/// does variable capture help? or does it conflict
 	    with internalized scoping rules too much?
 	
@@ -502,23 +525,89 @@ If these are the problems, then how is this language a solution?
 	//				i:
 	//			}
 
+macros metaphorically extend the semantics of the language.
+(...as i see it, in reality macros decompose into the base language to
+ then be parsed by the main interpreter.)
+
+given this, what should the language be? 
+The base language should be the minimum set of abstractions
+needed to compose all higher level constructs.
+
+((if that sentence doesn't make sense try this; The language
+	shound't innately have any idea what a tcp/ip stack looks like,
+	but should provide the tools needed to ergonomically express 
+	a tcp/ip stack. then replace <tcp/ip> with the abstraction of
+	your choice: hash-table, Sql database, Web server, UART driver,
+	etc, etc...))
+
+I haven't coded much assembly (read, a few small programs), 
+but the structure of large assembly
+programs probably looks fractiline to the structure of
+the compiled source code being emmitted by any major language today.
+(if it's interpreted language, then try: the side effects of both
+ programms are similar.)
+ assembly still has primitive types, functions with parameters,
+ conditionals, and loops. composite data-types like records and
+ arrays are still used. so then what is the purpose of the higher
+ level language? In my mind: to abstract away unnecessary details of
+ the hardware in the hope that we improve the quality and speed
+ at which we can develop. a programmer doesn't need to consider
+ how to create, store, and modify local variables, they only need
+ to know how to interact with these variables. you don't need to
+ know how to create a function call stack on the curren't hardware,
+ you just need to think about how the functions interact. This is
+ a good abstraction layer to have, in my mind and i assume, in the 
+ minds of anyone who has had to code in assembly.
+
+ what is the purpose of abstraction? In my mind the same as what is 
+ achieved by the programming language. abstraction should create a new
+ tool, or set of tools which can ergonomically express the ideas that
+ are vital to the operation of some thing. technically the CPU is doing 
+ one thing at a time, one step at a time; but in order to ergonomically
+ use the CPU we need ways of specifying what the CPU should be doing
+ and we would like those abstractions to be as easy to use as possible.
+
+ The macro, is a way of specifying a kind of abstraction within the 
+ language. 
+
+
 ///
 /*
+record of <cade weinberg> figuring out operator precedence:
+the general thought process can be summed:
+	one wants fully evaluated expressions before assignment
+
+	one wants to test the value of fully evaluated
+		expressions.
+
+	one wants to bitwise operate the value of fully evaluated
+		numerical values
+
+	one wants pemdas to hold for numeric operations
+
+	one wants prefix expressions to bind to the immediate
+		next grapheme
+
+	one wants postfix expressions to fully evaluate before any
+		operations.
+
+	primary graphemes are the leaf nodes
+
 	A = B, C = D, E = F
 	-> (, (A = B) (, (C = D) (E = F)))
 	',' binds looser than '='; so that EQ expressions
 	 are kept together.
 
-	A && B || C == D 	
-	-> ((A && B) || C) == D)
+	A & B | C == D 	
+	-> ((A & B) | C) == D)
 	boolean expressions bind looser than bitwise expressions
 	, one usually wants to test the value of fully evaluated
 		expressions.
 
-	A || B ^^ C && D	
-	-> (A || (B ^^ (C && D)))
+	A | B ^ C & D	
+	-> (A | (B ^ (C & D)))
 
-	|| -> ^^ -> &&
+	| -> ^ -> &
 
 	A && B || C ^^ D	
 	-> (A && B) || (C ^^ D)

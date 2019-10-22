@@ -18,6 +18,8 @@ enum _ast_type {
 	AST_LAMBDA,
 	AST_FNDECL,
 	AST_FCALL,
+	AST_NAMED_MEMBER,
+	AST_POSITIONAL_MEMBER,
 	AST_IF,
 	AST_WHILE,
 	AST_DOWHILE,
@@ -25,16 +27,19 @@ enum _ast_type {
 	AST_UNOP,
 	AST_RETURN,
 	AST_MEMBER,
-	AST_STRUCT,
+	AST_RECORD,
 	AST_UNION,
 	AST_TUPLE,
 	AST_SCOPE,
 	AST_MODULE,
+	AST_ARRAY,
 	AST_INT,
 	AST_FLOAT,
 	AST_TEXT,
 	AST_BOOL,
 };
+
+string ast_type_to_string(_ast_type at);
 
 typedef struct _ast {
 	_ast_type ast_type;
@@ -51,18 +56,16 @@ typedef struct _type_specifier : public _ast {
 	_ast* expr;
 
 	_type_specifier() : _ast(AST_TYPE_SPECIFIER), type(), name(), expr(nullptr) {}
-
-	bool operator==(_type_specifier& rhs) {
-		if (type != rhs.type) return false;
-		if (name != rhs.name) return false;
-		if (expr == nullptr) {
-			if (expr != rhs.expr) return false;
-		}
-		else {
-			switch (expr->ast_type) {
-				// lots of code goes here me thinks
-			}
-		}
+	_type_specifier(_type t, string n, _ast* e) : _ast(AST_TYPE_SPECIFIER) {
+		type = t;
+		name = n;
+		expr = e;
+	}
+	_type_specifier operator=(_type_specifier rhs) {
+		type = rhs.type;
+		name = rhs.name;
+		expr = rhs.expr;
+		return *this;
 	}
 } _type_specifier;
 
@@ -72,6 +75,11 @@ typedef struct _var : public _ast {
 	vector<_ast*> postops;
 
 	_var() : _ast(AST_VAR), id(), tspec(), postops() {}
+	_var(string i, _type_specifier ts, vector<_ast*> po) : _ast(AST_VAR) {
+		id = i;
+		tspec = ts;
+		postops = po;
+	}
 } _var;
 
 typedef struct _vardecl : public _ast {
@@ -90,6 +98,11 @@ typedef struct _vardecl : public _ast {
 	}
 
 	_vardecl() : _ast(AST_VARDECL), lhs(), op(), rhs() {}
+	_vardecl(_var l, _token o, _ast* r) : _ast(AST_VARDECL) {
+		lhs = l;
+		op  = o;
+		rhs = r;
+	}
 } _vardecl;
 
 typedef struct _scope : public _ast {
@@ -105,10 +118,6 @@ typedef struct _scope : public _ast {
 	}
 
 	_scope() : _ast(AST_SCOPE), variables(), statements() {}
-	_scope(map<string, _vardecl> v, vector<_ast*> e) : _ast(AST_SCOPE) {
-		variables = v;
-		statements = e;
-	}
 } _scope;
 
 typedef struct _arg : public _ast {
@@ -116,6 +125,10 @@ typedef struct _arg : public _ast {
 	_type_specifier tspec;
 
 	_arg() : _ast(AST_ARG), id() {}
+	_arg(string i, _type_specifier ts) : _ast(AST_ARG) {
+		id = i;
+		tspec = ts;
+	}
 } _arg;
 
 
@@ -125,6 +138,7 @@ typedef struct _lambda : public _ast {
 	_scope body;
 
 	_lambda() : _ast(AST_LAMBDA), argument_list(), return_list(), body() {}
+	
 } _lambda;
 
 typedef struct _fndecl : public _ast {
@@ -149,11 +163,11 @@ typedef struct _member : public _ast {
 	}
 } _member;
 
-typedef struct _struct : public _ast {
+typedef struct _record : public _ast {
 	string id;
 	vector<_member> members;
 
-	_struct() : _ast(AST_STRUCT), id(), members() {}
+	_record() : _ast(AST_RECORD), id(), members() {}
 } _struct;
 
 typedef struct _tuple : public _ast {
@@ -166,6 +180,8 @@ typedef struct _array : public _ast {
 	string id;
 	_type_specifier tspec;
 	_ast* length_expr;
+
+	_array() : _ast(AST_ARRAY), id(), tspec(), length_expr(nullptr) {}
 } _array;
 
 typedef struct _if : public _ast {
@@ -235,7 +251,7 @@ typedef struct _unop : public _ast {
 typedef struct _return : public _ast {
 	_ast* rhs;
 
-	_return() : _ast(AST_RETURN) {}
+	_return() : _ast(AST_RETURN), rhs(nullptr) {}
 } _return;
 
 typedef struct _fcall : public _ast {
@@ -245,12 +261,16 @@ typedef struct _fcall : public _ast {
 	_fcall() : _ast(AST_FCALL), argument_list(), return_list() {}
 } _fcall;
 
-typedef struct _named_member : public _ast {
+typedef struct _named_member_access : public _ast {
 	string member_id;
+
+	_named_member_access() : _ast(AST_NAMED_MEMBER) {}
 } _member_access;
 
-typedef struct _positional_member : public _ast {
+typedef struct _positional_member_access : public _ast {
 	_ast* offset_expression;
+
+	_positional_member_access() : _ast(AST_POSITIONAL_MEMBER), offset_expression(nullptr) {}
 } _array_access;
 
 typedef struct _module : public _ast {
@@ -260,6 +280,8 @@ typedef struct _module : public _ast {
 	string main_fn;
 	vector<_ast*> types;
 	_scope body;
+
+	_module() : _ast(AST_MODULE), id(), import_list(), export_list(), main_fn(), types(), body() {}
 
 	void define_type(_ast* type) {
 		types.push_back(type);
@@ -272,8 +294,8 @@ typedef struct _module : public _ast {
 				if (((_fndecl*)t)->id == id)
 					return t;
 				break;
-			case AST_STRUCT:
-				if (((_struct*)t)->id == id)
+			case AST_RECORD:
+				if (((_record*)t)->id == id)
 					return t;
 				break;
 			}

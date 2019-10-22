@@ -76,7 +76,7 @@ enum _token {
 	T_TRUE,
 	T_FALSE,
 	T_FN,
-	T_STRUCT,
+	T_RECORD,
 };
 
 string token_to_string(_token t);
