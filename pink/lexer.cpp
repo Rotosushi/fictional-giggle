@@ -39,15 +39,12 @@ _token _lexer::gettok()
 		if (text == "false") return T_FALSE;
 		if (text == "if")	 return T_IF;
 		if (text == "else")  return T_ELSE;
-		if (text == "do")	 return T_DO;
 		if (text == "while") return T_WHILE;
 		if (text == "fn")	 return T_FN;
-		if (text == "record") return T_RECORD;
-		if (text == "module") return T_MODULE;
 		if (text == "return") return T_RETURN;
 		if (text == "import") return T_IMPORT;
 		if (text == "export") return T_EXPORT;
-		if (text == "begin") return T_BEGIN;
+		if (text == "begin") return T_ROOT;
 		return T_ID;
 	}
 
@@ -75,7 +72,8 @@ _token _lexer::gettok()
 		// appears before the operator lexing loop
 		// so this loop will falsely trigger on
 		// a lone '.'. this is the current fix
-		if (text == ".") return T_PERIOD;
+		// update 10/28/2019: no longer needed as v1 doesn't have composite types
+		//if (text == ".") return T_PERIOD;
 
 		if (has_fractional) return T_LITERAL_FLOAT;
 		else return T_LITERAL_INT;
@@ -120,8 +118,6 @@ _token _lexer::gettok()
 		c = _getchar();
 
 		// single char operators
-		if (text == "[") return T_LBRACKET;
-		if (text == "]") return T_RBRACKET;
 		if (text == "{") return T_LBRACE;
 		if (text == "}") return T_RBRACE;
 		if (text == "(") return T_LPAREN;
@@ -151,27 +147,17 @@ _token _lexer::gettok()
 		if (text == "!!") return T_BIT_NOT;
 		if (text == "<<") return T_BIT_LSHIFT;
 		if (text == ">>") return T_BIT_RSHIFT;
-		if (text == "&") return T_LOG_AND;
-		if (text == "|") return T_LOG_OR;
-		if (text == "^") return T_LOG_XOR;
-		if (text == "!") return T_LOG_NOT;
-		if (text == "<") return T_LOG_LESS;
-		if (text == ">") return T_LOG_GREATER;
-		if (text == "<=") return T_LOG_LESS_EQUALS;
-		if (text == ">=") return T_LOG_GREATER_EQUALS;
-		if (text == "==") return T_LOG_EQUALS;
-		if (text == "!=") return T_LOG_NOT_EQUALS;
-		if (text == "+=") return T_ADD_EQ;
-		if (text == "-=") return T_SUB_EQ;
-		if (text == "*=") return T_MULT_EQ;
-		if (text == "/=") return T_DIV_EQ;
-		if (text == "%=") return T_MOD_EQ;
-		if (text == "&&=") return T_BIT_AND_EQ;
-		if (text == "||=") return T_BIT_OR_EQ;
-		if (text == "^^=") return T_BIT_XOR_EQ;
-		if (text == "!!=") return T_BIT_NOT_EQ;
-		if (text == "<<=") return T_BIT_LSHIFT_EQ;
-		if (text == ">>=") return T_BIT_RSHIFT_EQ;
+		if (text == "&") return T_AND;
+		if (text == "|") return T_OR;
+		if (text == "^") return T_XOR;
+		if (text == "!") return T_NOT;
+		if (text == "<") return T_LESS;
+		if (text == ">") return T_GREATER;
+		if (text == "<=") return T_LESS_EQUALS;
+		if (text == ">=") return T_GREATER_EQUALS;
+		if (text == "==") return T_EQUALS;
+		if (text == "!=") return T_NOT_EQUALS;
+		
 		return T_ERR;
 	}
 

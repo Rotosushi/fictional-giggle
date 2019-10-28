@@ -13,6 +13,14 @@ using std::vector;
 
 _parser parser;
 
+/*
+	in my ideal language, '=' and '==' operators can be generated
+	automatically for product and sum types. operator overloading could be used
+	to allow users to override the default and specify other operators.
+	like in c++ saying <type-name> operator<op-symbol>(<type-name> lhs, <type-name> rhs)
+	will be used to add the type to the overload set. 
+*/
+
 bool assert_equivalent_type_definition(_ast* expected, _ast* parsed) 
 {
 	if (expected == nullptr && parsed == nullptr)
@@ -22,9 +30,9 @@ bool assert_equivalent_type_definition(_ast* expected, _ast* parsed)
 
 	if (expected->ast_type != parsed->ast_type) return false;
 	switch (expected->ast_type) {
-	case AST_FNDECL: {
-		auto e = (_fndecl*)expected;
-		auto p = (_fndecl*)parsed;
+	case AST_FN: {
+		auto e = (_fn*)expected;
+		auto p = (_fn*)parsed;
 		return assert_equivalence(*e, *p);
 	}
 	case AST_RECORD: {
@@ -472,7 +480,6 @@ bool assert_equivalence(_module& expected, _module& parsed)
 	return true;
 }
 
-
 _test_data test_module_declaration_empty()
 {
 	_test_data test_data = {"empty module declaration", false};
@@ -786,7 +793,7 @@ _test_data test_lambda_declaration_with_initialization()
 	((_var*)l2rexpr.lhs)->postops.push_back(&l2pma);
 	l2rexpr.rhs = new _var;
 	((_var*)l2rexpr.rhs)->id = "a";
-	l2rexpr.op = T_LOG_EQUALS;
+	l2rexpr.op = T_EQUALS;
 	l2r.rhs = &l2rexpr;
 	l2.body.statements.push_back(&l2r);
 	// attach lambda 2 to the vardecl
@@ -904,7 +911,7 @@ _test_data test_lambda_declaration_from_initializer()
 	((_var*)l2rexpr.lhs)->postops.push_back(&l2pma);
 	l2rexpr.rhs = new _var;
 	((_var*)l2rexpr.rhs)->id = "a";
-	l2rexpr.op = T_LOG_EQUALS;
+	l2rexpr.op = T_EQUALS;
 	l2r.rhs = &l2rexpr;
 	l2.body.statements.push_back(&l2r);
 	// attach lambda 2 to the vardecl
@@ -1016,7 +1023,7 @@ _test_data test_constant_lambda()
 	((_var*)l2rexpr.lhs)->postops.push_back(&l2pma);
 	l2rexpr.rhs = new _var;
 	((_var*)l2rexpr.rhs)->id = "a";
-	l2rexpr.op = T_LOG_EQUALS;
+	l2rexpr.op = T_EQUALS;
 	l2r.rhs = &l2rexpr;
 	l2.body.statements.push_back(&l2r);
 	// attach lambda 2 to the vardecl

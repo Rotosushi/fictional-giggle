@@ -90,7 +90,7 @@ bool _semantic_analyzer::typecheck_declaration(_vardecl& var)
 	return false;
 }
 
-bool _semantic_analyzer::typecheck_function(_fndecl& fn)
+bool _semantic_analyzer::typecheck_function(_fn& fn)
 {
 	return false;
 }

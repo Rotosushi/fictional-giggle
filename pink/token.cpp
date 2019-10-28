@@ -28,33 +28,28 @@ string token_to_string(_token t)
 	case T_BIT_LSHIFT: return "<<";
 	case T_BIT_RSHIFT: return ">>";
 
-	case T_LOG_NOT: return "!";
-	case T_LOG_AND: return "&";
-	case T_LOG_XOR: return "^";
-	case T_LOG_OR:  return "|";
-	case T_LOG_EQUALS: return "==";
-	case T_LOG_NOT_EQUALS: return "!=";
-	case T_LOG_LESS: return "<";
-	case T_LOG_GREATER: return ">";
-	case T_LOG_LESS_EQUALS: return "<=";
-	case T_LOG_GREATER_EQUALS: return ">=";
+	case T_NOT: return "!";
+	case T_AND: return "&";
+	case T_XOR: return "^";
+	case T_OR:  return "|";
+	case T_EQUALS: return "==";
+	case T_NOT_EQUALS: return "!=";
+	case T_LESS: return "<";
+	case T_GREATER: return ">";
+	case T_LESS_EQUALS: return "<=";
+	case T_GREATER_EQUALS: return ">=";
 
-	case T_PERIOD: return ".";
 	case T_COMMA:  return ",";
 	case T_SEMICOLON: return ";";
 	case T_LBRACE: return "{";
 	case T_RBRACE: return "}";
-	case T_LBRACKET: return "[";
-	case T_RBRACKET: return "]";
 	case T_LPAREN: return "(";
 	case T_RPAREN: return ")";
 	case T_ARROW:  return "->";
 	case T_IF: return "if";
 	case T_ELSE:  return "else";
-	case T_DO: return "do";
 	case T_WHILE: return "while";
 	case T_FN: return "fn";
-	case T_RECORD: return "record";
 
 	case T_INT:  return "int";
 	case T_FLOAT: return "float";

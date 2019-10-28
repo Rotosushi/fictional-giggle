@@ -83,6 +83,9 @@
     <Text Include="pink_polymorphism.txt">
       <Filter>Resource Files</Filter>
     </Text>
+    <Text Include="implementation-grammar.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pink_type.h">

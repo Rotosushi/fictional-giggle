@@ -46,7 +46,7 @@ bool assert_equivalence(_var& expected, _var& parsed);
 bool assert_equivalence(_vardecl& expected, _vardecl& parsed);
 bool assert_equivalence(_arg& expected, _arg& parsed);
 bool assert_equivalence(_lambda& expected, _lambda& parsed);
-bool assert_equivalence(_fndecl& expected, _fndecl& parsed);
+bool assert_equivalence(_fn& expected, _fn& parsed);
 bool assert_equivalence(_member& expected, _member& parsed);
 bool assert_equivalence(_record& expected, _record& parsed);
 bool assert_equivalence(_tuple& expected, _tuple& parsed);

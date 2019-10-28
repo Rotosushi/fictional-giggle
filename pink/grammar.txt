@@ -4,10 +4,9 @@
 // file names are only visible in the file in which they are declared
 // local names are only visible in the scope in which they are declared
 
-
 $ single line comment
 
-// declares default initialized variable of type type-name
+// declares default initialized variable denoted by <variable-name> of type <type-name>
 variable-name : type-name ;
 
 x : int;
@@ -23,7 +22,6 @@ x : int = 0;
 x : float = 0.0;
 x : text = "Hello, World!";
 x : bool = true;
-x : user-type = initializer;
 
 // declares initialized constant of type deduced from initializer
 variable-name :: initializer ;
@@ -41,31 +39,32 @@ x := 0.0;
 x := "Variable String";
 x := false;
 
-// declares a function
-fn function-name :: (arg1 : arg-type, arg2 : arg-type) -> (return-type) {
+// function declaration
+fn function-name (arg1 : <arg-type>, arg2 : <arg-type>) -> (return-type) {
 	variable : type-name;
-	if (variable == some-value) {
-		return expression;
-	} else if (variable == some-other-value) {
-		return expression;
+	// c style if
+	if (variable == arg1) {
+		return <expression>;
+	} else if (variable == arg2) {
+		return <expression>;
 	} else {
-		return expression;
+		return <expression>;
 	}
 }
 
-// functions can be called
 // variable type is deduced from return type of function.
-variable := function-name(a0, a1);
+variable := <function-name>(a0, a1);
 
 // return type is optional, and deduced from return statements
-fn function-name :: (arg : arg-type) -> {
-	while (arg == some-value) {
-		func(arg);
+fn <function-name> (arg : arg-type) -> {
+	acc := 0.0;
+	while (arg == <literal>) {
+		acc += func(arg);
 	}
-	return expression;
+	return acc;
 }
 
-// you can define lambdas
+// you can define lambdas, not in v1!!
 // a lambda exists only in the current scope
 // simply, it is a variable that can be called. the lambda is only
 // visible from the scope it is declared in.

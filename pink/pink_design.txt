@@ -5,6 +5,16 @@ pink is a language whose job is to allow programmers to easily
 	manipulate assembly instructions as logical units and to 
 	easily manipulate data around the machine efficiently.
 
+I think the best way to accomplish this is with an imperitive language,
+that makes a functional style the easiest to express.
+
+this means a few things:
+	- algebraic data types
+	- statically typed
+	- pass-by-value semantics
+	- make mutation the exception not the rule
+
+
 - a small yet expressive language, built for readability, ergonomics
 - and easy parsing.
 

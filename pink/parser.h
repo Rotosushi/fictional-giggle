@@ -68,37 +68,25 @@ private:
 	/* Module parsing */
 	void parse_module_declaration(_module& mdl);
 
-	void parse_module_definition(_module& mdl);
-	void parse_module_keyword(_module& mdl);
+	void parse_context_statement(_module& mdl);
 
 	/* Variable parsing */
 	void parse_variable_declaration(_vardecl& decl);
-	void parse_type_specifier(_type_specifier& tspec);
-	_ast* parse_initializer();
 	void parse_initializer(_vardecl& decl);
 
-	/* composite type parsing */
-	void parse_record(_record& stct);
-	void parse_record_block(_record& stct);
-	void parse_record_member(_record& stct);
-
-	void parse_tuple(_tuple& tpl);
-	void parse_type_tuple(_tuple& tpl);
-
-	void parse_array_type(_array& arr);
+	void parse_type(_vardecl& decl);
+	void parse_type(_arg& arg);
 
 	/* function parsing */
-	void parse_function_definition(_fndecl& fn);
-
-	void parse_lambda(_lambda& fn);
-	void parse_lambda_header(_lambda& fn);
-	void parse_lambda_body(_lambda& fn);
+	void parse_function_declaration(_fn& fn);
+	void parse_function_type(_fn& fn);
+	void parse_function_body(_fn& fn);
 	void parse_argument_list(vector<_arg>& args);
 	void parse_arg(_arg& arg);
 	void parse_return_list(vector<_arg>& rargs);
 
 	/* expression parsing */
-	_ast* parse_expression();
+	void parse_expression(_expr& expr);
 	_ast* _parse_expression(_ast* lhs, int min_prec);
 	_ast* _parse_postop();
 	_ast* _parse_primary_expr();
@@ -106,57 +94,26 @@ private:
 	_fcall* _parse_function_call();
 	void parse_carg(_arg& carg);
 
-	_named_member_access* _parse_named_access();
-	_positional_member_access* _parse_positional_access();
-
 	/* statement parsing */
 	void parse_conditional(_if& conditional);
 	void parse_iteration(_while& loop);
-	void parse_iteration(_dowhile& loop);
 
 	_ast* parse_statement();
 
-	void parse_block(_scope& body);
+	void parse_scope(_scope& body);
 
-	/* speculation functions */
 	bool speculate_declaration();
-	bool speculate_declaration_and_unwind();
-	bool speculate_statement();
-	bool speculate_statement_and_unwind();
-
-	bool speculate_block();
-
-	bool speculate_iteration();
-	bool speculate_conditional();
-
-	bool speculate_return();
-
-	bool speculate_id_expr();
-	bool speculate_literal_expr();
-	bool speculate_unop_expr();
-	bool speculate_binop_expr();
-	bool speculate_postop_expr();
-	bool speculate_lparen_expr();
-	bool speculate_rparen_expr();
-	bool speculate_tuple_in_expr();
-	bool speculate_positional_access();
-	bool speculate_named_access();
+	bool speculate_type();
+	bool speculate_initializer();
 
 	bool speculate_expression();
-	bool speculate_expression_and_unwind();
-
-	bool speculate_type_annotated_arg();
-
-	bool speculate_initializer();
-	bool speculate_literal();
-	bool speculate_type_specifier();
-	bool speculate_type_specifier_and_unwind();
-	bool speculate_type_primitive();
-	bool speculate_lambda();
-	bool speculate_lambda_and_unwind();
-	bool speculate_lambda_header();
-	bool speculate_lambda_body();
-	bool speculate_argument_list();
-	bool speculate_return_list();
-	bool speculate_arg();
+	bool speculate_id_expr();
+	bool speculate_literal_expr();
+	bool speculate_binop_expr();
+	bool speculate_unop_expr();
+	bool speculate_lparen_expr();
+	bool speculate_rparen_expr();
+	bool speculate_postop_expr();
+	bool speculate_fcall();
+	bool speculate_carg();
 };
