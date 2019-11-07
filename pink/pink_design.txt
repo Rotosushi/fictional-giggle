@@ -44,9 +44,9 @@ this means a few things:
 	- Security
 		The language doesn't exist in a vacuum, a robust, expressive language
 		should be aware of the security concerns of a modern language. C is 
-		exploitable because it is hard to write hardened code, and easy to 
-		exploit interoperations between disperate programs. More complex languages
-		are exploitable because their own operation is hard to understand.
+		exploitable because it is hard to write hardened code,  More complex languages
+		are exploitable because their own operation is hard to understand, and
+		it is easy to exploit interoperations between disperate programs.
 
 	- Performance
 		writing code that utilizes its resources effectively is difficult. writing
@@ -185,13 +185,19 @@ Why make a new programming language?
 	for profit?
 	how about:
 		There is a ton of unneccessary complexity in modern day languages
-		c is in its verbosity (This is a result of being a small lang, 
+		c is in its verbosity (This is a result of being a small lang,
 			which is addmittedly a plus), pitfalls, and age.
-		c++ fails in its verbosity (partly inherited, mostly added), 
+		c++ fails in its verbosity (partly inherited, mostly added),
 			semantic overhead, and its plethora of features
 		Dynamicly Typed and Garbage Collected languages fail
-			in the computational overhead of garbage collection and
+			in the computational overhead of garbage collection is unnaceptable
+			in low level code and embedded code, especially so in RTOS situations.
+			so a systems language should not force one upon you. (however,
+			in some cases you may want one, so maybe some grammars can be
+			garbage collected.a)
 			the mental overhead of duck typing.
+
+		what if there was a language that
 
 If these are the problems, then how is this language a solution?
 	what are the design goals of pink?

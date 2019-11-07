@@ -1,10 +1,14 @@
 #pragma once
 
 enum _type {
+	/* internal use */
 	_ERR,
 	_DEDUCE,
+	_FCALL,
+	/* usable types */
+	_NIL,
 	_INT,
-	_FLOAT,
+	_REAL,
 	_TEXT,
 	_BOOL,
 	
@@ -18,6 +22,9 @@ enum _type {
 		? _SET,
 		_THREAD,
 		_MACRO,
+		_USERTYPE,
 
 	*/
 };
+
+string to_string(_type t);

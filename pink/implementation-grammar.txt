@@ -1,38 +1,115 @@
 
-$ variables of primitive type
-$ functions taking arguments, returning a list of values
-$ input/output via c++ stdlib
-$ 
+# variables of primitive type
+# functions taking arguments, returning a list of values
+# input/output via c++ stdlib
 
-<program> := (<module-level-declaration)* EOF
+# set of possible attributes, given
+# as a list of the form
+# <id> ':' <type>
+# I denotes the set of inherited attributes
+# S denotes the set of synthesized attributes
 
-<module-declaration> := <comment>
-					  | <context-statement>
-					  | <function-declaration>
-					  | <variable-declaration>
+I = { position : int;
+	  declarations : map(string, declaration)}
+S = {	id : string;
+		ids : list(string);
 
-<comment> := '$' (_)* <EOL>
+		int_value : int;
+		real_value : float;
+		text_value : string;
+		bool_value : bool;
+		value : (int_value | real_value | text_value | bool_value);
+		type : (INT | REAL | TEXT | BOOL);
 
-<context-statement> := 'root' <identifier-list>
-					 | 'import' <identifier-list>
-					 | 'export' <identifier-list>
+		op : string;
+		lhs : expr;
+		rhs : expr;
+		binop-expr : (lhs, op, rhs);
+		unop-expr : (op, rhs);
+		postop-expr : argument-list;
+		var : ((id, type, expr) | (id, type, list(postop-expr)));
+		expr : (binop-expr | unop-expr | var);
 
-<identifier-list> := <identifier> *(',' <identifier>)
+		declaration : (var, assignop, expr);
+		declarations : map(string, declaration);
 
-<function-declaration> := 'fn' <identifier> <function-type> <function-body>
+		arg : (id, type);
+		argument-list : list(arg);
+		return-list : list(arg);
+		scope : (list(declaration), list(statement));
+		fn : (id, argument-list, return-list, scope);
+		functions : map(string, fn);
+		
+		if : (expr, statement, statement);
+		while : (expr, statement, statement);
+		return : expr;
+		statement : (if | while | return | expr);
 
-<function-type> := <arg-list> '->' (<type-list>)?
+		import-list : list(id);
+		export-list : list(id);
+		root : id;
 
-<arg-list> := '(' <arg> *(',' <arg>) ')'
+		context-declaration : (import-list | export-list | root);
+		context-declarations : (import-list, export-list, root);
+
+		module : (context-declarations, declarations, functions);
+		}
+
+# now the programmer needs a way of assigning
+# attributes to graphemes, to use these attributes
+# in the rules of the language. (empty rules are allowed)
+
+# maybe, state attributes || semantic attributes
+S(<program>) = { module || type_check(module); }
+S(<module-declaration>) = { module }
+S(<context-statement>) = { context-declaration }
+S(<identifier-list>) = { ids }
+S(<function-declaration>) = { fn }
+S(<variable-declaration>) = { declaration }
+
+fn define(mod : * module, dec : declaration) {
+	module.declarations.add(dec);
+}
+
+<program> := *(<module-declaration) EOF { %% = %0 }
+
+<module-declaration> := <comment> {}
+					  | <context-statement>    { declare(%%, %0); }
+					  | <function-declaration> { define(%%, %0); }
+					  | <variable-declaration> { define(%%, %0); }
+
+<comment> := '#' (_)* <EOL>
+
+<context-statement> := 'root' <identifier-list> ';' { 'root'.ids = <identifier-list>; }
+					| 'import' <identifier-list> ';'   { 'import'.ids = <identifier-list>; }
+					| 'export' <identifier-list> ';'   { 'export'.ids = <identifier-list>; }
+
+# <*-list> := <*> *(',' <*>) { %% = create list(); append(%%, %1); for (it in *) append(%%, it); }
+
+<identifier-list> := <identifier> *(',' <identifier>) { append(%%, %0); for (it in *) append(%%, it); }
+
+<function-declaration> := 'fn' <identifier> <function-type> <function-body> 
+						  { 
+						    %%.id = %1.id;
+						    %%.function-type = %2;
+							%%.function-body = %3; 
+						  }
+
+<function-type> := <arg-list> '->' (<type-list>)? 
+					{ 
+						%% = (%1, %3);
+					}
+
+<arg-list> := '(' <arg> *(',' <arg>) ')' 
 <type-list>   := '(' <type> *(',' <type>) ')'
 
-<arg> := <identifier> ':' <type>
+<arg> := <identifier> ':' <type> { %% = (%1, %2);}
 
-<function-body> := <scope>
+<function-body> := <scope> { %% = %1; }
 
-<scope> := '{' *(<variable-declaration> | <statement>) '}'
+<scope> := '{' *(<variable-declaration> | <statement>) '}' { %% = create _scope(*); }
 
-<variable-declaration> := <identifier> ':' <type> ?('=' <initializer>) ';'
+<variable-declaration> := <identifier> ':' <type> ?('=' <initializer>) ';' 
 						| <identifier> ('::' | ':=') <initializer> ';'
 
 <type> := 'int'
@@ -52,19 +129,19 @@ $
 <while> := 'while' '(' <expression> ')' <statement>
 <return> := 'return' <expression>
 
-<expression> := <expr> (',' <expr>)* ';'
+<expression> := <expr> ';'
 
-$ some complicated, valid expressions that should be 
-$ able to be parsed given this BNF grammar
-$ a, b, c, d = f(g + k, h - J(q), i, j);
-$ a = 0, b = "sometext", c = j + k, g = F() - G(P);
-$ 
+# some complicated, valid expressions that should be 
+# able to be parsed given this BNF grammar
+# a, b, c, d = f(g + k, h - J(q), i, j);
+# a = 0, b = "sometext", c = j + k, g = F() - G(P);
+# 
 
 <expr> := <parse-expression>(<primary-expr>, 0)
 
-$ this is a non-standard way of expressing this,
-$ this function implements the grammar of expressions in the language
-$ it is an instance of an operator precedence parser
+# this is a non-standard way of expressing this,
+# this function implements the grammar of expressions in the language
+# it is an instance of an operator precedence parser
 <parse-expression>(lhs: _ast*, min_prec: int) := {
 	lad := curtok()
 	while (predict_binop(lad) & precedence(lad) >= min_prec) {
@@ -81,7 +158,7 @@ $ it is an instance of an operator precedence parser
 	return lhs
 }
 
-$ my attempt at an operator-precedence parser in BNF
+# my attempt at an operator-precedence parser in BNF
 <parse-expression>(lhs : <ast>, min_prec: int) :=
 	<primary-expr> *((<prev-binop> & precedence(<token>) >= min_prec) <primary-expr>
 						*(<binop> & precedence(<token>) > precedence(<prev-binop>) <parse-expression>(<primary-expr>, precedence(<binop>)
@@ -92,10 +169,10 @@ $ my attempt at an operator-precedence parser in BNF
 				| <unop> <primary-expr>
 				| <literal>
 
-<call-list> := '(' <expr> *(',' <expr>) ')'
+<call-list> := '(' <expression> *(',' <expression>) ')'
 
-$ the regular way of doing operator-precedence in BNF
-$ (lower -> tighter binding)
+# the regular way of doing operator-precedence in BNF
+# (lower -> tighter binding)
 <expression> := <expr> ';'
 
 <expr> := <assignment-expr>

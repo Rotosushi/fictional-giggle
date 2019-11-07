@@ -1,0 +1,272 @@
+
+thesis,
+	so, what is the minimum viable set of features in a programming language?
+
+first,
+	what is a programming language composed of? 
+		-> state and behavior.
+
+	what does a programming language need to talk about?
+		-> itself and its environment
+
+		divide the language into four quadrants
+
+		entities
+				|state				| behavior
+----------------|---------------	|------------
+semantics		|	vars, constants	|	functions
+		itself  |					|	function call
+				|					|
+----------------|---------------	|------------
+				|	proccessor state|	OS/library functions
+	environment	|	OS state,		|
+				|	Hard				|
+
+		note:
+			the language needs to have semantics for dealing
+			with a variety of situations. some situations
+			will inevitably be unforseen. in order to react
+			to changes in the environment or requirements, the language needs
+			to provide facilities for upgrade and modification
+			directly, at all times, (a program compiled by the language,
+			does not inherit this implicitly.)
+
+			when working with the same 
+			tools all the time we approach our problems in the same
+			way each time; "when you have a hammer, every problem looks
+			like a nail.". however sometimes the solutions that were implemented
+			have become obsolete for some reason, maybe for effeciency,
+			maybe for buggyness, or maybe because requirements changed.
+			in any case modifying or replacing what already exists is always
+			a challenge. so shouldn't your tools provide you with resources
+			to make it easier?
+			
+			in the case of something like i have been describing, where
+			you have a set of language primitives, interacting according
+			to a set of rules. the hardest parts of the program
+			become the interactions between the various sets of rules
+			allowed in a program.
+
+			sometimes the abstractions
+			we use become obsolete in some way.
+
+state we will call atoms.
+
+behavior we will call functions.
+
+both (atoms + functions) we will call entities.
+
+entities have three important attributes
+	name
+	value
+	type
+
+the name is how we refer to entities in our programs
+
+the value is the encapsulated state of that entity:
+	-> for functions this is the body of the function
+	-> for atoms this is the memory associated with the name
+
+the type is the encapsulated behavior of that entity:
+	-> for functions this is the set of inputs mapped to the set of outputs
+	-> for atoms this is the set of valid operations upon itself
+
+
+we can distinguish entities by two dual pairs of category.
+
+an entity can be either primary, or composed.
+
+	a primary entity is a building block of the language.
+		a primary entity is any entity that cannot be decomposed without
+		 having to descend a level of abstraction. (i.e. the programmer doesn't
+		 worry about implementing fn '+'(a: int, b: int) -> int )
+
+	a composed entity is an entity that has been constructed out
+	of other entities. 
+
+an entity can be either concrete, or abstract.
+
+	a concrete entity is one that has been written by the language
+		implementer.
+
+	an abstract entity is one that has been written by the user of
+		the language, the programmer.
+
+at first blush it may appear that the distinction between a
+primary entity, and a concrete entity is unneccessary. however,
+the distinction does have to account for the situation of grammatic
+extension. by which means a programmer can construct a new primary entity
+that is in fact not concrete. (also in this case the programmer may very 
+well have to concern themselves with the implementation of
+fn +(a: int, b: int) -> int)
+
+so pink will be composed of four pillars
+
+1: the kernel
+the kernel of a programming language is composed
+	of it's primary concrete entities.
+
+2: the construction mechanisms
+the construction mechanisms of a programming language are the means
+	by which new entities are created. (i.e. we describe algorithms 
+	in pink using 'while' and 'if' statements, we describe new symbols
+	by declaring them and their type.)
+
+3: the abstraction mechanisms
+the abstraction mechanisms are used to describe new
+atoms and functions. by which further entities can be constructed.
+
+4: the extension mechanisms
+the extension mechanisms are the means by which the syntax or semantics
+of the language can be extended.
+
+
+1: the kernel of pink
+	q: what goes into the kernel of a programming language?
+	a: the smallest set of entities which when considered
+		interoperating with one another are capable of
+		describing the features of the language standalone. then
+		porting pink, becomes a matter of porting the kernel,
+		and everything above can be described without considering
+		the actual hardware. this is the same mentality that made 
+		c portable.
+
+	q: so what goes into the kernel of pink?
+	a: 
+	type primitives:
+		int, real, text, bool, word, [], (), *, !*, **..., !**...,
+		
+		integer, float32, uni8, bit, 32 bits, array, tuple, ptr,
+		owning ptr, ptr to ptr, owning ptr to owning ptr.
+	arithmetic primitives:
+		+, -, *, /, %, -
+		
+		add, subtract, multiply, divide, modulo, negation
+	boolean logic primitives:
+		==, !=, >, >=, <, <=, &, |, ^, !
+
+		equal to, not equal to, greater than, greater than or equal to,
+		less than, less than or equal to, and, or, xor, not.
+	bitwise primitives:
+		!!, &&, ||, ^^
+
+		not, and, or, xor
+	language primitives:
+		=, &, *, [], (), ., #, if, else if, while, do while, typeof,
+		sizeof,
+
+		assign, address of, derefrence, array access, function call,
+		member access, comment,
+
+	construction mechanisms:
+		:, ::, :=, create, destroy,
+
+		note:
+			so thats local, and module scoped variables and constants,
+			 and dynamic allocation functions. pink will also need to
+			 be able to describe globals and thread local storage.
+			 pink will also be able to utilize multiple allocation
+			 strategies. pink will additionally need fixed point types
+			 (u8/16/32/64/x, s8/16/32/64), in order to support
+			 8 bit, 16 bit, 32 bit, and 64 bit machine word sizes.
+			 Named address spaces (corresponding to different memory spaces
+			 in the machine) to support varied memory architechtures.
+			 pink will also need to support direct hardware access.
+
+			it is my opinion that having direct access to the language via macros
+			 will allow library and language designers the ability to
+			 create better abstractions for describing hardware interface,
+			 program structure, and program execution. it will also allow
+			 the language to better support exotic features without having
+			 to bloat everyones experience with the language, don't use
+			 a feature? the language won't even try to parse for it.
+
+
+	abstraction mechanisms:
+		defn, deftype,
+
+		defining a new function, defining a new type,
+
+		pink will have polymorphic functions and types. as well
+		as function overloading. reflection will also be a part of pink.
+
+		
+
+		note: 
+			I feel that a static typing system makes development easier,
+			by eliminating entire classes of bug from occuring before
+			the program even compiles and by giving you an explicit list
+			of errors that serves as vital debugging information.
+			algebraic data types seem like
+			the most natural way of describing the sum and product types,
+			which when considered with pointers, are the basis of every data
+			structure that I know of.
+			and with the addition of optional typing
+			gives a uniform way of describing the error case with a nil value,
+			for functions whose return type is primitive or a ptr. this can be
+			the hinge by which implicit boolean operations work. 
+			instead of the c like, zero is false every other value is true.
+
+			aside:
+				what if we use this to remove any syntactic notion of a ptr.
+				(but don't remove the ptr semantics)???
+
+				if we use the '.' operator for both regular member access
+				and pointer member access (instead of c's use of the '->')
+
+				and we check ptr == nil instead of ptr == nullptr
+				and we check var == nil instead of var == 0
+
+				so you could then write
+					value == nil 
+				and not really consider if the name is dynamic memory
+				or static memory, but the boolean check would work either
+				way.
+
+				how useful would this be? does this clean the syntax
+				and make it more legible? does it make it less legible?
+
+
+	extension mechanisms:
+		macro,
+
+		defining a new primitive entity by some rules dictated in the
+		grammar defining macros. sometimes a feature requires
+		a lot of low level access to work properly. sometimes new abstractions
+		need to be built in order to talk about new entities. this is seen with
+		threads, this is seen with interrupts, and this is seen with exceptions.
+		(additionally; exotic primary types, exotic memory layouts, direct
+		 interaction with the hardware of a system,)
+		these places are where the language needs to be extended in order to add
+		or modify features of it. in order to facillitate these extensions
+		addition to the language, the language will itself be able to be extended.
+		from within the language itself.
+
+		
+		the language that pink is written in will be reffered to 
+		as pink prime (or pink') pink will be a compiler written by specification.
+		and that specification is what will be extended in order to fully implement
+		a macro. pink' will be a LL(1) parser generator (in it's first iteration)
+		capable of reading in an attribute grammar style specification language.
+		this specification language will essentially be a DSL for creating
+		LL(1) compilers. it may also be that programmers could specify a file
+		containing a grammar extension.
+
+2: the construction mechanisms
+the construction mechanisms are used to create instances of
+entities in the programming language. they are the primary entities
+which describe local variables, the control the flow of functions. 
+this is where the programmer interacts with dynamic memory,
+where they call OS operations, and where they interact with the hardware.
+
+3: the abstraction mechanisms
+the abstraction mechanisms are used to describe new entities in
+a programming language. these are the primary entities which are used to
+declare new functions and atoms.
+
+4: the extension mechanisms
+the extension mechanisms of a language are the means by which a programmer
+can specify a new syntactic or semantic entity. 
+
+
+

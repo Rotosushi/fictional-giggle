@@ -17,7 +17,7 @@ _token _lexer::gettok()
 		return T_EOF;
 	}
 
-	if (c == '$') { // one line comments
+	if (c == '#') { // one line comments
 		while (c != '\n' && c != '\r' && c != EOF)
 			c = _getchar();
 	}

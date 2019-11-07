@@ -8,6 +8,8 @@ _module* _parser::parse_module()
 {
 	auto top = new _module;
 
+	init_module_with_kernel(*top);
+
 	sync(1); // prime our input. (nexttok() will advance one token too far)
 
 	/* <module> := (<module-level-declaration>)* EOF */
@@ -241,12 +243,12 @@ void _parser::parse_module_declaration(_module& mdl)
 		*/
 		
 		try {
-			mdl.variables.at(vardecl->lhs.id);
+			mdl.variable_table.at(vardecl->lhs.id);
 		}
 		catch (...) {
 			threw = true;
 		}
-		if (threw) mdl.variables[vardecl->lhs.id] = *vardecl;
+		if (threw) mdl.variable_table[vardecl->lhs.id] = *vardecl;
 		else throw _parser_error(__FILE__, __LINE__, "variable already defined: ", vardecl->lhs.id);
 
 		break;
@@ -254,13 +256,13 @@ void _parser::parse_module_declaration(_module& mdl)
 		fndecl = new _fn;
 		parse_function_declaration(*fndecl);
 		try {
-			mdl.functions.at(fndecl->id);
+			mdl.function_table.at(fndecl->id);
 		}
 		catch (...) {
 			threw = true;
 		}
 
-		if (threw) mdl.functions[fndecl->id] = *fndecl;
+		if (threw) mdl.function_table[fndecl->id] = *fndecl;
 		else throw _parser_error(__FILE__, __LINE__, "function already defined: ", fndecl->id);
 		
 		break;
@@ -385,7 +387,7 @@ void _parser::parse_function_type(_fn& fn)
 	nexttok();
 
 	if (curtok() == T_LPAREN)
-		parse_return_list(fn.return_list);
+		parse_return_value(fn.return_value);
 }
 
 void _parser::parse_function_body(_fn& fn)
@@ -438,23 +440,15 @@ void _parser::parse_arg(_arg& arg)
 	}
 }
 
-void _parser::parse_return_list(vector<_arg>& rargs)
+void _parser::parse_return_value(_var& var)
 {
-	//<return-list> :='(' (<type> (',' <type>)*)? ')'
+	//<return-list> :='(' <type> ')'
 	
 	if (curtok() != T_LPAREN) throw _parser_error(__FILE__, __LINE__, "invalid return list, missing '(', instead got: ", curtok());
 	nexttok(); // eat '('
 
-	_arg rarg;
-
 	if (curtok() != T_RPAREN) {
-		parse_type(rarg); // eat <type-specifier>
-		rargs.push_back(rarg);
-		while (curtok() == T_COMMA) {
-			nexttok(); // eat ','
-			parse_type(rarg);
-			rargs.push_back(rarg);
-		}
+		parse_type(var); // eat <type-specifier>
 	}
 
 	if (curtok() != T_RPAREN) throw _parser_error(__FILE__, __LINE__, "invalid return list, missing ')', instead got: ", curtok());
@@ -463,13 +457,20 @@ void _parser::parse_return_list(vector<_arg>& rargs)
 
 void _parser::parse_expression(_expr& expr)
 {
-	auto expr = new _expr;
+	expr.expr = _parse_expression(_parse_primary_expr(), 0);
+
+	/*
+	10/31/2019: comma separated expressions are hard to parse,
+		and will not be used in v1, their primary reason
+		for existence is tuples, and tuples aren't until v2.
 	expr.expr_list.push_back(_parse_expression(_parse_primary_expr(), 0));
 	
 	while (curtok() == T_COMMA) {
 		nexttok();
 		expr.expr_list.push_back(_parse_expression(_parse_primary_expr(), 0));
 	}
+	
+	*/
 }
 
 _ast* _parser::_parse_expression(_ast* lhs, int min_prec)
@@ -520,13 +521,21 @@ _ast* _parser::_parse_primary_expr()
 	_unop* unop;
 	string literal;
 	switch (curtok()) {
-	case T_ID: // variable name
-		var = new _var;
-		var->id = curtext();
-		nexttok(); // eat <id>
-		while (is_postop(curtok()))
-			var->postops.push_back(_parse_postop());
-		return var;
+	case T_ID: { // variable name
+		auto id = curtext();
+		nexttok();
+		if (is_postop(curtok())) {
+			auto fcall = _parse_function_call();
+			fcall->id = id;
+			if (is_postop(curtok())) throw _parser_error(__FILE__, __LINE__, "function chaining isn't supported in v1.");
+			return fcall;
+		}
+		else {
+			auto var = new _var;
+			var->id = id;
+			return var;
+		}
+	}
 	case T_LPAREN: // sub-expression
 		nexttok(); // eat '('
 
@@ -614,7 +623,7 @@ void _parser::parse_carg(_arg& carg)
 	carg.type_expression = _parse_expression(_parse_primary_expr(), 0);
 }
 
-void _parser::parse_conditional(_if& conditional)
+void _parser::parse_if(_if& conditional)
 {
 	/*
 	<conditional>  := 'if' '(' (<expr>)? ')' <statement>
@@ -636,7 +645,7 @@ void _parser::parse_conditional(_if& conditional)
 	else  throw _parser_error(__FILE__, __LINE__, "invalid if, expected 'if', instead got: ", curtok());
 }
 
-void _parser::parse_iteration(_while& loop)
+void _parser::parse_while(_while& loop)
 {
 	if (curtok() == T_WHILE) {
 		nexttok();
@@ -659,12 +668,12 @@ _ast* _parser::parse_statement()
 	}
 	else if (curtok() == T_IF) {
 		auto cond = new _if;
-		parse_conditional(*cond);
+		parse_if(*cond);
 		return cond;
 	}
 	else if (curtok() == T_WHILE) {
 		auto loop = new _while;
-		parse_iteration(*loop);
+		parse_while(*loop);
 		return loop;
 	}
 	else if (curtok() == T_RETURN) {
@@ -706,7 +715,7 @@ void _parser::parse_type(_vardecl& decl)
 		decl.lhs.type = _INT;
 		break;
 	case T_FLOAT:
-		decl.lhs.type = _FLOAT;
+		decl.lhs.type = _REAL;
 		break;
 	case T_TEXT:
 		decl.lhs.type = _TEXT;
@@ -719,6 +728,10 @@ void _parser::parse_type(_vardecl& decl)
 	nexttok();
 }
 
+void _parser::parse_type(_var& var)
+{
+}
+
 void _parser::parse_type(_arg& arg)
 {
 	switch (curtok()) {
@@ -726,7 +739,7 @@ void _parser::parse_type(_arg& arg)
 		arg.type = _INT;
 		break;
 	case T_FLOAT:
-		arg.type = _FLOAT;
+		arg.type = _REAL;
 		break;
 	case T_TEXT:
 		arg.type = _TEXT;
@@ -748,7 +761,6 @@ void _parser::parse_scope(_scope& body)
 	nexttok();
 
 	_vardecl* d = nullptr;
-	_expr* e = nullptr;
 	_ast* s = nullptr;
 	int n = 0, m = 0;
 
@@ -756,7 +768,7 @@ void _parser::parse_scope(_scope& body)
 		if (speculate_declaration()) {
 			d = new _vardecl;
 			parse_variable_declaration(*d);
-			define(body, *d);
+			body.variable_table[d->lhs.id] = *d;
 			n++;
 		}
 		else {

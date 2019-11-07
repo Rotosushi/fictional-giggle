@@ -1,0 +1,63 @@
+
+
+the language that programs are written in will have a fairly
+standard feature list (initially). the unique feature will be its open-ended
+design. that is, the implementation of the language will
+be such that new features and grammatic constructs can be
+added to the language, including the ability to write those
+constructs directly in the language.
+
+this is different from a library, in the sense that a library
+implements project or program specific behavior. whereas things
+that get implemented in the specification will change the 
+base behavior of the compiler itself, by adding or building
+on new features. 
+
+(this also means that the language can be built by specification,
+	which has implications that I probably can't imagine,
+	having never worked with something like that.)
+
+this introduces a spectrum of code to the language, with
+each portion having a different set of assumptions; and a
+sort of trajectory from "*this* was usefull in this one project" to
+"hey *this* can be applied *here*, maybe i can apply it *elsewhere*"
+to finally, "wow i can't imagine programming without *this* in the
+	language."
+
+updating the language that subsequently writes programs is 
+as simple as updating a text file (or folder of text files)
+
+we have the kernal of the language
+	then we have abstractions
+
+
+to be explicit the language will be broken in two.
+
+implementation -> pink prime (pink')
+programmatic   -> pink
+
+the implementation will be a fairly naieve LL(1) parser
+generator in the vein of CDL(1|2) or Bison/Yacc. this language
+will understand how to produce a compiler from a specification
+file. the specification language will be expressive enough
+to build simple programming constructs like functions and
+variables as well as complex programming constructs like polymorphism,
+higher-order functions, lazy evaluation, and algebraic datatypes
+(my instinct is that an attribute grammar, 
+along with the comprehension rules of CDL1/2 
+together will be powerfull enough to express the aforementioned features)
+then this language will be used to specify pink.
+
+why two languages? well, it is my guess, that once both are
+in place, a macro facility like in
+lisp will be achievable in the subsequent LL(1) parsable language. given
+that the language can be then be extended by both language maintainers,
+and by programmers using the language, using well understood concepts 
+available in the language, is the true goal. 
+the hope is then that in order to add a new 
+feature, the compiler or the compiler prime would be able to tell you
+every point of friction between this new feature and the existing language,
+explicitly, by nature of how you add features to the language being a language
+itself.
+
+

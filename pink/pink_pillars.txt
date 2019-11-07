@@ -1,0 +1,259 @@
+
+prefix: or setting up some language
+
+	if we keep with the lines drawn in the language
+	by CDL, the language is composed of two things,
+	functions and atoms (which is
+	simply an object considered together with its type;
+	CDL explicitly refers to is as 'an object with it's type',
+	and functions they call algorithms, but it's 2019, and that language
+	is not how we talk about programs now.)
+
+	functions and atoms have three important attributes
+		name
+		value
+		type
+
+	the name is how we refer to any given entity in the text of
+	our program.
+
+	the value is the encapsulated state of the entity
+		-> this can be as simple as an integer, to something
+		more complex like an array of pairs, or any given
+		state that a given type would be associated with.
+
+	the type is the encapsulated behavior of the entity
+		-> this is the body of a function, or the set of
+			operations valid on an instance of that type.
+
+in other words; the type holds the set of valid internal representations (value)
+	for an instance of that type, and the set of valid operations on that type.
+
+	functions and atoms together we call entities.
+
+	an entity can be either
+	primary, or
+	composed
+	
+	we call an entity 'primary' if, given the syntax, semantics, 
+	and current level of abstraction, the entity cannot be sensibly
+	decomposed into other entities. in example 'int', the addition
+	of two integers requires descending a level of abstraction and
+	considering the assembly instructions required, this is clearly
+	something that a programmer in a systems language does not
+	want to concern themselves with, hence all programming languages
+	(above assembly) have an abstraction which denotes the addition
+	of two integers, and the programmer can concern themselves with
+	the interoperation of language components.
+	
+	a composed entity is anything that could further be decomposed into
+	composed or primary entities. i.e: an algebraic data type, an array,
+	a stream object, 
+	
+an entity can further be categorized as
+	concrete
+	abstract
+	
+	a concrete entity is one that is provided by the language itself,
+	it's primary data-types, it's primary functions (like c's for and while loops, etc...)
+	
+	an abstract entity is one that has been defined by the programmer
+
+it follows from this that most primary entities are also concrete.
+	
+given these four ways of categorizing entities in the language, we can then
+define common mechanisms in programming languages.	
+	
+1: the kernel
+the kernel of a programming language is composed of it's
+	primary concrete algorithms (=, +, etc..)
+	primary concrete types (int, float, etc..)
+	primary concrete objects (int, arrays, pointers, etc..)
+	
+2: construction mechanisms
+programming languages usually provide construction mechanisms in order
+to define and use entities in the language
+
+	for functions there are control structures 
+	such as 'if' and 'while', as well as 
+	function call notation.
+
+	for atoms there are data structures, as well as 
+	the associated value constructors.
+	
+3: abstraction mechanisms
+programming languages generally provide abstraction
+mechanisms to build new primary entities 
+	declarations for functions (functions, procedures, operators, etc..)
+	declarations for objects (variables, constants, arrays, etc..)
+	declarations for types (abstract data types)
+
+4:
+programming languages sometimes provide extension mechanisms, by which
+a programmer can extend the semantics or syntax of the language by means 
+of some entity(ies) in the language. (this is accomplished in lisp, and some lisp variants using macros) 
+
+all entities in a programming language can be categorized thusly
+
+			|	primary (an entity that cannot be decomposed			|	composed (an entity formed of primary and
+							at the current level of abstraction)		|				composed entities)
+------------|-----------------------								----|------------------------
+			|	functions:				| atoms:						|	function:				| atoms:
+concrete	|	=, +, *, cmpxch,		|	int, real, text,			|	  push, pop, peek,		|   stack, queue, list
+ provided	|	typeof, sizeof, [],		|	predefined constants		|	  prepend, append,		|   map, set, file,
+ by the		|	if, while, print		|	[], *, !*,					|	  open, seek, fork,		|   socket, thread,
+ language	|							|								|
+------------|-----------------------								----|-------------------------
+			|	functions:				| atoms:						|	function:				| atoms:
+abstract	|	macro, fcall,			|	local & global vars,		|	fn,						| type,
+ written	|	 						|								| 
+ by the		|							|	local and global consts		|
+ programmer	|							|								|
+
+
+so, with some definitions out of the way, typically a programming language
+	is designed with a problem domain in mind. (and/or: abstraction layer)
+	in order to better design pink's feature set I and going to examine c's.
+	
+	c was designed to create computer systems,
+	so it exists as a simple stack based language
+	that interacts directly with the hardware. given its low level duties 
+	it's kernel is correspondingly low level, its primary data types are
+	(generally) the primary data types of the underlying assembly, and it's
+	relatively simple and small definition make it not too much of an undertaking
+	to port to a new hardware, given the fact that the collection of features
+	that c brings to the table is generally enough to write a complete OS
+	(I say this thinking about Unix and currently Linux, where they are written
+	in c that is relatively unchanged since it's inception. very recently (2018)
+	c has gotten some much needed quality of life improvements, but these 
+	features are likely to be implemented fully around the time I finish pink
+	v1)
+	all of these facts made c a very attractive	language whilst computers 
+	were still entering the collective conciousness.
+	c retains a lot of is current popularity as a result of its initial success,
+	its solidly designed kernel, and the fact that the work of porting it
+	to nearly every hardware platform in existance has already been done.
+	c also has a lot of design mistakes that make creating and managing large
+	projects difficult. it also has portions of the design which interact
+	in hard to conceptualize ways that have created some notoriously hard
+	to debug programs. and more recently c has become a 'lingua franca' of
+	computer languages, where many programming languages which operate
+	at higher levels of abstraction away from the hardware than c; are using
+	c to communicate with one another.
+
+	the good parts:
+		w.1: most of the kernel of the language
+		w.2: the static type system
+		w.3: the stack based scoping rules
+		w.4: expressions
+
+	the bad parts:
+		m.1: the textual preprocessor
+		m.2: the header-file/source-file split
+
+	the parts which need work:
+		q.1: pointers
+		q.2: dynamic memory system
+		q.3: composite types
+		q.4: enums and switches
+
+	the parts to look into more deeply:
+		y.1: type coercion, casting
+		y.2: recursion
+
+
+	w.1: 
+		most of the kernel of the language is good, the primitive types
+		map naturally to a large amount of hardware in use today.
+		if statements and the if-else if-else chain is convient 
+		to express grammatically and a good control structure for 
+		implementing functions. while loops are also a good abstraction, 
+		giving access to both bounded and unbounded iteration.
+		the switch statement is syntactic sugar,
+		the for loop is syntactic sugar
+
+
+	w.2: the static type system is good, and I think is 100% neccessary
+		 for a systems level programming language. I think the syntax that
+		 the programmer uses to express the type of something is a bit
+		 clumsy in hindsight.
+
+	w.3: the stack based language part of c is I feel a good abstraction.
+		 it gives functions a natural expression, and requires very little
+		 runtime overhead to implement (the c runtime is famously small).
+		 making it ideal for small systems, 
+		 this is an advantage over a managed language in the systems 
+		 layer of abstraction.
+
+	w.4: 
+		expressions, or infix functions. in the opposing syntax,
+		function calls achieve an order of operations via the
+		evaluation of their parameters prior to making the actual
+		jump. hence, the parameters to a function must fully resolve
+		to the type of the formal parameter before we can actually execute
+		the function.
+
+	m.1:
+		the textual preprocessor was a clever solution to a few problems,
+	namespaces, conditional compilation, and macros. 
+	building a large program requires more than a single
+	person and by it's nature working apart to write interoperable code
+	is a monumental task,
+	 a lot of solutions have been tried to solve the problems of interoperability
+	 for the sake of the length of this document, suffice it to say that
+	this approach doesn't work well, it works, just not well and not for long term use.
+	, The silent failure of the
+	textual macro system can make debugging a nightmare, and finnaly 
+
+	The design goals are in the right place however,
+
+	programmers need some way of enforcing which
+	symbols get exported from and imported to any given module, both to 
+	facillitate code reuse and to give a finer grained control over the namespace
+	of the current module. 
+
+	programmers also need control over which code gets compiled given some
+	external constraints as well, this can be due to hardware differences
+	or to versioning, or some other constraint, but is usefull too.
+
+	the last use-case that I know about for the textual preprocessor
+	is macros. the problem with macros mainly stems from the
+	fact that the textual macro is implemented as textual substitution,
+	hence is untyped, and cannot be type checked. this combined with some of the
+	implicit-cast rules has created some very hard to catch bugs.
+
+	m.2: 
+		the header-file/source file split is the other half to c's solution
+	to namespaces, namely the syntactic element of the language which
+	specifies the namespace of a given file in c, has to be specified in 
+	a separate file denoted the header file.
+	this means that at a bare minimum an exported functions type definition
+	needs to be typed out twice, it needs to be changed in two locations
+	if you want to change it at all, and two files need to be updated
+	which is twice the operation length, for which other tools need to be
+	created to ease the use like intellisense.
+	the repition of header files increases the viscosity of the program, making
+	matinence and upgrading harder and more tedious.
+
+	q.1:
+		pointers are a good abstraction, giving the language a way to
+	express dynamic entities, as well as a way of interfacing
+	directly with the hardware running the language. the syntax and
+	semantics surrounding pointers needs updating however.
+
+	q.2:
+		the dynamic memory system of c is fine, but it's interface in the language
+	is very barebones. this is intended, as the language was designed to be
+	a single abstraction layer above the hardware. however this barebones implementation
+	leaves the task of maintaining pointer validity is left up to the programmer,
+	this is a problem domain which can be solved at the language level, and should be.
+	there are two important abstractions that this system relies on for
+	successfull interoperation with the rest of the language; the void*
+	and the heap. first off, dynamic memory is a very difficult abstraction
+	for new programmers. it's correct use relies on being intimately
+	familiar with the control flow of your program, and of the current state
+	of your program. it becomes especially difficult when you take into
+	consideration the interoperation between components that know nothing
+	of eachother, acting asychronously, and working upon the same memory.
+	there becomes combinatorially more elements to hold in ones head, 
+	which increases the likelyhood of errors. 

@@ -41,31 +41,42 @@ typedef struct _ast {
 
 } _ast;
 
+typedef struct _expr : public _ast {
+	_type type;
+	_ast* expr;
+	//vector <_ast*> expr_list;
+
+	_expr() : _ast(AST_EXPR), expr() {}
+} _expr;
+
 typedef struct _var : public _ast {
 	string id;
 	_type type;
-	vector<_ast*> postops;
+	_ast* type_expression;
 
-	_var() : _ast(AST_VAR), id(), type(), postops() {}
+	_var() : _ast(AST_VAR), id(), type() {}
 } _var;
+
+_var* create_var(string id, _type type = _NIL, _ast* type_expression = nullptr);
 
 typedef struct _vardecl : public _ast {
 	_var lhs;
 	_token op;
-	_expr init;
+	_ast* init;
 
 	_vardecl() : _ast(AST_VARDECL), lhs(), op(), init() {}
 } _vardecl;
 
+_vardecl* create_vardecl(_var lhs, _token op, _ast* init = nullptr);
+
 typedef struct _scope : public _ast {
-	map <string, _vardecl> variables;
+	map <string, _vardecl> variable_table;
 	vector <_ast*> statements;
 
-	_scope() : _ast(AST_SCOPE), variables(), statements() {}
+	_scope() : _ast(AST_SCOPE), variable_table(), statements() {}
 } _scope;
 
-_vardecl& resolve(_scope& scope, string id);
-void define(_scope& scope, _vardecl& decl);
+_scope* create_scope(vector<_vardecl> variables, vector<_ast*> statements);
 
 typedef struct _arg : public _ast {
 	string id;
@@ -75,14 +86,18 @@ typedef struct _arg : public _ast {
 	_arg() : _ast(AST_ARG), id(), type(), type_expression() {}
 } _arg;
 
+_arg* create_arg(string id, _type type, _ast* type_expression = nullptr);
+
 typedef struct _fn : public _ast {
 	string id;
 	vector<_arg> argument_list;
-	vector<_arg> return_list;
+	_var return_value;
 	_scope body;
 
-	_fn() : _ast(AST_FN), id(), argument_list(), return_list(), body(){}
+	_fn() : _ast(AST_FN), id(), argument_list(), return_value(), body(){}
 } _fn;
+
+_fn* create_fn(string id, vector<_arg> argument_list, _var return_value, _scope body);
 
 typedef struct _if : public _ast {
 	_ast* cond;
@@ -92,6 +107,8 @@ typedef struct _if : public _ast {
 	_if() : _ast(AST_IF), cond(nullptr), then(nullptr), els(nullptr) {}
 } _if;
 
+_if* create_if(_ast* cond = nullptr, _ast* then = nullptr, _ast* els = nullptr);
+
 typedef struct _while : public _ast {
 	_ast* cond;
 	_ast* body;
@@ -100,56 +117,66 @@ typedef struct _while : public _ast {
 	_while() : _ast(AST_WHILE), cond(nullptr), body(nullptr), els(nullptr) {}
 } _while;
 
-typedef struct _expr : public _ast {
-	vector <_ast*> expr_list;
+_while* create_while(_ast* cond = nullptr, _ast* then = nullptr, _ast* els = nullptr);
 
-	_expr() : _ast(AST_EXPR), expr_list() {}
-} _expr;
 
 typedef struct _binop : public _ast {
+	_type type;
 	_token op;
 	_ast* lhs;
 	_ast* rhs;
 
-	_binop() : _ast(AST_BINOP), op(T_ERR), lhs(nullptr), rhs(nullptr) {}
-	_binop(_token o, _ast* l, _ast* r) : _ast(AST_BINOP) {
+	_binop() : _ast(AST_BINOP), type(_DEDUCE), op(T_ERR), lhs(nullptr), rhs(nullptr) {}
+	_binop(_token o, _ast* l, _ast* r) : _ast(AST_BINOP), type(_DEDUCE) {
 		op = o;
 		lhs = l;
 		rhs = r;
 	}
 } _binop;
 
+_binop* create_binop(_type type, _token op, _ast* lhs, _ast* rhs);
+
 typedef struct _unop : public _ast {
+	_type type;
 	_token op;
 	_ast* rhs;
 
 	_unop() : _ast(AST_UNOP), op(), rhs(nullptr) {}
 } _unop;
 
+_unop* create_unop(_type type, _token op, _ast* rhs);
+
 typedef struct _return : public _ast {
-	_expr expr;
+	_type type;
+	_ast* expr;
 
 	_return() : _ast(AST_RETURN), expr() {}
 } _return;
 
+_return* create_return(_type type, _ast* expr);
+
 typedef struct _fcall : public _ast {
+	string id;
 	vector<_arg> argument_list;
+	_var return_value;
 
 	_fcall() : _ast(AST_FCALL), argument_list() {}
 } _fcall;
+
+_fcall* create_fcall(string id, vector<_arg> argument_list, _var return_value);
 
 typedef struct _module : public _ast {
 	string id;
 	vector <string> import_list;
 	vector <string> export_list;
 	string root;
-	map<string, _fn> functions;
-	map<string, _vardecl> variables;
+	map<string, vector<_fn>> function_table;
+	map<string, _vardecl> variable_table;
 
-	_module() : _ast(AST_MODULE), id(), import_list(), export_list(), root(), functions(), variables(){}
+	_module() : _ast(AST_MODULE), id(), import_list(), export_list(), root(), function_table(), variable_table(){}
 } _module;
 
-
+void init_module_with_kernel(_module& m);
 
 typedef struct _int : public _ast {
 	int value;

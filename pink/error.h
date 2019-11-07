@@ -13,8 +13,23 @@ public:
 
 	_error() : contents() {}
 	_error(string s) : contents(s) {}
-private:
+protected:
 	string contents;
+};
+
+class _semantic_error : public _error {
+public:
+	virtual const char* what() { return contents.c_str(); }
+
+	_semantic_error(const char* file, int linenum, string s) : _error() {
+		contents = "semantic error: \n \
+					\tthrown from file: ";
+		contents += file;
+		contents += " line: ";
+		contents += to_string(linenum);
+		contents += " \n\t";
+		contents += s;
+	}
 };
 
 class _parser_error : public _error {

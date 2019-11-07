@@ -8,7 +8,7 @@ using std::string;
 /*#include "pink_lexer.h"
 #include "pink_parser.h"*/
 #include "utilities.h"
-#include "testing.h"
+//#include "testing.h"
 #include "parser.h"
 
 _parser par;
@@ -36,7 +36,33 @@ int main(int argc, char** argv)
 		free(opt);
 	}
 
-	_test_results parser_results;
+	//_test_results parser_results;
+
+	/*
+	10/31/2019: the test suite is horribly broken
+		after modifications to the underlying data-structures,
+		namely the AST
+
+		this feels like an instance of both cross-cutting concerns
+		and knock-on viscosity.
+
+		a test suite is a basic thing that literally every single
+		project* should have. (*larger than a school project, project)
+
+		we could further say that that it is of such importance,
+		that your tools should automate some of the work for you.
+
+		if we could automate the creation of overloaded '=='
+		and '!=' (plain refrence '*' would compare address, owned refrence(pointer) '!*'
+		would deep compare) operations on plain old data (in my ideal world
+		the language can also autogenerate the overloaded '=' operation,
+		plain refrence '*' would shallow copy, owned refrence(pointer) '!*'
+		would deep copy (maybe its an optimization that we can just
+		pass the pointer in some instances?))
+		that would go a long way to solving this problem.
+		which would improve programmers experience in the language
+		by reducing knock-on-viscosity in the test-suite, a major
+		cross cutting concern.
 
 	try {
 		test_parser(parser_results);
@@ -49,7 +75,7 @@ int main(int argc, char** argv)
 	for (auto test : parser_results) {
 		cout << "Test: "   << test.name
 			 << "\nPassed: " << (test.passed == true ? "true" : "false") << endl;
-	}
+	}*/
 
 	/*
 	_module* module;

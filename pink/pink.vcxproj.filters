@@ -39,6 +39,9 @@
     <ClCompile Include="ast.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="type.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="pink_examples.txt">
@@ -86,6 +89,15 @@
     <Text Include="implementation-grammar.txt">
       <Filter>Resource Files</Filter>
     </Text>
+    <Text Include="design-thoughts.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="pink_pillars.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="pink-feature-set.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pink_type.h">
@@ -116,6 +128,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="testing.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="attributes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

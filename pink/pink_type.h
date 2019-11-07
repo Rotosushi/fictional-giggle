@@ -4,7 +4,7 @@ enum _type {
 	_NONE,
 	_MAYBE,
 	_INT,
-	_FLOAT,
+	_REAL,
 	_STRING,
 	_BOOL,
 	_VAR,
