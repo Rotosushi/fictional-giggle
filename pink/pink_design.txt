@@ -6,14 +6,14 @@ pink is a language whose job is to allow programmers to easily
 	easily manipulate data around the machine efficiently.
 
 I think the best way to accomplish this is with an imperitive language,
-that makes a functional style the easiest to express.
+that makes a style based around functions the easiest to express.
+(TL;DR prefer f(x) to x.f())
 
 this means a few things:
 	- algebraic data types
 	- statically typed
 	- pass-by-value semantics
 	- make mutation the exception not the rule
-
 
 - a small yet expressive language, built for readability, ergonomics
 - and easy parsing.
@@ -26,34 +26,35 @@ this means a few things:
 	working together to express programming ideas ergonomically. The goal 
 	is to have a clear (read: unambiguous), 
 	concise(read: just enough characters to communicate, but not so many
-	 that it becomes a chore to write and mentally parse. see: c++ templates),
+	 that it becomes a chore to write and mentally parse. see: c++ templates as an example of 'chore to mentally parse'),
 	 and highly expressive language; 
 
 - Dimensions of the language
 	- Expressivity
 		the language should enable programmers solve their problems, rather
 		than solve the riddle of how to express what they want to say in the
-		language.
+		language. "stop telling me what you are going to say, and just say it."
 
 		Programmers fluent in the language should be able to easily read what
 		one another are saying and doing in their code. 
 		common abstractions should have a common form
 		common tasks should have a common form
-		it should be easy to say what is easy to do 
+		it should be easy to say what is easy to do
 
 	- Security
 		The language doesn't exist in a vacuum, a robust, expressive language
 		should be aware of the security concerns of a modern language. C is 
 		exploitable because it is hard to write hardened code,  More complex languages
 		are exploitable because their own operation is hard to understand, and
-		it is easy to exploit interoperations between disperate programs.
+		security is hard because it is easy to exploit interoperations
+		between disperate programs.
 
 	- Performance
 		writing code that utilizes its resources effectively is difficult. writing
 		interoperating abstractions that can utilize shared resources is difficult.
 		performance modeling should be easy to do, and require minimal cognitive
 		overhead. the shape of performance modeling is uniform in the time axis, 
-		and on the space axis.
+		and on the space axis, so the language should have niceties.
 
 	- Maintainability
 		Code that is written today, may be talking to code that is written 20
@@ -150,6 +151,7 @@ synopsis
 unevenness 
 	some creation paths are easier than others, 
 	which bias the expressed ideas in a developed artifact.
+	
 
 
 TLDR:
@@ -186,18 +188,20 @@ Why make a new programming language?
 	how about:
 		There is a ton of unneccessary complexity in modern day languages
 		c is in its verbosity (This is a result of being a small lang,
-			which is addmittedly a plus), pitfalls, and age.
+			which is addmittedly also a plus), security/memory pitfalls, and age.
 		c++ fails in its verbosity (partly inherited, mostly added),
-			semantic overhead, and its plethora of features
+			semantic overhead, and its plethora of features (there's just too many!
+			i don't know what the right amount is, but c++ has too many.)
 		Dynamicly Typed and Garbage Collected languages fail
-			in the computational overhead of garbage collection is unnaceptable
+			the computational overhead of garbage collection is unnaceptable
 			in low level code and embedded code, especially so in RTOS situations.
 			so a systems language should not force one upon you. (however,
 			in some cases you may want one, so maybe some grammars can be
-			garbage collected.a)
-			the mental overhead of duck typing.
+			garbage collected, maybe you can write in a garbage collected dialect.)
+			and the mental/debugging overhead of duck typing.
 
-		what if there was a language that
+		what if there was a language that:
+			---
 
 If these are the problems, then how is this language a solution?
 	what are the design goals of pink?
@@ -210,29 +214,30 @@ If these are the problems, then how is this language a solution?
 		2) The syntax of the language should make it easy to say what is easy to do.
 			Taking a page out of the python school of thought, the language should be designed for
 			_humans_ and not the computer. The syntax should help the programmer to understand what is happening
-			not obfuscate even the simplest of ideas (looking at you c++ templates)
+			not obfuscate the ideas (looking at you c++ templates)
 
 		3) The syntax and the semantics of the language should help the programmer build
 			the necessary abstractions for small and large programs in a way that is 
 			computationally effecient for the machine, and cognitively efficient for the programmer.
 
 		4) The language should help you with the hardest of problems! 
-		~Multithreading & Parrellelism.
-			These are the source of many eisen-bugs, and can be difficult to use
-			correctly. This will be built into the language.
-		~Dynamic Memory management~.
-			This is a major sticking point of the language, C did it 80% correctly, but the 20% they didn't do
-			bit new programmers so much they wanted to do away with the problem entirely.
-			garbage collection is too much of a perfomance hit to be acceptable being
-			the only way the language handles dynamic memory.
+		~Multithreading & Parrellelism~
+			
+		~Dynamic Memory management~
+			
 		~Hardware interface~
-			What major language gives you an easy way to inject native assembly into your program?
-			c, c++, do have ways of interfacing. However asm("") is clumsy for multiline statements,
-			and for things like timing and delays. What about nice interfaces around
-			hardware devices like SPI, or USB? this is basically non-existant. C and Linux are the
-			best about this but its up to the hardware vendor.
-		~Interlanguage Interface~
-			Should be able to talk to C 
+
+		~Cross Compilation~
+			
+		~Interlanguage Interface~ 
+
+		~Debugging~
+
+		~Testing~
+
+		~Maintinence~
+
+		
 
 
 %% Thoughts on things
@@ -245,22 +250,13 @@ If these are the problems, then how is this language a solution?
 	'|' and '||', and '^' and '^^' ((also yes, this does change '!=' to
 	'!!=')))
 
--- this logical consistency lowers the learning curve, because there
-	are less caveats to remember. This lessens cognitive burden and
-	allows programmers to think about their problem, rather then how 
-	to speak the language. the small feature set should make lisp 
-	stype macros easier to do. Lisp style
-	macros in an imperitive language is a design space that I
-	would like to explore. Additional space includes state machine 
-	encoding, and to self modifying code. 
-
 -- Type Constructors
 	<type-name> '(' <argument-list> ')'
 
 	type construction seems like a necessary language feature.
 	c doesn't have this, and so requires seperate intitialization
 	functions for more complex types. and in my opinion this makes
-	for an awkward interface. 
+	for an awkward interface. every type is constructed in some way.
 
 	var : my_struct;
 	init_my_struct(var, ...);
@@ -276,10 +272,8 @@ If these are the problems, then how is this language a solution?
 	of ensuring that types are valid after declaring them.
 	dynamic memory allocation should not occur by default. 
 	The default constructor should allocate
-	space on the stack frame of the current function. just like
-	c, the semantic rules around static variables should remain 
-	largely consistent with c. while the dynamic memory assumptions
-	will change somewhat.
+	space on the stack frame of the current function.the semantic rules around static variables should remain 
+	largely consistent with c. 
 	
 
 -- initializer lists for structs
@@ -388,13 +382,35 @@ If these are the problems, then how is this language a solution?
 	{
 		variable := "smelly";
 		{
-			variable := "hello"; // there is no variable shadowing
+			variable := "hello"; // declares a new variable
 			print(variable); // prints "hello"
 		}
 		print(variable);     // prints "smelly"
 
 		{
 			variable = "goodbye"; // error: variable is not declared in current scope
+		}
+
+		[variable]{ // here we capture the refrence to the outer variable
+			variable := "code"; // reassign the contents of variable
+			print(variable);    // prints "code"
+		}
+		print(variable); // prints "code"
+	}
+
+	vs:
+
+	h :: () ->
+	{
+		variable := "smelly";
+		{
+			variable := "hello"; // error: variable already defined
+			print(variable); // prints "smelly"
+		}
+		print(variable);     // prints "smelly"
+
+		{
+			variable = "goodbye"; // reassigns variable to goodbye
 		}
 
 		[variable]{ // here we capture the refrence to the outer variable
@@ -419,7 +435,8 @@ If these are the problems, then how is this language a solution?
 	mytemplatefunc :: (x: $T, y: T) -> {return x * y;}
 
 	the constraint on the type is that 'x', 'y' are the same type, derived from 'T';
-	implicitly, the derivation is from the type of 'x' 
+	implicitly, the derivation is from the type of 'x', the type of x must contain 
+	a function definition for '*'
 
 	x := 3; y := 4;
 	z := mytemplatefunc (x, y);
@@ -541,20 +558,8 @@ If these are the problems, then how is this language a solution?
 	//				i:
 	//			}
 
-macros metaphorically extend the semantics of the language.
-(...as i see it, in reality macros decompose into the base language to
- then be parsed by the main interpreter.)
 
-given this, what should the language be? 
-The base language should be the minimum set of abstractions
-needed to compose all higher level constructs.
 
-((if that sentence doesn't make sense try this; The language
-	shound't innately have any idea what a tcp/ip stack looks like,
-	but should provide the tools needed to ergonomically express 
-	a tcp/ip stack. then replace <tcp/ip> with the abstraction of
-	your choice: hash-table, Sql database, Web server, UART driver,
-	etc, etc...))
 
 I haven't coded much assembly (read, a few small programs), 
 but the structure of large assembly
@@ -583,20 +588,15 @@ the compiled source code being emmitted by any major language today.
  use the CPU we need ways of specifying what the CPU should be doing
  and we would like those abstractions to be as easy to use as possible.
 
- The macro, is a way of specifying a kind of abstraction within the 
- language. 
-
 
 ///
 /*
-record of <cade weinberg> figuring out operator precedence:
-the general thought process can be summed:
 	one wants fully evaluated expressions before assignment
 
 	one wants to test the value of fully evaluated
 		expressions.
 
-	one wants to bitwise operate the value of fully evaluated
+	one wants to bitwise operate on the value of fully evaluated
 		numerical values
 
 	one wants pemdas to hold for numeric operations
@@ -605,9 +605,7 @@ the general thought process can be summed:
 		next grapheme
 
 	one wants postfix expressions to fully evaluate before any
-		operations.
-
-	primary graphemes are the leaf nodes
+		operations happen on those values
 
 	A = B, C = D, E = F
 	-> (, (A = B) (, (C = D) (E = F)))

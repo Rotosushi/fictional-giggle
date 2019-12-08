@@ -24,7 +24,7 @@ sort of trajectory from "*this* was usefull in this one project" to
 to finally, "wow i can't imagine programming without *this* in the
 	language."
 
-updating the language that subsequently writes programs is 
+updating the language that subsequently compiles programs is 
 as simple as updating a text file (or folder of text files)
 
 we have the kernal of the language
@@ -39,25 +39,35 @@ programmatic   -> pink
 the implementation will be a fairly naieve LL(1) parser
 generator in the vein of CDL(1|2) or Bison/Yacc. this language
 will understand how to produce a compiler from a specification
-file. the specification language will be expressive enough
+language. the specification language will be expressive enough
 to build simple programming constructs like functions and
 variables as well as complex programming constructs like polymorphism,
 higher-order functions, lazy evaluation, and algebraic datatypes
-(my instinct is that an attribute grammar, 
+(my instinct is that an attribute grammar like description language, 
 along with the comprehension rules of CDL1/2 
 together will be powerfull enough to express the aforementioned features)
-then this language will be used to specify pink.
+then this language will be used to specify pink. and other programming languages.
 
-why two languages? well, it is my guess, that once both are
+a current question is how to describe the runtime of a language within a language,
+but i plan on answering that after developing pink'. after first writing a plain
+pink implementation.
+
+why two languages? well, it is my instinct, that once both are
 in place, a macro facility like in
 lisp will be achievable in the subsequent LL(1) parsable language. given
-that the language can be then be extended by both language maintainers,
-and by programmers using the language, using well understood concepts 
-available in the language, is the true goal. 
+that the language can then be extended by both language maintainers,
+and by programmers using the language (hopefully library writers mostly)
+ using a kernel grammar, is the true goal. 
 the hope is then that in order to add a new 
 feature, the compiler or the compiler prime would be able to tell you
 every point of friction between this new feature and the existing language,
 explicitly, by nature of how you add features to the language being a language
 itself.
+
+say you wanted to parse JSON input, instead of writing all the mechanics of the
+parser and underlying boilerplate, you just have to give the specification once
+in a language that the kernel understands,
+and then use any given kernel feature with that resulting entity.
+
 
 

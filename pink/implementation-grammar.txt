@@ -9,6 +9,38 @@
 # I denotes the set of inherited attributes
 # S denotes the set of synthesized attributes
 
+#{
+	<symbol>
+	-> declares a new grapheme.
+	   a grapheme can be either terminal
+	   or non-terminal. terminal symbols
+	   are the primitive tokens and literals
+	   which compose the language. each 
+	   grapheme gets state associated with it,
+	   as well as a series of rules that get executed
+	   before returning to the parent node.
+	   
+
+	<symbol> := <symbol1> <symbol2>
+	-> declares a new production.
+	   each production exists in it's own environment, much
+	   like functions. the lhs declares a new non-terminal
+	   grapheme. the symbols that appear on the rhs can be the
+	   terminal or non-terminal, additionally the symbols must match
+	   exactly in the order in which they appear.(i don't think we can allow the lhs name
+	   to appear in the first position after the EQ? I think that symbol
+	   must be terminal for the grammar to be LL(1).)
+
+	<root> :=
+	-> every valid grammar, or grammar extension has some root non-terminal 
+	   grapheme. the root symbol may never appear on the rhs of any rule.
+
+	<symbol> := 'terminal-symbol' <non-terminal-symbol>
+	-> 
+
+#}
+
+
 I = { position : int;
 	  declarations : map(string, declaration)}
 S = {	id : string;
@@ -31,7 +63,7 @@ S = {	id : string;
 		expr : (binop-expr | unop-expr | var);
 
 		declaration : (var, assignop, expr);
-		declarations : map(string, declaration);
+		symbol_table : map(string, declaration);
 
 		arg : (id, type);
 		argument-list : list(arg);
@@ -49,8 +81,8 @@ S = {	id : string;
 		export-list : list(id);
 		root : id;
 
-		context-declaration : (import-list | export-list | root);
-		context-declarations : (import-list, export-list, root);
+		 : (import-list | export-list | root);
+		 : (import-list, export-list, root);
 
 		module : (context-declarations, declarations, functions);
 		}
@@ -71,7 +103,8 @@ fn define(mod : * module, dec : declaration) {
 	module.declarations.add(dec);
 }
 
-<program> := *(<module-declaration) EOF { %% = %0 }
+
+<program> := *(<module-declaration>) EOF { %% = %0 }
 
 <module-declaration> := <comment> {}
 					  | <context-statement>    { declare(%%, %0); }

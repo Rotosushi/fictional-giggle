@@ -122,17 +122,17 @@ so, with some definitions out of the way, typically a programming language
 	(generally) the primary data types of the underlying assembly, and it's
 	relatively simple and small definition make it not too much of an undertaking
 	to port to a new hardware, given the fact that the collection of features
-	that c brings to the table is generally enough to write a complete OS
+	that c brings to the table is generally enough to write a complete OS.
 	(I say this thinking about Unix and currently Linux, where they are written
 	in c that is relatively unchanged since it's inception. very recently (2018)
 	c has gotten some much needed quality of life improvements, but these 
 	features are likely to be implemented fully around the time I finish pink
-	v1)
+	v1 (also preforming this task will make me a better programmer)).
 	all of these facts made c a very attractive	language whilst computers 
 	were still entering the collective conciousness.
 	c retains a lot of is current popularity as a result of its initial success,
 	its solidly designed kernel, and the fact that the work of porting it
-	to nearly every hardware platform in existance has already been done.
+	to every hardware platform in existance has already been done.
 	c also has a lot of design mistakes that make creating and managing large
 	projects difficult. it also has portions of the design which interact
 	in hard to conceptualize ways that have created some notoriously hard
@@ -169,7 +169,8 @@ so, with some definitions out of the way, typically a programming language
 		to express grammatically and a good control structure for 
 		implementing functions. while loops are also a good abstraction, 
 		giving access to both bounded and unbounded iteration.
-		the switch statement is syntactic sugar,
+		the switch statement is useful, but if it isn't using
+		an specific assembly instruction it's just syntax sugar.
 		the for loop is syntactic sugar
 
 
@@ -182,35 +183,32 @@ so, with some definitions out of the way, typically a programming language
 		 it gives functions a natural expression, and requires very little
 		 runtime overhead to implement (the c runtime is famously small).
 		 making it ideal for small systems, 
-		 this is an advantage over a managed language in the systems 
-		 layer of abstraction.
+		 this is an advantage over a managed language in the systems language
+		 layer of abstraction. how much extesion the runtime requires to support
+		 all of the features i would like to add is unknown to me. at some point
+		 i will be comparing the two kernels.
 
 	w.4: 
-		expressions, or infix functions. in the opposing syntax,
-		function calls achieve an order of operations via the
-		evaluation of their parameters prior to making the actual
-		jump. hence, the parameters to a function must fully resolve
-		to the type of the formal parameter before we can actually execute
-		the function.
+		expressions, or infix functions, are a syntacticaly light,
+		grammatically unambiguous way of composing functions. I really
+		like this syntax for function composition, even though it
+		will be restricted to two arg w/a return argument functions.
 
 	m.1:
 		the textual preprocessor was a clever solution to a few problems,
 	namespaces, conditional compilation, and macros. 
-	building a large program requires more than a single
-	person and by it's nature working apart to write interoperable code
-	is a monumental task,
-	 a lot of solutions have been tried to solve the problems of interoperability
-	 for the sake of the length of this document, suffice it to say that
-	this approach doesn't work well, it works, just not well and not for long term use.
-	, The silent failure of the
-	textual macro system can make debugging a nightmare, and finnaly 
+	The silent failure of the textual macro system can make debugging a nightmare,
+	and the lack of type checking reintroduces all of the subtle type bugs
+	back into the language.
 
 	The design goals are in the right place however,
 
 	programmers need some way of enforcing which
 	symbols get exported from and imported to any given module, both to 
 	facillitate code reuse and to give a finer grained control over the namespace
-	of the current module. 
+	of the current module. this also has the side effect of allowing cross compilation
+	to choose separate code to compile. i feel like the macro system of the language
+	can be leveraged to solve the problem of cross-compilation.
 
 	programmers also need control over which code gets compiled given some
 	external constraints as well, this can be due to hardware differences

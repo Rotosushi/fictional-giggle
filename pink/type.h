@@ -1,5 +1,10 @@
 #pragma once
 
+#include "InternalRepresentation.h"
+#include "symset.h"
+
+#include "Function.h"
+
 enum _type {
 	/* internal use */
 	_ERR,
@@ -11,7 +16,7 @@ enum _type {
 	_REAL,
 	_TEXT,
 	_BOOL,
-	
+
 	/* TODO:
 		_LAMBDA,
 		_ARRAY,
@@ -28,3 +33,11 @@ enum _type {
 };
 
 string to_string(_type t);
+
+
+class Type : public Entity {
+	// "the type of an atom is defined by the valid
+	//  set of operations upon it"
+	_ast* type_expression;
+};
+
