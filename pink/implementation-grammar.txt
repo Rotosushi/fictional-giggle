@@ -20,23 +20,67 @@
 	   as well as a series of rules that get executed
 	   before returning to the parent node.
 	   
+	'literal token'
+	-> declares a new literal token that must
+	   be matched. this declares a new terminal
+	   symbol in the grammar.
 
 	<symbol> := <symbol1> <symbol2>
 	-> declares a new production.
 	   each production exists in it's own environment, much
-	   like functions. the lhs declares a new non-terminal
-	   grapheme. the symbols that appear on the rhs can be the
+	   like functions. the lhs symbol declares a new non-terminal
+	   grapheme. the symbols that appear on the rhs can be 
 	   terminal or non-terminal, additionally the symbols must match
-	   exactly in the order in which they appear.(i don't think we can allow the lhs name
+	   exactly in the order in which they appear.
+	   (i don't think we can allow the lhs name
 	   to appear in the first position after the EQ? I think that symbol
-	   must be terminal for the grammar to be LL(1).)
+	   must be terminal or a literal for the grammar to be LL(1).)
 
-	<root> :=
+	<root> := ...
 	-> every valid grammar, or grammar extension has some root non-terminal 
-	   grapheme. the root symbol may never appear on the rhs of any rule.
+	   grapheme. the root symbol may never appear on the rhs of any rule. the
+	   root symbol of the grammar is the computational entry point.
 
-	<symbol> := 'terminal-symbol' <non-terminal-symbol>
-	-> 
+	<non-terminal-symbol> := 'terminal-symbol' <non-terminal-symbol> <terminal-symbol>
+	-> terminal symbols are symbols who are literals themselves (or something that
+	   describes some literal text formatting, maybe regular expressions?)
+	   non-terminals are symbols who are composed of terminal and
+	   non-terminal symbols.
+
+
+	<symbol> := ?()
+	-> a term surrounded by ?() is optional,
+	   the storage that facilitates it is not
+	   however.
+
+	<symbol> := *()
+	-> a term surrounded by *() is an optional
+	   list of values, that can be iterated over.
+
+	<symbol> := +()
+	-> a term surrounded by +() must match at least
+	   once, and can match any number of times after.
+	   it also can be iterated over.
+
+
+	<symbol> := <production-1> | <production-2> | ... | <production-n>
+	-> a term can be defined as a series of productions
+	   each separated by |
+
+
+
+	fn func-name (argument-list) -> return list {
+		body
+	}
+	-> functions can be defined, and called in
+	   the attributes segments. Djikstra's
+	   Three will be available, in some form
+	   or another. (idk if imperitive or
+	   declaritive is the way to go in the
+	   long run. but i know imperitive style
+	   so ill be using that as my starting point.)
+	    
+
 
 #}
 
@@ -51,7 +95,7 @@ S = {	id : string;
 		text_value : string;
 		bool_value : bool;
 		value : (int_value | real_value | text_value | bool_value);
-		type : (INT | REAL | TEXT | BOOL);
+		type : ( INT | REAL | TEXT | BOOL | INFER );
 
 		op : string;
 		lhs : expr;
@@ -69,8 +113,8 @@ S = {	id : string;
 		argument-list : list(arg);
 		return-list : list(arg);
 		scope : (list(declaration), list(statement));
-		fn : (id, argument-list, return-list, scope);
-		functions : map(string, fn);
+		function : (id, argument-list, return-list, scope);
+		function-table : map(string, fn);
 		
 		if : (expr, statement, statement);
 		while : (expr, statement, statement);
@@ -81,10 +125,10 @@ S = {	id : string;
 		export-list : list(id);
 		root : id;
 
-		 : (import-list | export-list | root);
-		 : (import-list, export-list, root);
+		compiler-directive : (import-list | export-list | root);
+		directives : (import-list, export-list, root);
 
-		module : (context-declarations, declarations, functions);
+		module : (directives, symbol-table, function-table);
 		}
 
 # now the programmer needs a way of assigning
@@ -92,77 +136,123 @@ S = {	id : string;
 # in the rules of the language. (empty rules are allowed)
 
 # maybe, state attributes || semantic attributes
-S(<program>) = { module || type_check(module); }
-S(<module-declaration>) = { module }
-S(<context-statement>) = { context-declaration }
-S(<identifier-list>) = { ids }
-S(<function-declaration>) = { fn }
-S(<variable-declaration>) = { declaration }
 
-fn define(mod : * module, dec : declaration) {
-	module.declarations.add(dec);
+<program> := *(<module-declaration>) EOF { module ||
+	for (it in %1) declare(%%, it);
+	IR  <- generate-IR (%%);
+	type_check(IR);
+	asm <- convert_to_assembly(IR); 
+	exe <- assemble(asm); 
+	write_executable(exe, output);
 }
 
+<module-declaration> { compiler-directive | declaration |  function }
+					 := <comment> {}
+					  | <compiler-directive>   { %% <- %1; }
+					  | <function-declaration> { %% <- %1; }
+					  | <variable-declaration> { %% <- %1; }
 
-<program> := *(<module-declaration>) EOF { %% = %0 }
+<comment> := '#' *(_) <EOL>
+# a haskell like '_'; meaning 'anything'
 
-<module-declaration> := <comment> {}
-					  | <context-statement>    { declare(%%, %0); }
-					  | <function-declaration> { define(%%, %0); }
-					  | <variable-declaration> { define(%%, %0); }
+<compiler-directive> { compiler-directive }  
+				   :=   'root' <identifier-list> ';'   { %% <- %2; }
+					| 'import' <identifier-list> ';'   { %% <- %2; }
+					| 'export' <identifier-list> ';'   { %% <- %2; }
 
-<comment> := '#' (_)* <EOL>
+# macro from observation
+# <*-list> := <*> *(',' <*>) { %% <- create list(*); append(%%, %1); for (it in *) append(%%, it); }
 
-<context-statement> := 'root' <identifier-list> ';' { 'root'.ids = <identifier-list>; }
-					| 'import' <identifier-list> ';'   { 'import'.ids = <identifier-list>; }
-					| 'export' <identifier-list> ';'   { 'export'.ids = <identifier-list>; }
+<identifier-list> { ids } 
+				:= <identifier> *(',' <identifier>) {
+						append(%%, %0); 
+						for (it in *) append(%%, it); 
+				}
 
-# <*-list> := <*> *(',' <*>) { %% = create list(); append(%%, %1); for (it in *) append(%%, it); }
-
-<identifier-list> := <identifier> *(',' <identifier>) { append(%%, %0); for (it in *) append(%%, it); }
-
-<function-declaration> := 'fn' <identifier> <function-type> <function-body> 
-						  { 
-						    %%.id = %1.id;
-						    %%.function-type = %2;
-							%%.function-body = %3; 
-						  }
-
-<function-type> := <arg-list> '->' (<type-list>)? 
-					{ 
-						%% = (%1, %3);
+<function-declaration> { function } 
+					:= 'fn' <identifier> <function-type> <function-body> {
+						%% <- function(%2, %3, %4);
 					}
+						  
 
-<arg-list> := '(' <arg> *(',' <arg>) ')' 
-<type-list>   := '(' <type> *(',' <type>) ')'
+<function-type> { (argument-list, return-list) } := <arg-list> '->' ?(<type-list>) { %% <- (%1, %3); }
+					
 
-<arg> := <identifier> ':' <type> { %% = (%1, %2);}
+<arg-list> {argument-list} 
+		:= '(' <arg> *(',' <arg>) ')' {
+			append(%%, %2);
+			for (it in %3) append (%%, it);
+			}
 
-<function-body> := <scope> { %% = %1; }
+<type-list> {return-list}  := '(' <type> *(',' <type>) ')'
 
-<scope> := '{' *(<variable-declaration> | <statement>) '}' { %% = create _scope(*); }
+<arg> := <identifier> ':' <type> { %% <- (%1, %2); }
 
-<variable-declaration> := <identifier> ':' <type> ?('=' <initializer>) ';' 
-						| <identifier> ('::' | ':=') <initializer> ';'
+<function-body> := <scope> { %% <- %1; }
 
-<type> := 'int'
-		| 'real'
-		| 'text'
-		| 'bool'
+<scope> := '{' *(<variable-declaration> | <statement>) '}' { %% <- scope(%2); }
 
-<initializer> := <expression>
+<variable-declaration> { declaration } 
+						:= <identifier> ':' <type> ?('=' <initializer>) ';' {
+							%% <- if (%4) then declaration(%1, ':=', %3, %4)
+										  else declaration($1, $2, %3);
+							} 
+						 | <identifier> ('::' | ':=') <initializer> ';' {
+							%% = declaration (%1, %2, %3);
+							}
 
-<statement> := <if>
-			 | <while>
-			 | <return>
-			 | <scope>
-			 | <expression>
+#{
+ someone may ask, hey, how exactly do the +(), *(), and ?() 
+ symbols work?
 
-<if>	:= 'if' '(' <expression> ')' <statement> ?('else' <statement> )
-<while> := 'while' '(' <expression> ')' <statement>
-<return> := 'return' <expression>
+ and that is a fantastic question.
+ 
+ all parenthesis declare a new grapheme in the production they appear.
+ that is to say, they are refrenced positionally as a single unit.
+ and can then be syntactically and/or semantically unpacked.
+ 
 
-<expression> := <expr> ';'
+ +() and *() both act as a list of all the
+  successfull matches
+
+  ?() acts as an option type essentially.
+  either the type exists, or the entire
+  expression is NONE. (or nil, or...)
+#}
+
+<type> {type}  := 'int'  { %% <- INT; } 
+				| 'real' { %% <- REAL; } 
+				| 'text' { %% <- TEXT; } 
+				| 'bool' { %% <- BOOL; } 
+
+<initializer> { expr } := <expression> { %% <- %1; }
+
+<statement> { statement } 
+			:= <if>			{ %% <- %1; }
+			 | <while>		{ %% <- %1; }
+			 | <return>		{ %% <- %1; }
+			 | <scope>		{ %% <- %1; }
+			 | <expression> { %% <- %1; }
+
+<if> { if }	
+	:= 'if' '(' <expression> ')' <statement> ?('else' <statement>) {
+		%% <- if (%3, %5, %6);
+	}
+		
+<while> { while } 
+	:= 'while' '(' <expression> ')' <statement> {
+		%% <- while (%3, %5);
+	}
+
+<return> { return } 
+		:= 'return' <expression> {
+			%% <- return(%2);
+		}
+
+<expression> { expr } 
+		:= <expr> ';' {
+			%% <- %1;
+		}
 
 # some complicated, valid expressions that should be 
 # able to be parsed given this BNF grammar
