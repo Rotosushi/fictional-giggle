@@ -27,7 +27,7 @@ string ast_type_to_string(_ast_type at)
 	}
 }
 
-_var* create_var(string id, _type type, _ast* type_expression)
+_var* build_var(string id, _type type, _ast* type_expression)
 {
 	auto var = new _var;
 	var->id = id;

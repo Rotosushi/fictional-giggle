@@ -1,3 +1,4 @@
+#include <assert.h>
 
 #include "semantic_analysis.h"
 #include "error.h"
@@ -15,8 +16,8 @@ bool _semantic_analyzer::analyze_module(_module & m)
 	if (m.function_table.at[m.root].size() > 1) {
 		success = false;
 		printf("root of module cannot be overloaded.");
-
 	}
+
 	// does the root function exist
 	if (m.function_table[m.root][0].id != m.root) {
 		success = false;
@@ -52,6 +53,11 @@ void _semantic_analyzer::push_scope(_scope& scope)
 void _semantic_analyzer::pop_scope()
 {
 	scopes.pop();
+}
+
+map<string, _vardecl>& _semantic_analyzer::global_variables()
+{
+	return curr_module.variable_table;
 }
 
 _vardecl* _semantic_analyzer::lookup_vardecl(string id)
@@ -101,22 +107,26 @@ void _semantic_analyzer::resolve_type(_vardecl& dec)
 	switch (dec.op) {
 	case T_COLON: // <id> ':' <type> ';'
 		// the type information is present in the decl already
+		assert(dec.lhs.type != _ERR);
 		return;
 	case T_COLON_COLON: // <id> '::' <expr> ';'
 	{
-		// the type information is deduced from the expression
+		// the type information is inferred from the expression
 		dec.lhs.type = typeof(dec.init);
+		assert(dec.lhs.type != _ERR);
 		return;
 	}
-	case T_COLON_EQ: // <id> ':' (<type>)? '=' <expr> ';'
+	case T_COLON_EQ: // <id> ':' ?(<type>) '=' <expr> ';'
 	{
 		// if there wasn't a type annotation,
-		// the type is marked as _DEDUCE
-		// so the type is deduced from the
-		// rhs expression.
-		if (dec.lhs.type = _DEDUCE)
+		// the type is marked as _INFER
+		// so the type is inferred from the
+		// rhs expression, otherwise
+		// it's already present on the type
+		if (dec.lhs.type = _INFER) {
 			dec.lhs.type = typeof(dec.init);
-		else 
+			assert(dec.lhs.type != _ERR);
+		} else assert(dec.lhs.type != _ERR);
 		return;
 	}
 	default: throw;
@@ -126,9 +136,10 @@ void _semantic_analyzer::resolve_type(_vardecl& dec)
 void _semantic_analyzer::resolve_type(_var& var)
 {
 	switch (var.type) {
-	case _DEDUCE:
+	case _INFER:
 	{
 		var.type = typeof(var.type_expression);
+		assert(var.type != _ERR);
 	} 
 	case _INT: case _REAL:
 	case _TEXT: case _BOOL: case _NIL:
@@ -137,21 +148,44 @@ void _semantic_analyzer::resolve_type(_var& var)
 	}
 }
 
-void _semantic_analyzer::resolve_type(_ast* expr)
+void _semantic_analyzer::resolve_type(_expr& expr)
 {
+	switch (expr.type) {
+	case _INFER:
+	{
+		expr.type = typeof(expr.expr);
+		assert(expr.type != _ERR);
+	}
+	case _INT: case _REAL:
+	case _TEXT: case _BOOL: case _NIL:
+		return;
+	default: throw;
+	}
 }
 
 void _semantic_analyzer::resolve_type(_fn& fn)
 {
-	// resolve the types of the variables in this function
+	// a function is special because it gets it's own
+	// context to work with. it also inherits the environment's
+	// context.
+
+	// resolve the types of every variable in this function
 	for (auto pair : fn.body.variable_table) {
 		resolve_type(pair.second);
 	}
+
+	// resolve the type of every statement in the function.
+	for (auto stmt : fn.body.statements) {
+		assert(typecheck_statement(stmt) != _ERR);
+	}
+
+
 }
 
 void _semantic_analyzer::resolve_type(_fcall& fcall)
 {
-	// TODO: do we need this function?
+	_fn* fn = lookup_fn(fcall.id, fcall.argument_list);
+	assert(fn != nullptr);
 }
 
 void _semantic_analyzer::resolve_type(_binop& binop)
@@ -162,7 +196,7 @@ void _semantic_analyzer::resolve_type(_binop& binop)
 	// is <op> defined for the lhs_type and rhs_type
 	// what is the action associated with this operation
 	// function named '+' that we overload?
-	auto operator_func = lookup_fn(curr_module, binop.op, binop.lhs, binop.rhs);
+	auto operator_func = lookup_fn(token_to_string(binop.op), );
 
 
 	switch (binop.op) {
@@ -232,7 +266,7 @@ _type _semantic_analyzer::typeof(_var& var)
 
 _type _semantic_analyzer::typeof(_vardecl& vardecl)
 {
-	if (vardecl.lhs.type == _DEDUCE) {
+	if (vardecl.lhs.type == _INFER) {
 		return typeof(vardecl.init);
 	}
 	else {
@@ -279,7 +313,7 @@ _type _semantic_analyzer::typeof(_ast* expr)
 
 _type _semantic_analyzer::typeof(_binop& binop)
 {
-	if (binop.type == _DEDUCE) {
+	if (binop.type == _INFER) {
 		auto lhs_type = typeof(binop.lhs);
 		auto rhs_type = typeof(binop.rhs);
 
@@ -296,6 +330,31 @@ _type _semantic_analyzer::typeof(_unop& unop)
 }
 
 _type _semantic_analyzer::typeof(_return& ret)
+{
+	return _type();
+}
+
+_type _semantic_analyzer::typecheck_statement(_ast* stmt)
+{
+	return _type();
+}
+
+_type _semantic_analyzer::typecheck_conditional(_if& conditional)
+{
+	return _type();
+}
+
+_type _semantic_analyzer::typecheck_iteration(_while& loop)
+{
+	return _type();
+}
+
+_type _semantic_analyzer::typecheck_return(_return& ret)
+{
+	return _type();
+}
+
+_type _semantic_analyzer::typecheck_expression(_ast* expr)
 {
 	return _type();
 }

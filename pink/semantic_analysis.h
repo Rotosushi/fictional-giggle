@@ -23,20 +23,22 @@ private:
 	_scope& curr_scope();
 	void push_scope(_scope& scope);
 	void pop_scope();
-
-	
+	map<string, _vardecl>& global_variables();
 
 	// we need helper functions to query our symbol tables
 	// we query variables by name
 	_vardecl* lookup_vardecl(string id);
 
 	// we query functions by type and by argument list
+	// the argument list is to disambiguate from the
+	// overload set.
 	_fn* lookup_fn(string id, vector<_arg> args);
+
 
 
 	void resolve_type(_vardecl& dec);
 	void resolve_type(_var& var);
-	void resolve_type(_ast* expr);
+	void resolve_type(_expr& expr);
 	void resolve_type(_fn& fn);
 	void resolve_type(_fcall& fcall);
 	void resolve_type(_binop& binop);
@@ -52,10 +54,9 @@ private:
 	_type typeof(_unop& unop);
 	_type typeof(_return& ret);
 
-	bool typecheck_conditional(_if& conditional);
-	bool typecheck_iteration(_while& loop);
-	
+	_type typecheck_statement(_ast* stmt);
+	_type typecheck_conditional(_if& conditional);
+	_type typecheck_iteration(_while& loop);
+	_type typecheck_return(_return& ret);
 	_type typecheck_expression(_ast* expr);
-
-	
 };

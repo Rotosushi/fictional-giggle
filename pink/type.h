@@ -1,14 +1,9 @@
 #pragma once
 
-#include "InternalRepresentation.h"
-#include "symset.h"
-
-#include "Function.h"
-
 enum _type {
 	/* internal use */
 	_ERR,
-	_DEDUCE,
+	_INFER,
 	_FCALL,
 	/* usable types */
 	_NIL,
@@ -35,9 +30,4 @@ enum _type {
 string to_string(_type t);
 
 
-class Type : public Entity {
-	// "the type of an atom is defined by the valid
-	//  set of operations upon it"
-	_ast* type_expression;
-};
 

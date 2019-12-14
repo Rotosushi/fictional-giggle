@@ -190,11 +190,8 @@ private:
 									  // or could be called by name directly.
 		}
 
-		in pink there will be no member functions. (there may be lambda's, and
-		lambda's might be useful in a sum or product type, so there
-		may inadvertently be a way to express something like members,
-		but the intent is to have the function be something separate
-		from the data that is passed.)
+		in pink there will be no member functions, because a classes
+		won't exist.
 
 		so the data definition (encapsulated state) 
 		of a new type, like say a cartesian vector, 
@@ -224,15 +221,16 @@ private:
 
 
 		idea 2: an idea i just had
-		int add : binop '-' (x: int, y: int) -> (int) {
+		int-add : binop(+) (x: int, y: int) -> (int) {
 			return add(x, y); # 'add' is then implemented in assembly
 		}
 
 		int negate : unop '-' (x: int) -> (int) {
-
+			return sub(0, x); # sub is then implemented in assembly
 		}
 
 	*/
+
 	void parse_function_declaration(_fn& fn);
 	void parse_function_type(_fn& fn);
 	void parse_function_body(_fn& fn);
@@ -251,7 +249,7 @@ private:
 
 		by putting expressions last, speculation can
 		be completely factored out of this segment 
-		of the grammar. therefore this segment is LL(1)
+		of the grammar.
 	*/
 	_ast* parse_statement();
 	void parse_if(_if& conditional);
@@ -262,7 +260,7 @@ private:
 		expressions are their own sub-grammar within the
 		parser. From my understanding an 'operator precedence
 		parser' that parse_expression() implements, is a
-		predicated parser. This is because it's parsing
+		predicated parser. This is because of it's parsing
 		descisions, which ultimately affect the shape of
 		the resulting parse tree, are affected by the
 		'precedence' of each operator; a piece of information

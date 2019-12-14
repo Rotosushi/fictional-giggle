@@ -2,39 +2,80 @@
 # variables of primitive type
 # functions taking arguments, returning a list of values
 # input/output via c++ stdlib
+# computation driven by the grammar.
 
 # set of possible attributes, given
 # as a list of the form
 # <id> ':' <type>
-# I denotes the set of inherited attributes
-# S denotes the set of synthesized attributes
+# we define our attributes, then apply them
+# in a inherited or synthesized way.
+
+# when considering implementation of the source code,
+# consider the idea of a basic block, a section of
+# code that has one entry and one exit. (this,
+# is the basic unit of execution. branches become
+# branches between basic blocks, loops loop over
+# basic blocks, etc.)
+
+# each attribute could be implemented as a callback
+# to be executed when the match is completed.
+# the function will take a varargs list containing
+# each semantic element. 
+# the type signature could be imagined as:
+
+# fn attribute(production : ...) -> res : production_result_type { #{ body #} }
+
+# because the result
+# type is derived from the usertype of the rule the attribute is associated with,
+# which isn't known until we parse user-code, the attribute could be a function
+# template.
+
+# then we could imagine the algebraic data type of a rule in pink'
+# could look like
+# adt rule = (lhs: name, prods: list(production), attrs: list(attribute))
+# where a rule has a name, a list of productions, and a list of attributes
+# for each production.
 
 #{
+	basics:
 	<symbol>
 	-> declares a new grapheme.
 	   a grapheme can be either terminal
 	   or non-terminal. terminal symbols
-	   are the primitive tokens and literals
+	   are the primitive tokens and text literals
 	   which compose the language. each 
-	   grapheme gets state associated with it,
-	   as well as a series of rules that get executed
-	   before returning to the parent node.
+	   grapheme gets state associated with it.
+	   Each production gets a series of rules that 
+	   get executed before returning to the parent node
+	   and after the rule has been matched successfully,
+	   this series of rules is called the attribute of
+	   that production.
+	   
+	   aside:
+			is a grapheme who is composed entirely of non-terminals,
+			non-terminal itself?
 	   
 	'literal token'
-	-> declares a new literal token that must
-	   be matched. this declares a new terminal
+	-> declares a new literal text grapheme that must
+	   be matched from the input stream. this declares a new terminal
 	   symbol in the grammar.
+
+	anything-else 
+	-> every other token (that isn't
+	   surrounded by '' or <>, or the tokens ':=', '{', '}', etc.) is assumed to be a part of
+	   the language itself (pink'). it's a function name, or a variable,
+	   or an operation.
 
 	<symbol> := <symbol1> <symbol2>
 	-> declares a new production.
 	   each production exists in it's own environment, much
 	   like functions. the lhs symbol declares a new non-terminal
-	   grapheme. the symbols that appear on the rhs can be 
+	   grapheme. the symbols that appear on the rhs can be
 	   terminal or non-terminal, additionally the symbols must match
 	   exactly in the order in which they appear.
 	   (i don't think we can allow the lhs name
 	   to appear in the first position after the EQ? I think that symbol
-	   must be terminal or a literal for the grammar to be LL(1).)
+	   must be terminal for the grammar to be LL(1).)
 
 	<root> := ...
 	-> every valid grammar, or grammar extension has some root non-terminal 
@@ -42,261 +83,367 @@
 	   root symbol of the grammar is the computational entry point.
 
 	<non-terminal-symbol> := 'terminal-symbol' <non-terminal-symbol> <terminal-symbol>
-	-> terminal symbols are symbols who are literals themselves (or something that
-	   describes some literal text formatting, maybe regular expressions?)
-	   non-terminals are symbols who are composed of terminal and
-	   non-terminal symbols.
+	-> terminal symbols are symbols who are literals themselves or something that
+	   describes some literal text formatting. (maybe regular expressions?)
+	   non-terminals are symbols who are composed of terminal and non-terminal symbols.
+	   the LHS of any rule is always non-terminal. in order to be LL(1), the grammar must
+	   be decidable by only looking at the left-most symbol on each step of the
+	   computation of the grammar.
 
 
 	<symbol> := ?()
 	-> a term surrounded by ?() is optional,
-	   the storage that facilitates it is not
-	   however.
+	   meaning it will either exist, or be
+	   nil if the production matches.
 
 	<symbol> := *()
 	-> a term surrounded by *() is an optional
 	   list of values, that can be iterated over.
+	   meaning it will either exist or be nil
+	   if the production matches.
 
 	<symbol> := +()
 	-> a term surrounded by +() must match at least
 	   once, and can match any number of times after.
-	   it also can be iterated over.
+	   it also can be iterated over. meaning if the
+	   rule matched, it exists.
+
+		aside:
+			I want to allow multiple symbols
+			to appear in recognizers like *(',' <symbol>), and ?('=' <symbol>)
+			but after recognition, how do we refrence the symbols using the
+			pseudo-variables in the attribute?
+			my initial solution is to say each symbol in the production,
+			gets assigned a number from left to right starting from 1,
+			and +(), *(), ?() do not affect the numbering. then when
+			we are reffering to a grapheme that exists in *() or +()
+			you can treat the name like a list type. when you refer
+			to a grapheme in *() or ?() you can treat that name like
+			an optional type.
+			like:
+			<prod> := 'ts1' <nts1> *(',' <nts1>); {
+				append (%%, %2);
+				for (it in %4) append (%%, it);
+			}
+			so, here conceptually it seems like we need a list
+			for each element occuring in the grouping. but that 
+			may not be the case in implementation. (we could
+			store just one ',', but still allow programmers to 'iterate'
+			over it, whereas the <nts1> symbol would be a list of values,
+			each element being the matched element.
+
+			an alternative solution is to say that groupings 
+			are treated like they are a grapheme, and the grouping 
+			gets it's own pseudo-variable which then needs to be 
+			split by another operation, maybe with pattern matching?
+			like:
+			<prod> := 'ts1' <nts1> *(',' <nts1>); {
+				append (%%, %2);
+				for ((g1, g2) in %3) append (%%, g2);			
+			}
+			this seems like a viable alternative given that pattern
+			matching has other use cases.
 
 
 	<symbol> := <production-1> | <production-2> | ... | <production-n>
 	-> a term can be defined as a series of productions
-	   each separated by |
-
-
+	   each separated by |. each production gets it's own attribute.
 
 	fn func-name (argument-list) -> return list {
 		body
 	}
 	-> functions can be defined, and called in
 	   the attributes segments. Djikstra's
-	   Three will be available, in some form
-	   or another. (idk if imperitive or
-	   declaritive is the way to go in the
-	   long run. but i know imperitive style
-	   so ill be using that as my starting point.)
+	   Three (;, if, while) will be available, in some form
+	   or another. (idk if imperitive or declaritive is the way to go in the
+	   long run, my gut says that pink' will become declarative,
+	   and pink will remain imperitive. but I know imperitive style
+	   better, so ill be using that as my starting point.)
+
+	   thought:
+	   functions should have to be pure, and side effects should
+	   be relegated to actions, which are the same as functions, they
+	   just get to preform side effects. this separation is to gain
+	   some of what functional languages get when they make variables
+	   immutable, as it separates computation from modification. this
+	   can allow the compiler stronger optimizations, and it is
+	   fractally similar to CDL with it's four different function types.
+	   TEST, PREDICATE, ACTION, FUNCTION.
+	   CDL cares about two different aspects of behavior, failure and
+	   effects.
+				(TEST: can fail, has no effect
+				 PREDICATE: can fail, has an effect
+				 ACTION: cannot fail, has an effect
+				 FUNCTION: cannot fail, has no effect)
+
+	   in my opinion, having an optional type
+	   encodes failure into the semantic definition of the function rather than
+	   making it explicit with syntax. (i prefer this, being able to formulate
+	   semantics out of already understood syntax means the
+	   kernel can be smaller.) we cannot avoid side effects, they are a 
+	   necessary evil, we have to write values at some point to be useful.
+	   but writing values is the main cause of bugs in programs.
+	   maybe, making side effects explicit gives us more
+	   benefit than the drawback of a more terse syntax.
+	   (having to separate them sytactically makes the programmer do more work, both
+	   writing the definition and conceptually. it is also another 
+	   hurdle to learning the language. albeit a small one.)
 	    
-
-
 #}
 
 
-I = { position : int;
-	  declarations : map(string, declaration)}
-S = {	id : string;
-		ids : list(string);
+Attributes = {
+	# the type system of v1 will only have type primitives,
+	# and no way of declaring new types, so these types
+	# are the only types which exist in the language.
+	int_value  : int;
+	real_value : float;
+	text_value : string;
+	bool_value : bool;
+	value : (int_value | real_value | text_value | bool_value);
+	type  : enum( INT | REAL | TEXT | BOOL | INFER );
+	name  : string;
 
-		int_value : int;
-		real_value : float;
-		text_value : string;
-		bool_value : bool;
-		value : (int_value | real_value | text_value | bool_value);
-		type : ( INT | REAL | TEXT | BOOL | INFER );
+	# variable declarations
+	declaration  : (name, type, assignop, expr);
+	symbol_table : map(string, declaration);
+	
+	# function declarations
+	arg : (name, type);
+	argument-list : list(arg);
+	return-list   : list(arg);
+	scope    : (list(declaration), list(statement));
+	function : (name, argument-list, return-list, scope);
+	function-table : map(string, fn);
 
-		op : string;
-		lhs : expr;
-		rhs : expr;
-		binop-expr : (lhs, op, rhs);
-		unop-expr : (op, rhs);
-		postop-expr : argument-list;
-		var : ((id, type, expr) | (id, type, list(postop-expr)));
-		expr : (binop-expr | unop-expr | var);
+	# statements will be extendable in the final language
+	# via macros.
+	if        : (expr, statement, statement);
+	while     : (expr, statement);
+	return    : expr;
+	statement : (if | while | return | expr);
 
-		declaration : (var, assignop, expr);
-		symbol_table : map(string, declaration);
-
-		arg : (id, type);
-		argument-list : list(arg);
-		return-list : list(arg);
-		scope : (list(declaration), list(statement));
-		function : (id, argument-list, return-list, scope);
-		function-table : map(string, fn);
+	# expressions
+	op  : string;
+	lhs : expr;
+	rhs : expr;
+	binop-expr  : (lhs, op, rhs);
+	unop-expr   : (op, rhs);
+	postop-expr : (lhs, op, rhs);
+	var  : (name, type, expr);
+	expr : (binop-expr | unop-expr | postop-expr | var | value);
 		
-		if : (expr, statement, statement);
-		while : (expr, statement, statement);
-		return : expr;
-		statement : (if | while | return | expr);
+	# compiler directives
+	import-list : list(name);
+	export-list : list(name);
+	root : name;
+	directives : (import-list, export-list, root);
 
-		import-list : list(id);
-		export-list : list(id);
-		root : id;
-
-		compiler-directive : (import-list | export-list | root);
-		directives : (import-list, export-list, root);
-
-		module : (directives, symbol-table, function-table);
-		}
-
-# now the programmer needs a way of assigning
-# attributes to graphemes, to use these attributes
-# in the rules of the language. (empty rules are allowed)
-
-# maybe, state attributes || semantic attributes
-
-<program> := *(<module-declaration>) EOF { module ||
-	for (it in %1) declare(%%, it);
-	IR  <- generate-IR (%%);
-	type_check(IR);
-	asm <- convert_to_assembly(IR); 
-	exe <- assemble(asm); 
-	write_executable(exe, output);
+	# 
+	module : (directives, symbol-table, function-table);
 }
 
+# now the programmer needs a way of assigning
+# attributes to graphemes, to then use these attributes
+# to define the semantic meaning of the language. (empty rules are allowed,
+# it means nothing will occur.)  
+
+<program> { module } # == <program> { module : (directives, symbol-table, function-table) }
+	:= *(<module-declaration>) EOF {
+		%%  <- module (%1);
+		infer_types(%%);
+		IR  <- generate-IR (%%);
+		type_check(IR);
+		asm <- convert_to_assembly(IR);
+		exe <- assemble(asm); 
+		write_executable(exe, output);
+	}
+
 <module-declaration> { compiler-directive | declaration |  function }
-					 := <comment> {}
-					  | <compiler-directive>   { %% <- %1; }
-					  | <function-declaration> { %% <- %1; }
-					  | <variable-declaration> { %% <- %1; }
+	:= <comment>			 {}
+	| <compiler-directive>   { %% <- %1; }
+	| <function-declaration> { %% <- %1; }
+	| <variable-declaration> { %% <- %1; }
 
 <comment> := '#' *(_) <EOL>
 # a haskell like '_'; meaning 'anything'
 
 <compiler-directive> { compiler-directive }  
-				   :=   'root' <identifier-list> ';'   { %% <- %2; }
-					| 'import' <identifier-list> ';'   { %% <- %2; }
-					| 'export' <identifier-list> ';'   { %% <- %2; }
+	:=  'root' <identifier> ';'		 { %% <- %2; }
+	| 'import' <identifier-list> ';' { %% <- %2; }
+	| 'export' <identifier-list> ';' { %% <- %2; }
 
 # macro from observation
-# <*-list> := <*> *(',' <*>) { %% <- create list(*); append(%%, %1); for (it in *) append(%%, it); }
+# <*-list> := <*> *(',' <*>) { %% <- create list(*); append(%%, %1); for (it in %3) append(%%, it); }
 
 <identifier-list> { ids } 
-				:= <identifier> *(',' <identifier>) {
-						append(%%, %0); 
-						for (it in *) append(%%, it); 
-				}
+	:= <identifier> *(',' <identifier>) {
+		append(%%, %0); 
+		for (it in *) append(%%, it); 
+	}
 
 <function-declaration> { function } 
-					:= 'fn' <identifier> <function-type> <function-body> {
-						%% <- function(%2, %3, %4);
-					}
+	:= 'fn' <identifier> <function-type> <function-body> {
+		%% <- function(%2, %3, %4);
+	}
 						  
+<function-type> { (argument-list, return-list) } 
+	:= <arg-list> '->' ?(<type-list>) { 
+		%% <- (%1, %3); 
+	}
 
-<function-type> { (argument-list, return-list) } := <arg-list> '->' ?(<type-list>) { %% <- (%1, %3); }
-					
+<arg-list> { argument-list } 
+	:= '(' <arg> *(',' <arg>) ')' {
+		%% <- list(%2);
+		for (it in %3) append (%%, it);
+	}
 
-<arg-list> {argument-list} 
-		:= '(' <arg> *(',' <arg>) ')' {
-			append(%%, %2);
-			for (it in %3) append (%%, it);
-			}
+<type-list> { return-list }  
+	:= '(' <type> *(',' <type>) ')' {
+		append(%%, %2);
+		for (it in %3) append (%%, it);
+	}
 
-<type-list> {return-list}  := '(' <type> *(',' <type>) ')'
+<arg> { arg } 
+	:= <identifier> ':' <type> { 
+		%% <- arg(%1, %2); 
+	}
 
-<arg> := <identifier> ':' <type> { %% <- (%1, %2); }
+<function-body> { scope } 
+	:= <scope> {
+		%% <- scope(%1);
+	}
 
-<function-body> := <scope> { %% <- %1; }
-
-<scope> := '{' *(<variable-declaration> | <statement>) '}' { %% <- scope(%2); }
+<scope> { scope }
+	:= '{' *(<variable-declaration> | <statement>) '}' {
+		%% <- scope(%2);
+	}
 
 <variable-declaration> { declaration } 
-						:= <identifier> ':' <type> ?('=' <initializer>) ';' {
-							%% <- if (%4) then declaration(%1, ':=', %3, %4)
-										  else declaration($1, $2, %3);
-							} 
-						 | <identifier> ('::' | ':=') <initializer> ';' {
-							%% = declaration (%1, %2, %3);
-							}
+	:= <identifier> ':' <type> ?('=' <initializer>) ';' {
+		%% <- if (%4) then declaration(%1, ':=', %3, %4)
+				      else declaration($1, $2, %3);
+	} 
+	| <identifier> ('::' | ':=') <initializer> ';' {
+		%% <- declaration (%1, %2, %3);
+	}
 
-#{
- someone may ask, hey, how exactly do the +(), *(), and ?() 
- symbols work?
 
- and that is a fantastic question.
- 
- all parenthesis declare a new grapheme in the production they appear.
- that is to say, they are refrenced positionally as a single unit.
- and can then be syntactically and/or semantically unpacked.
- 
+<type> { type }  
+	:= 'int' { %% <- INT; } 
+	| 'real' { %% <- REAL; } 
+	| 'text' { %% <- TEXT; } 
+	| 'bool' { %% <- BOOL; } 
 
- +() and *() both act as a list of all the
-  successfull matches
-
-  ?() acts as an option type essentially.
-  either the type exists, or the entire
-  expression is NONE. (or nil, or...)
-#}
-
-<type> {type}  := 'int'  { %% <- INT; } 
-				| 'real' { %% <- REAL; } 
-				| 'text' { %% <- TEXT; } 
-				| 'bool' { %% <- BOOL; } 
-
-<initializer> { expr } := <expression> { %% <- %1; }
+<initializer> { expr } 
+	:= <expression> {
+		%% <- %1;
+	}
 
 <statement> { statement } 
-			:= <if>			{ %% <- %1; }
-			 | <while>		{ %% <- %1; }
-			 | <return>		{ %% <- %1; }
-			 | <scope>		{ %% <- %1; }
-			 | <expression> { %% <- %1; }
+	:= <if>			{ %% <- %1; }
+	| <while>		{ %% <- %1; }
+	| <return>		{ %% <- %1; }
+	| <scope>		{ %% <- %1; }
+	| <expression>  { %% <- %1; }
 
 <if> { if }	
 	:= 'if' '(' <expression> ')' <statement> ?('else' <statement>) {
-		%% <- if (%3, %5, %6);
+		%% <- if(%3, %5, %6);
 	}
 		
 <while> { while } 
 	:= 'while' '(' <expression> ')' <statement> {
-		%% <- while (%3, %5);
+		%% <- while(%3, %5);
 	}
 
 <return> { return } 
-		:= 'return' <expression> {
-			%% <- return(%2);
-		}
+	:= 'return' <expression> {
+		%% <- return(%2);
+	}
 
 <expression> { expr } 
-		:= <expr> ';' {
-			%% <- %1;
-		}
+	:= <expr> ';' {
+		%% <- expr(%1);
+	}
+
+#{
+	taking straight from Yacc/Bison/Happy
+	an operators precedence does not need
+	to be denoted explicitly in the grammar
+	rules, but is denoted by stating it
+	as a property of the operator.
+
+	%prec
+	%left
+	%right
+
+	a binary operator can be any function that looks
+	like:
+	fn binop-signature(lhs : type-a, rhs : type-b) -> result : type-c {
+		# body
+	}
+	and a binary operator maybe left or right associative
+
+	a unary operator can be any function that looks 
+	like:
+	fn unop-signature(rhs : type-a) -> result : type-b {
+		# body
+	}
+	a unary operator always binds to its immediate right
+
+	a postfix operator can be any function that looks
+	like:
+	fn postfix-signature(lhs : type-a, rhs : type-b) -> result : type-c {
+		# body
+	}
+	a postfix operator always binds to it's immediate left
+
+	using expressions in pink, is a way of composing functions together
+	in a syntax light semantically rigorous way. there will be the ability
+	to overload existing operators for new types, and to declare new operators
+	entirely. 
+
+	aside: 
+	maybe removing named member access in favor of positional
+	access, and pattern matching would work well with the more
+	functional look and feel to the language. if a sum type
+	can be split over a tuple into names, instead of saying
+
+	sumtype.member <- xx
+
+	we can say:  
+	sumtype -> (mem1, mem2)
+	   mem1 <- xx
+
+	or
+
+	sumtype[0] <- xx
+
+	we can split a sum type over a tuple in a switch context
+	switch (sumtype) {
+	(val1, val2):
+
+	(val3, val4):
+
+	(val5, val6):
+
+	default:
+
+	}
+#}
+
+<expr> { expr }
+	:= <numeric-literal>    { %% <- number(%1);        } 
+	| <unop> <expr>         { %% <- unop(%1, %2);      }
+	| <expr> <binop> <expr> { %% <- binop(%1, %2, %3); }
+	| <expr> +(<postop>)    { %% <- postop(%1, %2);    }
+	| '(' <expr> ')'        { %% <- expr(%2);          }
 
 # some complicated, valid expressions that should be 
 # able to be parsed given this BNF grammar
 # a, b, c, d = f(g + k, h - J(q), i, j);
 # a = 0, b = "sometext", c = j + k, g = F() - G(P);
-# 
-
-<expr> := <parse-expression>(<primary-expr>, 0)
-
-# this is a non-standard way of expressing this,
-# this function implements the grammar of expressions in the language
-# it is an instance of an operator precedence parser
-<parse-expression>(lhs: _ast*, min_prec: int) := {
-	lad := curtok()
-	while (predict_binop(lad) & precedence(lad) >= min_prec) {
-		op := lad
-		nexttok()
-		rhs := <primary-expr>
-		lad = curtok()
-		while (predict_binop(lad) & precedence(lad) > precedence(op)) {
-			rhs = <parse-expression>(rhs, precedence(lad))
-			lad = curtok();
-		}
-		lhs = create _binop(op, lhs, rhs)
-	}
-	return lhs
-}
-
-# my attempt at an operator-precedence parser in BNF
-<parse-expression>(lhs : <ast>, min_prec: int) :=
-	<primary-expr> *((<prev-binop> & precedence(<token>) >= min_prec) <primary-expr>
-						*(<binop> & precedence(<token>) > precedence(<prev-binop>) <parse-expression>(<primary-expr>, precedence(<binop>)
-					)
-
-<primary-expr> := <identifier> (<call-list>)? 
-				| '(' <expression> ')'
-				| <unop> <primary-expr>
-				| <literal>
-
-<call-list> := '(' <expression> *(',' <expression>) ')'
-
-# the regular way of doing operator-precedence in BNF
-# (lower -> tighter binding)
-<expression> := <expr> ';'
 
 <expr> := <assignment-expr>
 		| <expr> ',' <assignment-expr>

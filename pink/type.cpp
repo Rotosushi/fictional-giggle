@@ -7,7 +7,7 @@ string to_string(_type t)
 {
 	switch (t) {
 	case _ERR: return "ERR";
-	case _DEDUCE: return "DEDUCE";
+	case _INFER: return "DEDUCE";
 	case _FCALL: return "FCALL";
 	case _NIL: return "NIL";
 	case _INT: return "INT";

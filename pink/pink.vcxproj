@@ -163,13 +163,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ast.h" />
-    <ClInclude Include="Atom.h" />
     <ClInclude Include="attributes.h" />
     <ClInclude Include="error.h" />
-    <ClInclude Include="Function.h" />
     <ClInclude Include="Entity.h" />
     <ClInclude Include="lexer.h" />
-    <ClInclude Include="Module.h" />
     <ClInclude Include="parser.h" />
     <ClInclude Include="pink_type.h" />
     <ClInclude Include="semantic_analysis.h" />
@@ -196,6 +193,7 @@
     <Text Include="pink_polymorphism.txt" />
     <Text Include="pink_type_system.txt" />
     <Text Include="scratch.txt" />
+    <Text Include="syntax-exploration.txt" />
     <Text Include="test_lexer.txt" />
     <Text Include="test_parser.txt" />
     <Text Include="TODO.txt" />

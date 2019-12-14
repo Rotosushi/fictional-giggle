@@ -9,6 +9,7 @@ using std::map;
 #include "token.h"
 #include "type.h"
 
+// because primitive tagged unions are too much to ask for...
 enum _ast_type {
 	AST_ERR,
 	AST_VAR,
@@ -49,6 +50,8 @@ typedef struct _expr : public _ast {
 	_expr() : _ast(AST_EXPR), expr() {}
 } _expr;
 
+_expr* build_expr(_type t, _ast* expr);
+
 typedef struct _var : public _ast {
 	string id;
 	_type type;
@@ -57,7 +60,7 @@ typedef struct _var : public _ast {
 	_var() : _ast(AST_VAR), id(), type() {}
 } _var;
 
-_var* create_var(string id, _type type = _NIL, _ast* type_expression = nullptr);
+_var* build_var(string id, _type type = _NIL, _ast* type_expression = nullptr);
 
 typedef struct _vardecl : public _ast {
 	_var lhs;
@@ -126,8 +129,8 @@ typedef struct _binop : public _ast {
 	_ast* lhs;
 	_ast* rhs;
 
-	_binop() : _ast(AST_BINOP), type(_DEDUCE), op(T_ERR), lhs(nullptr), rhs(nullptr) {}
-	_binop(_token o, _ast* l, _ast* r) : _ast(AST_BINOP), type(_DEDUCE) {
+	_binop() : _ast(AST_BINOP), type(_INFER), op(T_ERR), lhs(nullptr), rhs(nullptr) {}
+	_binop(_token o, _ast* l, _ast* r) : _ast(AST_BINOP), type(_INFER) {
 		op = o;
 		lhs = l;
 		rhs = r;

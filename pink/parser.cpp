@@ -619,7 +619,7 @@ _fcall* _parser::_parse_function_call()
 void _parser::parse_carg(_arg& carg)
 {
 	// <carg> := <expr>
-	carg.type = _DEDUCE;
+	carg.type = _INFER;
 	carg.type_expression = _parse_expression(_parse_primary_expr(), 0);
 }
 
