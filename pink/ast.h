@@ -47,7 +47,7 @@ typedef struct _expr : public _ast {
 	_ast* expr;
 	//vector <_ast*> expr_list;
 
-	_expr() : _ast(AST_EXPR), expr() {}
+	_expr() : _ast(AST_EXPR), type(), expr() {}
 } _expr;
 
 _expr* build_expr(_type t, _ast* expr);
@@ -55,12 +55,11 @@ _expr* build_expr(_type t, _ast* expr);
 typedef struct _var : public _ast {
 	string id;
 	_type type;
-	_ast* type_expression;
 
 	_var() : _ast(AST_VAR), id(), type() {}
 } _var;
 
-_var* build_var(string id, _type type = _NIL, _ast* type_expression = nullptr);
+_var* build_var(string id, _type type, _ast* type_expression = nullptr);
 
 typedef struct _vardecl : public _ast {
 	_var lhs;
@@ -86,7 +85,13 @@ typedef struct _arg : public _ast {
 	_type type;
 	_ast* type_expression;
 
+	
 	_arg() : _ast(AST_ARG), id(), type(), type_expression() {}
+	_arg(string i, _type t, _ast* t_e) : _ast(AST_ARG) {
+		id = i;
+		type = t;
+		type_expression = t_e;
+	}
 } _arg;
 
 _arg* create_arg(string id, _type type, _ast* type_expression = nullptr);
@@ -129,8 +134,8 @@ typedef struct _binop : public _ast {
 	_ast* lhs;
 	_ast* rhs;
 
-	_binop() : _ast(AST_BINOP), type(_INFER), op(T_ERR), lhs(nullptr), rhs(nullptr) {}
-	_binop(_token o, _ast* l, _ast* r) : _ast(AST_BINOP), type(_INFER) {
+	_binop() : _ast(AST_BINOP), type(), op(T_ERR), lhs(nullptr), rhs(nullptr) {}
+	_binop(_token o, _ast* l, _ast* r) : _ast(AST_BINOP), type() {
 		op = o;
 		lhs = l;
 		rhs = r;

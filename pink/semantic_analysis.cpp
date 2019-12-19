@@ -26,18 +26,19 @@ bool _semantic_analyzer::analyze_module(_module & m)
 
 	// resolve the type of all global variables
 	for (auto pair : m.variable_table) {
-		pair.second.lhs.type = typeof(pair.second);
+		resolve_type(pair.second);
 	}
 
 	// resolve the types in all the functions declared
 	// in this module
 	for (auto pair : m.function_table) {
+		// we have to resolve every function in the overload set.
 		for (auto fn : pair.second) {
 			resolve_type(fn);
 		}
 	}
 
-
+	return success;
 }
 
 _scope& _semantic_analyzer::curr_scope()
@@ -107,13 +108,14 @@ void _semantic_analyzer::resolve_type(_vardecl& dec)
 	switch (dec.op) {
 	case T_COLON: // <id> ':' <type> ';'
 		// the type information is present in the decl already
-		assert(dec.lhs.type != _ERR);
+		// it had to be, for the variable to be a valid decl.
+		
 		return;
 	case T_COLON_COLON: // <id> '::' <expr> ';'
 	{
 		// the type information is inferred from the expression
 		dec.lhs.type = typeof(dec.init);
-		assert(dec.lhs.type != _ERR);
+		
 		return;
 	}
 	case T_COLON_EQ: // <id> ':' ?(<type>) '=' <expr> ';'
@@ -123,10 +125,7 @@ void _semantic_analyzer::resolve_type(_vardecl& dec)
 		// so the type is inferred from the
 		// rhs expression, otherwise
 		// it's already present on the type
-		if (dec.lhs.type = _INFER) {
-			dec.lhs.type = typeof(dec.init);
-			assert(dec.lhs.type != _ERR);
-		} else assert(dec.lhs.type != _ERR);
+		
 		return;
 	}
 	default: throw;
@@ -135,32 +134,12 @@ void _semantic_analyzer::resolve_type(_vardecl& dec)
 
 void _semantic_analyzer::resolve_type(_var& var)
 {
-	switch (var.type) {
-	case _INFER:
-	{
-		var.type = typeof(var.type_expression);
-		assert(var.type != _ERR);
-	} 
-	case _INT: case _REAL:
-	case _TEXT: case _BOOL: case _NIL:
-		return;
-	default: throw;
-	}
+	
 }
 
 void _semantic_analyzer::resolve_type(_expr& expr)
 {
-	switch (expr.type) {
-	case _INFER:
-	{
-		expr.type = typeof(expr.expr);
-		assert(expr.type != _ERR);
-	}
-	case _INT: case _REAL:
-	case _TEXT: case _BOOL: case _NIL:
-		return;
-	default: throw;
-	}
+	
 }
 
 void _semantic_analyzer::resolve_type(_fn& fn)
@@ -176,7 +155,7 @@ void _semantic_analyzer::resolve_type(_fn& fn)
 
 	// resolve the type of every statement in the function.
 	for (auto stmt : fn.body.statements) {
-		assert(typecheck_statement(stmt) != _ERR);
+		
 	}
 
 
@@ -196,8 +175,7 @@ void _semantic_analyzer::resolve_type(_binop& binop)
 	// is <op> defined for the lhs_type and rhs_type
 	// what is the action associated with this operation
 	// function named '+' that we overload?
-	auto operator_func = lookup_fn(token_to_string(binop.op), );
-
+	//auto operator_func = lookup_fn(token_to_string(binop.op), );
 
 	switch (binop.op) {
 	case T_EQ:
@@ -205,9 +183,9 @@ void _semantic_analyzer::resolve_type(_binop& binop)
 		// lhs of '=' must be a variable
 		if (binop.lhs->ast_type != AST_VAR)
 			throw _semantic_error(__FILE__, __LINE__, "left hand side of '=' must be a variable");
-		if (resolve_type(*(_var*)binop.lhs).op == T_COLON_COLON)
+		/*if (resolve_type(*(_var*)binop.lhs).op == T_COLON_COLON)
 			throw _semantic_error(__FILE__, __LINE__, "left hand side of assignment cannot be constant");
-		
+		*/
 	case T_ADD:
 		// int + int -> int
 		// real + real -> real
@@ -266,12 +244,12 @@ _type _semantic_analyzer::typeof(_var& var)
 
 _type _semantic_analyzer::typeof(_vardecl& vardecl)
 {
-	if (vardecl.lhs.type == _INFER) {
+	/*if (vardecl.lhs.type == _INFER) {
 		return typeof(vardecl.init);
 	}
 	else {
 		return typeof(vardecl.lhs);
-	}
+	}*/
 }
 
 _type _semantic_analyzer::typeof(_fn& fn)
@@ -281,11 +259,11 @@ _type _semantic_analyzer::typeof(_fn& fn)
 
 _type _semantic_analyzer::typeof(_fcall& fn)
 {
-	// first find the function we are calling
-	auto f = resolve_type(fn);
-	// then lookup its type
-	auto type = typeof(f);
-	return type;
+	//// first find the function we are calling
+	//auto f = resolve_type(fn);
+	//// then lookup its type
+	//auto type = typeof(f);
+	//return type;
 }
 
 _type _semantic_analyzer::typeof(_expr& expr)
@@ -313,15 +291,16 @@ _type _semantic_analyzer::typeof(_ast* expr)
 
 _type _semantic_analyzer::typeof(_binop& binop)
 {
-	if (binop.type == _INFER) {
+	/*if (binop.type == _INFER) {
 		auto lhs_type = typeof(binop.lhs);
 		auto rhs_type = typeof(binop.rhs);
+		vector<_arg> dargs = {_arg("", lhs_type, nullptr), _arg("", rhs_type, nullptr)};
 
-		return typeof(resolve_type(binop))
+		return 
 	}
 	else {
 		return binop.type;
-	}
+	}*/
 }
 
 _type _semantic_analyzer::typeof(_unop& unop)
