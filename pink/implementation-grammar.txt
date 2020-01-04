@@ -12,12 +12,12 @@
 
 # when considering implementation of the source code,
 # consider the idea of a basic block, a section of
-# code that has one entry and one exit. (this,
-# is the basic unit of execution. branches become
+# code that has one entry and one exit. this,
+# is the basic unit of execution. branches are
 # branches between basic blocks, loops loop over
-# basic blocks, etc.)
+# basic blocks, and sequences of statements compose basic blocks.)
 
-# each attribute could be implemented as a callback
+# each attribute could be implemented as a callback action
 # to be executed when the match is completed.
 # the function will take a varargs list containing
 # each semantic element. 
@@ -178,30 +178,83 @@
 
 	   in my opinion, having an optional type
 	   encodes failure into the semantic definition of the function rather than
-	   making it explicit with syntax. (i prefer this, being able to formulate
+	   making it explicit with syntax. i prefer this, being able to formulate
 	   semantics out of already understood syntax means the
-	   kernel can be smaller.) we cannot avoid side effects, they are a 
-	   necessary evil, we have to write values at some point to be useful.
-	   but writing values is the main cause of bugs in programs.
-	   maybe, making side effects explicit gives us more
-	   benefit than the drawback of a more terse syntax.
-	   (having to separate them sytactically makes the programmer do more work, both
-	   writing the definition and conceptually. it is also another 
-	   hurdle to learning the language. albeit a small one.)
-	    
+	   kernel can be smaller plus the option type is a powerful pattern on it's own.
+	   however, we cannot avoid side effects they are a necessary evil;
+	   we have to write values at some point to be useful.
+	   but writing values is the main cause of bugs in programs! you exclaim.
+	   well, making side effects explicit in the syntax hopefully allows the compiler
+	   to reason about them, like a functional language can. allowing the compiler
+	   more optimizations and static analyses tools. which should give programmers
+	   more tools to make those bugs easier to fix and harder to write
+	   maybe it's useful to go so far as to define pink using monads, 
+	   and just giving the language an imperitive veneer. I think the
+	   simplest design of pink' may be using monadic style.
+
+	   
+	   functions are pure code, actions are impure code.
+	   impure code can call pure and impure code, whereas
+	   pure code, can only call more pure code. this enables the
+	   optimizations around pure code, because all pure code
+	   is defined to only be pure. so you will never 
+	   unintentionally introduce inpurity to some
+	   computation, as the compiler will complain.
+
+	   impure -> impure
+	   impure -> pure
+	   pure -> pure
+	   pure -x> impure
+	   
+	   which means
+
+	   action -> action
+	   action -> function
+	   function -> function
+	   function -x> action
+
+	   thinking about optimization, there should be levels
+	   but it should be organized around some assumptions.
+	   i.e.
+	   no optimization: should imply to the compiler 
+		-> "I want you to output exactly that code which implements
+		    exactly what the syntax defines." if one looked at the
+			output assembly, one would see all entities implemented in an
+			unoptimized way that mirrored as closely as possible
+			what the programmer stated.
+
+	   weak optimization: should imply to the compiler
+		-> "I want you to output largely what i stated, but you
+		    can preform small to medium optimizations on the
+			source text to improve the speed of the computation."
+			if one looked at the output assembly, one would see
+			loops unrolled, variables reordered, functions
+			inlined, and all the sorts of
+			small and medium optimizations on the source text that
+			a compiler can do, without fundamentally changing the logic
+			that the programmer stated.
+
+	   strong optimization: should imply to the compiler
+	    -> "I gave you source text that defined some program
+		    semantically, i want you to output the fastest program
+			you can that behaves identically." if one looked at the
+			output assembly of the program, it could mirror what the programmer
+			said, or the program could be completely different. but in 
+			operation the program would behave as specified.
 #}
 
 
 Attributes = {
 	# the type system of v1 will only have type primitives,
 	# and no way of declaring new types, so these types
-	# are the only types which exist in the language.
+	# are the only types which exist in the language. this is
+	# to simplify the implementation.
 	int_value  : int;
 	real_value : float;
 	text_value : string;
 	bool_value : bool;
 	value : (int_value | real_value | text_value | bool_value);
-	type  : enum( INT | REAL | TEXT | BOOL | INFER );
+	type  : enum( NONE | ANY | MAYBE | INT | REAL | TEXT | BOOL | INFER );
 	name  : string;
 
 	# variable declarations
@@ -218,6 +271,10 @@ Attributes = {
 
 	# statements will be extendable in the final language
 	# via macros.
+	# if we add in the haskell feature of peicewise definition
+	# into pink' then users could extend statements in an extreemly
+	# straightforward way, by just adding a clause to the peicewise
+	# definition.
 	if        : (expr, statement, statement);
 	while     : (expr, statement);
 	return    : expr;
@@ -248,14 +305,63 @@ Attributes = {
 # to define the semantic meaning of the language. (empty rules are allowed,
 # it means nothing will occur.)  
 
+# <program> is the root of this grammar
+# {} define the attributes of the symbol, where
+# {} occuring before the equals defines the state of the
+#    symbol
+# {} occuring after each production defines the sequence
+#    of actions that occur after the production has matched.
+#    a set of pseudo-variables starting with %% for the
+#    lhs symbol's state, and a symbol for each number from [%0..%n] 
+#    where n is the number of symbols occuring in the associated
+#    production.
+
+# for this first production i will state directly the intention of each statement
+# just for semantic clarity, (mostly because the concrete syntax is subject to change
+# at this stage of the design.)
+# so: a program is defined by a module.
+# at this stage all programs are single files (it's v1)
 <program> { module } # == <program> { module : (directives, symbol-table, function-table) }
+
+# a program can be constructed from a list of module declarations,
+# ended by the EOF character.
 	:= *(<module-declaration>) EOF {
+
+		# we construct a module from the list of productions and bind that
+		# to the root state.
 		%%  <- module (%1);
+
+		# we have to infer the types of the module, because we allow
+		# eliding the typename from declarations syntactically (but not
+		# semantically) so this step is to ensure that we know the type of
+		# each name in the program. because there is no binding action
+		# we -must- assume that infer_types is modifying the passed argument.
+		# infer_types() must be defined as an action, not a function.
 		infer_types(%%);
+
+		# this step is less pinned down for me right now. the intermediate
+		# representation is something that i don't have a clear idea of yet.
+		# it's hard to justify some structure that is too different from
+		# just using the AST directly, because the AST is already there.
 		IR  <- generate-IR (%%);
+
+		# so type_checking definitely needs to occur, and i am sure some
+		# more semantic passes need to be defined, and i know they all need
+		# to be defined around the Intermediate Representation.
+		# (I am leaning more and more to using LLVM as the IR, because they
+		# can already output all the code, but part of this project was learning
+		# how to write that code myself, but all the work has already been done.
+		# IDK, its a toss up right now.)
 		type_check(IR);
+
+		# this step takes the fully understood and optimized IR and converts it
+		# to the target language.
 		asm <- convert_to_assembly(IR);
+
+		# this step probably calls an assembler, but it may be hand-rolled at some point.
 		exe <- assemble(asm); 
+
+		# this step is very neccessary.
 		write_executable(exe, output);
 	}
 
@@ -328,7 +434,6 @@ Attributes = {
 		%% <- declaration (%1, %2, %3);
 	}
 
-
 <type> { type }  
 	:= 'int' { %% <- INT; } 
 	| 'real' { %% <- REAL; } 
@@ -378,6 +483,7 @@ Attributes = {
 	%left
 	%right
 
+	the binary operator production can work with any string of charaters
 	a binary operator can be any function that looks
 	like:
 	fn binop-signature(lhs : type-a, rhs : type-b) -> result : type-c {
@@ -385,19 +491,24 @@ Attributes = {
 	}
 	and a binary operator maybe left or right associative
 
+	the unary operator production can work with any string of characters.
 	a unary operator can be any function that looks 
 	like:
 	fn unop-signature(rhs : type-a) -> result : type-b {
 		# body
 	}
-	a unary operator always binds to its immediate right
+	unary operators always appear in a prefix position
+	a unary operator always binds to its immediate right symbol.
 
+	the postfix operator production needs to be defined by a 
+	pair of symbols one which predicts the beginning of the operation,
+	and the second ending the operation.
 	a postfix operator can be any function that looks
 	like:
 	fn postfix-signature(lhs : type-a, rhs : type-b) -> result : type-c {
 		# body
 	}
-	a postfix operator always binds to it's immediate left
+	a postfix operator always binds to it's immediate left symbol
 
 	using expressions in pink, is a way of composing functions together
 	in a syntax light semantically rigorous way. there will be the ability
@@ -439,7 +550,28 @@ Attributes = {
 	| <expr> <binop> <expr> { %% <- binop(%1, %2, %3); }
 	| <expr> +(<postop>)    { %% <- postop(%1, %2);    }
 	| '(' <expr> ')'        { %% <- expr(%2);          }
+#   | <tuple-literal>       { %% <- tuple(%1);         }
 
+# <tuple-literal> := '[' <identifier-list> ']' { %% <- %2; }
+
+#{ 
+precedence table:
+	lowest
+	assignation
+	boolean eq, neq
+	boolean less, less-than, greater, greater-than
+	boolean or
+	boolean xor
+	boolean and
+	bitwise or
+	bitwise xor
+	bitwise and
+	bitwise lshift, rshift
+	arithmetic add, sub
+	arithmetic mult, div, mod
+	procedure evaluation
+	highest 
+#}
 # some complicated, valid expressions that should be 
 # able to be parsed given this BNF grammar
 # a, b, c, d = f(g + k, h - J(q), i, j);

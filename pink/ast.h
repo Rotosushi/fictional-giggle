@@ -31,6 +31,8 @@ enum _ast_type {
 	AST_BOOL,
 };
 
+// because reflection over the names of elements is
+// too much to ask for.
 string ast_type_to_string(_ast_type at);
 
 typedef struct _ast {
@@ -42,15 +44,20 @@ typedef struct _ast {
 
 } _ast;
 
-typedef struct _expr : public _ast {
+typedef struct _entity {
+	string name;
 	_type type;
+	_ast* value;
+} _entity;
+
+typedef struct _expr : public _ast {
 	_ast* expr;
 	//vector <_ast*> expr_list;
 
-	_expr() : _ast(AST_EXPR), type(), expr() {}
+	_expr() : _ast(AST_EXPR), expr() {}
 } _expr;
 
-_expr* build_expr(_type t, _ast* expr);
+_expr* build_expr(_ast* expr);
 
 typedef struct _var : public _ast {
 	string id;
@@ -83,18 +90,16 @@ _scope* create_scope(vector<_vardecl> variables, vector<_ast*> statements);
 typedef struct _arg : public _ast {
 	string id;
 	_type type;
-	_ast* type_expression;
 
 	
-	_arg() : _ast(AST_ARG), id(), type(), type_expression() {}
-	_arg(string i, _type t, _ast* t_e) : _ast(AST_ARG) {
+	_arg() : _ast(AST_ARG), id(), type() {}
+	_arg(string i, _type t) : _ast(AST_ARG) {
 		id = i;
 		type = t;
-		type_expression = t_e;
 	}
 } _arg;
 
-_arg* create_arg(string id, _type type, _ast* type_expression = nullptr);
+_arg* create_arg(string id, _type type);
 
 typedef struct _fn : public _ast {
 	string id;

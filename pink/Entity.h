@@ -19,7 +19,7 @@ typedef struct Entity {
 	_type type;
 	_ast* value;
 
-	Entity() : entity_type(E_ERR), name(), type(_ERR), value(nullptr) {}
+	Entity() : entity_type(E_ERR), name(), type(), value(nullptr) {}
 	Entity(_entity_type e_t) { entity_type = e_t; }
 } Entity;
 

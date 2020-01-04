@@ -168,6 +168,7 @@
     <ClInclude Include="Entity.h" />
     <ClInclude Include="lexer.h" />
     <ClInclude Include="parser.h" />
+    <ClInclude Include="pink_ast.h" />
     <ClInclude Include="pink_type.h" />
     <ClInclude Include="semantic_analysis.h" />
     <ClInclude Include="testing.h" />
@@ -179,17 +180,19 @@
   <ItemGroup>
     <Text Include="c_grammar.txt" />
     <Text Include="design-thoughts.txt" />
+    <Text Include="Grammar_v7.txt" />
     <Text Include="implementation-grammar.txt" />
     <Text Include="grammar.txt" />
     <Text Include="grammar_v6.txt" />
     <Text Include="pink-feature-set.txt" />
+    <Text Include="pink-pink%27-design-space-and-basis.txt" />
     <Text Include="pink_design.txt" />
     <Text Include="pink_examples.txt" />
     <Text Include="pink_grammar.txt" />
     <Text Include="pink_grammar_v3.txt" />
     <Text Include="pink_grammar_v4.txt" />
     <Text Include="pink_grammar_v5.txt" />
-    <Text Include="pink_pillars.txt" />
+    <Text Include="c_biopsy.txt" />
     <Text Include="pink_polymorphism.txt" />
     <Text Include="pink_type_system.txt" />
     <Text Include="scratch.txt" />

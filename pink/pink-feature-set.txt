@@ -9,7 +9,7 @@ first,
 	what does a programming language need to talk about?
 		-> itself and its environment
 
-		divide the language into four quadrants
+		divide the language into four quadrants (state <-> behavior, itself <-> environment)
 
 		
 				|state				| behavior
@@ -23,6 +23,25 @@ first,
 				|	Hardware state	|	internal/external hardware.
 
 		note:
+			divide the language into four quadrants (primary <-> composed, concrete <-> abstract)
+
+			|	primary (an entity that cannot be decomposed			|	composed (an entity formed of primary and
+			|				at the current level of abstraction)		|				composed entities)
+------------|-----------------------								----|------------------------
+			|	functions&macros:		| atoms:						|	function:				| atoms:
+concrete	|	=, +, *, cmpxchg,		|	int, real, text,			|	  push, pop, peek,		|   stack, queue, list
+ provided	|	typeof, sizeof, [],		|	predefined constants		|	  prepend, append,		|   map, set, file,
+ by the		|	if, while, print		|	[], *, !*,					|	  open, seek, fork,		|   socket, thread,
+ language	|							|								|
+------------|-----------------------								----|-------------------------
+			|	functions:				| atoms:						|	function:				| atoms:
+abstract	|	macro, fcall,			|	local & global vars,		|	fn,						| type (adt),
+ written	|	 						|								| 
+ by the		|							|	local and global consts		|
+ programmer	|							|								|
+
+
+		note:
 			the language needs to have semantics for dealing
 			with a variety of situations. some situations
 			will inevitably be unforseen. in order to react
@@ -30,38 +49,49 @@ first,
 			or requirements, the language needs
 			to provide facilities for upgrade and modification
 			directly, at all times. this gives a future user of the language
-			a direct path to upgrading/extensio that is the same given to a current 
-			programmer. (a program compiled by the language however,
+			a direct path to upgrading/extension that is the same 
+			as a current programmer. (a program compiled by the language however,
 			does not inherit this implicitly.)
 
-			inevitably the solutions that were implemented
-			become obsolete for some reason, maybe for effeciency,
-			maybe for buggyness, or maybe because requirements changed.
+			inevitably the solutions that were implemented become obsolete for some reason
+			(or maybe they don't, lucky you),
+			
+			maybe for effeciency, maybe for buggyness, or maybe because requirements changed.
 
 			in any case modifying or replacing what already exists is always
 			a challenge. so shouldn't your tools provide you with resources
 			to make it easier to upgrade and modify not only your code,
 			but the tools you use to create in the first place?
 			
-			in the case of something like i have been describing, where
-			you have a set of language primitives, interacting according
-			to a set of rules. the hardest parts of the program maintinence/upgrade/extension
-			becomes the interactions between the various sets of rules
-			allowed in a program. in a closed language these interactions
-			or 'friction points' only need to be contended with once, during
-			implementation (or dealt with once if they are found at a later time)
-			however in a system as such that I am describing the potential for
-			friction to appear between disperate language features has been
-			increased by at least a magnitude (of whatever measurement scale is used)
+			a programming language can in many ways be thought of as a set of language primitives,
+			interacting according to a set of rules. the friction points of program implementing/maintaining/upgrading/extending
+			become the interactions between the various sets of rules and primitives in the language.
+			(interactions being used here to broadly name all of the syntactic changes
+			that need to be made, and the subtle semantic changes that need to be reconsidered when 
+			implementing/maintaining/upgrading/extending programs;
+			 these things can become combinatorially or exponentially complex quickly.)
+
+			in a closed language these interactions or 'friction points' only need 
+			to be contended with during implementation/maintinence/upgrade/extension  
+			of the languages primitives and only by the languages programmer. code that
+			is written in the language, by users, relies upon the primitives that the
+			language provides in order to implement/maintain/upgrade/extend their own
+			programs.
+
+			however in an open language the friction points have increased by at least a magnitude
+			(of whatever measurement scale is used)
 			just by the nature of allowing users to extend or modify the language source
 			directly. who knows, the risk of misuse may outweigh the benefiets gained.
 			but that is not a question that can be answered when considering the
 			issues in the abstract. it would be ideal design pink' such that it
 			provides consistent and known features to create language extensions,
 			something like a grammar kernel. whereby extensions can be written without
-			having to redefine previously existing features, but could also
-			make use of those features, you know, mimic the design of pink.
+			having to redefine previously existing features, this would go a long way
+			towords allowing something like implicit interoperability. just by having both
+			programs use the same primitives. to say that another way, all user written
+			semantic extensions are composite.
 
+			note:
 			theoretically this kernel could be used with user grammars to describe
 			other languages entirely, such as a LISP dialect, or Python, or something
 			else. This just justifies the exploration of this feature even more for me,
@@ -123,15 +153,15 @@ an entity can be either concrete, or abstract.
 at first blush it may appear that the distinction between a
 primary entity, and a concrete entity is unneccessary. however,
 the distinction does have to account for the situation of syntax
-and semantic extensions to the language. (it is up to the reader to think
-of other ways in which this distinction is relevant.)
+and semantic extensions to the language. 
 by which means a programmer can construct a new primary entity
 that is in fact not concrete. (also in this case the programmer may very 
 well have to concern themselves with the implementation of
 fn +(a: int, b: int) -> int, though it is hoped that by having the
 basics of the language in place, the programmer can rely on already
 defined grammar primitives to define further language primitives.)
-
+(it is up to the reader to think
+of other ways in which this distinction is relevant.)
 
 
 1: the kernel
@@ -171,6 +201,8 @@ can add new elements of the language to the language.
 		c portable. this won't extend to all of the facilities
 		of the language, as there are considerations to the actual
 		hardware in some places. 
+
+
 
 ------------------------------------------------------------------------------------
 	q: so what goes into the kernel of pink?
@@ -368,7 +400,7 @@ can add new elements of the language to the language.
 			be able to use the more esoteric parts of the assembly as well like
 			cmpxchg and what-not directly, and type-safely. like, using the
 			word and half-word datatypes? (or int or maybe anything that is
-			sizeof(anything) == sizeof(word) ??)
+			sizeof(anything) == sizeof(word) ??) 
 
 -------------------------------------------------------------------------------------
 

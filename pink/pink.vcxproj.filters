@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Resource Files\design">
+      <UniqueIdentifier>{a4d0845d-81fc-4b69-b516-43ff9cdbf977}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pink.cpp">
@@ -62,9 +65,6 @@
     <Text Include="test_parser.txt">
       <Filter>Resource Files</Filter>
     </Text>
-    <Text Include="pink_design.txt">
-      <Filter>Resource Files</Filter>
-    </Text>
     <Text Include="pink_grammar_v4.txt">
       <Filter>Resource Files</Filter>
     </Text>
@@ -83,26 +83,33 @@
     <Text Include="grammar.txt">
       <Filter>Resource Files</Filter>
     </Text>
-    <Text Include="pink_polymorphism.txt">
-      <Filter>Resource Files</Filter>
+    <Text Include="Grammar_v7.txt" />
+    <Text Include="design-thoughts.txt">
+      <Filter>Resource Files\design</Filter>
     </Text>
     <Text Include="implementation-grammar.txt">
-      <Filter>Resource Files</Filter>
+      <Filter>Resource Files\design</Filter>
     </Text>
-    <Text Include="design-thoughts.txt">
-      <Filter>Resource Files</Filter>
+    <Text Include="pink_design.txt">
+      <Filter>Resource Files\design</Filter>
     </Text>
-    <Text Include="pink_pillars.txt">
-      <Filter>Resource Files</Filter>
-    </Text>
-    <Text Include="pink-feature-set.txt">
-      <Filter>Resource Files</Filter>
+    <Text Include="pink_polymorphism.txt">
+      <Filter>Resource Files\design</Filter>
     </Text>
     <Text Include="pink_type_system.txt">
-      <Filter>Resource Files</Filter>
+      <Filter>Resource Files\design</Filter>
+    </Text>
+    <Text Include="pink-feature-set.txt">
+      <Filter>Resource Files\design</Filter>
+    </Text>
+    <Text Include="pink-pink%27-design-space-and-basis.txt">
+      <Filter>Resource Files\design</Filter>
     </Text>
     <Text Include="syntax-exploration.txt">
-      <Filter>Resource Files</Filter>
+      <Filter>Resource Files\design</Filter>
+    </Text>
+    <Text Include="c_biopsy.txt">
+      <Filter>Resource Files\design</Filter>
     </Text>
   </ItemGroup>
   <ItemGroup>
@@ -143,6 +150,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Entity.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pink_ast.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

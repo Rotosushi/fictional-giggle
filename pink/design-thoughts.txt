@@ -11,7 +11,7 @@ this is different from a library, in the sense that a library
 implements project or program specific behavior. whereas things
 that get implemented in the specification will change the 
 base behavior of the compiler itself, by adding or building
-on new features. 
+on features. 
 
 (this also means that the language can be built by specification,
 	which has implications that I probably can't imagine,
@@ -20,7 +20,7 @@ on new features.
 this introduces a spectrum of code to the language, with
 each portion having a different set of assumptions; and a
 sort of trajectory from "*this* was usefull in this one project" to
-"hey *this* can be applied *here*, maybe i can apply it *elsewhere*"
+"hey *this* can also be applied *here*, maybe i can apply it *elsewhere*"
 to finally, "wow i can't imagine programming without *this* in the
 	language."
 
@@ -49,7 +49,7 @@ together will be powerfull enough to express the aforementioned features)
 then this language will be used to specify pink. and other programming languages.
 
 a current question is how to describe the runtime of a language within a language,
-but i plan on answering that after developing pink'. after first writing a plain
+but i plan on answering that after developing pink and pink'. after first writing a plain
 pink implementation.
 
 why two languages? well, it is my instinct, that once both are
@@ -61,7 +61,7 @@ and by programmers using the language (hopefully library writers mostly)
 the hope is then that in order to add a new 
 feature, the compiler or the compiler prime would be able to tell you
 every point of friction between this new feature and the existing language,
-explicitly, by nature of how you add features to the language being a language
+explicitly, by the nature of how you add features to the language being a language
 itself.
 
 say you wanted to parse JSON input, instead of writing all the mechanics of the
@@ -69,5 +69,68 @@ parser and underlying boilerplate, you just have to give the specification once
 in a language that the kernel understands,
 and then use any given kernel feature with that resulting entity.
 
+so, if pink' is designed only to parse LL(1) languages in v1, then pink should
+be defined as an LL(1) language from the ground up.
 
 
+a compiler is traditionally defined by three phases,
+lexing, parsing and semantic-analysis;
+optimization & code-generation;
+linking and output;
+
+if i start from the beginning of the compiler, we first pick up the source text
+in a structured fashion. this intial structure defines semantics as written by
+the programmer. then this text is assigned meaning by way of semantic analysis.
+this is done by walking the initial structure and defining it more fully, inferring
+information and filling in the gaps left by the syntax. then we can optionally
+walk the tree and consolidate information, or modify it in some constrained and
+known way to improve aspects of the semantics. this is also done by walking the 
+initial structure, but this time we can rely on the information provided
+by semantic analysis to modify it. the next phase is the actual transformation,
+where again we traverse the initial structure, and this time we use it to produce
+equivalent semantics in the target language. the final phase outputs the generated code via 
+some I/O. though there are a lot of complications once you consider dynamic linking and loading.
+
+so it seems more like five phases.
+reading the source text in a way we can understand.
+preforming static analysis on some Intermediate Representation,
+preforming optimization on some IR, 
+linking the program together,
+and output.
+
+and you need some loader to get the program into memory,
+and then you need some way of jumping into different programs
+from some reccuring starting point.
+
+so the kernel of the language flows naturally into the kernel of
+the operating system. the line between language and operating system
+is a thin one, and mainly stems from the difference in the supported syntax.
+
+
+
+the so called 'front end' of the language is composed of
+lexing, parsing and semantic analysis. these three components
+seem to be well defined using graphemes, productions, and attributes.
+optimization, code-generation, linking, and output, can then all be described
+by adding functions with local variables, primitive operations, and I/O.
+
+if we look to another modern
+compiler-compiler, LLVM, we see that they drew the boundary around
+their program at the Intermediate Representation (IR).
+meaning, given some IR, LLVM can preform optimization, code-generation,
+and linkage. but producing correct IR is still something left to the
+programmer. the current pink' already sits squarely here conceptually,
+as the go-between from the 'high-level' syntax of pink' (the attribute grammar)
+to the syntax of some IR. IR generation is something we need to do
+either if we implement the back-end of the compiler itself, or if we use LLVM as
+the back-end.
+
+the structure is generally, we create the abstract syntax tree, then
+we walk the tree and preform semantic analysis, we walk the tree again
+and preform optimization, then we walk it again and produce the code,
+then we link all the modules of the program together and combine their
+namespaces.
+
+personally I would like the experience of writing the back end of a compiler
+even if in the end some tool like LLVM ends up being the correct choice,
+as they have done almost all of the legwork for the back end of any compiler.
