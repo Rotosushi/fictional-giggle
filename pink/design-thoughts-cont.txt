@@ -1,0 +1,82 @@
+
+syntax (form)
+
+semantics (meaning)
+
+types:
+
+control:
+	iteration:
+
+	selection:
+
+	recursion:
+
+	non-determinism:
+
+	concurrency:
+
+abstraction:
+
+
+Binding Time:
+a binding is an association between two things.
+the time at which the descision is made.
+
+(none of these are intended to be complete descriptions of every binding that occurs,
+	rather they are to pin down what kinds of descisions are being made, to better split
+	the language along the time axis.)
+
+Language Design Time - we decide which control structures and primitive types are in the language.
+	as with the set of kernel entities. generally things like the type system are also decided here.
+
+Language Implementation Time -  conceptually in this case, this will be bindings
+	which are created when pink' outputs a new compiler, or when pink is implemented.
+	traditional languages specification does not equal their implementation.
+	the specification document is treated as a purely abstract document.
+	so there can be a difference in the language when you consider different
+	compilers for the language. typically this includes things like the precision
+	of the primitive types, the binding of primitive I/O operations to the OS, 
+	and the organization and maximum size of the program itself. (it's stack
+	and heap.)
+
+Program Writing Time - programmers make their descisions here. so they are working with
+	the abstractions provided to them by someone else, or the abstractions they
+	write themselves.
+
+Compile Time - compilers map the source code to some semantically equivalent machine code.
+	they also lay out the static memory of the program.
+
+Link Time - static linking will take external code and insert it into the static definition
+	of the program. the linker also	resolves the names accross the separate modules of code.
+	virtual addresses are also picked here not actual addresses. 
+
+Load Time - dynamic linking occurs here, where when the loader runs to take the code from
+	where it is stored statically into RAM where it can be run. the dynamic linker also
+	runs at this time, and will fetch unresolved external code, and insert it into the
+	programs dynamic definition (the program as it exists in memory). 
+
+Run Time - run time is from the point at which the program starts, to the point at which
+	it ends. run time subsumes program boot time, module entry time, elaboration time,
+	function call time, block entry time, expression evaluation time and statement 
+	execution time.
+
+static bindings occur before run-time, 
+dynamic binding occus during run-time.
+
+early binding generally implies greater efficiency
+later binding generally implies greater flexibility
+
+Object Lifetime and Storage Management:
+
+Creation and Destruction of Objects
+Creation and Desturction of Bindings
+Deactiviation and Reactivation of bindings
+Refrences to variables, functions, and types.
+
+
+
+
+
+
+

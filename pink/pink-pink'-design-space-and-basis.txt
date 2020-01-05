@@ -274,8 +274,7 @@ construction:
 	
 abstraction:
 	we construct new types using the 'adt' statement. this defines the name
-	of the type in the current environment. an algebraic data typeclass allows
-	polymorphic function arguments,
+	of the type in the current environment. I want to 
 
 
 	

@@ -83,7 +83,6 @@
     <Text Include="grammar.txt">
       <Filter>Resource Files</Filter>
     </Text>
-    <Text Include="Grammar_v7.txt" />
     <Text Include="design-thoughts.txt">
       <Filter>Resource Files\design</Filter>
     </Text>
@@ -110,6 +109,9 @@
     </Text>
     <Text Include="c_biopsy.txt">
       <Filter>Resource Files\design</Filter>
+    </Text>
+    <Text Include="Grammar_v7.txt">
+      <Filter>Resource Files</Filter>
     </Text>
   </ItemGroup>
   <ItemGroup>

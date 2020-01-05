@@ -230,7 +230,7 @@ so, with some definitions out of the way, typically a programming language
 
 	m.1:
 		the textual preprocessor was a clever solution to a few problems,
-	namespaces, conditional compilation, and macros. 
+	namespaces, conditional compilation , and macros. 
 	The silent failure of the textual macro system can make debugging a nightmare,
 	and the lack of type checking reintroduces all of the subtle type bugs
 	back into the language.
@@ -266,7 +266,7 @@ so, with some definitions out of the way, typically a programming language
 	m.2: 
 		the header-file/source file split is the other half to c's solution
 	to namespaces, namely the syntactic element of the language which
-	specifies the namespace of a given file in c, has to be specified in 
+	specifies the public namespace of a given file in c. it has to be specified in 
 	a separate file denoted the header file.
 	this means that at a bare minimum an exported functions type definition
 	needs to be typed out twice, it needs to be changed in two locations
@@ -299,7 +299,7 @@ so, with some definitions out of the way, typically a programming language
 	this is a problem domain which can be solved at the language level, and should be.
 	there are two important abstractions that this system relies on for
 	successfull interoperation with the rest of the language; the void*
-	and the heap. first off, dynamic memory is a very difficult abstraction
+	and the heap. dynamic memory is a very difficult abstraction
 	for new programmers. it's correct use relies on being intimately
 	familiar with the control flow of your program, and of the current state
 	of your program. it becomes especially difficult when you take into
@@ -307,9 +307,12 @@ so, with some definitions out of the way, typically a programming language
 	of eachother, acting asychronously, and working upon the same memory.
 	there soon are combinatorially more elements to hold in ones head, 
 	which increases the likelyhood of errors and the difficulty of solving the
-	errors you have. also, only having the choice of a heap as the default allocation
+	errors you have. only having the choice of a heap as the default allocation
 	strategy is not always great, mostly it's unnoticable to higher level abstractions.
-	I'm not saying there shouldn't be a default, and im not even saying that the default
-	shouldn't be a heap, but i will say that there needs to be an option, and i think the
+	I'm not saying there shouldn't be a default allocation strategy,
+	and im not even saying that the default	shouldn't be a heap,
+	I am saying that we should do more testing and performance analysis
+	to support the choice of a default.
+	but i will say that there needs to be an option to change it, and i think the
 	runtime either should not have as high-level an abstraction as malloc, or the
-	underlying abstraction should be able to be specified via some semantics.
+	underlying abstraction should be able to be specified via some semantics, or both.

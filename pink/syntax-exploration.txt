@@ -46,7 +46,7 @@
 # so it turns pointer validity from a user managed issue,
 # to something that the language can build semantics around.
 # it also formalizes one way of handling uninitialized memory,
-# and makes it unambiguous to use.
+# as the easy way to do it.
 
 # if we consider something that is analagous to the void*
 # the 'any' type, it is like the 'Maybe' type in that it encapsulates

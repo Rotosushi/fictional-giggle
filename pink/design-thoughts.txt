@@ -106,8 +106,6 @@ so the kernel of the language flows naturally into the kernel of
 the operating system. the line between language and operating system
 is a thin one, and mainly stems from the difference in the supported syntax.
 
-
-
 the so called 'front end' of the language is composed of
 lexing, parsing and semantic analysis. these three components
 seem to be well defined using graphemes, productions, and attributes.
