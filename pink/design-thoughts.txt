@@ -13,9 +13,11 @@ that get implemented in the specification will change the
 base behavior of the compiler itself, by adding or building
 on features. 
 
-(this also means that the language can be built by specification,
+(this also means that the language can be built by it's specification,
 	which has implications that I probably can't imagine,
-	having never worked with something like that.)
+	having never worked with something like that.
+	in fact i don't believe something like that exists already.
+	which is rare for an idea i have.)
 
 this introduces a spectrum of code to the language, with
 each portion having a different set of assumptions; and a

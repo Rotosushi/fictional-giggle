@@ -13,21 +13,36 @@ a language depend more on which semantics they adopt then
 some arbitrary 'height'.
 
 a more realistic difference would be
-in the constraints that are placed on the
-programs which are written in the language.
+a systems language -must- consider the hardware
+on which it is run.
+a 'high' level language -can choose- to ignore
+the hardware on which it is run.
+
+in this way we can clearly understand what we mean,
+when one is programming in a high level language, the
+abstractions one uses are more suited to being used
+in the language, then they are a relection of the
+design of the hardware.
 
 this difference is easy to spot if we consider
 the differences between C and LISP.
 In C (1972) the language is treated more as a very nice
 assembler, with it's abstractions chosen carefully to
 have minimal overhead, but with a lot of semantic versatility.
+the syntax and semantics can easily (or succinctly) be implemented
+in the underlying assembly.
 
 In LISP (1960) the langauge does not run on any native harware,
 (...now-a-days, in the past there have been so-called LISP machines.)
 code is interpreted by an abstract machine, which then
 can act as if it was the program specified by the source code.
-and the source code that one looks at is wildly different
+the source code that one looks at is wildly different
 in syntax and semantics from a traditional assembly language.
+if one is familiar with LISP they may say, well hey, I can compile
+and run programs written in lisp without even having to open up
+the Interpreter. and while that is true, by design every program compiled
+in LISP must include a fully functional LISP interpreter in order to support
+the full language semantics. (with some asteriscs of course.)
 
 in LISP there is no conception of how exactly we mean to accomplish
 any given task, but we assume the machine knows how to execute it's language,
@@ -37,13 +52,23 @@ the language is therefore declarative.
 in C you specify how the machine is going to accomplish the task.
 the language is therefore imperitive.
 
+so then are all imperitive languages also systems languages?
+well, no. but a high-level imperitive langauge superficially
+look very similar to a systems language like C. they do however
+vary in a multitude of subtle ways. mostly in the underlying semantics of
+their languages primitive entities, and composite entities.
+this is further complicated by the fact that some languages support some specialized form
+of it's syntax that exists more in the systems sense than a high-level
+sense(C#, Rust). or other languages which try and straddle both layers (C++, Go).
 
-so, from a certain perspective, all general purpose languages are
+to get more into the weeds of the distinction I am really making
+we need to pull back a bit conceptually.
+from a certain perspective, all general purpose languages are
 interchangable with each other, they are all "turing-complete".
 which means that, however awkwardly, any conceivable algorithm could
-be specified in the language. 
-
-what then is the point of ever making a new language?
+be specified in any turing complete language. 
+if one takes this to it's natural logical conclusion we can ask
+ourselves, what then is the point of ever making a new language?
 
 well, the language we use has a profound effect on the ideas we have
 and the way we think. it also affects the way we recombine and reevaluate ideas.
@@ -55,7 +80,9 @@ all this to say that programming is very hard, and it would be nice if we had
 a language in which it was easy to say what is easy to do. or even nicer, a language
 in which it was easy to say what is hard to do. to paraphrase Donald Knuth, a program
 should be written so that it is easy for another human to tell what it is the computer
-should be doing.
+should be doing. and to me, C is failing to meet that need. so I strive to replace it.
+in the other languages that have come out recently to 'replace' C, none follow this 
+as dogma. and none have pink' either.
 
 
 

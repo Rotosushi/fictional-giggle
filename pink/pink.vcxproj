@@ -179,6 +179,7 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="c_grammar.txt" />
+    <Text Include="design-thoughts-cont.txt" />
     <Text Include="design-thoughts.txt" />
     <Text Include="Grammar_v7.txt" />
     <Text Include="implementation-grammar.txt" />
@@ -197,8 +198,10 @@
     <Text Include="pink_type_system.txt" />
     <Text Include="scratch.txt" />
     <Text Include="syntax-exploration.txt" />
+    <Text Include="talking_about_abstraction.txt" />
     <Text Include="test_lexer.txt" />
     <Text Include="test_parser.txt" />
+    <Text Include="thoughts_about_the_system_layer.txt" />
     <Text Include="TODO.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

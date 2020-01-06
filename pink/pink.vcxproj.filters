@@ -113,6 +113,15 @@
     <Text Include="Grammar_v7.txt">
       <Filter>Resource Files</Filter>
     </Text>
+    <Text Include="design-thoughts-cont.txt">
+      <Filter>Resource Files\design</Filter>
+    </Text>
+    <Text Include="talking_about_abstraction.txt">
+      <Filter>Resource Files\design</Filter>
+    </Text>
+    <Text Include="thoughts_about_the_system_layer.txt">
+      <Filter>Resource Files\design</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pink_type.h">

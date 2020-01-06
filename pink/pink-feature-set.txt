@@ -209,10 +209,10 @@ can add new elements of the language to the language.
 	a: 
 	primary type primitives:
 	name:
-		int, real, text, bool, byte, word, 
+		int, real, text, bool, bit, byte, word,
 
 	value:
-		integer, float32, unicode array, bit, 8 bits, machine-word size (32 or 64 mostly), 
+		integer, float 32/64, unicode array, boolean, bit, 8 bits, machine-word size (32 or 64 mostly), 
 
 		reasoning:
 			these basic types, int, real, text, and bool, provide facilities to describe many
@@ -255,7 +255,12 @@ can add new elements of the language to the language.
 			things anonymously, or to talk about pairs of things, and this is what
 			the tuple is for. (the argument list and return list of a function can be
 			represented as tuples for instance.)
-
+			 if we allow functions to return tuples then we can remove the asymmetry of
+			 function definitions. given that the language is LL(1) will probably
+			 mean that we won't have a nice syntax around returning a tuple. just
+			 due to the limited expressive power of LL(1). in v1 of pink, this
+			 is an easy tradeof to make, as ease of implementation is a bigger issue
+			 that ease of use. 
 	expressions with precedence.
 		reasoning:
 		 having an infix notation expression statement with 
@@ -407,7 +412,7 @@ can add new elements of the language to the language.
 		
 
 	abstraction mechanisms:
-		defn, deftype,
+		fn, adt
 
 		defining a new function, defining a new type,
 

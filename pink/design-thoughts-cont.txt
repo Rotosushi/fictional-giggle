@@ -5,6 +5,155 @@ semantics (meaning)
 
 types:
 
+type system:
+the type system of a programming language is 
+it's enforcement of type rules. mainly type systems are
+concerned with:
+
+type equivalence:
+	when can we say that two types are equivalent?
+
+	there are two kinds of type equivalence:
+	structural equivalence, which is based on the 
+	content of type definitions.
+	name equivalence: which is based on the lexical
+	occurances of the type definition.
+
+	structural equivalence between two types
+	refers to the underlying composition of the
+	two types. in the simplest case we can consider
+	int and real.
+	in both cases, pink specifies that the size of
+	these two types is equivalent to the size
+	of a single machine word. so structurally speaking
+	these two types are equivalent. simply because
+	to cast between the two one only needs to treat
+	the machine word as the different type.
+	if we consider the case of int -> real we can garuntee the
+	cast will not change the state of the underlying representation.
+	(we may still destroyinformation however,
+	if we were to cast from real -> int for instance.)
+	this is in fact the case in a language such as C,
+	where you can castany structurally equivalent type to any other.
+	
+	a definition of structural equivalence will need to apply
+	not only to every primitive type in the language, but must
+	also extend to the types which we can define in the language.
+	we must consider what it means to be structurally equivalent
+	for algebraic data types, arrays, tuples, and the data primitives.
+	when is a sum equivalent to another sum:
+
+	when is a product equivalent to another product:
+
+	when is an array equivalent to another array:
+
+	when is a tuple equivalent to another tuple:
+
+
+	name equivalence between two types refers to the
+	name of the two types. we say that two types are distinct
+	based on the fact that their names are different.
+
+	this issue primarily refers to type aliasing.
+	in programming languages with type-definitions
+	there is usually the ability to define trivially
+	different types. 
+	say:
+	type farenheit = real;
+
+	where farenheit is being used to represent temperature.
+	how much do we want the programmer to have to redefine
+	the semantics of real numbers in the type definition of
+	farenheit? when in reality any function that can take
+	a real, would work when passed in a farenheit. in C, they
+	leverage implicit casts, and structural equivalence to
+	allow programmers to 'inherit' the semantics of the
+	base type. (i say 'inherit' to distinguish it from
+	what is programmatically known as inheritance, which is
+	a different way of inheriting semantics.)
+
+	so, my first stab at this is to say that if one defines
+	a name equivalence through the algebraic data type mechanism
+	we would expect the types to be distinct. if we define
+	a new type to be the alias of the old type, we could expect
+	to 'inherit' the semantics of the old type. to say that
+	another way, the new type name would be semantically valid
+	in any place where the old type name would be semantically valid.
+
+
+	type casting and conversion:
+	the processes of casting or converting one type to the other.
+
+	there are three main cases of when we can cast,
+	1 - the types can be considered structurally equivalent.
+	2 - the types represent two distinct sets of values
+		but the values and representation overlap somewhat
+		(such as signed and unsigned integers, 
+		 or a short and an int)
+	3 - the types are not structurally equivalent, but 
+		we can conceive of a semantically meaninful
+		conversion function that maps one type to the other.
+		(such as real -> int, when one can accept the loss
+		 of precision.)
+
+	non-converting cast:
+		a type cast that doesn't change the underlying
+		representation, it merely reinterprets it as a value
+		of the new type. one can see this in the case of
+		memory allocation strategies. where the heap is itself an array
+		of bytes, but portions of the array are reinterpreted
+		as bookeeping structures or as user types.
+
+	type promotion:
+		type promotion is a particular kind of cast that is done
+		under-the-hood to provide non-hardware supported types
+		in the language. such as simulating a boolean value with
+		a full machine word.
+
+
+type compatibility:
+	when can we say that a particular usage of a type
+	is valid?
+
+type inference:
+	how do we deduce the type of an expression?
+	from it's contents and surrounding context.
+
+
+polymorphism:
+	abstraction over types,
+	there are two kinds of polymorphism we can consider.
+
+Parametric polymorphism:
+	that is polymorphism that exists in the parameter of a function.
+	in this case to body of a polymorphic function only relies on
+	a certain aspect of any given type, so any type which has that
+	aspect can be correctly passed through the polymorphic parameter.
+	this kind of polymorphism is generally implemented at compile time.
+	where the polymorphic definition acts as a template for function
+	definitions, and a static definition for the function can be defined
+	for every type that is used with that function.
+
+subtype polymorphism:
+	whereby the code works with values of some base/root type, and new
+	type can be defined which extend the semantics of the original type.
+	but provide the same interface and interface semantics, so the polymorphic
+	function can consistently rely on that/those aspects of the type.
+	subtype polymorphism is less interesting to me, as pink is not object-oriented
+	in the traditional sense. however single inheritance can still be usefull when 
+	creating and defining certain abstracktions, such as generic containers.
+	
+whereas parametric polymorphism is a shoe-in for the language,
+subtype polymorphism is not, mainly because of the issues surrounding
+inheritance. if single inheritance proves useful enough, then that will
+be added in, but I have never found that multiple inheritance solves
+the problems it purpots to solve, without also bringing in all of the
+issues.
+
+i feel that having type-aspects + parametric polymorphism will do a good
+job of covering the case where some base object inherits the behavior
+of two orthoginal base classes. 
+
 control:
 	iteration:
 

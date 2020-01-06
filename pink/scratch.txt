@@ -1,0 +1,169 @@
+
+
+to gain more understanding about any system,
+one can strive to understand the sources of tension within it. 
+the conflicting points of view.
+
+(thesis + antithesis) -> synthesis
+
+what are the points of tension on the design of the langauge?
+
+so, in order to talk about that we must fist define our context:
+
+any language exists in the greater world.
+
+the language also exists in some local environment, running on some physical hardware.
+
+the language has its own existance.
+
+the language defines the existance of other programs. (even other languages)
+
+language concerns are generally all important, but will have a different
+importance order depending on your perspective and external constraints.
+(if your particular project is running on very constrined hardware, 
+ your veiw is very different to that of a processor with 16, or more cores)
+
+language concerns include:
+
+- Expressivity + Communication
+	the language should enable programmers solve their problems, rather
+	than solve the riddle of how to express what they want to say in the
+	language. "stop telling me what you are going to say, and just say it."
+
+	Programmers fluent in the language should be able to easily read what
+	one another are saying and doing in their code. 
+	common abstractions should have a common form
+	common tasks should have a common form
+	it should be easy to say what is easy to do.
+
+	the language should be designed to communicate effectively.
+
+- Security
+	The language doesn't exist in a vacuum, a robust, expressive language
+	should be aware of the security concerns of a modern language. C is famously 
+	exploitable because it is hard to write hardened code,  More complex languages
+	are exploitable because their own operation is hard to understand, and
+	security is hard in a general sense because it is easy to exploit interoperations
+	between disperate programs. 
+
+- Performance
+	writing code that utilizes its resources effectively is difficult. writing
+	interoperating abstractions that can utilize shared resources is difficult.
+	performance modeling should be easy to do, and require minimal cognitive
+	overhead. the shape of performance modeling is uniform in the time axis, 
+	and on the space axis, so the language should have niceties.
+
+- Maintainability
+	Code that is written today, may be talking to code that is written 20
+	years from now. This is not something that can be ignored. How does this
+	affect the other dimensions, and how does the language assist programmers
+	in this dimension.
+
+- Testing
+	testing is a non-trivial aspect of development, that also has a uniform
+	shape. How does this language assist programmers in testing their own code?
+	in testing unknown code? the language implementation itself will be tested.
+
+
+- Implementation
+	the language needs to be able to exist to be useful, so creating it
+	is pretty important. it may seem idiodically obvious to say, but actually
+	getting things done in the first place is hard, and the greater world is a
+	very unpredictable place. concerns raised from difficulty of implementation
+	will definetly have an influence on the final design. the first compilers
+	were written with severe memory constraints, and the design was influenced
+	by that, both of the compiler and of the output code.
+
+- Portability + Hardware Interaction
+	A program written without using language constructs that tie it directly
+	to the hardware (these will be many and varied), a.k.a. in a portable way,
+	should be able to be compiled on any platform the back end of the compiler
+	supports. this also refers to what hardware the compiler itself runs
+	on. 
+	But what do we afford the programs which do want to tie themselves heavily
+	to the hardware? what about the programmer who has resource constraints,
+	or other esoteric constriants around their data?
+
+- Orthoginality
+	Language features should interact in an understandable, definite way, which
+	allows them to be composed together indiscriminately. or at least in a way that 
+	makes some sense and is communicated to the programmer. one should never have to maintian
+	a laundry list of edge cases in their head while they program. the programs that are
+	being expressed in the langauge are of the real importance to the programmer,
+	not the usage of the language. of course, with a systems programming language
+	some concessions will have to be made. (or at least the list of edge cases
+	should be as small as possible, and only occur when a sensible default makes no sense.)
+
+- Language Interoperation
+	Our langauge must exist, and so it has to contend with the other languages with
+	already do so. How can our language interoperate with programs written in other 
+	languages? 
+
+- Program Interoperation
+	The code written in the language is squarely in the domain of the users of the 
+	language, so they get the final say in how their program behaves. but if the
+	language itself provides a sensible default that covers 80%-100% of the use cases
+	then most users can attain interoperation without much effort. 
+
+state - (atoms)
+
+primary data-types: int, real, text, bool, byte, word, etc.
+
+static type system.
+	name and structure equivalency depending on context.
+
+lexical scoping.
+	with c-like name shadowing 
+	(new local scopes are dynamic, 
+	 seprate functions get static scopes.)
+
+sum and product types.
+	in the tradidionally functional style.
+	where a union is tagged in implementation.
+	but with c style semantics for how the memory is layed out.
+
+polymorphic type constructors.
+	so we can support generic types better.
+
+arrays and tuples.
+	because arrays are neccessary, and
+	tuples are really semantically convienent
+
+pointers.
+	an absolute necessity in a pass-by-value
+	language, to support non static features.
+
+None type, Optional Type, Any type (can only exist with refrence semantics?).
+	a None type representing the empty set useful in many programming idioms, 
+	an optional type representing either None, or Some type. whcih better represents functions which can fail.
+	an Any type, simply to provide a syntactic style more closely related to C, and
+		because I don't know if parametric polymorphism plue optional types will allow the language
+		the requisite tools to solve low level coding problems. My assumption is that it will.
+		but if there is any edge cases i don't know about, my assumption is the equivalent to
+		a void* would allow the language any semantics it couldn't otherwise recreate from C.
+
+reflection over built-ins and defined types.
+
+
+
+behavior - (functions)
+
+assignment semantics.
+
+functions are typed from the name, number, and order of it's arguments.
+	multiple returns can be supported by passing a tuple.
+
+arguments can be polymorphic.
+
+exception semantics (probably).
+
+coroutines.
+	which will help implement harware interrupts.
+
+threads
+
+
+context - (the language itself)
+
+macros
+	define new kinds of atom, and new kinds of behavior.
