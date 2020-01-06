@@ -8,15 +8,28 @@ the layer above. 'Higher' level languages, and 'higher' level
 code is difficult to define, as the notion of what is 'high' 
 level has changed since the days when you had to code in assembly.
 
-so, really the term makes no sense because the semantics of
+a high level language used as it originally was refers to nay language
+that is above bare assembly. a distinction with is essentially useless
+in 2019, as every language is above assembly.
+
+and the term makes no sense because the semantics of
 a language depend more on which semantics they adopt then
 some arbitrary 'height'.
 
-a more realistic difference would be
+a more realistic difference would be:
 a systems language -must- consider the hardware
-on which it is run.
+on which it is run. (note that this does not
+necessarily imply that a program written in the
+language -must- consider the harware, as we also
+want to preserve portability, but 
+a program can opt-in to consider the hardware,
+and the language is there to facillitate that.)
+
 a 'high' level language -can choose- to ignore
-the hardware on which it is run.
+the hardware on which it is run. and they usually 
+choose to exist semantically at some level of abstraction
+higher than the actual hardware. that is how i come to call the
+language 'high' level.)
 
 in this way we can clearly understand what we mean,
 when one is programming in a high level language, the
