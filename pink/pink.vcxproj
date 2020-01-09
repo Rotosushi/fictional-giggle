@@ -197,7 +197,7 @@
     <Text Include="pink_polymorphism.txt" />
     <Text Include="pink_type_system.txt" />
     <Text Include="scratch.txt" />
-    <Text Include="syntax-exploration.txt" />
+    <Text Include="syntax-and-semantics-exploration.txt" />
     <Text Include="talking_about_abstraction.txt" />
     <Text Include="test_lexer.txt" />
     <Text Include="test_parser.txt" />

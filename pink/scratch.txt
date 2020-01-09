@@ -6,6 +6,18 @@ the conflicting points of view.
 
 (thesis + antithesis) -> synthesis
 
+what about points of view that are not entirely opposite or
+entirely cohesive, but some mixture.
+well, how about
+
+(thesis + polythesis + polythesis + ... + polythesis) -> synthesis
+
+and/or
+
+(thesis + polythesis + polythesis + ... + polythesis) -> polysynthesis, polysithesis, ..., polysynthesis
+
+
+
 what are the points of tension on the design of the langauge?
 
 so, in order to talk about that we must fist define our context:
@@ -21,32 +33,50 @@ the language defines the existance of other programs. (even other languages)
 language concerns are generally all important, but will have a different
 importance order depending on your perspective and external constraints.
 
+language perspectives include:
+what is the user concerned about vs
+what is the language implementer worried about vs
+what is the library writer woprried about vs
+what is the OS writer worried about vs 
+...
 
 
-language concerns include:
+language goals include:
 
 - Expressivity + Communication
 	the language should enable programmers solve their problems, rather
 	than solve the riddle of how to express what they want to say in the
-	language. "stop telling me what you are going to say, and just say it."
+	language. 
+	
+	"stop telling me what you are going to say, and just say it."
 
 	Programmers fluent in the language should be able to easily read what
 	one another are saying and doing in their code. 
 	common abstractions should have a common form
 	common tasks should have a common form
 	it should be easy to say what is easy to do.
+	it would be really nice if it was easy to say what is hard to do.
 
-	the language should be designed to communicate effectively.
+	the language should be designed to communicate effectively what
+	the computer is doing to human beings. 
 
 - Orthoginality
 	Language features should interact in an understandable, definite way, which
 	allows them to be composed together indiscriminately. or at least in a way that 
 	makes some sense and is communicated to the programmer. one should never have to maintian
-	a laundry list of edge cases in their head while they program. the programs that are
-	being expressed in the langauge are of the real importance to the programmer,
-	not the usage of the language. of course, with a systems programming language
-	some concessions will have to be made. (or at least the list of edge cases
-	should be as small as possible, and only occur when a sensible default makes no sense.)
+	a laundry list of edge cases in their head while they program. usage of abstraction
+	is the problem, composition of abstraction is what the languages job is.
+	the programs that are being expressed in the langauge are of the real
+	importance to the programmer, and the usage of the language should reflect this.
+	of course, with a systems programming language some concessions will have to 
+	be made to understandability in the name of performance.
+	but again, it would be nice to be able to hide those from the user of the language in 
+	a user friendly abstraction; like replacing the GOTO with while loops, if-else if-else
+	chains, and parametrized functions.
+	but the language should be no harder to learn than C.
+	
+	(...or at least the list of edge cases should be as small as possible,
+	 and only occur when a sensible default makes no sense.)
 
 - Maintainability + Testing + Documentation
 	Code that is written today, may be talking to code that is written 20
@@ -56,7 +86,10 @@ language concerns include:
 
 	testing is a non-trivial aspect of development, that also has a uniform
 	shape. How does this language assist programmers in testing their own code?
-	in testing unknown code? the language implementation itself will be tested.
+	in testing unknown code? the language implementation itself will be tested,
+	so there are obvious advantages to having some form of default test suite,
+	and good capabilities built into the language. (first class functions seem
+	like the best abstraction to write a test suite on for me.)
 
 	Documentation is one of the most important tasks in development, and is also
 	often one of the most overlooked in terms of quality, and effort. Documentation
@@ -68,38 +101,48 @@ language concerns include:
 	writing code that utilizes its resources effectively is difficult. writing
 	interoperating abstractions that can utilize shared resources is difficult.
 	performance modeling should be easy to do, and require minimal cognitive
-	overhead. the shape of performance modeling is uniform in the time axis, 
-	and on the space axis, so the language should have niceties.
+	overhead. the shape of performance modeling is uniform in the same way testing is
+	so the language should have nicities.
 
-- Portability + Hardware Interaction
+- Portability + Hardware Interaction + rehostability
 	A program written without using language constructs that tie it directly
-	to the hardware (these will be many and varied), a.k.a. in a portable way,
-	should be able to be compiled on any platform the back end of the compiler
-	supports. this also refers to what hardware the compiler itself runs
-	on. 
+	to the hardware, a.k.a. in a portable way,
+	should be able to be compiled and executed on any platform the back end of the compiler
+	supports.
+
 	But what do we afford the programs which do want to tie themselves heavily
 	to the hardware? what about the programmer who has resource constraints,
 	or other esoteric constriants around their data?
-	(if your particular project is running on an 8-bit micro processor, 
-	 your veiw is very different to that of a processor with 16, or more cores.
-	 this doesn't imply that code cannot be written portably, but at some
-	 points the usage of the language will run into the hardware. the point
-	 of the language being a systems language, is to provide language support
-	 for programs that want to interact directly with the hardware in a way that
-	 is as portable as possible. so cross compilation is a use case, as is
-	 modifying what code gets placed into your final binary depending on what
-	 your target hardware is. )
+	if your particular project is running on an 8-bit micro processor, 
+	your view is very different to that of a processor with 16, or more cores.
+	this doesn't imply that code cannot be written portably, but at some
+	points the usage of the language will run into the hardware. the point
+	of the language being a systems language is to provide language support
+	for programs that want to interact directly with the hardware in a way that
+	is as portable as possible. so cross compilation is a assumed use case, as is
+	conditional compilation.
+
+	rehostability is running the compiler itself on different architectures, and that
+	problem is one of good old fashioned hard work. the way that we garuntee 
+	rehostability is by way of making the kernel all that is needed to build anything
+	you could need in the language, and making non-critical components libraries.
+	so all one needs to rewrite when retargeting some other hardware is the kernel.
+	(that may also be unnecessary if we bootstrap the language through LLVM, or
+	 if we write it in portable c/c++.)
 
 - Implementation
 	the language needs to be able to exist to be useful, so creating it
-	is pretty important. it may seem idiodically obvious to say, but actually
+	is pretty important. that may seem idiodically obvious to say, but actually
 	getting things done in the first place is hard, and the greater world is a
 	very unpredictable place. concerns raised from difficulty of implementation
-	will definetly have an influence on the final design. the first compilers
+	will definetly have an influence on the final design.
+	
+	the first compilers
 	were written with severe memory constraints, and the design was influenced
 	by that, both of the compiler and of the output code. the compiler that
 	is currently being written has virtually infinite memory.
 	(especially wehen compared to memory constraints in the 1950's, 60's, and 70's.)
+	so that will have an influence on the design as well.
 
 - Security
 	The language doesn't exist in a vacuum, a robust, expressive language
@@ -107,12 +150,53 @@ language concerns include:
 	exploitable because it is hard to write hardened code,  More complex languages
 	are exploitable because their own operation is hard to understand, and
 	security is hard in a general sense because it is easy to exploit interoperations
-	between disperate programs. 
+	between disperate programs. so how can the language help programmers write
+	hardened code?
 
 - Language Interoperation
-	Our langauge must exist, and so it has to contend with the other languages with
+	Our langauge must exist, and so it has to contend with the other languages which
 	already do so. How can our language interoperate with programs written in other 
-	languages? 
+	languages?
+
+
+- Deterministic resource utilization:
+	the static semantics of the language should use
+	resources (time and space) deterministically, 
+	and with an eye on keeping the runtime small.
+	if you don't ask for it, you don't get it. 
+
+
+from our perspectives and goals we can define points of friction and points of harmony.
+
+	for instance, during the optimization pass, the compiler can optimize against
+	time, or space. but not both, as fast data structures tend to be large, and
+	compact representations tend to take more time to interpret their meaning.
+
+	and to point to harmony within the language goals, Orthoginality is a feature
+	of the language that helps expressivity and communication.
+
+	and to point out friction, performance and portability are often at odds,
+	becuase the most general version is often the most portable, but the least performant.
+	and the most performant algorithms tie themselves close to the hardware, making them
+	the least portable.
+	
+the design of the langauge.
+the shape of computer languages is shaped by a few key design descisions.
+declarative or imperitive?
+	-> and a further choice for imperitive languages: garbage collected or not?
+		(declarative languages must be garbage collected as far as I know.)
+pass-by-value or pass-by-refrence?
+static typing or dynamic typing?
+
+and to a finer semantic point:
+polymorphic types?
+static or dynamic scoping?
+lazy or strict evaluation?
+...? and more questions than listed here
+
+self - (pink)
+
+
 
 
 
@@ -133,6 +217,7 @@ sum and product types.
 	where a union is tagged in implementation.
 	but with c style semantics for how the memory is layed out.
 
+
 polymorphic type constructors.
 	so we can support generic types better.
 
@@ -147,13 +232,14 @@ pointers.
 None type, Optional Type, Any type (can only exist with refrence semantics?).
 	a None type representing the empty set useful in many programming idioms, 
 	an optional type representing either None, or Some type. whcih better represents functions which can fail.
-	an Any type, simply to provide a syntactic style more closely related to C, and
+	a refrence Any type, simply to provide a syntactic style more closely related to C, and
 		because I don't know if parametric polymorphism plue optional types will allow the language
-		the requisite tools to solve low level coding problems. My assumption is that it will.
+		the requisite tools to solve all possible low level coding problems. My assumption is that it will.
 		but if there is any edge cases i don't know about, my assumption is the equivalent to
 		a void* would allow the language any semantics it couldn't otherwise recreate from C.
+		to still remove null refrences from the language, the defining occurance of an any pointer
+		must be associated with some valid memory.
 
-reflection over built-ins and defined types.
 
 
 
@@ -163,18 +249,152 @@ assignment semantics.
 
 functions are typed from the name, number, and order of it's arguments.
 	multiple returns can be supported by passing a tuple.
+	strict argument evaluation
 
 arguments can be polymorphic.
+
+pass-by-value semantics
+	with pointers for refrence semantics and dynamic memory.
+
+
+
+memory manipulation.
+	the language will need to be able to write to and read from any memory location
+	with impunity at some point. this is needed to implement low-level computer systems.
+	A driver for some hardware component
+	could be written portably on top of lower level semantics that were conditionally
+	compiled like in C. the semantics that pink has access to are more expressive than C, and
+	so it follows that we would be able to write a more expressive inteface on top of what
+	ultimately would be the same low level semantics. which is precisely the motivation for
+	writing pink in the first place. a  richer set of semantics then that afforded
+	by C, but still following in C's footsteps of being, A) A Portable Assembler,
+	B) by having as small a runtime as possible.
+	
+	the intention of pink' is to increase the
+	semantic richness of pink, while adding nothing to the runtime. because 
+	macro expansion happens at compile time. with pink', libraries can reach into
+	the kernel of the language and add features which can then be used as
+	primary concrete entities by a programmer who #includes the library.
+	
+	
+	(something like an #uninclude seems a bit trickier, until you consider
+	it as name hiding.)
+
+
+	the semantics in C that enable it to be a systems language are
+	bitwise operations or assignment operations on pointers to arbitrary
+	memory addresses, a small language runtime, and being turing complete.
+
+	we can now recognize that the null refrence was a design mistake of
+	early computer languages, (https://www.lucidchart.com/techblog/2015/08/31/the-worst-mistake-of-computer-science/)
+	
+	but how can a systems language that doesn't have null refrences work?
+	well, you cannot have a pointer that points to null,
+	sure. but what if pointers are idiomatically always wrapped in an optional type
+	(or, this is a use case of single inheritance), whereby
+	we either recieve a valid pointer, or the type of the entire expression is null.
+	that then allows the language to leverage it's own type system to solve the problem
+	instead of subverting the type system. if every construct in the language that
+	deals with pointers is forced to make this design descision, then we can automate
+	the making of it, by having interaction with optional types a default use case
+	for conditionals accross the language.
+	in much the same way C implicitly converts ints, floats, chars,
+	and pointers to booleans, and then you can say things like if(some-ptr) then ... else ...
+	and semantically it still means, "if this is a valid pointer then ... else ..."
+	but done typesafely and explicitly.
+	a pointer could still be thought of semantically as storing the address of another entity,
+	and then we can remove the special case of a pointer to address zero being
+	a nullptr. a non-valid pointer is signaled by never returning a pointer in
+	the first place.
+	
+	treating the location as either a source or a destination semantically will imply
+	reads or writes on that memory location. this is a nessecary semantic meaning.
+	we by nature of being a systems langauge, have to allow statements like
+	write this byte to this address.
+	because that is the way in which systems work at an assembly level
+	and we want the thinnest layer of semantics possible over assembly.
+	however we don't want to be tied to any	specific assembly,
+	because we simultaneously want to support every specific assembly.
+
+	because the memory addresses are always defined in some meta-material like
+	documentation, the language has no way a-priori to ensure that any operation
+	on a pointer will be safe. and because the language further cannot know what
+	the programmer themselves intends to do when they read to or write from arbitrary memory.
+	the language cannot ensure a-priori that these are safe operations.
+	so we need to give programmers the tools to specify exactly what those intentions are
+	and to specify what those safe vs. unsafe operations are.
+	we cannot know if writing a logic high to some location will cause bus contention for instance.
+	the programmer knows these semantics, and in trying to interface with
+	the hardware they have, will have to enforce arbitrary constraints by the very behavior
+	of their program in order to ensure correct operation.
+
+	if that makes no sense, lets try a real example:
+	say you wanted to write a driver for some specific harware component, a UART driver.
+	lets say for instance that the UART component is accessed through memory mapped
+	I/O. that is, there is a few hardware locations that the UART is writing to
+	and reading from, and let us further say it is in the form of a contiguous
+	section of machine words (as it is in a MIPS microprocessor.)
+	again for the sake of argument, we could say the first word
+	is a status register, the second an input to the device, and the third an output.
+	the programmer could for instance, define a few simple semantics such as,
+	get me the status, get me some data from the UART, and write some data into the UART.
+
+	the naive programmer would/will very easily misuse the simple semantics,
+	and overwrite or otherwise misuse the device, causing bugs or worse, hardware failure.
+	a programmer who wants to interoperate with the UART will need to check it's
+	status before they can read or write data, to ensure the device is not currently busy,
+	and/or that the data they read is valid and when they want to send data they may also
+	have to follow some procedure.
+
+	if you want to write programs in a compositional way, you define simpler
+	abstract semantics over more complex underlying structure. this allows
+	those who want to use the complex underlying structure but don't
+	neccessarily need to know how to use to simpler more abstract semantics.
+	which can dramatically simplify the code in other portions of the program.
+	(if done well; when done poorly, the broken semantics seem to infect
+	 the rest of the program, causing the need for more complexity everwhere.
+	 like was observed with GOTOS, and more recetly NULL refrences.)
+	
+	to go back to our example:
+	so we need to either wait for the UART in a busy loop (usually not the best idea)
+	or we need to decouple reading and writing to the device in time
+	from the other operations of the program. This can be done in a variety of
+	ways and any choice you make has a significant effect on the shape of the code 
+	you write. are you writing coroutines? threads? interrupts? some master busy loop
+	which checks each device in turn?
+
+
+	I feel that the langauge could provide some form of a 'device' abstraction
+	that could unify the usage of memory mapped IO over some definable (paramatized)
+	semantics. (you provide the rules which garuntee proper operation)
+	then you could use to hardware devices in a more type-safe way in the language.
+	or maybe, multiple abstractions which parametrize each of the approaches so one
+	could easily utilize them in your program.
+
+	and I feel that you could state those semantics in a macro.
+
+	and if you didn't want the abstraction? well, the original semantics would
+	and should also be possible. just build on top of the bare langauge kernel!
+
+
+
+
+
+--- advanced features ---
+
+macros
+	define new kinds of atom, and new kinds of behavior.
+
+	
+compile time reflection over built-ins and defined types.
+
+compile time interpretation
 
 exception semantics (probably).
 
 coroutines.
-	which will help implement harware interrupts.
+	which will help implement harware interrupts. i think.
+	hardware interrupts can almost be considered coroutines
+	themselves. 
 
 threads
-
-
-context - (the language itself)
-
-macros
-	define new kinds of atom, and new kinds of behavior.

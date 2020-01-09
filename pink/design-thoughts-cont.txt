@@ -26,15 +26,43 @@ type equivalence:
 	in both cases, pink specifies that the size of
 	these two types is equivalent to the size
 	of a single machine word. so structurally speaking
-	these two types are equivalent. simply because
+	these two types are equivalent. their names are different
+	so they do not have name equivalence. 
 	to cast between the two one only needs to treat
 	the machine word as the different type.
+	any type that shares structural equivalence can have it's
+	cast function written by the compiler. because we know
+	how to write an int into an int, a real into a real, 
+	text into text, bools into bools. all the compiler must do is
+	a deep copy, and all deep copies share the same form, 
+	(depending of course on the shape of the types.)
 	if we consider the case of int -> real we can garuntee the
-	cast will not change the state of the underlying representation.
-	(we may still destroyinformation however,
-	if we were to cast from real -> int for instance.)
-	this is in fact the case in a language such as C,
-	where you can castany structurally equivalent type to any other.
+	cast will not change the value of the underlying representation.
+	we will have to change the state however, because the interpretation
+	of the bits is what matters. all such casts, where types have a one-to-one
+	mapping of their value sets from the one to the other can be considered 'safe'
+	in this way. 
+	however, we will not follow in c's footsteps here. I feel that implicit
+	type coercion is not the right feature to rely on here.
+	these 'safe' coercions are mostly fine in C, for sure.
+	however they still have the ability to cause subtle bugs, especially
+	the implicit casts of pointers to booleans and integers to pointers.
+	if we consider our language relying on structural equivalence to identify
+	types and then we consider the feature of implicit casts between user defined
+	types that are considered structurally equivalent; that is just asking to
+	magnify the subtle bugs already present with implicit casts, it overall
+	weakens the type system just for some syntactic brevety that only has the 
+	ability to be fine, or shoot you in the foot. I think that means it's bad.
+	however, it would be really nice to remove all the boilerplate code
+	of type equivalence and assignment from the langauge. and if we remove
+	implicit casts from the language (or rather never add them in the first place.)
+	we can ensure that when a user wants to cast between structurally equivalent
+	types, they need not write the function themselves. (which also automates the task
+	of maintaining it's validity in lock-step with the type definition, which lessens
+	the maintinence burden of the type. in fact, all types.)
+	important to note however that the user will still need to define their own
+	casts between structurally different types.
+	
 	
 	a definition of structural equivalence will need to apply
 	not only to every primitive type in the language, but must
@@ -52,9 +80,14 @@ type equivalence:
 
 	name equivalence between two types refers to the
 	name of the two types. we say that two types are distinct
-	based on the fact that their names are different.
+	based on the fact that their names are different. this
+	might be how type-checking things like function calls happens.
+	becuase of the lack of implicit casts. we can consider, does
+	the variable or literal passed match the type requested, or
+	the set of types requested?
 
-	this issue primarily refers to type aliasing.
+	type aliasing:
+
 	in programming languages with type-definitions
 	there is usually the ability to define trivially
 	different types. 
@@ -62,6 +95,9 @@ type equivalence:
 	type farenheit = real;
 
 	where farenheit is being used to represent temperature.
+	and temperature is perfectly represented with real numbers,
+	so we want to leverage the operations already defined on
+	the old type on this new type.
 	how much do we want the programmer to have to redefine
 	the semantics of real numbers in the type definition of
 	farenheit? when in reality any function that can take
@@ -79,6 +115,10 @@ type equivalence:
 	to 'inherit' the semantics of the old type. to say that
 	another way, the new type name would be semantically valid
 	in any place where the old type name would be semantically valid.
+	so in checking name equivalence of a type during the type checking
+	of a function call for instance, we would assume that any
+	alias of the typename is also considered equal to the typename, and
+	thus a function could be said to be valid or invalid.
 
 
 	type casting and conversion:
@@ -86,15 +126,18 @@ type equivalence:
 
 	there are three main cases of when we can cast,
 	1 - the types can be considered structurally equivalent.
+		(int to real, bool to int)
 	2 - the types represent two distinct sets of values
 		but the values and representation overlap somewhat
 		(such as signed and unsigned integers, 
-		 or a short and an int)
+		 or a short and an int, real to int)
 	3 - the types are not structurally equivalent, but 
 		we can conceive of a semantically meaninful
 		conversion function that maps one type to the other.
-		(such as real -> int, when one can accept the loss
-		 of precision.)
+		(this covers user defined conversions and
+		 more complex concrete conversions.
+		 converting between cartesian and polar vectors
+		 for instance)
 
 	non-converting cast:
 		a type cast that doesn't change the underlying
@@ -103,21 +146,44 @@ type equivalence:
 		memory allocation strategies. where the heap is itself an array
 		of bytes, but portions of the array are reinterpreted
 		as bookeeping structures or as user types.
+		this is what we call it when we cast between fields
+		in a product type (c: union) for instance.
 
 	type promotion:
 		type promotion is a particular kind of cast that is done
 		under-the-hood to provide non-hardware supported types
 		in the language. such as simulating a boolean value with
-		a full machine word.
-
+		a full machine word. or a byte with a word.
+		this is completely invisible to the programmer, and
+		unoptimized code should not bit-pack these structures.
+		whereas optimized code can, and strongly optimized code
+		should.
+	
 
 type compatibility:
 	when can we say that a particular usage of a type
 	is valid?
 
+	when I call a function on a name of a certain type,
+	is that function call valid?
+
+	when an expression is used as a conditional, is it's result
+	a boolean?
+
+	when I return an expression, does it's type match the return
+	type of the function I am returning from?
+
+
 type inference:
 	how do we deduce the type of an expression?
 	from it's contents and surrounding context.
+
+	each variable used in an expression must be preceded by 
+	a defining occurance. (out of order declarations are a planned
+	feature, the first use in a context where it has unambiguous type,
+	could be considered as it's defining occurance, but that
+	is afer we have actually implemented a little bit of the langauge
+	and know when that makes sense.)
 
 
 polymorphism:
@@ -142,17 +208,10 @@ subtype polymorphism:
 	subtype polymorphism is less interesting to me, as pink is not object-oriented
 	in the traditional sense. however single inheritance can still be usefull when 
 	creating and defining certain abstracktions, such as generic containers.
-	
-whereas parametric polymorphism is a shoe-in for the language,
-subtype polymorphism is not, mainly because of the issues surrounding
-inheritance. if single inheritance proves useful enough, then that will
-be added in, but I have never found that multiple inheritance solves
-the problems it purpots to solve, without also bringing in all of the
-issues.
 
 i feel that having type-aspects + parametric polymorphism will do a good
 job of covering the case where some base object inherits the behavior
-of two orthoginal base classes. 
+of two orthoginal base classes.
 
 control:
 	iteration:
@@ -172,9 +231,9 @@ Binding Time:
 a binding is an association between two things.
 the time at which the descision is made.
 
-(none of these are intended to be complete descriptions of every binding that occurs,
-	rather they are to pin down what kinds of descisions are being made, to better split
-	the language along the time axis.)
+(none of these are intended to be complete descriptions of every binding that occurs during the time,
+	rather they are to pin down what kinds of descisions that are being made, 
+	to better split the language along the time axis.)
 
 Language Design Time - we decide which control structures and primitive types are in the language.
 	as with the set of kernel entities. generally things like the type system are also decided here.
@@ -187,28 +246,32 @@ Language Implementation Time -  conceptually in this case, this will be bindings
 	compilers for the language. typically this includes things like the precision
 	of the primitive types, the binding of primitive I/O operations to the OS, 
 	and the organization and maximum size of the program itself. (it's stack
-	and heap.)
+	and heap. these are subsequently also things which pink' will be concerned with.)
 
 Program Writing Time - programmers make their descisions here. so they are working with
 	the abstractions provided to them by someone else, or the abstractions they
 	write themselves.
 
 Compile Time - compilers map the source code to some semantically equivalent machine code.
-	they also lay out the static memory of the program.
+	they also lay out the static memory of the program. in here we have most of the stages of the
+	compiler, lexing & parsing, semantic analysis, optimization, and translation to assembly.
+	we decide what the definitions of things are here, we decide what code we are going to
+	include in the static binary and the dynamic binary here (based on programmer requires). 
 
 Link Time - static linking will take external code and insert it into the static definition
 	of the program. the linker also	resolves the names accross the separate modules of code.
-	virtual addresses are also picked here not actual addresses. 
+	virtual addresses are also picked here for variables and functions (maybe physical addresses,
+	but only if your OS doesn't support memory paging.) 
 
 Load Time - dynamic linking occurs here, where when the loader runs to take the code from
 	where it is stored statically into RAM where it can be run. the dynamic linker also
 	runs at this time, and will fetch unresolved external code, and insert it into the
-	programs dynamic definition (the program as it exists in memory). 
+	programs dynamic definition (the program as it exists in memory).
 
 Run Time - run time is from the point at which the program starts, to the point at which
 	it ends. run time subsumes program boot time, module entry time, elaboration time,
 	function call time, block entry time, expression evaluation time and statement 
-	execution time.
+	execution time. virtual address translation happens here, one instruction at a time.
 
 static bindings occur before run-time, 
 dynamic binding occus during run-time.

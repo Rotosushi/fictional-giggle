@@ -4,8 +4,7 @@
 # input/output via c++ stdlib
 # computation driven by the grammar.
 
-# set of possible attributes, given
-# as a list of the form
+# set of possible attributes, given as a list of the form
 # <id> ':' <type>
 # we define our attributes, then apply them
 # in a inherited or synthesized way.
@@ -23,7 +22,7 @@
 # each semantic element. 
 # the type signature could be imagined as:
 
-# fn attribute(production : ...) -> res : production_result_type { #{ body #} }
+# fn attribute(production : ...) -> ret-val : production_result_type { #{ body #} }
 
 # because the result
 # type is derived from the usertype of the rule the attribute is associated with,
@@ -32,9 +31,15 @@
 
 # then we could imagine the algebraic data type of a rule in pink'
 # could look like
-# adt rule = (lhs: name, prods: list(production), attrs: list(attribute))
+
+ adt rule = (lhs: name, prods: list(production), attrs: list(attribute))
+
 # where a rule has a name, a list of productions, and a list of attributes
-# for each production.
+# for each production. when a production matches the input stream, it's result
+# (a varargs array of each of the matched graphemes data, or some otherwise more compact representation
+#  of such) is passed into the productions attribute which transforms the input data into
+# the corresponding tree node/branch. once the grammar recognizes the EOF token the tree that
+# is returned is the full user specification of that module (or for v1, that program).
 
 #{
 	basics:
@@ -43,28 +48,37 @@
 	   a grapheme can be either terminal
 	   or non-terminal. terminal symbols
 	   are the primitive tokens and text literals
-	   which compose the language. each 
-	   grapheme gets state associated with it.
-	   Each production gets a series of rules that 
-	   get executed before returning to the parent node
-	   and after the rule has been matched successfully,
-	   this series of rules is called the attribute of
-	   that production.
+	   which compose the language.
+	   each grapheme gets state associated with it,
+	   because that state needs to be processed by the attribute
+	   of the matched production.
 	   
 	   aside:
-			is a grapheme who is composed entirely of non-terminals,
-			non-terminal itself?
+			is a grapheme which is composed entirely of terminals,
+			terminal itself? - not at all.
+
+			is a grapheme which is composed entirely of non-terminals,
+			non-terminal? - yes, for sure.
+
+			is a grapheme which is composed of terminals and non-terminals,
+			terminal or non-terminal? - non-terminal.
+
+			a terminal grapheme is composed entirely of it's regular expression.
+			either a literal sequence of characters, or a description of the
+			regular pattern of characters which compose the grapheme.
 	   
 	'literal token'
 	-> declares a new literal text grapheme that must
 	   be matched from the input stream. this declares a new terminal
-	   symbol in the grammar.
+	   symbol in the grammar. 
+	   I think that literal tokens will be subsumed by some form of
+	   regular expression matching
 
 	anything-else 
-	-> every other token (that isn't
-	   surrounded by '' or <>, or the tokens ':=', '{', '}', etc.) is assumed to be a part of
-	   the language itself (pink'). it's a function name, or a variable,
-	   or an operation.
+	-> every other token (anything that isn't surrounded by '' or <>,
+	   or that isn't the literal tokens ':=', '{', '}', etc.) 
+	   is assumed to be a part ofthe language itself (pink').
+	   it's a function name, or a variable, or an operation.
 
 	<symbol> := <symbol1> <symbol2>
 	-> declares a new production.
@@ -80,26 +94,30 @@
 	<root> := ...
 	-> every valid grammar, or grammar extension has some root non-terminal 
 	   grapheme. the root symbol may never appear on the rhs of any rule. the
-	   root symbol of the grammar is the computational entry point.
+	   root symbol of the grammar is the computational entry point. it doesn't 
+	   have to be named root or anything like that, it is just assumed to be
+	   the grapheme that doesn't appear on the rhs of any rule. every other
+	   grapheme must have at least one production appearance and a defining appearance.
 
 	<non-terminal-symbol> := 'terminal-symbol' <non-terminal-symbol> <terminal-symbol>
-	-> terminal symbols are symbols who are literals themselves or something that
-	   describes some literal text formatting. (maybe regular expressions?)
-	   non-terminals are symbols who are composed of terminal and non-terminal symbols.
+	-> terminal symbols are symbols who are literals themselves or regular expressions.
+	   non-terminals are symbols who are composed of terminal and/or non-terminal symbols.
 	   the LHS of any rule is always non-terminal. in order to be LL(1), the grammar must
-	   be decidable by only looking at the left-most symbol on each step of the
-	   computation of the grammar.
+	   be decidable by only looking at the next symbol on each step of the
+	   computation of the grammar. for v1, the language of pink' will only support LL(1)
+	   grammars, which constrain the syntax of the language too much (probably) to be
+	   usefull in the long run,
 
 
 	<symbol> := ?()
 	-> a term surrounded by ?() is optional,
-	   meaning it will either exist, or be
+	   meaning it either either exist or be
 	   nil if the production matches.
 
 	<symbol> := *()
 	-> a term surrounded by *() is an optional
 	   list of values, that can be iterated over.
-	   meaning it will either exist or be nil
+	   meaning it can either exist or be nil
 	   if the production matches.
 
 	<symbol> := +()
@@ -112,14 +130,19 @@
 			I want to allow multiple symbols
 			to appear in recognizers like *(',' <symbol>), and ?('=' <symbol>)
 			but after recognition, how do we refrence the symbols using the
-			pseudo-variables in the attribute?
+			pseudo-variables in the attribute if the grapheme exists as a more
+			complex rule within a single list?
 			my initial solution is to say each symbol in the production,
-			gets assigned a number from left to right starting from 1,
+			gets assigned a number from left to right starting from 0,
 			and +(), *(), ?() do not affect the numbering. then when
 			we are reffering to a grapheme that exists in *() or +()
 			you can treat the name like a list type. when you refer
 			to a grapheme in *() or ?() you can treat that name like
-			an optional type.
+			an optional type, but you still refer positionally to each
+			grapheme. so semantically each grapheme is treated as it's own
+			list, or optional type, but that need not be the case under-the-hood.
+			(i don't per-say know if that's true, it's an assumption based on 
+			considering the power of coding to an interface.)
 			like:
 			<prod> := 'ts1' <nts1> *(',' <nts1>); {
 				append (%%, %2);
@@ -142,21 +165,22 @@
 				for ((g1, g2) in %3) append (%%, g2);			
 			}
 			this seems like a viable alternative given that pattern
-			matching has other use cases.
+			matching has other use cases. but it may not be that
+			conceptually easy to grasp? 
 
 
 	<symbol> := <production-1> | <production-2> | ... | <production-n>
-	-> a term can be defined as a series of productions
-	   each separated by |. each production gets it's own attribute.
+	-> a non-terminal grapheme can be defined as a series of productions
+	   each separated by |. each production gets it's own attribute. each
+	   non-terminal grapheme get's some associated state.
 
 	fn func-name (argument-list) -> return list {
 		body
 	}
-	-> functions can be defined, and called in
-	   the attributes segments. Djikstra's
+	-> functions can be defined, and then called in attributes. Djikstra's
 	   Three (;, if, while) will be available, in some form
 	   or another. (idk if imperitive or declaritive is the way to go in the
-	   long run, my gut says that pink' will become declarative,
+	   long run, my gut says that pink' will be better expressed declaratively.
 	   and pink will remain imperitive. but I know imperitive style
 	   better, so ill be using that as my starting point.)
 
@@ -178,24 +202,21 @@
 
 	   in my opinion, having an optional type
 	   encodes failure into the semantic definition of the function rather than
-	   making it explicit with syntax. i prefer this, being able to formulate
+	   having to make it explicit in the syntax. i prefer this, being able to formulate
 	   semantics out of already understood syntax means the
-	   kernel can be smaller plus the option type is a powerful pattern on it's own.
-	   however, we cannot avoid side effects they are a necessary evil;
+	   kernel, and parser can be smaller; plus the option type is a powerful pattern on it's own.
+	   however, we cannot avoid side effects, they are a necessary evil.
 	   we have to write values at some point to be useful.
-	   but writing values is the main cause of bugs in programs! you exclaim.
+	   but writing values is the main cause of bugs in programs!
 	   well, making side effects explicit in the syntax hopefully allows the compiler
-	   to reason about them, like a functional language can. allowing the compiler
+	   to reason about them, somewhat like a functional language can. allowing the compiler
 	   more optimizations and static analyses tools. which should give programmers
-	   more tools to make those bugs easier to fix and harder to write
-	   maybe it's useful to go so far as to define pink using monads, 
-	   and just giving the language an imperitive veneer. I think the
-	   simplest design of pink' may be using monadic style.
+	   more tools to make those bugs easier to fix and harder to write.
 
 	   
 	   functions are pure code, actions are impure code.
 	   impure code can call pure and impure code, whereas
-	   pure code, can only call more pure code. this enables the
+	   pure code, can only call more pure code. this enables more
 	   optimizations around pure code, because all pure code
 	   is defined to only be pure. so you will never 
 	   unintentionally introduce inpurity to some
@@ -214,14 +235,14 @@
 	   function -x> action
 
 	   thinking about optimization, there should be levels
-	   but it should be organized around some assumptions.
+	   and it should be organized around some assumptions.
 	   i.e.
 	   no optimization: should imply to the compiler 
 		-> "I want you to output exactly that code which implements
 		    exactly what the syntax defines." if one looked at the
 			output assembly, one would see all entities implemented in an
 			unoptimized way that mirrored as closely as possible
-			what the programmer stated.
+			what the programmer stated. 
 
 	   weak optimization: should imply to the compiler
 		-> "I want you to output largely what i stated, but you
@@ -311,6 +332,7 @@ Attributes = {
 #    symbol
 # {} occuring after each production defines the sequence
 #    of actions that occur after the production has matched.
+#	 within the attribute each grapheme in the production is associated with
 #    a set of pseudo-variables starting with %% for the
 #    lhs symbol's state, and a symbol for each number from [%0..%n] 
 #    where n is the number of symbols occuring in the associated
@@ -321,14 +343,17 @@ Attributes = {
 # at this stage of the design.)
 # so: a program is defined by a module.
 # at this stage all programs are single files (it's v1)
-<program> { module } # == <program> { module : (directives, symbol-table, function-table) }
+
+<program> { module } 
 
 # a program can be constructed from a list of module declarations,
 # ended by the EOF character.
+
 	:= *(<module-declaration>) EOF {
 
 		# we construct a module from the list of productions and bind that
 		# to the root state.
+
 		%%  <- module (%1);
 
 		# we have to infer the types of the module, because we allow
@@ -337,12 +362,14 @@ Attributes = {
 		# each name in the program. because there is no binding action
 		# we -must- assume that infer_types is modifying the passed argument.
 		# infer_types() must be defined as an action, not a function.
+
 		infer_types(%%);
 
 		# this step is less pinned down for me right now. the intermediate
 		# representation is something that i don't have a clear idea of yet.
 		# it's hard to justify some structure that is too different from
 		# just using the AST directly, because the AST is already there.
+
 		IR  <- generate-IR (%%);
 
 		# so type_checking definitely needs to occur, and i am sure some
@@ -352,16 +379,20 @@ Attributes = {
 		# can already output all the code, but part of this project was learning
 		# how to write that code myself, but all the work has already been done.
 		# IDK, its a toss up right now.)
+
 		type_check(IR);
 
 		# this step takes the fully understood and optimized IR and converts it
 		# to the target language.
+
 		asm <- convert_to_assembly(IR);
 
 		# this step probably calls an assembler, but it may be hand-rolled at some point.
+
 		exe <- assemble(asm); 
 
 		# this step is very neccessary.
+
 		write_executable(exe, output);
 	}
 

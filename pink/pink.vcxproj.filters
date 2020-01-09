@@ -104,9 +104,6 @@
     <Text Include="pink-pink%27-design-space-and-basis.txt">
       <Filter>Resource Files\design</Filter>
     </Text>
-    <Text Include="syntax-exploration.txt">
-      <Filter>Resource Files\design</Filter>
-    </Text>
     <Text Include="c_biopsy.txt">
       <Filter>Resource Files\design</Filter>
     </Text>
@@ -120,6 +117,9 @@
       <Filter>Resource Files\design</Filter>
     </Text>
     <Text Include="thoughts_about_the_system_layer.txt">
+      <Filter>Resource Files\design</Filter>
+    </Text>
+    <Text Include="syntax-and-semantics-exploration.txt">
       <Filter>Resource Files\design</Filter>
     </Text>
   </ItemGroup>

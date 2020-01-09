@@ -83,7 +83,7 @@ specific addresses or by utilizing specific functions, you even get variables in
 and global context via registers and in memory respectively.
 
 what, you may ask, is the
-benefiet of having the high language if you are inheriting the same execution model? well,
+benefiet of having the high level language if you are inheriting the same execution model? well,
 first of all why are you asking this in 2019? i think we all like high level languages by now.
 the problem with assembly is that is doesn't compose well together. that is, when you try
 and write code that is going to interoperate with someone elses code, you have to know
@@ -119,7 +119,7 @@ D   - C++ but done coherently
 ? Objective C - I have literally never looked at objective c,
 				but apple purports to have written their OS 
 				in it, so... (i feel as if the lowest bowels
-				are still probably in straight C, because the
+				are still probably in C, because the
 				runtime is so small.)
 
 I am picking C because it is the smallest language to work with, that's the biggest reason. 
