@@ -32,7 +32,7 @@ _token _lexer::gettok()
 		}
 
 		if (text == "int")   return T_INT;
-		if (text == "float") return T_FLOAT;
+		if (text == "float") return T_REAL;
 		if (text == "text")  return T_TEXT;
 		if (text == "bool")  return T_BOOL;
 		if (text == "true")  return T_TRUE;
@@ -41,6 +41,7 @@ _token _lexer::gettok()
 		if (text == "else")  return T_ELSE;
 		if (text == "while") return T_WHILE;
 		if (text == "fn")	 return T_FN;
+		if (text == "var")   return T_VAR;
 		if (text == "return") return T_RETURN;
 		if (text == "import") return T_IMPORT;
 		if (text == "export") return T_EXPORT;

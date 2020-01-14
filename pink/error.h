@@ -30,6 +30,17 @@ public:
 		contents += " \n\t";
 		contents += s;
 	}
+
+	_semantic_error(const char* file, int linenum, string s, string n) : _error() {
+		contents = "semantic error: \n \
+					\tthrown from file: ";
+		contents += file;
+		contents += " line: ";
+		contents += to_string(linenum);
+		contents += " \n\t";
+		contents += s;
+		contents += n;
+	}
 };
 
 class _parser_error : public _error {

@@ -63,14 +63,14 @@ typedef struct _type {
 	// that can make assignment faster? well, i feel like the
 	// compiler could deduce the use of those via static analysis.
 	// and they could then be reintroduced as a possible optimization.
-	_type() {}
-	_type(string n, _ast* e) : name(n), expr(e) {}
+	_type() : name(), expr(nullptr) {}
 
-	_type operator=(_type& rhs) {
-		name = rhs.name;
-		expr = rhs.expr;
-		return *this;
+	_type operator=(const _type& rhs) {
+		this->name = rhs.name;
+		this->expr = rhs.expr;
 	}
+
+	_type(string s, _ast* e) : name(s), expr(e) {}
 } _type;
 
 /*

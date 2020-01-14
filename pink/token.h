@@ -41,6 +41,7 @@ enum _token {
 	T_LPAREN,
 	T_RPAREN,
 	/* keywords */
+	T_VAR,
 	T_FN,
 	T_ARROW,
 	T_IF,
@@ -51,9 +52,9 @@ enum _token {
 	T_IMPORT,
 	T_EXPORT,
 	T_ROOT,
-	/* type tokens */
+	/* primitive type tokens */
 	T_INT,
-	T_FLOAT,
+	T_REAL,
 	T_TEXT,
 	T_BOOL,
 	/* literal tokens */

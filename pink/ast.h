@@ -26,7 +26,7 @@ enum _ast_type {
 	AST_SCOPE,
 	AST_MODULE,
 	AST_INT,
-	AST_FLOAT,
+	AST_REAL,
 	AST_TEXT,
 	AST_BOOL,
 };
@@ -44,20 +44,21 @@ typedef struct _ast {
 
 } _ast;
 
-typedef struct _entity {
-	string name;
-	_type type;
-	_ast* value;
-} _entity;
+//typedef struct _entity {
+//	string name;
+//	_type type;
+//	_ast* value;
+//} _entity;
 
+// expressions in the language are used in a variety of
+// semantic locations, for the purpose of giving
+// programmers the most flexibility in what they can express.
 typedef struct _expr : public _ast {
+	_type type;
 	_ast* expr;
-	//vector <_ast*> expr_list;
 
-	_expr() : _ast(AST_EXPR), expr() {}
+	_expr() : _ast(AST_EXPR), expr(nullptr) {}
 } _expr;
-
-_expr* build_expr(_ast* expr);
 
 typedef struct _var : public _ast {
 	string id;
@@ -66,51 +67,41 @@ typedef struct _var : public _ast {
 	_var() : _ast(AST_VAR), id(), type() {}
 } _var;
 
-_var* build_var(string id, _type type, _ast* type_expression = nullptr);
-
 typedef struct _vardecl : public _ast {
 	_var lhs;
-	_token op;
 	_ast* init;
 
-	_vardecl() : _ast(AST_VARDECL), lhs(), op(), init() {}
+	_vardecl() : _ast(AST_VARDECL), lhs(), init() {}
 } _vardecl;
 
-_vardecl* create_vardecl(_var lhs, _token op, _ast* init = nullptr);
+typedef map<string, _vardecl> symbol_table;
 
 typedef struct _scope : public _ast {
-	map <string, _vardecl> variable_table;
+	symbol_table local_symbols;
 	vector <_ast*> statements;
 
-	_scope() : _ast(AST_SCOPE), variable_table(), statements() {}
+	_scope() : _ast(AST_SCOPE), local_symbols(), statements() {}
 } _scope;
-
-_scope* create_scope(vector<_vardecl> variables, vector<_ast*> statements);
 
 typedef struct _arg : public _ast {
 	string id;
 	_type type;
 
-	
-	_arg() : _ast(AST_ARG), id(), type() {}
-	_arg(string i, _type t) : _ast(AST_ARG) {
-		id = i;
-		type = t;
+	bool operator==(const _arg& rhs) {
+		return type.name == rhs.type.name;	
 	}
-} _arg;
 
-_arg* create_arg(string id, _type type);
+	_arg() : _ast(AST_ARG), id(), type() {}
+} _arg;
 
 typedef struct _fn : public _ast {
 	string id;
 	vector<_arg> argument_list;
-	_var return_value;
+	_type return_type;
 	_scope body;
 
-	_fn() : _ast(AST_FN), id(), argument_list(), return_value(), body(){}
+	_fn() : _ast(AST_FN), id(), argument_list(), return_type(), body() {}
 } _fn;
-
-_fn* create_fn(string id, vector<_arg> argument_list, _var return_value, _scope body);
 
 typedef struct _if : public _ast {
 	_ast* cond;
@@ -120,18 +111,12 @@ typedef struct _if : public _ast {
 	_if() : _ast(AST_IF), cond(nullptr), then(nullptr), els(nullptr) {}
 } _if;
 
-_if* create_if(_ast* cond = nullptr, _ast* then = nullptr, _ast* els = nullptr);
-
 typedef struct _while : public _ast {
 	_ast* cond;
 	_ast* body;
-	_ast* els;
 
-	_while() : _ast(AST_WHILE), cond(nullptr), body(nullptr), els(nullptr) {}
+	_while() : _ast(AST_WHILE), cond(nullptr), body(nullptr) {}
 } _while;
-
-_while* create_while(_ast* cond = nullptr, _ast* then = nullptr, _ast* els = nullptr);
-
 
 typedef struct _binop : public _ast {
 	_type type;
@@ -147,8 +132,6 @@ typedef struct _binop : public _ast {
 	}
 } _binop;
 
-_binop* create_binop(_type type, _token op, _ast* lhs, _ast* rhs);
-
 typedef struct _unop : public _ast {
 	_type type;
 	_token op;
@@ -157,8 +140,6 @@ typedef struct _unop : public _ast {
 	_unop() : _ast(AST_UNOP), op(), rhs(nullptr) {}
 } _unop;
 
-_unop* create_unop(_type type, _token op, _ast* rhs);
-
 typedef struct _return : public _ast {
 	_type type;
 	_ast* expr;
@@ -166,30 +147,28 @@ typedef struct _return : public _ast {
 	_return() : _ast(AST_RETURN), expr() {}
 } _return;
 
-_return* create_return(_type type, _ast* expr);
-
 typedef struct _fcall : public _ast {
 	string id;
 	vector<_arg> argument_list;
-	_var return_value;
+	_type return_type;
 
 	_fcall() : _ast(AST_FCALL), argument_list() {}
 } _fcall;
 
-_fcall* create_fcall(string id, vector<_arg> argument_list, _var return_value);
+typedef map<string, vector<_fn>> function_table;
 
 typedef struct _module : public _ast {
 	string id;
 	vector <string> import_list;
 	vector <string> export_list;
 	string root;
-	map<string, vector<_fn>> function_table;
-	map<string, _vardecl> variable_table;
+	function_table functions;
+	symbol_table global_symbols;
 
-	_module() : _ast(AST_MODULE), id(), import_list(), export_list(), root(), function_table(), variable_table(){}
+	_module() : _ast(AST_MODULE), id(), import_list(), export_list(), root(), functions(), global_symbols(){}
 } _module;
 
-void init_module_with_kernel(_module& m);
+
 
 typedef struct _int : public _ast {
 	int value;
@@ -198,12 +177,12 @@ typedef struct _int : public _ast {
 	_int(int i) : _ast(AST_INT), value(i) {}
 } _int;
 
-typedef struct _float : public _ast {
+typedef struct _real : public _ast {
 	float value;
 
-	_float() : _ast(AST_FLOAT), value(0.0) {}
-	_float(float f) : _ast(AST_FLOAT), value(f) {}
-} _float;
+	_real() : _ast(AST_REAL), value(0.0) {}
+	_real(float f) : _ast(AST_REAL), value(f) {}
+} _real;
 
 typedef struct _text : public _ast {
 	string value;

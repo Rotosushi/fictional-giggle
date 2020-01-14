@@ -164,9 +164,11 @@
   <ItemGroup>
     <ClInclude Include="ast.h" />
     <ClInclude Include="attributes.h" />
+    <ClInclude Include="code_generation.h" />
     <ClInclude Include="error.h" />
     <ClInclude Include="Entity.h" />
     <ClInclude Include="lexer.h" />
+    <ClInclude Include="map.h" />
     <ClInclude Include="parser.h" />
     <ClInclude Include="pink_ast.h" />
     <ClInclude Include="pink_type.h" />
@@ -181,6 +183,7 @@
     <Text Include="c_grammar.txt" />
     <Text Include="design-thoughts-cont.txt" />
     <Text Include="design-thoughts.txt" />
+    <Text Include="design_consilience.txt" />
     <Text Include="Grammar_v7.txt" />
     <Text Include="implementation-grammar.txt" />
     <Text Include="grammar.txt" />

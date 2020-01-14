@@ -4,16 +4,64 @@ using std::string;
 #include <stack>
 using std::stack;
 #include "ast.h"
+#include "type.h"
 
 
 class _semantic_analyzer {
 public:
-	_semantic_analyzer() {
-		
+	_semantic_analyzer() {}
+
+	void init_module_with_kernel(_module& m);
+
+	void infer_types(_module& mdl);
+	
+
+	_type typeof(_ast* expr, _fn& local_function, symbol_table& global_symbols, function_table& functions);
+	_type typeof_global(_ast* expr, symbol_table& global_symbols, function_table& functions);
+
+
+	void infer_type(_fn& fn, symbol_table& global_symbols, function_table& functions);
+
+	// note, the only reason we don't need a refrence to a table of type definitions
+	// is because there are only four types in v1, all of them primitive.
+	void infer_global_type(_vardecl& decl, symbol_table& global_symbols, function_table& functions);
+	void infer_type(_vardecl& decl, _fn & local_function, symbol_table& global_symbols, function_table& functions);
+
+
+	_fn& lookup_fn(string id, vector<_arg> args, function_table& functions);
+	string fn_to_string(string id, vector<_arg> args);
+
+	bool name_equality(_type& lt, _type& rt) { 
+		return lt.name == rt.name;
 	}
 
-	bool analyze_module(_module& m);
+	bool structural_equality(_type& lt, _type& rt) {
+		// note, the reason this works is that
+		// there are only four types in the language,
+		// and all of them are primitive.
+		// _int, _real, _text, _bool
+		// the real definition will need to be recursive
+		if (lt.expr == nullptr || rt.expr == nullptr) throw _semantic_error(__FILE__, __LINE__, "Semantic Error: Structural Equality is not defined for nullptr types");
+		return lt.expr->ast_type == rt.expr->ast_type;
+	}
+
+	bool empty_type(_type& t);
+
+	void typecheck(_module& mdl);
+	void typecheck(_fn& f, symbol_table& global_symbols);
+	void typecheck(_if& i, _fn& f , symbol_table& global_symbols);
+	void typecheck(_while& w, _fn& f , symbol_table& global_symbols);
+	void typecheck(_return& r, _fn& f , symbol_table& global_symbols);
+	void typecheck(_scope& s, _fn f, symbol_table& global_symbols);
+
+
+
 private:
+	const _type None_type = { "none", nullptr };
+	const _type int_type = { "int", nullptr };
+	const _type real_type = { "real", nullptr };
+	const _type text_type = { "text", nullptr };
+	const _type bool_type = { "bool", nullptr };
 	/*
 	
 		type checking is the first goal of semantic analysis.
@@ -91,49 +139,4 @@ private:
 			the type of a function is it's name + argument list
 	*/
 
-
-	// state
-	_module curr_module;
-	stack<_scope> scopes;
-
-	// helper functions
-	_scope& curr_scope();
-	void push_scope(_scope& scope);
-	void pop_scope();
-	map<string, _vardecl>& global_variables();
-
-	// we need helper functions to query our symbol tables
-	// we query variables by name
-	_vardecl* lookup_vardecl(string id);
-
-	// we query functions by type and by argument list
-	// the argument list is to disambiguate from the
-	// overload set.
-	_fn* lookup_fn(string id, vector<_arg> args);
-
-
-
-	void resolve_type(_vardecl& dec);
-	void resolve_type(_var& var);
-	void resolve_type(_expr& expr);
-	void resolve_type(_fn& fn);
-	void resolve_type(_fcall& fcall);
-	void resolve_type(_binop& binop);
-	void resolve_type(_unop& unop);
-
-	_type typeof(_var& var);
-	_type typeof(_vardecl& var);
-	_type typeof(_fn& fn);
-	_type typeof(_fcall& fn);
-	_type typeof(_expr& expr);
-	_type typeof(_ast* expr);
-	_type typeof(_binop& binop);
-	_type typeof(_unop& unop);
-	_type typeof(_return& ret);
-
-	_type typecheck_statement(_ast* stmt);
-	_type typecheck_conditional(_if& conditional);
-	_type typecheck_iteration(_while& loop);
-	_type typecheck_return(_return& ret);
-	_type typecheck_expression(_ast* expr);
 };

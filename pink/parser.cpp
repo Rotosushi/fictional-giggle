@@ -230,7 +230,7 @@ void _parser::parse_module_declaration(_module& mdl)
 	_vardecl* vardecl;
 	_fn* fndecl;
 	switch (curtok()) {
-	case T_ID:
+	case T_ID: {
 		vardecl = new _vardecl;
 		parse_variable_declaration(*vardecl);
 
@@ -241,18 +241,19 @@ void _parser::parse_module_declaration(_module& mdl)
 			were there an optional type, this pattern could
 			be cleaner
 		*/
-		
+
 		try {
-			mdl.variable_table.at(vardecl->lhs.id);
+			mdl.global_symbols.at(vardecl->lhs.id);
 		}
 		catch (...) {
 			threw = true;
 		}
-		if (threw) mdl.variable_table[vardecl->lhs.id] = *vardecl;
+		if (threw) mdl.global_symbols[vardecl->lhs.id] = *vardecl;
 		else throw _parser_error(__FILE__, __LINE__, "variable already defined: ", vardecl->lhs.id);
 
 		break;
-	case T_FN:
+	}
+	case T_FN: {
 		fndecl = new _fn;
 		parse_function_declaration(*fndecl);
 		try {
@@ -261,11 +262,13 @@ void _parser::parse_module_declaration(_module& mdl)
 		catch (...) {
 			threw = true;
 		}
+		auto overload_set = mdl.function_table[fndecl->id];
 
-		if (threw) mdl.function_table[fndecl->id] = *fndecl;
+		if (threw) overload_set.insert(overload_set.begin(), (*fndecl));
 		else throw _parser_error(__FILE__, __LINE__, "function already defined: ", fndecl->id);
-		
+
 		break;
+	}
 
 	default: throw _parser_error(__FILE__, __LINE__,  "invalid top level declaration: ", curtext());
 	}
@@ -322,12 +325,15 @@ void _parser::parse_context_statement(_module& mdl)
 void _parser::parse_variable_declaration(_vardecl& decl)
 {
 	/*
-<declaration>  := <identifier> ':' <type-specifier> ';'
-				| <identifier> ':' <type-specifier> '=' <initializer> ';'
-				| <identifier> '::' <initializer> ';'
-				| <identifier> ':=' <initializer> ';'
+<declaration>  := 'var' <identifier> ':' <type-specifier> ';'
+				| 'var' <identifier> ':' <type-specifier> '=' <initializer> ';'
+				| 'var' <identifier> '::' <initializer> ';'
+				| 'var' <identifier> ':=' <initializer> ';'
 
 	*/
+
+	if (curtok() != T_VAR) throw;
+	nexttok();
 	
 	if (curtok() != T_ID) throw _parser_error(__FILE__, __LINE__, "declaration doesn't start with identifier, instead got: ", curtok()); // parser error
 	decl.lhs.id = curtext();
@@ -335,12 +341,10 @@ void _parser::parse_variable_declaration(_vardecl& decl)
 
 	switch (curtok()) {
 	case T_COLON:
-		decl.op = curtok();
 		nexttok(); // eat ':'
-		parse_type(decl);
+		parse_type(decl.lhs.type);
 
 		if (curtok() == T_EQ) {
-			decl.op = T_COLON_EQ;
 			nexttok();
 			parse_initializer(decl);
 		} 
@@ -351,7 +355,6 @@ void _parser::parse_variable_declaration(_vardecl& decl)
 
 		break;
 	case T_COLON_EQ: case T_COLON_COLON:
-		decl.op = curtok();
 		nexttok(); // eat ':=' | '::'
 
 		parse_initializer(decl);
@@ -387,7 +390,7 @@ void _parser::parse_function_type(_fn& fn)
 	nexttok();
 
 	if (curtok() == T_LPAREN)
-		parse_return_value(fn.return_value);
+		parse_return_type(fn.return_type);
 }
 
 void _parser::parse_function_body(_fn& fn)
@@ -429,7 +432,7 @@ void _parser::parse_arg(_arg& arg)
 
 		if (curtok() == T_COLON) {
 			nexttok();
-			parse_type(arg);
+			parse_type(arg.type);
 		}
 		else {
 			throw _parser_error(__FILE__, __LINE__, "invalid function arg, missing ':', instead got: ", curtok());
@@ -440,9 +443,9 @@ void _parser::parse_arg(_arg& arg)
 	}
 }
 
-void _parser::parse_return_value(_var& var)
+void _parser::parse_return_type(_type & var)
 {
-	//<return-list> :='(' <type> ')'
+	//<return-type> :='(' <type> ')'
 	
 	if (curtok() != T_LPAREN) throw _parser_error(__FILE__, __LINE__, "invalid return list, missing '(', instead got: ", curtok());
 	nexttok(); // eat '('
@@ -471,6 +474,11 @@ void _parser::parse_expression(_expr& expr)
 	}
 	
 	*/
+}
+
+_ast* _parser::parse_expression()
+{
+	return _parse_expression(_parse_primary_expr(), 0);
 }
 
 _ast* _parser::_parse_expression(_ast* lhs, int min_prec)
@@ -560,7 +568,7 @@ _ast* _parser::_parse_primary_expr()
 	case T_LITERAL_FLOAT:
 		literal = curtext();
 		nexttok();
-		return new _float(stof(literal));
+		return new _real(stof(literal));
 	case T_LITERAL_TEXT:
 		literal = curtext();
 		nexttok();
@@ -619,8 +627,8 @@ _fcall* _parser::_parse_function_call()
 void _parser::parse_carg(_arg& carg)
 {
 	// <carg> := <expr>
-	carg.type = _INFER;
-	carg.type_expression = _parse_expression(_parse_primary_expr(), 0);
+	carg.type.name = "";
+	carg.type.expr = parse_expression();
 }
 
 void _parser::parse_if(_if& conditional)
@@ -633,7 +641,7 @@ void _parser::parse_if(_if& conditional)
 		nexttok();
 		if (curtok() != T_LPAREN) throw _parser_error(__FILE__, __LINE__, "invalid if, expected '(', instead got: ", curtok());
 		nexttok();
-		conditional.cond = _parse_expression(_parse_primary_expr(), 0);
+		conditional.cond = parse_expression();
 		if (curtok() != T_RPAREN)  throw _parser_error(__FILE__, __LINE__, "invalid if, expected ')', instead got: ", curtok());
 		nexttok();
 		conditional.then = parse_statement();
@@ -651,7 +659,7 @@ void _parser::parse_while(_while& loop)
 		nexttok();
 		if (curtok() != T_LPAREN)  throw _parser_error(__FILE__, __LINE__, "invalid while, expected '(', instead got: ", curtok());
 		nexttok();
-		loop.cond = _parse_expression(_parse_primary_expr(), 0);
+		loop.cond = parse_expression();
 		if (curtok() != T_RPAREN) throw _parser_error(__FILE__, __LINE__, "invalid while, expected ')', instead got: ", curtok());;
 		nexttok();
 		loop.body = parse_statement();
@@ -680,7 +688,7 @@ _ast* _parser::parse_statement()
 		nexttok();
 
 		auto ret = new _return;
-		parse_expression(ret->expr);
+		ret->expr = parse_expression();
 		
 		if (curtok() != T_SEMICOLON) throw _parser_error(__FILE__, __LINE__, "invalid return statement: missing ';' instead got: ", curtok());
 		nexttok();
@@ -705,49 +713,25 @@ void _parser::parse_initializer(_vardecl& decl)
 	<initializer>  := <lambda-definition>
 					| <expression>
 	*/
-	parse_expression(decl.init);
+	decl.init = parse_expression();
 }
 
-void _parser::parse_type(_vardecl& decl)
+void _parser::parse_type(_type& t)
 {
 	switch (curtok()) {
 	case T_INT:
-		decl.lhs.type = _INT;
+		t.name = "int";
 		break;
-	case T_FLOAT:
-		decl.lhs.type = _REAL;
+	case T_REAL:
+		t.name = "real";
 		break;
 	case T_TEXT:
-		decl.lhs.type = _TEXT;
+		t.name = "text";
 		break;
 	case T_BOOL:
-		decl.lhs.type = _BOOL;
+		t.name = "bool";
 		break;
 	default: throw _parser_error(__FILE__,__LINE__, "invalid type: expected 'int' | 'real' | 'text' | 'bool' instead got: ", curtok());
-	}
-	nexttok();
-}
-
-void _parser::parse_type(_var& var)
-{
-}
-
-void _parser::parse_type(_arg& arg)
-{
-	switch (curtok()) {
-	case T_INT:
-		arg.type = _INT;
-		break;
-	case T_FLOAT:
-		arg.type = _REAL;
-		break;
-	case T_TEXT:
-		arg.type = _TEXT;
-		break;
-	case T_BOOL:
-		arg.type = _BOOL;
-		break;
-	default: throw _parser_error(__FILE__, __LINE__, "invalid type: expected 'int' | 'real' | 'text' | 'bool' instead got: ", curtok());
 	}
 	nexttok();
 }
@@ -768,7 +752,7 @@ void _parser::parse_scope(_scope& body)
 		if (speculate_declaration()) {
 			d = new _vardecl;
 			parse_variable_declaration(*d);
-			body.variable_table[d->lhs.id] = *d;
+			body.local_symbols[d->lhs.id] = *d;
 			n++;
 		}
 		else {
@@ -790,6 +774,19 @@ void _parser::parse_scope(_scope& body)
 	} while (curtok() != T_RBRACE); // there is a whole class of missing '}' errors we will want to report here
 	nexttok();
 }
+
+void _parser::parse_return(_return& ret)
+{
+	if (curtok() != T_RETURN) throw _parser_error(__FILE__, __LINE__, "invalid return, doesn't begin with 'return', instead parsed: ", curtok());
+	nexttok();
+
+	ret.expr = parse_expression();
+
+	if (curtok() != T_SEMICOLON) throw _parser_error(__FILE__, __LINE__, "invalid return, doesn't end with ';', instead parsed: ", curtok());
+	nexttok();
+}
+
+
 bool _parser::speculate_declaration()
 {
 	bool success = true;
@@ -823,7 +820,7 @@ bool _parser::speculate_type()
 {
 	bool success = true;
 	if (speculate(T_INT));
-	else if (speculate(T_FLOAT));
+	else if (speculate(T_REAL));
 	else if (speculate(T_TEXT));
 	else if (speculate(T_BOOL));
 	else success = false;

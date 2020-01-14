@@ -122,6 +122,9 @@
     <Text Include="syntax-and-semantics-exploration.txt">
       <Filter>Resource Files\design</Filter>
     </Text>
+    <Text Include="design_consilience.txt">
+      <Filter>Resource Files\design</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pink_type.h">
@@ -164,6 +167,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="pink_ast.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="code_generation.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="map.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
