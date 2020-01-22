@@ -55,9 +55,10 @@ an entity can be either primary, or composed.
 	available which it itself makes available. the resulting environment
 	of the interpreter is the interpreter itself, whereas the resulting
 	environment of the compiler is the compiled code. the assumptions of the
-	syntax remain the same for both systems however. (that's kinda the point tho)) 
+	syntax remain the same for both systems however. (that's kinda the point of
+	interpretation)
 		
-	(it's like, sure runtimes are nice, what about those of use without the resources?
+	(it's like, sure big runtimes are nice, what about those of use without the resources?
 	(if you think, "hey i don't care about resources, gimme <the-latest-hypebus>!"
 	then this language will not meet your needs. this is part of the point of the language.)
 	of course the default shouldn't be so small as to be useless; surely there is some sensible middle ground. 
@@ -65,8 +66,8 @@ an entity can be either primary, or composed.
 	can only be done by the linker (or at that point chronologically in the program.)
 
 	note: 
-		all these words may seem to make no sense, if this is the case, try wrapping
-	your brain around this: if we assume the hardware provides an actual instance of an integer.
+		all these words may seem to make no sense, if this is the case, try an example:
+		if we assume the hardware provides an actual instance of an integer.
 	which can be added to, subtracted from, and all the other operations valid on an integer
 	then that is well and good. however, if we wanted to use integers on some other 
 	hardware, we would have to learn and use that other hardwares integer. plus the 

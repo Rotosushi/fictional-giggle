@@ -24,6 +24,12 @@ typedef struct _type {
 	// word, or byte, or bit, and their type would then be able to
 	// take advantage of any bit/byte packing we can do in the target
 	// code, implicitly.
+
+	// having this be a refrence to some single instance of the type
+	// description seems like it would 'just work' because nothing
+	// ever tries to unbind the type from it's name. if
+	// a local module redefines the name, the local binding
+	// just shadows the global binding
 	_ast*  expr;
 
 	// what if you request the compiler generate these functions
@@ -68,6 +74,15 @@ typedef struct _type {
 	_type operator=(const _type& rhs) {
 		this->name = rhs.name;
 		this->expr = rhs.expr;
+	}
+
+	// these preform name equivalence
+	bool operator==(const _type& rhs) {
+		return name == rhs.name;
+	}
+
+	bool operator!=(const _type& rhs) {
+		return name != rhs.name;
 	}
 
 	_type(string s, _ast* e) : name(s), expr(e) {}

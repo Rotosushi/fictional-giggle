@@ -164,7 +164,7 @@ union type-name {
 # personally I like the affix expression version of the adt specification.
 # for a few reasons; it is easier to parse, and easier to produce specifications programmatically.
 # it is at least as unambiguious as the c-style record/union specification, while requiring
-# dramatically less characters, especially for nested structures.
+# dramatically less characters and whitespace, especially for nested structures.
 
 
 

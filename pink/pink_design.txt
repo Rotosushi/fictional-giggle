@@ -250,13 +250,16 @@ If these are the problems, then how is this language a solution?
 	'|' and '||', and '^' and '^^' ((also yes, this does change '!=' to
 	'!!=')))
 
+-- logical consistency vs. symbol overloading
+	TODO: write this
+
 -- Type Constructors
 	<type-name> '(' <argument-list> ')'
 
 	type construction seems like a necessary language feature.
 	c doesn't have this, and so requires seperate intitialization
-	functions for more complex types. and in my opinion this makes
-	for an awkward interface. every type is constructed in some way.
+	functions for more complex types. written and maintained fully by the programmer
+	every type is constructed in some way, and humans are lazy. 
 
 	var : my_struct;
 	init_my_struct(var, ...);
@@ -565,7 +568,7 @@ I haven't coded much assembly (read, a few small programs),
 but the structure of large assembly
 programs probably looks fractiline to the structure of
 the compiled source code being emmitted by any major language today.
-(if it's interpreted language, then try: the side effects of both
+(if it's an interpreted language, then try: the side effects of both
  programms are similar.)
  assembly still has primitive types, functions with parameters,
  conditionals, and loops. composite data-types like records and

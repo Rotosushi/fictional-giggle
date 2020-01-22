@@ -48,7 +48,7 @@
 <atom-definition> := 'type' <identifier> '=' <adt> ';'
 
 <adt>  := <type> 
-		| <adt> ('|' | '+') <adt>
+		| <adt> ('^' | '+') <adt>
 		| '(' <adt> ')'
 
 <atom-declaration> := 'var' <identifier> ':' <type> ('=' <initializer>)? ';'

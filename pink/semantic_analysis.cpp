@@ -5,6 +5,16 @@
 #include "semantic_analysis.h"
 #include "error.h"
 
+void _semantic_analyzer::analyze(_module& mdl)
+{
+	init_module_with_kernel(mdl);
+
+	stack<_scope> scope_stack;
+
+	infer_types(mdl, scope_stack);
+	typecheck(mdl, scope_stack);
+}
+
 void _semantic_analyzer::init_module_with_kernel(_module& m)
 {
 	// binops
@@ -215,284 +225,212 @@ void _semantic_analyzer::init_module_with_kernel(_module& m)
 
 }
 
-void _semantic_analyzer::infer_types(_module& mdl)
+bool _semantic_analyzer::structurally_equivalent(_type lt, _type rt)
 {
-	// at some point in the future i am sure this program will be
+	// note: the reason this works is that
+	// there are only four types in the language,
+	// and all of them are primitive.
+	// _int, _real, _text, _bool
+	// the real definition will need to be recursive
+	// and walk the adt structure
+	if (lt.expr == nullptr || rt.expr == nullptr) throw _semantic_error(__FILE__, __LINE__, "Semantic Error: Structural Equality is not defined for nullptr types");
+	return lt.expr->ast_type == rt.expr->ast_type;
+}
+
+_type _semantic_analyzer::resolve_type(_var& var, stack<_scope>& scope_stack)
+{
+	stack<_scope> buffer;
+
+	while (scope_stack.size() > 0) {
+		// get the current scope from the top of the stack
+		auto&& current_scope = scope_stack.top();
+		// save the current scope to the top of an internal buffer
+		buffer.push(current_scope);
+		// remove the top of the stack so if we need to iterate again
+		// we look at the next scope out.
+		scope_stack.pop();
+
+		// just do a simple linear search of each scope
+		// from the current scope outwards.
+		for (auto&& bucket : current_scope.local_symbols)
+			for (auto&& pair : bucket) {
+				auto&& symbol = pair.second;
+
+				if (symbol.lhs.id == var.id)
+					// we found the symbol, so we need to
+					// reset the state of the scope_stack
+					var = symbol.lhs;
+					while (buffer.size() > 0) {
+						scope_stack.push(buffer.top());
+						buffer.pop();
+					}
+					// return the found type
+					return symbol.lhs.type;
+			}
+
+	}
+
+	
+}
+
+void _semantic_analyzer::infer_types(_module& mdl, stack<_scope>& scope_stack)
+{
+	// at some point in the future I am sure this program will be
 	// defined using design patterns to better support
 	// a more dynamic semantics, but this is version one,
 	// so getting something working is the first
-	// priority.
+	// priority. then, we can use an analysis of this design
+	// to better design version 2. we look at where was
+	// resonant in the design, and where was dissonant
+	// (what worked, and what didn't) and we look at where
+	// we and to extend.
 
-	// local scope and global scope are the same at the top level
-	// so i guess this wastes clock cycles checking the dummy
-	// functions symbol table for 
-	// make sure each symbol at a global level has a defined type
-	for (auto&& pair : mdl.global_symbols) 
-		infer_global_type(pair.second, mdl.global_symbols, mdl.functions);
+	// infer the type of every global symbol
+	for (auto&& bucket : mdl.module_scope.local_symbols)
+		for (auto&& pair : bucket) {
+			infer_type(pair.second, scope_stack, mdl.functions);
+		}
 
-	// make sure every symbol in the local scopes of every function has a defined type
-	for (auto&& pair : mdl.functions)
-		for (auto&& fn : pair.second) // pair.second == overload_set
-			for (auto&& pair : fn.body.local_symbols)
-				infer_type(pair.second, fn, mdl.global_symbols, mdl.functions);
+	// infer the return type of every function
+	for (auto&& overload_set : mdl.functions)
+		for (auto&& fn : overload_set.second) {
+			infer_type(fn, scope_stack, mdl.functions);
+		}
 }
 
+_type _semantic_analyzer::infer_return_type_from_scope(stack<_scope>& scope_stack, function_table& functions) {
+	_type return_type;
+	// search for a return stmt in the local scope.
+	auto&& local_scope = scope_stack.top();
 
+	for (auto&& stmt : local_scope.statements) {
+		// if we find a return stmt
+		if (stmt->ast_type = AST_RETURN) {
+			return_type = typeof(stmt, scope_stack, functions);
+			break;
+		}
+		else if (stmt->ast_type == AST_SCOPE) {
+			auto&& local_scope = (_scope*)stmt;
+			scope_stack.push(*local_scope);
+			auto&& inferred_type = infer_return_type_from_scope(scope_stack, functions);
+			scope_stack.pop();
+			return_type = inferred_type;
+			break;
+		}
+	}
 
-_type _semantic_analyzer::typeof(_ast* expr, _fn& local_function, symbol_table& global_symbols, function_table& functions)
+	return return_type;
+};
+
+void _semantic_analyzer::infer_type(_fn& fn, stack<_scope>& scope_stack, function_table& functions)
 {
-	switch (expr->ast_type) {
-	case AST_VAR: { 
-		auto var = (_var*)expr;
-		// this seems like the wrong place to put this, but i don't have
-		// a location earlier than this that makes sense right now,
-		// this statement is necessary because we could be encountering a declaration
-		// as the first statement in a function. and the parser does not
-		// know what the type of 'var x := 2 + y;' is. it only looks at the lexical structure.
-		if (empty_type(var->type)) {
-			_vardecl* decl;
-			
-			// this ordering should remain constant accross all typechecking,
-			// local names bind tighter than global names, (a.k.a. name shadowing)
-			try {
-				// is this variable refrencing a local symbol?
-				decl = &local_function.body.local_symbols.at(var->id);
-				var->type = decl->lhs.type;
-			}
-			catch (std::out_of_range) {
-				try {
-					// is this variable refrencing a global symbol?
-					decl = &global_symbols.at(var->id);
-					var->type = decl->lhs.type;
-				}
-				catch (std::out_of_range) {
-					throw _semantic_error(__FILE__, __LINE__, "Variable used but not defined. variable:", var->id);
-				}
-			}
-		}
-		return var->type;
-	}
-	case AST_BINOP: { 
-		auto binop = (_binop*)expr;
-		// the type of a binop expression is the result type of the
-		// underlying function.
-		if (empty_type(binop->type)) {
-			string fn_id = token_to_string(binop->op);
-			_arg lhs_arg, rhs_arg;
-			lhs_arg.type = typeof(binop->lhs, local_function, global_symbols, functions);
-			rhs_arg.type = typeof(binop->rhs, local_function, global_symbols, functions);
-			vector<_arg> fn_args = { lhs_arg, rhs_arg };
-			auto fn = lookup_fn(fn_id, fn_args, functions);
-			binop->type = fn.return_type;
-		}
-		// either way we return the type.
-		return binop->type;
-	}
-	case AST_UNOP: {
-		auto unop = (_unop*)expr;
-		if (empty_type(unop->type)) {
-			string fn_id = token_to_string(unop->op);
-			_arg arg;
-			arg.type = typeof(unop->rhs, local_function, global_symbols, functions);
-		}
-		return unop->type;
-	}
-	case AST_SCOPE: {
-		auto scope = (_scope*)expr;
-		// the typeof a scope, could be None,
-		// the type of all return expressions in the function
-		// or if there are no returns the type of the last statement
-		// in the scope.
-	}
-	case AST_IF: {
-		// the type of an if is either None, (if it had no return stmts,
-		// and the type of
-	}
-	case AST_WHILE: {
+	// for now, inferring the type of a function
+	// only means inferring the return type.
+	// as that is the only typename that is allowed to
+	// be elided by the user for now. 
+	// maybe eliding the typename of arguments is useful?
+	// but really, if you are going to go that far, why not
+	// just get rid of the need for any explicit typing like
+	// haskell?
+	
+	/*
+		there are two states that a fn can be in here,
+		1: the user explicitly typed in the typename
+			meaning we don't need to infer.
+		2: the user elided the return type 
+			so we infer the type from:
+			1: the return type of the first return expression
+				we find in the body of the function.
+			2: if we don't find a return statement
+				(this i am undecided about)
+				we can follow in c's footsteps here 
+				where the return type is assumed none.
+				or we can go the more functional route and treat the last
+				statement in the function as the return expression and
+				infer the type from it.
+	*/
+	if (empty_type(fn.return_type)) {
+		for (auto&& stmt : fn.body.statements) {
+			if (stmt->ast_type == AST_RETURN) {
+				auto&& inferred_type = typeof(stmt, scope_stack, functions);
 
-	}
-	case AST_RETURN: { 
-		auto ret = (_return*)expr;
-		if (empty_type(ret->type)) {
-			auto expr_type = typeof(ret->expr, local_function, global_symbols, functions);
-			ret->type = expr_type;
+				fn.return_type = inferred_type;
+				break;
+			}
+			else if (stmt->ast_type == AST_SCOPE) {
+				auto&& local_scope = (_scope*)stmt;
+				scope_stack.push(*local_scope);
+				auto&& inferred_type = infer_return_type_from_scope(scope_stack, functions);
+				scope_stack.pop();
+
+				fn.return_type = inferred_type;
+				break;
+			}
 		}
-		return ret->type;
-	}
-	case AST_FCALL: { 
-		auto fcall = (_fcall*)expr;
-		auto fn = lookup_fn(fcall->id, fcall->argument_list, functions);
-		if (empty_type(fcall->return_type))
-			fcall->return_type = fn.return_type;
-		return fcall->return_type;
-	}
-	case AST_FN: { 
-		auto fn = (_fn*)expr;
-		if (empty_type(fn->return_type)) {
-			infer_type(*fn, global_symbols, functions);
-		}
-		return fn->return_type;
-	}
-	case AST_ARG: { 
-		// AST_ARG is a special case, for now we don't allow functions
-		// to elide the types of their arguments, however we may need to
-		// know the type of an argument, so this case exists.
-		auto arg = (_arg*)expr;
-		return arg->type;
-	}
-	case AST_EXPR: { 
-		auto e = (_expr*)expr;
-		if (empty_type(e->type)) {
-			e->type = typeof(e->expr, local_function, global_symbols, functions);
-		}
-		return e->type;
-	}
-	case AST_INT:
-		return int_type;
-	case AST_REAL:
-		return real_type;
-	case AST_TEXT:
-		return text_type;
-	case AST_BOOL:
-		return bool_type;
 	}
 }
 
-_type _semantic_analyzer::typeof_global(_ast* expr, symbol_table& global_symbols, function_table& functions)
+void _semantic_analyzer::infer_type(_vardecl& decl, stack<_scope>& scope_stack, function_table& functions)
+{
+	/*
+		there are two states that a decl can be in here,
+		1: the user typed in the type directly, meaning 
+			we don't need to infer.
+		2: the user elided the typename and is inferring the type
+			via the initialization expression.
+	*/
+	if (empty_type(decl.lhs.type)) {
+		auto inferred_type = typeof(decl.init, scope_stack, functions);
+		decl.lhs.type = inferred_type;
+	}
+}
+
+_type _semantic_analyzer::typeof(_ast* expr, stack<_scope>& scope_stack, function_table& functions)
 {
 	switch (expr->ast_type) {
 	case AST_VAR: {
-		auto var = (_var*)expr;
-		// this seems like the wrong place to put this, but i don't have
-		// a location earlier than this that makes sense right now,
-		// this statement is necessary because we could be encountering a declaration
-		// as the first statement in a function. and the parser does not
-		// know what the type of 'var x := 2 + y;' is. it only looks at the lexical structure.
-		if (empty_type(var->type)) {
-			_vardecl* decl;
-
-			try {
-				// is this variable refrencing a global symbol?
-				decl = &global_symbols.at(var->id);
-				var->type = decl->lhs.type;
-			}
-			catch (std::out_of_range) {
-				throw _semantic_error(__FILE__, __LINE__, "Variable used but not defined. variable:", var->id);
-			}
-		}
-		return var->type;
+		auto&& var = (_var*)expr;
+		auto type = resolve_type(*var, scope_stack);
+		return type;
 	}
 	case AST_BINOP: {
-		auto binop = (_binop*)expr;
-		// the type of a binop expression is the result type of the
-		// underlying function.
-		if (empty_type(binop->type)) {
-			string fn_id = token_to_string(binop->op);
-			_arg lhs_arg, rhs_arg;
-			lhs_arg.type = typeof_global(binop->lhs, global_symbols, functions);
-			rhs_arg.type = typeof_global(binop->rhs, global_symbols, functions);
-			vector<_arg> fn_args = { lhs_arg, rhs_arg };
-			auto fn = lookup_fn(fn_id, fn_args, functions);
-			binop->type = fn.return_type;
-		}
-		// either way we return the type.
-		return binop->type;
+		auto&& binop = (_binop*)expr;
+
+		string fn_id = token_to_string(binop->op);
+		_arg lhs_arg, rhs_arg;
+		lhs_arg.type = typeof(binop->lhs, scope_stack, functions);
+		rhs_arg.type = typeof(binop->rhs, scope_stack, functions);
+		vector<_arg> fn_args = { lhs_arg, rhs_arg };
+
+		auto fn = lookup_fn(fn_id, fn_args, functions);
+
+		auto type = fn.return_type;
+		return type;
 	}
 	case AST_UNOP: {
-		auto unop = (_unop*)expr;
-		if (empty_type(unop->type)) {
-			string fn_id = token_to_string(unop->op);
-			_arg arg;
-			arg.type = typeof_global(unop->rhs, global_symbols, functions);
-		}
-		return unop->type;
+		auto&& unop = (_unop*)expr;
+
+		string fn_id = token_to_string(unop->op);
+		_arg arg;
+		arg.type = typeof(unop->rhs, scope_stack, functions);
+		vector<_arg> fn_args = { arg };
+
+		auto fn = lookup_fn(fn_id, fn_args, functions);
+
+		auto type = fn.return_type;
+		return type;
 	}
 	case AST_FCALL: {
-		auto fcall = (_fcall*)expr;
-		auto fn = lookup_fn(fcall->id, fcall->argument_list, functions);
-		if (empty_type(fcall->return_type))
-			fcall->return_type = fn.return_type;
-		return fcall->return_type;
+		auto&& fcall = (_fcall*)expr;
+		auto&& fn = lookup_fn(fcall->id, fcall->argument_list, functions);
+		auto type = fn.return_type;
+		return type;
 	}
-	case AST_INT:
-		return int_type;
-	case AST_REAL:
-		return real_type;
-	case AST_TEXT:
-		return text_type;
-	case AST_BOOL:
-		return bool_type;
+	case AST_INT:  { return int_type; }
+	case AST_REAL: { return real_type; }
+	case AST_BOOL: { return bool_type; }
+	case AST_TEXT: { return text_type; }
 	}
-}
-
-void _semantic_analyzer::infer_type(_fn& fn, symbol_table& global_symbols, function_table& functions)
-{
-	// so, this logic will catch returns at the top level of
-	// a function, but how do we catch returns at any arbitrary
-	// scope depth?
-	bool first_return = true;
-	for (auto&& stmt : fn.body.statements) {
-		if (stmt->ast_type == AST_RETURN) {
-			
-			auto return_stmt = (_return*)stmt;
-			
-			if (empty_type(return_stmt->type)) {
-				return_stmt->type = typeof(return_stmt->expr, fn, global_symbols, functions);
-			}
-
-			if (first_return) {
-				// if this is the first return statement,
-				// we infer this functions type from it.
-				first_return = false;
-
-				fn.return_type = return_stmt->type;
-			}
-			else {
-				// this isn't the first return statement we have seen,
-				// but do the types match? (the types obviously match 
-				// if it's the first return.
-				if (!name_equality(fn.return_type, return_stmt->type))
-					throw _semantic_error(__FILE__, __LINE__, "return type does not match functions return type");
-			}
-		} 
-
-	}
-
-	// if we didn't see a return statement the
-	// functions return type is infered as none.
-	if (!first_return) {
-
-	}
-}
-
-void _semantic_analyzer::infer_global_type(_vardecl& decl, symbol_table& global_symbols, function_table& functions)
-{
-	// if the name is not empty then the type was defined when we parsed
-	// the declaration. meaning the user explicitly typed out the type, so
-	// the variables type does not need to be infered.
-
-	if (empty_type(decl.lhs.type)) {
-		// if the ename is empty, then the user elided specifying the type
-		// and the type will be inferred from the initialization expression.
-		_type inferred_type = typeof_global(decl.init, global_symbols, functions);
-		decl.lhs.type = inferred_type;
-	}
-	// the third case, where both type and initialization
-	// are elided, is a syntax error. and so will be reported in the parser
-}
-
-void _semantic_analyzer::infer_type(_vardecl& decl, _fn & local_function, symbol_table& global_symbols, function_table& functions)
-{
-	// if the expr is not null then the type was defined when we parsed
-	// the declaration. meaning the user explicitly typed out the type.
-	if (empty_type(decl.lhs.type)) {
-		// if the expression is null, then the user elided specifying the type
-		// and the type will be inferred from the initialization expression.
-		_type inferred_type = typeof(decl.init, local_function, global_symbols, functions);
-		decl.lhs.type = inferred_type;
-	}
-	// the third case, where both type and initialization
-	// are elided, is a syntax error. and so will be reported in the parser
 }
 
 _fn& _semantic_analyzer::lookup_fn(string id, vector<_arg> args, function_table& functions)
@@ -503,7 +441,7 @@ _fn& _semantic_analyzer::lookup_fn(string id, vector<_arg> args, function_table&
 			if (fn.id == id) {
 				bool success = true;
 				for (int i = 0; i < fn.argument_list.size(); ++i) {
-					if (!(args[i] == fn.argument_list[i]))
+					if (args[i] != fn.argument_list[i])
 						success = false;
 				}
 				if (success) return fn;
@@ -519,11 +457,25 @@ string _semantic_analyzer::fn_to_string(string id, vector<_arg> args)
 {
 	string fn_string;
 	fn_string = id + " ( ";
-	for (auto arg : args) {
-		fn_string += arg.id + ":" + arg.type.name + " ";
+	if (args.size() == 0) {}
+	else if (args.size() == 1) {
+		fn_string += args[0].id + ":" + args[0].type.name;
+	}
+	else for (int i = 0; i < args.size(); ++i) {
+		auto&& arg = args[i];
+
+		if (i == args.size() - 1)
+			fn_string += arg.id + ": " + arg.type.name;
+		else 
+			fn_string += arg.id + ": " + arg.type.name + ", ";
 	}
 	fn_string += " ) ";
 	return fn_string;
+}
+
+bool _semantic_analyzer::name_equivalent(_type lt, _type rt)
+{
+	return lt.name == rt.name;
 }
 
 bool _semantic_analyzer::empty_type(_type& t)
@@ -531,88 +483,74 @@ bool _semantic_analyzer::empty_type(_type& t)
 	return t.name == "" && t.expr == nullptr;
 }
 
-void _semantic_analyzer::typecheck(_module& mdl)
+
+void _semantic_analyzer::typecheck(_module& mdl, stack<_scope> scope_stack)
 {
+	// make sure each variable declaration makes sense
+	for (auto&& bucket : mdl.module_scope.local_symbols) 
+		for (auto&& pair : bucket) {
+			auto&& decl = pair.second;
+			typecheck(decl, scope_stack, mdl.functions);
+		}
+
 	// make sure each statement in the function makes sense
 	// make sure functions that return a value have
 	// an appropriate return type on each unique control
 	// path in the function.
-	// if there is no return expression, the last statement
-	// of the function is assumed to be the return value.
+	// if there is no return expression, the function returns None
 	for (auto&& pair : mdl.functions)
 		for (auto&& fn : pair.second)
-			typecheck(fn, mdl.global_symbols);
+			typecheck(fn, scope_stack, mdl.functions);
+
 
 
 }
 
-void _semantic_analyzer::typecheck(_fn& f, symbol_table& global_symbols)
-{
-	// step 1: make sure each statement in each function makes sense
-	for (auto&& stmt : f.body.statements) {
-		// 
-		switch (stmt->ast_type) {
-		case AST_IF: {
-			auto if_stmt = (_if*)stmt;
-			typecheck(*if_stmt, f, global_symbols);
-		}
-		case AST_WHILE: {
-			auto while_stmt = (_while*)stmt;
-			typecheck(*while_stmt, f, global_symbols);
-		}
-		case AST_RETURN: {
-			auto return_stmt = (_return*)stmt;
-			typecheck(*return_stmt, f, global_symbols);
-		}
-		case AST_SCOPE: {
-			auto scope_stmt = (_scope*)stmt;
-			typecheck(*scope_stmt, f, global_symbols);
-		}
-		default: { // an expression
-			// there are no constraints around what an affix expression
-			// needs to do, or what types it needs to operate on.
-			// they will still need to be analyzed as any affix
-			// expression's exectution makes up the complete algorithm
-			// that the function executes. that analysis is not typechecking
-		}
-		}
-	}
 
-	// step 2: ensure every return expression matches the return type
-	//			  of the function. infered as the type of the first return stmt
-	//			  if the return type is elided; and if no return statements are
-	//			  present in the function the function implicitly returns it's
-	//			  last statement. this can be circumnavigated by specifying
-	//			  the return type as None, or by letting the compiler infer
-	//			  the return type via a 'return None' statement, or by
-	//			  having the result type of the last statement of the function
-	//			  be None.
+	// to typecheck the body we must consider the idea of scopes.
+	// the body of a function consists of a scope. wherein we
+	// may see new declarations, and new statements.
+	// there is a special kind of declaration which exists in
+	// functions, and that is the scope. a scope is a new
+	// local namespace where variables can be defined.
+	// scopes are a semantic tool for programmers.
+	// mainly they extend the body of if and while constructs
+	// to any arbitrary size, instead of being limited to a
+	// single expression. scopes control the lifetime
+	// of variables and the state they represent declared locally.
+	// so a variable declared in a new scope will be
+	// destroyed at the end of it's enclosing scope.
+	// variables can shadow outer declarations, changing the
+	// names meaning locally.
+	// this allows programmers to reuse names 
+	// which can increase legibility.
+	// scopes also serve to describe the control paths of
+	// a function together with the if and while constructs.
 
-	for (auto&& stmt : f.body.statements) {
-		if (stmt->ast_type == AST_RETURN) {
-			auto return_stmt = *((_return*)stmt);
+	// Note:
+	// the function itself exists in a module scope, which is
+	// defined by the file the function definition is found in.
+	// the file/module scope itself exists in a larger global
+	// scope where modules can be composed together. this is done
+	// by the linker when we resolve the static refrences accross modules,
+	// and then done again by the loader when resolving the dynamic
+	// refrences accross modules. the global namespace should be used to describe
+	// variables, and resources that the program has access to. 
+	// the file/module boundary is to facilitate building larger projects
+	// in a compositional/modular way. each file/module defines it's own
+	// local namespace, within this namespace we cannot see symbols defined
+	// in other namespaces unless we import a name they explicitly export.
+	// we also allow local names to shadow the global names in the same way
+	// that functions local scopes do.
 
-			// is the return type equal to the return type of the fn?
-			if (!name_equality(return_stmt.type, f.return_type))
-				throw _semantic_error(__FILE__, __LINE__, "typeof return expr: " + return_stmt.type.name + " does not match return type of function: " + f.return_type.name);
-		}
-	}
+	// the global scope is the conceptual boundary between the program and the outside world.
+	// when we consider I/O, we consider I/O accross this boundary.
+	// (if you derefrence some pointer to write to a hardware module
+	//  that action crosses the global scope of your program to interface
+	//  with the external world.)
+	// when we consider program interoperation we consider the programs
+	// interoperating accross their respective boundaries.
+	// if we consider threads, or forks, or the static definitions of the program
+	// we consider their operation within this boundary. this is the internal world,
+	// of the language.
 	
-
-}
-
-void _semantic_analyzer::typecheck(_if& i, _fn& f,symbol_table& global_symbols)
-{
-	// typechecking if statements require two things,
-	// step 1: make sure the if condition is
-
-}
-
-void _semantic_analyzer::typecheck(_while& w, _fn& f,symbol_table& global_symbols)
-{
-}
-
-void _semantic_analyzer::typecheck(_return& r, _fn& f,symbol_table& global_symbols)
-{
-	
-}

@@ -11,57 +11,43 @@ class _semantic_analyzer {
 public:
 	_semantic_analyzer() {}
 
+	void analyze(_module& mdl);
+
+private:
+	// dummy convienence definitions
+	const _type none_type = { "none", nullptr };
+	const _type int_type  = { "int", nullptr };
+	const _type real_type = { "real", nullptr };
+	const _type text_type = { "text", nullptr };
+	const _type bool_type = { "bool", nullptr };
+
 	void init_module_with_kernel(_module& m);
-
-	void infer_types(_module& mdl);
-	
-
-	_type typeof(_ast* expr, _fn& local_function, symbol_table& global_symbols, function_table& functions);
-	_type typeof_global(_ast* expr, symbol_table& global_symbols, function_table& functions);
-
-
-	void infer_type(_fn& fn, symbol_table& global_symbols, function_table& functions);
-
-	// note, the only reason we don't need a refrence to a table of type definitions
-	// is because there are only four types in v1, all of them primitive.
-	void infer_global_type(_vardecl& decl, symbol_table& global_symbols, function_table& functions);
-	void infer_type(_vardecl& decl, _fn & local_function, symbol_table& global_symbols, function_table& functions);
-
 
 	_fn& lookup_fn(string id, vector<_arg> args, function_table& functions);
 	string fn_to_string(string id, vector<_arg> args);
 
-	bool name_equality(_type& lt, _type& rt) { 
-		return lt.name == rt.name;
-	}
+	bool name_equivalent(_type lt, _type rt);
+	bool structurally_equivalent(_type lt, _type rt);
 
-	bool structural_equality(_type& lt, _type& rt) {
-		// note, the reason this works is that
-		// there are only four types in the language,
-		// and all of them are primitive.
-		// _int, _real, _text, _bool
-		// the real definition will need to be recursive
-		if (lt.expr == nullptr || rt.expr == nullptr) throw _semantic_error(__FILE__, __LINE__, "Semantic Error: Structural Equality is not defined for nullptr types");
-		return lt.expr->ast_type == rt.expr->ast_type;
-	}
+	_type resolve_type(_var& var, stack<_scope>& scope_stack);
+
+	void infer_types(_module& mdl, stack<_scope>& scope_stack);
+
+	void infer_type(_fn& fn, stack<_scope>& scope_stack, function_table& functions);
+	_type infer_return_type_from_scope(stack<_scope>& scope_stack, function_table& functions);
+	void infer_type(_vardecl& decl, stack<_scope>& scope_stack, function_table& functions);
+
+	_type typeof(_ast* expr, stack<_scope>& scope_stack, function_table& functions);
 
 	bool empty_type(_type& t);
 
-	void typecheck(_module& mdl);
-	void typecheck(_fn& f, symbol_table& global_symbols);
-	void typecheck(_if& i, _fn& f , symbol_table& global_symbols);
-	void typecheck(_while& w, _fn& f , symbol_table& global_symbols);
-	void typecheck(_return& r, _fn& f , symbol_table& global_symbols);
-	void typecheck(_scope& s, _fn f, symbol_table& global_symbols);
-
-
-
-private:
-	const _type None_type = { "none", nullptr };
-	const _type int_type = { "int", nullptr };
-	const _type real_type = { "real", nullptr };
-	const _type text_type = { "text", nullptr };
-	const _type bool_type = { "bool", nullptr };
+	void typecheck(_module& mdl, stack<_scope> scope_stack);
+	void typecheck(_fn& fn, stack<_scope> scope_stack, function_table& functions);
+	void typecheck(_vardecl& decl, stack<_scope> scope_stack, function_table& functions);
+	void typecheck(_if& if_cond, stack<_scope> scope_stack, function_table& functions);
+	void typecheck(_while& while_loop, stack<_scope> scope_stack, function_table& functions);
+	void typecheck(_return& ret, stack<_scope> scope_stack, function_table& functions);
+	void typecheck(_ast* expr, stack<_scope> scope_stack, function_table& functions);
 	/*
 	
 		type checking is the first goal of semantic analysis.

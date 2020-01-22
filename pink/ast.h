@@ -8,6 +8,7 @@ using std::map;
 
 #include "token.h"
 #include "type.h"
+#include "symbol_table.h"
 
 // because primitive tagged unions are too much to ask for...
 enum _ast_type {
@@ -25,6 +26,7 @@ enum _ast_type {
 	AST_RETURN,
 	AST_SCOPE,
 	AST_MODULE,
+	AST_PROGRAM,
 	AST_INT,
 	AST_REAL,
 	AST_TEXT,
@@ -50,6 +52,36 @@ typedef struct _ast {
 //	_ast* value;
 //} _entity;
 
+typedef unsigned int _flags;
+/*
+	note: flags are used in a bitwise fashion
+	this means the enum's need to progress by
+	the powers of two.
+	hence:
+	first_flag = 1,
+	the_next_flag = 2,
+	... = 4,
+	... = 8,
+	... = 16,
+	...
+*/
+// helper function for flag extraction
+bool nth_bit_set(unsigned int value, short nth) { 
+	if (nth > 32) return false; // sanity check
+
+	// shift the nth bit to the first position
+	// then bitwise and with the value 1,
+	// this sets every bit other than the
+	// first position to 0, then we check
+	// if the result is 1.
+	return ((value >> nth) & 1) == 1; 
+}
+// helper function for flag setting
+void set_nth_bit(unsigned int& value, short nth, bool direction) {
+	unsigned int temp = 1;
+	value = (temp << nth) & direction;
+}
+
 // expressions in the language are used in a variety of
 // semantic locations, for the purpose of giving
 // programmers the most flexibility in what they can express.
@@ -67,17 +99,30 @@ typedef struct _var : public _ast {
 	_var() : _ast(AST_VAR), id(), type() {}
 } _var;
 
+
+enum class DECL_FLAGS : short  {
+	CONST = 1,
+
+};
+
+bool is_const(const _vardecl& decl) { return nth_bit_set(decl.flags, (short)DECL_FLAGS::CONST); }
+
 typedef struct _vardecl : public _ast {
+	_flags flags;
 	_var lhs;
 	_ast* init;
 
 	_vardecl() : _ast(AST_VARDECL), lhs(), init() {}
+	_vardecl(_flags f, _var l, _ast* i) : _ast(AST_VARDECL) {
+		flags = f;
+		lhs = l;
+		init = i;
+	}
 } _vardecl;
 
-typedef map<string, _vardecl> symbol_table;
 
 typedef struct _scope : public _ast {
-	symbol_table local_symbols;
+	_symbol_table local_symbols;
 	vector <_ast*> statements;
 
 	_scope() : _ast(AST_SCOPE), local_symbols(), statements() {}
@@ -91,10 +136,21 @@ typedef struct _arg : public _ast {
 		return type.name == rhs.type.name;	
 	}
 
+	bool operator!=(const _arg& rhs) {
+		return type.name != rhs.type.name;
+	}
+
 	_arg() : _ast(AST_ARG), id(), type() {}
 } _arg;
 
+enum class FN_FLAGS : short {
+	SEEN_RETURN = 1,
+};
+
+bool seen_return(const _fn& fn) { return nth_bit_set(fn.flags, (short)FN_FLAGS::SEEN_RETURN); }
+
 typedef struct _fn : public _ast {
+	_flags flags;
 	string id;
 	vector<_arg> argument_list;
 	_type return_type;
@@ -163,12 +219,17 @@ typedef struct _module : public _ast {
 	vector <string> export_list;
 	string root;
 	function_table functions;
-	symbol_table global_symbols;
+	_scope module_scope;
 
-	_module() : _ast(AST_MODULE), id(), import_list(), export_list(), root(), functions(), global_symbols(){}
+	_module() : _ast(AST_MODULE), id(), import_list(), export_list(), root(), functions(), module_scope(){}
 } _module;
 
+typedef struct _program : public _ast {
+	vector <_module> modules;
+	_scope global_scope;
 
+	_program() : _ast(AST_PROGRAM), modules(), global_scope() {}
+} _program;
 
 typedef struct _int : public _ast {
 	int value;

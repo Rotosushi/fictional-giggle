@@ -401,9 +401,10 @@ Attributes = {
 	| <compiler-directive>   { %% <- %1; }
 	| <function-declaration> { %% <- %1; }
 	| <variable-declaration> { %% <- %1; }
+	| <type-declaration>	 { %% <- %1; }
 
 <comment> := '#' *(_) <EOL>
-# a haskell like '_'; meaning 'anything'
+# a haskell like '_'; meaning 'anything' and discard the binding
 
 <compiler-directive> { compiler-directive }  
 	:=  'root' <identifier> ';'		 { %% <- %2; }
@@ -464,6 +465,12 @@ Attributes = {
 	| <identifier> ('::' | ':=') <initializer> ';' {
 		%% <- declaration (%1, %2, %3);
 	}
+
+<type-declaration> := <adt>
+
+<adt>  := <type> 
+		| <adt> ('^' | '+') <adt>
+		| '(' <adt> ')'
 
 <type> { type }  
 	:= 'int' { %% <- INT; } 
@@ -534,8 +541,7 @@ Attributes = {
 	the postfix operator production needs to be defined by a 
 	pair of symbols one which predicts the beginning of the operation,
 	and the second ending the operation.
-	a postfix operator can be any function that looks
-	like:
+	a postfix operator can be any function that looks like:
 	fn postfix-signature(lhs : type-a, rhs : type-b) -> result : type-c {
 		# body
 	}
@@ -607,6 +613,8 @@ precedence table:
 # able to be parsed given this BNF grammar
 # a, b, c, d = f(g + k, h - J(q), i, j);
 # a = 0, b = "sometext", c = j + k, g = F() - G(P);
+
+// expressions but written out in long form ABNF for posterity
 
 <expr> := <assignment-expr>
 		| <expr> ',' <assignment-expr>

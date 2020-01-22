@@ -8,8 +8,6 @@ _module* _parser::parse_module()
 {
 	auto top = new _module;
 
-	init_module_with_kernel(*top);
-
 	sync(1); // prime our input. (nexttok() will advance one token too far)
 
 	/* <module> := (<module-level-declaration>)* EOF */
@@ -230,39 +228,22 @@ void _parser::parse_module_declaration(_module& mdl)
 	_vardecl* vardecl;
 	_fn* fndecl;
 	switch (curtok()) {
-	case T_ID: {
+	case T_VAR: {
 		vardecl = new _vardecl;
 		parse_variable_declaration(*vardecl);
-
-		/*
-			This code kinda stinks becuase it uses
-			exceptions in regular control flow.
-
-			were there an optional type, this pattern could
-			be cleaner
-		*/
-
-		try {
-			mdl.global_symbols.at(vardecl->lhs.id);
-		}
-		catch (...) {
-			threw = true;
-		}
-		if (threw) mdl.global_symbols[vardecl->lhs.id] = *vardecl;
-		else throw _parser_error(__FILE__, __LINE__, "variable already defined: ", vardecl->lhs.id);
-
+		mdl.module_scope.local_symbols.bind(*vardecl);
 		break;
 	}
 	case T_FN: {
 		fndecl = new _fn;
-		parse_function_declaration(*fndecl);
+		parse_function_declaration(*fndecl, mdl.module_scope);
 		try {
-			mdl.function_table.at(fndecl->id);
+			mdl.functions.at(fndecl->id);
 		}
 		catch (...) {
 			threw = true;
 		}
-		auto overload_set = mdl.function_table[fndecl->id];
+		auto overload_set = mdl.functions[fndecl->id];
 
 		if (threw) overload_set.insert(overload_set.begin(), (*fndecl));
 		else throw _parser_error(__FILE__, __LINE__, "function already defined: ", fndecl->id);
@@ -368,7 +349,7 @@ void _parser::parse_variable_declaration(_vardecl& decl)
 	}
 }
 
-void _parser::parse_function_declaration(_fn& fn)
+void _parser::parse_function_declaration(_fn& fn, _scope& local_scope)
 {
 	// 'fn' <identifier> <function-type> <function-body>
 	if (curtok() != T_FN) throw _parser_error(__FILE__, __LINE__, "invalid function definition, leading 'fn' missing, instead got: ", curtok());
@@ -379,7 +360,7 @@ void _parser::parse_function_declaration(_fn& fn)
 	nexttok();
 
 	parse_function_type(fn);
-	parse_function_body(fn);
+	parse_function_body(fn, local_scope);
 }
 
 void _parser::parse_function_type(_fn& fn)
@@ -393,9 +374,9 @@ void _parser::parse_function_type(_fn& fn)
 		parse_return_type(fn.return_type);
 }
 
-void _parser::parse_function_body(_fn& fn)
+void _parser::parse_function_body(_fn& fn, _scope& local_scope)
 {
-	parse_scope(fn.body);
+	parse_scope(fn.body, local_scope);
 }
 
 void _parser::parse_argument_list(vector<_arg>& args)
@@ -547,7 +528,7 @@ _ast* _parser::_parse_primary_expr()
 	case T_LPAREN: // sub-expression
 		nexttok(); // eat '('
 
-		expr = _parse_expression(_parse_primary_expr(), 0);
+		expr = parse_expression();
 
 		if (curtok() != T_RPAREN) throw _parser_error(__FILE__, __LINE__, "invalid primary expression, while parsing parenthised expression expected closing ')', instead got: ", curtok());
 		nexttok(); // eat ')'
@@ -558,6 +539,7 @@ _ast* _parser::_parse_primary_expr()
 
 		unop->op = curtok();
 		nexttok();
+		// unops bind to their immediate rhs
 		unop->rhs = _parse_primary_expr();
 
 		return unop;
@@ -631,7 +613,7 @@ void _parser::parse_carg(_arg& carg)
 	carg.type.expr = parse_expression();
 }
 
-void _parser::parse_if(_if& conditional)
+void _parser::parse_if(_if& conditional, _scope& local_scope)
 {
 	/*
 	<conditional>  := 'if' '(' (<expr>)? ')' <statement>
@@ -644,16 +626,16 @@ void _parser::parse_if(_if& conditional)
 		conditional.cond = parse_expression();
 		if (curtok() != T_RPAREN)  throw _parser_error(__FILE__, __LINE__, "invalid if, expected ')', instead got: ", curtok());
 		nexttok();
-		conditional.then = parse_statement();
+		conditional.then = parse_statement(local_scope);
 		if (curtok() == T_ELSE) {
 			nexttok();
-			conditional.els = parse_statement();
+			conditional.els = parse_statement(local_scope);
 		}
 	}
 	else  throw _parser_error(__FILE__, __LINE__, "invalid if, expected 'if', instead got: ", curtok());
 }
 
-void _parser::parse_while(_while& loop)
+void _parser::parse_while(_while& loop, _scope& local_scope)
 {
 	if (curtok() == T_WHILE) {
 		nexttok();
@@ -662,26 +644,26 @@ void _parser::parse_while(_while& loop)
 		loop.cond = parse_expression();
 		if (curtok() != T_RPAREN) throw _parser_error(__FILE__, __LINE__, "invalid while, expected ')', instead got: ", curtok());;
 		nexttok();
-		loop.body = parse_statement();
+		loop.body = parse_statement(local_scope);
 	}
 	else throw _parser_error(__FILE__, __LINE__, "invalid while, expected 'while', instead got: ", curtok());;
 }
 
-_ast* _parser::parse_statement()
+_ast* _parser::parse_statement(_scope& local_scope)
 {
 	if (curtok() == T_LBRACE) {
 		auto block = new _scope;
-		parse_scope(*block);
+		parse_scope(*block, local_scope);
 		return block;
 	}
 	else if (curtok() == T_IF) {
 		auto cond = new _if;
-		parse_if(*cond);
+		parse_if(*cond, local_scope);
 		return cond;
 	}
 	else if (curtok() == T_WHILE) {
 		auto loop = new _while;
-		parse_while(*loop);
+		parse_while(*loop, local_scope);
 		return loop;
 	}
 	else if (curtok() == T_RETURN) {
@@ -736,7 +718,7 @@ void _parser::parse_type(_type& t)
 	nexttok();
 }
 
-void _parser::parse_scope(_scope& body)
+void _parser::parse_scope(_scope& local_scope, _scope outer_scope)
 {
 	/* <block> :=
 			'{' (<declaration> | <statement>)* '}'
@@ -746,18 +728,47 @@ void _parser::parse_scope(_scope& body)
 
 	_vardecl* d = nullptr;
 	_ast* s = nullptr;
-	int n = 0, m = 0;
+	short n = 0, m = 0;
+
+	/*
+	construct the scopes with name shadowing in mind.
+	when a new scope is created, pass in the old scope.
+	then when a variable decl is parsed that shares its name
+	with a previous decl we overwrite the old decl in the
+	local scope. since each scope has it's own decl table for locals,
+	when we try to resolve names and search the local scope before
+	the outer scope, by definition the algorithm shadows the name.
+	
+	note that "outer scope" refers to the next scope upwards which
+	is dependant on the parse tree. if we are parsing a module then the outer scope
+	is the global scope and if we are parsing a function body
+	then the outer scope is initially the module scope. however
+	the language as the grammar has been written supports nesting
+	scopes as much as you want within functions.
+	this is untimately why we coalesce visible symbols.
+	recursively, each scope will build up with the full definition
+	of visible symbols, and through shadowing will be able to redeclare
+	a symbols name to a new type which is really only a syntactic
+	convienence for programmers.
+	*/
+	for (auto&& bucket : outer_scope.local_symbols)
+		for (auto&& decl : bucket)
+			local_scope.local_symbols[decl.second.lhs.id] = decl.second;
 
 	do {
 		if (speculate_declaration()) {
 			d = new _vardecl;
 			parse_variable_declaration(*d);
-			body.local_symbols[d->lhs.id] = *d;
+			// rebind overwrites any previous bindings
+			// of the symbol in the local_scope, instead
+			// of throwing an error. this slight variation
+			// is what allows name shadowing to work lexically.
+			local_scope.local_symbols.rebind(*d);
 			n++;
 		}
 		else {
-			s = parse_statement();
-			body.statements.push_back(s);
+			s = parse_statement(local_scope);
+			local_scope.statements.push_back(s);
 			n++;
 		}
 
@@ -773,6 +784,34 @@ void _parser::parse_scope(_scope& body)
 
 	} while (curtok() != T_RBRACE); // there is a whole class of missing '}' errors we will want to report here
 	nexttok();
+
+	// unbind the names that are declared only in the outer scope.
+	// keeping bound the names which will be bound during the lifetime
+	// of this scope.
+	// this is to save storage of names, the only names a current scope needs
+	// to know are the names who fall out of scope when this scope ends.
+	// this set is the set of variables which were declared in this scope.
+	// this has the added benefiet of making lifetime management of
+	// local variables very straightforward.
+	vector<_vardecl> will_outlive;
+	for (auto&& bucket : local_scope.local_symbols)
+		for (auto&& decl : bucket) {
+			// if the name appears in the outer_scope.local_symbols then we know
+			// it is visible after the end of the current scope. if the
+			// name appears only in the local_scope.local_symbols then
+			// it was declared in the current scope and we don't remove it.
+			// if the name appears in both the current scope and
+			// the outer_scope then the name was shadowed by a declaration
+			// in the current scope. we only want to remove the declarations
+			// from the current_scope that will outlive the current scope.
+			for (auto buket : outer_scope.local_symbols)
+				for (auto dec : buket) {
+					if (dec.first == decl.first)
+						will_outlive.push_back(dec.second);
+				}
+		}
+
+	local_scope.local_symbols.unbind(will_outlive);
 }
 
 void _parser::parse_return(_return& ret)
