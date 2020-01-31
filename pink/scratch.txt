@@ -241,13 +241,14 @@ sum and product types. (record and union respectively)
 	a common pattern of use for unions is to treat the same memory
 	as a different type to better support generic functions over 
 	a range of types. (the range the union supports) to disambiguate
-	between which instance of the union we have we need to rely on
+	between which instance of the union we have, we need to rely on
 	(generally) tags. which are stored in the same location no matter
 	which instance of the union the object represents, so programmers
 	can say if(this-version) ... else if(other-version) ...
 	and the compiler can generate code which disambiguates between instances.
 	this feels like such a basic pattern of use that the compiler could generate
-	some of the boilerplate.
+	some of the boilerplate. which is exactly why tagged unions will be a primitive 
+	entity.
 
 polymorphic type constructors.
 	so we can support generic types better.
@@ -271,13 +272,16 @@ owning pointers.
 	will have mostly c's pointer semantics, whereby we are talking about
 	the addresses when we copy, compare, assign, or construct.
 	and when the programmer has an owning refrence we assume
-	they want to deeply copy the structure they have. in this way
+	they want to maintain this as a refrence to a new dynamic object
+	everytime. so the compiler can then assume they want deeply copy the structure they have
+	when the user requests assignment or copy-construction. in this way
 	owning pointers will be able to be treated by programmers like
 	they would treat variables in python.
 	when we copy, compare, assign, or construct, we will create
 	a new exact copy in memory and assign it to the owning refrence.
 	so two owning pointers will ~always~ point to separate instances
-	of the type. and a regular pointer may point to a separate instance
+	of the type.
+	and a regular pointer may point to a separate instance
 	or may point to the same instance as another pointer.
 
 	this subject sort of naturally leads to questions about the semantics behind
@@ -287,18 +291,26 @@ owning pointers.
 	so a static variable should be able to be treated in the same way
 	we treat static variables in c, we can preform defined operations
 	and functions on variables, and their values are passed into functions
-	who contain separate storage for that value per invokation. 
+	who contain separate storage for that type/value per invokation. 
 	an operator of particular note is the dot '.' operator.
 	using which we access the named members of a record or union type.
-	I feel that the dot operator will be overloaded for names which are
-	typed as records and unions, as well as for pointers to records and unions.
-	so if you have a single pointer you can use the dot operator to access the
+	I feel that the dot operator should be overloaded by the compiler for names which are
+	typed as those records and/or unions, and typed as pointers to those records and/or unions.
+	so if you have a single refrence pointer you can use the dot operator to access the
 	members of the pointed to object, instead of having to explicitly use
-	the indirection operator once, it should work when the indirection operator
-	is used as well. however, if you have two layers of indirection
-	then you would need to use the indirection operator once. (twice should also
-	be semantically valid.) and so on to however many layers of indirection the user has
-	specified.
+	the indirection operator once (or specifying a new operator and having two separate
+	code bases for dealing with static or dynamic memory like c)
+
+	this raises some questions about macro or polymorphic function instances when
+	the macro or function is relying on the semantics of a nonowning ptr, or
+	relying on the semantics of an owning ptr. like "this algorithm relies on
+	the assumption that it is dealing with multiple refrences to the same object,
+	if you passed in something that always does a deep copy on assignment that will break it."
+	I say, that's a use-case for constraining your polymorphic variables with
+	some code which can reflect over the types that are being used to instanciate it
+	and make sure the user gave nonowning refrences.
+
+	
 
 None type, Optional Type, Any type (can only exist with refrence semantics?).
 	a None type representing the empty set useful in many programming idioms, 

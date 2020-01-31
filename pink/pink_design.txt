@@ -26,14 +26,15 @@ this means a few things:
 	working together to express programming ideas ergonomically. The goal 
 	is to have a clear (read: unambiguous), 
 	concise(read: just enough characters to communicate, but not so many
-	 that it becomes a chore to write and mentally parse. see: c++ templates as an example of 'chore to mentally parse'),
+	 that it becomes a chore to write and mentally parse. see: c++ templates as an example of 'chore to mentally parse',
+	 or dense functional code),
 	 and highly expressive language; 
 
 - Dimensions of the language
 	- Expressivity
 		the language should enable programmers solve their problems, rather
 		than solve the riddle of how to express what they want to say in the
-		language. "stop telling me what you are going to say, and just say it."
+		language. i.e. "stop telling me what you are going to say, and just say it."
 
 		Programmers fluent in the language should be able to easily read what
 		one another are saying and doing in their code. 
@@ -47,7 +48,7 @@ this means a few things:
 		exploitable because it is hard to write hardened code,  More complex languages
 		are exploitable because their own operation is hard to understand, and
 		security is hard because it is easy to exploit interoperations
-		between disperate programs.
+		between disperate programs. 
 
 	- Performance
 		writing code that utilizes its resources effectively is difficult. writing
@@ -66,6 +67,25 @@ this means a few things:
 		testing is a non-trivial aspect of development, that also has a uniform
 		shape. How does this language assist programmers in testing their own code?
 		in testing unknown code? 
+
+
+besides the language concerns, there are concerns general to any abstraction.
+these are intended to be used as the dimensions above are used, as guiding principles of
+the design. any given language entity must make a case for it's existance, the strength
+of which should be proportional to the distance to the core of the language, and how important
+the proposed entity is to be. what adds to an entities case for existance
+is a strong showing in the core principles of the language, i.e. it helps write performant code,
+or secure code, or helps maintain code, or some such. what can then add to the strength of the entities case
+is a strong showing in the dimensions of abstraction itself. i.e. the feature reduces the repitition
+viscosity of code maintinence. this then gives adopters of new entities a new way of comparing
+proposed entities, and to seek out entities which have certain properties.
+
+to speak in terms of an abstract instance, should a language feature be proposed that then
+subsequently everyone will use, then it better have a strong case for existance, not only 
+from the perspective of how reliable the core tools need to be, but also from the perspective
+of getting users to adopt a new way of doing things. should a new entity be used by one
+person in one project, then that entity doesn't need as strong a case for existance. it only
+needs to convince that one person, and only needs to be useful in the one project.
 
 - Cognitive Dimensions of Abstraction
 
@@ -190,18 +210,19 @@ Why make a new programming language?
 		c is in its verbosity (This is a result of being a small lang,
 			which is addmittedly also a plus), security/memory pitfalls, and age.
 		c++ fails in its verbosity (partly inherited, mostly added),
-			semantic overhead, and its plethora of features (there's just too many!
-			i don't know what the right amount is, but c++ has too many.)
-		Dynamicly Typed and Garbage Collected languages fail
+			semantic and syntactic overhead, and its plethora of features (there's just too many!
+			i don't know what the right amount is, but c++ has too many.
+			if there is four ways of doing/saying the same thing, only one of
+			those should be primitive to the language.)
+		Dynamicly Typed and Garbage Collected languages fail in that
 			the computational overhead of garbage collection is unnaceptable
 			in low level code and embedded code, especially so in RTOS situations.
 			so a systems language should not force one upon you. (however,
 			in some cases you may want one, so maybe some grammars can be
 			garbage collected, maybe you can write in a garbage collected dialect.)
-			and the mental/debugging overhead of duck typing.
-
-		what if there was a language that:
-			---
+			and they fail with the mental/debugging overhead of duck typing.
+			this introduces subtle errors back into the language that static
+			typing does not allow.
 
 If these are the problems, then how is this language a solution?
 	what are the design goals of pink?
@@ -259,7 +280,13 @@ If these are the problems, then how is this language a solution?
 	type construction seems like a necessary language feature.
 	c doesn't have this, and so requires seperate intitialization
 	functions for more complex types. written and maintained fully by the programmer
-	every type is constructed in some way, and humans are lazy. 
+	every type is constructed in some way, and humans are lazy, so this is an area
+	where a lot of unnessecary bugs occur. bugs because the programmers function
+	becomes out of date if the underlying representation changes, which can permeate
+	throughout the code. and unnessesary because the compiler understands it's types
+	enough to generate assignment semantics for it's underlying types, which means that
+	it can generate the code for composite assignment semantics. 
+	(shallow copy non-owning refrences, deep-copy owning refrences)
 
 	var : my_struct;
 	init_my_struct(var, ...);
@@ -359,6 +386,11 @@ If these are the problems, then how is this language a solution?
 		mY_other_constant :: 42;
 
 -- pointers
+a major departure from c pointers is that in pink,
+all pointers are option types.
+meaning instead of signaling a deleted refrence with
+a null pointer value, the type of the pointer will be
+null instead.
 
 	two kinds, both nilable, 
 	non-owning pointers (refrences) *
@@ -368,8 +400,7 @@ If these are the problems, then how is this language a solution?
 	   :gives the same behavior as c++ shared_ptr ?? 
 
 	refrences are just that, a refrence to some memory, 
-		:these have all the same pitfalls and advantages of
-		c-style pointers.
+		
 	pointers own the memory they point to, when they go out of
 	scope, so does the memory.
 		:these have all the power of a pointer, but negate a lot
@@ -477,14 +508,33 @@ If these are the problems, then how is this language a solution?
 		 c++ has recently developed something with close to the same power 
 		 as a true macro, and it is in the form of templates. in their original
 		 conception templates are a way to abstract the type of a procedure.
+		 which implements a form of parametric polymorphism.
 		 this is because many algorithms work regardless of the
-		 type that they consume. Linked lists, Arrays, Heaps, etc.
+		 type that they consume. data-structures in particular Linked lists, Arrays, Heaps, etc.
 		 in other words, there is a -pattern- to the code, and the storage 
 		 structure has the same form no matter the contents. The form of the 
 		 storage medium is the pattern which is captured within the template.
 
 		 now, with more complex structures the constraints that are placed on
-		 what a
+		 what the function can operate on will often differ from the basics of
+		 a type. (it's size, and name). sometimes a pattern will only work
+		 if the underlying type supports certain semantic operations upon it.
+		 say, a macro which only makes sense if the type we are operating on
+		 can be iterated over. the compiler will not know a-priori which
+		 exact underlying semantics that a user will utilize in their macro.
+		 so the macro facility will need some way of specifying that.
+		 the current solution is to have the argument of the macro itself
+		 associated with some function which reflects over it's passed in
+		 type and enforces some constraints upon the type passed in.
+		 should the constraints pass, then the macro can be safely expanded.
+		 should the constraints fail, then the compiler can emit a semantic error.
+		 the user can specify the constraints that each argument of the macro
+		 places on it's agument. if the user fails to supply any constraints
+		 that should still be fine, macros will be typechecked after they are
+		 expanded once given the arguments. meaning if the underlying type doesn't support
+		 the semantics which the macro expanded with, then the compiler again gets the opportunity
+		 to emit a semantic error. this provides two places where a macro can be typechecked.
+		 and gives users a powerful tool for ensuring that their macros will be used correctly.
 
 
 	// Helper functions
@@ -578,7 +628,7 @@ the compiled source code being emmitted by any major language today.
  at which we can develop. a programmer doesn't need to consider
  how to create, store, and modify local variables, they only need
  to know how to interact with these variables. you don't need to
- know how to create a function call stack on the curren't hardware,
+ know how to create a function call stack on the current hardware,
  you just need to think about how the functions interact. This is
  a good abstraction layer to have, in my mind and i assume, in the 
  minds of anyone who has had to code in assembly.
@@ -587,19 +637,20 @@ the compiled source code being emmitted by any major language today.
  achieved by the programming language. abstraction should create a new
  tool, or set of tools which can ergonomically express the ideas that
  are vital to the operation of some thing. technically the CPU is doing 
- one thing at a time, one step at a time; but in order to ergonomically
+ one thing at a time, one step at a time; and in order to ergonomically
  use the CPU we need ways of specifying what the CPU should be doing
  and we would like those abstractions to be as easy to use as possible.
-
+ we also want to be able to say anything we want, as long as it makes sense.
 
 ///
 /*
+guiding principles of the order of evaluation:
 	one wants fully evaluated expressions before assignment
 
 	one wants to test the value of fully evaluated
 		expressions.
 
-	one wants to bitwise operate on the value of fully evaluated
+	one wants to bitwise operate using the value of fully evaluated
 		numerical values
 
 	one wants pemdas to hold for numeric operations
@@ -615,16 +666,8 @@ the compiled source code being emmitted by any major language today.
 	',' binds looser than '='; so that EQ expressions
 	 are kept together.
 
-	A & B | C == D 	
-	-> ((A & B) | C) == D)
-	boolean expressions bind looser than bitwise expressions
-	, one usually wants to test the value of fully evaluated
-		expressions.
-
 	A | B ^ C & D	
 	-> (A | (B ^ (C & D)))
-
-	| -> ^ -> &
 
 	A && B || C ^^ D	
 	-> (A && B) || (C ^^ D)
@@ -710,7 +753,7 @@ Token := (<op1> | <op2> | .. | <opn> )
 
 // v3 goals : features!
 - polymorphism
-- macros (programmer ast manipulation)
+- macros (programmer ast manipulation) 
 - reflection
 - concurrency
 

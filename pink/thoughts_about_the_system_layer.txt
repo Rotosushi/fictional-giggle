@@ -8,13 +8,13 @@ the layer above. 'Higher' level languages, and 'higher' level
 code is difficult to define, as the notion of what is 'high' 
 level has changed since the days when you had to code in assembly.
 
-a high level language used as it originally was refers to nay language
+a high level language used as it originally was refers to any language
 that is above bare assembly. a distinction with is essentially useless
 in 2019, as every language is above assembly.
 
 and the term makes no sense because the semantics of
 a language depend more on which semantics they adopt then
-some arbitrary 'height'.
+some arbitrary notion of 'height'.
 
 a more realistic difference would be:
 a systems language -must- consider the hardware
@@ -23,19 +23,22 @@ necessarily imply that a program written in the
 language -must- consider the harware, as we also
 want to preserve portability, but 
 a program can opt-in to consider the hardware,
-and the language is there to facillitate that.)
+and the language is there to facillitate that with
+minimal overhead, like C.)
 
 a 'high' level language -can choose- to ignore
 the hardware on which it is run. and they usually 
 choose to exist semantically at some level of abstraction
-higher than the actual hardware. that is how i come to call the
-language 'high' level.)
+higher than the actual hardware. some even define a whole
+abstract machine that executes their code, so the language is
+more like another layer of 'hardware'.)
 
 in this way we can clearly understand what we mean,
 when one is programming in a high level language, the
 abstractions one uses are more suited to being used
 in the language, then they are a relection of the
-design of the hardware.
+design of the hardware. the language does whatever it needs
+to to provide the semantics as they are defined by the specification.
 
 this difference is easy to spot if we consider
 the differences between C and LISP.
@@ -43,10 +46,11 @@ In C (1972) the language is treated more as a very nice
 assembler, with it's abstractions chosen carefully to
 have minimal overhead, but with a lot of semantic versatility.
 the syntax and semantics can easily (or succinctly) be implemented
-in the underlying assembly.
+in the underlying assembly. which reduces the overhead of using
+and composing the languages abstractions.
 
 In LISP (1960) the langauge does not run on any native harware,
-(...now-a-days, in the past there have been so-called LISP machines.)
+(...now-a-days, in the past there have been hardware LISP machines.)
 code is interpreted by an abstract machine, which then
 can act as if it was the program specified by the source code.
 the source code that one looks at is wildly different
@@ -58,9 +62,9 @@ in LISP must include a fully functional LISP interpreter in order to support
 the full language semantics. (with some asteriscs of course.)
 
 in LISP there is no conception of how exactly we mean to accomplish
-any given task, but we assume the machine knows how to execute it's language,
+any given task, we merely assume the machine knows how to execute it's language,
 and by this assumption programmers can write general use programs.
-the language is therefore declarative.
+the language is therefore declarative. 
 
 in C you specify how the machine is going to accomplish the task.
 the language is therefore imperitive.
@@ -69,19 +73,20 @@ so then are all imperitive languages also systems languages?
 well, no. but a high-level imperitive langauge superficially
 look very similar to a systems language like C. they do however
 vary in a multitude of subtle ways. mostly in the underlying semantics of
-their languages primitive entities, and composite entities.
+their languages primitive and composite entities.
 this is further complicated by the fact that some languages support some specialized form
 of it's syntax that exists more in the systems sense than a high-level
-sense(C#, Rust). or other languages which try and straddle both layers (C++, Go).
+sense (C# unsafe blocks, Rust) or other languages which try and straddle both layers (C++, Go).
 
 to get more into the weeds of the distinction I am really making
 we need to pull back a bit conceptually.
-from a certain perspective, all general purpose languages are
+from a certain perspective, all general purpose computing languages are
 interchangable with each other, they are all "turing-complete".
 which means that, however awkwardly, any conceivable algorithm could
 be specified in any turing complete language. 
 if one takes this to it's natural logical conclusion we can ask
 ourselves, what then is the point of ever making a new language?
+why are we not still all coding in assembly?
 
 well, the language we use has a profound effect on the ideas we have
 and the way we think. it also affects the way we recombine and reevaluate ideas.
@@ -89,13 +94,85 @@ subtle changes in syntax can have a profound effect on the underlying semantics.
 to the point that a single misplaced character can result in any number of errors in
 any stage of the life of the compilation or the runtime of the resulting program.
 (depending entirely on which character gets misplaced and where, of course.)
-all this to say that programming is very hard, and it would be nice if we had
-a language in which it was easy to say what is easy to do. or even nicer, a language
+
+all this to say that programming is very hard, and programmers are forced
+to maintain some sense of what is and isn't possible, how long things take,
+and what different implementations have for resulting characteristics.
+it would be nice if we had a language in which it was easy to say what is easy to do. or even nicer, a language
 in which it was easy to say what is hard to do. to paraphrase Donald Knuth, a program
 should be written so that it is easy for another human to tell what it is the computer
-should be doing. and to me, C is failing to meet that need. so I strive to replace it.
+is doing. and to me, C is failing to meet that need when it is pushed to it's limits.
 in the other languages that have come out recently to 'replace' C, none follow this 
-as dogma. and none have pink' either.
+as dogma. 
+
+the system layer is where we describe what would be called in web-speak, the "back-end".
+this is the layer where all the irregularities and idiosynchrosies of the hardware
+are wrapped in easy to use abstractions for programmers who do not want to concern themselves
+with the hardware. like native or cloud app developers, web page developers, etc. 
+
+what is implemented in the systems layer? 
+drivers for hardware (GPU, HDD/SSD, Flash, Mouse, Keyboard, Monitor, Motors, Sensors, etc...)
+operating systems,
+filesystems,
+threads,
+processes,
+sockets,
+databases,
+servers,
+programming languages,
+
+these programs are providing access to the hardware via some abstraction.
+the point then is theat the abstraction can then be used in other programs, or
+by other programs to define their semantics. and if the abstraction is
+designed well then they meet some external constraint that makes them more useful
+to some over others. like, this api lets you write really fast code, or this language
+lets you glue other programs together in a pipeline, or this data storage mechanism is
+really fast, or really reliable (or in a perfect world both).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

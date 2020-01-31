@@ -21,33 +21,79 @@ private:
 	const _type text_type = { "text", nullptr };
 	const _type bool_type = { "bool", nullptr };
 
+	/* helper functions for semantic analysis */
+	// this function needs to be somewhere, and
+	// here feels like mostly a mistake, but
+	// this is where we first need the kernel to
+	// be active.
 	void init_module_with_kernel(_module& m);
 
-	_fn& lookup_fn(string id, vector<_arg> args, function_table& functions);
+	// helper function for error reporting
 	string fn_to_string(string id, vector<_arg> args);
 
-	bool name_equivalent(_type lt, _type rt);
-	bool structurally_equivalent(_type lt, _type rt);
-
-	_type resolve_type(_var& var, stack<_scope>& scope_stack);
-
-	void infer_types(_module& mdl, stack<_scope>& scope_stack);
-
-	void infer_type(_fn& fn, stack<_scope>& scope_stack, function_table& functions);
-	_type infer_return_type_from_scope(stack<_scope>& scope_stack, function_table& functions);
-	void infer_type(_vardecl& decl, stack<_scope>& scope_stack, function_table& functions);
-
-	_type typeof(_ast* expr, stack<_scope>& scope_stack, function_table& functions);
-
+	// this is the predicate that is used to tell when
+	// the user elided the type from the definition.
 	bool empty_type(_type& t);
+	// step 0 of the type system, what does it mean for types to
+	// be equivalent? 
+	// if the names are the same, it's the same type
+	bool name_equivalent(_type lt, _type rt);
+	// if the pyhsical layout of the memory is the same,
+	// it's the same type.
+	bool structurally_equivalent(_type lt, _type rt);
+	/*
+		structural equivalency makes a lot of sense
+		when we are talking about the static definition of
+		user types. if a user defines their type using
+		only members which support assignment, then
+		the compiler can generate the code for the
+		composite structures assignment operator.
+	*/
 
+	// recursive function to find the result type of any infix expression
+	_type typeof(_ast* expr, stack<_scope>& scope_stack, function_table& functions);
+	// helper function to resolve the type of a name in an infix expression
+	_type resolve_type(_var& var, stack<_scope>& scope_stack);
+	// helper function to resolve the function that is being called in an infix expression.
+	_fn& lookup_fn(string id, vector<_arg> args, function_table& functions);
+	_fn& lookup_binop(_binop* binop, stack<_scope> scope_stack, function_table& functions);
+	_fn& lookup_unop(_unop* unop, stack<_scope> scope_stack, function_table& functions);
+
+	// step 1 of the type system, does every name in the program have a defined type?
+	// this is done by:
+	// 1: the user explicitly provided the type in the definition
+	//		of the name, meaning we do nothing
+	// 2: the user elided the type in the name, but it's type
+	//		can be unambiguously determined by static analysis of
+	//		the parse tree.
+	void infer_types(_module& mdl, stack<_scope>& scope_stack);
+	void infer_type(_vardecl& decl, stack<_scope>& scope_stack, function_table& functions);
+	void infer_type(_fn& fn, stack<_scope>& scope_stack, function_table& functions);
+	// helper functions for inferring the return type of a function
+	// these functions are mutually recursive in order to walk the body of the function.
+	// aside: in a later version when walking and the actions to be preformed
+	// are separated into classes these functions will be encoded into
+	// the actions to be preformed. 
+	optional<_type> infer_return_type_from_fn(_fn& fn, stack<_scope>& scope_stack, function_table& functions);
+	optional<_type> infer_return_type_from_scope(stack<_scope>& scope_stack, function_table& functions);
+	optional<_type> infer_return_type_from_if(_if& cond, stack<_scope>& scope_stack, function_table& functions);
+	optional<_type> infer_return_type_from_while(_while& loop, stack<_scope>& scope_stack, function_table& functions);
+	_type infer_return_type_from_last_stmt(_ast* stmt, stack<_scope>& scope_stack, function_table& functions);
+
+	// step 2 of the type system, is every usage of every type unambiguous?
+	// put another way, can the compiler determine exactly which actions
+	// the parse tree specifies?
 	void typecheck(_module& mdl, stack<_scope> scope_stack);
 	void typecheck(_fn& fn, stack<_scope> scope_stack, function_table& functions);
+	void typecheck_statement(_ast* stmt, _fn& fn, stack<_scope> scope_stack, function_table& functions);
+	void typecheck(_scope& scope, _fn& fn, stack<_scope> scope_stack, function_table& functions);
 	void typecheck(_vardecl& decl, stack<_scope> scope_stack, function_table& functions);
-	void typecheck(_if& if_cond, stack<_scope> scope_stack, function_table& functions);
-	void typecheck(_while& while_loop, stack<_scope> scope_stack, function_table& functions);
-	void typecheck(_return& ret, stack<_scope> scope_stack, function_table& functions);
-	void typecheck(_ast* expr, stack<_scope> scope_stack, function_table& functions);
+	void typecheck(_vardecl& decl, _fn& fn, stack<_scope> scope_stack, function_table& functions);
+	void typecheck(_if& if_cond, _fn& fn, stack<_scope> scope_stack, function_table& functions);
+	void typecheck(_while& while_loop, _fn& fn, stack<_scope> scope_stack, function_table& functions);
+	void typecheck(_return& ret, _fn& fn, stack<_scope> scope_stack, function_table& functions);
+	void typecheck_expression(_ast* expr, _fn& fn, stack<_scope> scope_stack, function_table& functions);
+	_type _typecheck_expression(_ast* expr, _fn& fn, stack<_scope> scope_stack, function_table& functions);
 	/*
 	
 		type checking is the first goal of semantic analysis.
