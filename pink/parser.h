@@ -80,9 +80,9 @@ private:
 	void parse_initializer(_vardecl& decl);
 	void parse_type(_type& t);
 
-	void parse_function_declaration(_fn& fn, _scope& local_scope);
+	void parse_function_declaration(_fn& fn);
 	void parse_function_type(_fn& fn);
-	void parse_function_body(_fn& fn, _scope& local_scope);
+	void parse_function_body(_fn& fn);
 	void parse_argument_list(vector<_arg>& args);
 	void parse_arg(_arg& arg);
 	void parse_return_type(_type & var);
@@ -100,10 +100,10 @@ private:
 		be completely factored out of this segment 
 		of the grammar.
 	*/
-	_ast* parse_statement(_scope& local_scope);
-	void parse_if(_if& conditional, _scope& local_scope);
-	void parse_while(_while& loop, _scope& local_scope);
-	void parse_scope(_scope& current_scope, _scope outer_scope);
+	_ast* parse_statement();
+	void parse_if(_if& conditional);
+	void parse_while(_while& loop);
+	void parse_scope(_scope& current_scope);
 	void parse_return(_return& ret);
 	void parse_expression(_expr& expr);
 	/* expression parsing

@@ -21,22 +21,22 @@ void _semantic_analyzer::init_module_with_kernel(_module& m)
 {
 	// binops
 	// int
-	_type int_type;
-	int_type.name = "int";
-	int_type.expr = nullptr;
-
 	_arg int_arg_lhs, int_arg_rhs;
 	int_arg_lhs.id = "x";
 	int_arg_lhs.type = int_type;
 	int_arg_rhs.id = "y";
 	int_arg_rhs.type = int_type;
-
-	// +, -, *, /, %, ==, !=, <, >, <=, >=, !!, &&, ||, ^^, <<, >>
-	// we start with integer arithmetic
+	// :=, +, -, *, /, %, ==, !=, <, >, <=, >=, !!, &&, ||, ^^, <<, >>
+	// we start with assignation
 	_fn fn;
-	fn.id = "+";
+	fn.id = ":=";
 	fn.return_type = int_type;
 	fn.argument_list = { int_arg_lhs, int_arg_rhs };
+	m.functions[fn.id].push_back(fn);
+	
+	// then integer arithmetic
+	
+	fn.id = "+";
 	m.functions[fn.id].push_back(fn);
 
 	fn.id = "-";
@@ -52,7 +52,6 @@ void _semantic_analyzer::init_module_with_kernel(_module& m)
 	m.functions[fn.id].push_back(fn);
 
 	// then integer bitwise operations 
-
 	fn.id = "&&";
 	m.functions[fn.id].push_back(fn);
 
@@ -69,11 +68,7 @@ void _semantic_analyzer::init_module_with_kernel(_module& m)
 	m.functions[fn.id].push_back(fn);
 
 	// integer boolean comparisons
-	_type bool_type;
-	bool_type.name = "bool";
-	bool_type.expr = nullptr;
-
-	fn.id = "==";
+	fn.id = "=";
 	fn.return_type = bool_type;
 	m.functions[fn.id].push_back(fn);
 
@@ -93,35 +88,15 @@ void _semantic_analyzer::init_module_with_kernel(_module& m)
 	m.functions[fn.id].push_back(fn);
 
 	// real type primitives
-	// +, -, *, /, %, ==, !=, <, >, <=, >=
-	_type real_type;
-	real_type.name = "real";
-	real_type.expr = nullptr;
-
+	// :=, +, -, *, /, %, =, !=, <, >, <=, >=
 	_arg real_arg_lhs, real_arg_rhs;
 	real_arg_lhs.id = "x";
 	real_arg_lhs.type = real_type;
 	real_arg_rhs.id = "y";
 	real_arg_rhs.type = real_type;
-	// starting with real boolean comparisons
-	fn.id = "==";
+	fn.id = ":=";
 	fn.argument_list = { real_arg_lhs, real_arg_rhs };
-	m.functions[fn.id].push_back(fn);
-
-	fn.id = "!=";
-	m.functions[fn.id].push_back(fn);
-
-	fn.id = "<";
-	m.functions[fn.id].push_back(fn);
-
-	fn.id = ">";
-	m.functions[fn.id].push_back(fn);
-
-	fn.id = "<=";
-	m.functions[fn.id].push_back(fn);
-
-	fn.id = ">=";
-	m.functions[fn.id].push_back(fn);
+	fn.return_type = real_type;
 
 	// defining real arithmetic
 	fn.id = "+";
@@ -140,10 +115,35 @@ void _semantic_analyzer::init_module_with_kernel(_module& m)
 	fn.id = "%";
 	m.functions[fn.id].push_back(fn);
 
+	// then real boolean comparisons
+	fn.id = "=";
+	fn.return_type = bool_type;
+	m.functions[fn.id].push_back(fn);
+
+	fn.id = "!=";
+	m.functions[fn.id].push_back(fn);
+
+	fn.id = "<";
+	m.functions[fn.id].push_back(fn);
+
+	fn.id = ">";
+	m.functions[fn.id].push_back(fn);
+
+	fn.id = "<=";
+	m.functions[fn.id].push_back(fn);
+
+	fn.id = ">=";
+	m.functions[fn.id].push_back(fn);
+	
+
+	// char
+	_arg char_arg_lhs, char_arg_rhs;
+	char_arg_lhs = { "x", char_type };
+	char_arg_rhs = { "y", char_type };
+	fn.id = ":=";
+	fn.argument_list = {};
+
 	// text
-	_type text_type;
-	text_type.name = "text";
-	text_type.expr = nullptr;
 
 	_arg text_arg_lhs, text_arg_rhs;
 	text_arg_lhs.id = "x";
@@ -167,7 +167,7 @@ void _semantic_analyzer::init_module_with_kernel(_module& m)
 	// strings are equal to or if the
 	// first character that does not 
 	// match is less or greater respectively.
-	fn.id = "==";
+	fn.id = "=";
 	fn.return_type = bool_type;
 	m.functions[fn.id].push_back(fn);
 
@@ -194,14 +194,12 @@ void _semantic_analyzer::init_module_with_kernel(_module& m)
 	bool_arg_rhs.type = bool_type;
 	// ==, !=, !, &, |, ^
 
-	fn.id = "==";
+	fn.id = "=";
 	fn.argument_list = { bool_arg_lhs, bool_arg_rhs };
+	fn.return_type = bool_type;
 	m.functions[fn.id].push_back(fn);
 
 	fn.id = "!=";
-	m.functions[fn.id].push_back(fn);
-
-	fn.id = "!";
 	m.functions[fn.id].push_back(fn);
 
 	fn.id = "&";
@@ -223,8 +221,18 @@ void _semantic_analyzer::init_module_with_kernel(_module& m)
 	m.functions[fn.id].push_back(fn);
 
 	// unops
+	fn.id = "!";
+	fn.argument_list = { bool_arg_lhs };
+	m.functions[fn.id].push_back(fn);
 
+	fn.id = "-";
+	fn.argument_list = { int_arg_lhs };
+	fn.return_type = int_type;
+	m.functions[fn.id].push_back(fn);
 
+	fn.argument_list = { real_arg_lhs };
+	fn.return_type = real_type;
+	m.functions[fn.id].push_back(fn);
 }
 
 bool _semantic_analyzer::structurally_equivalent(_type lt, _type rt)
@@ -252,16 +260,15 @@ _type _semantic_analyzer::resolve_type(_var& var, stack<_scope>& scope_stack)
 		// we look at the next scope out.
 		scope_stack.pop();
 
-		// just do a simple linear search of each scope
-		// from the current scope outwards.
+		// just do a simple linear search of the scope
 		for (auto&& bucket : current_scope.local_symbols)
 			for (auto&& pair : bucket) {
 				auto&& symbol = pair.second;
 
 				if (symbol.lhs.id == var.id)
+					var.type = symbol.lhs.type;
 					// we found the symbol, so we need to
 					// reset the state of the scope_stack
-					var = symbol.lhs;
 					while (buffer.size() > 0) {
 						scope_stack.push(buffer.top());
 						buffer.pop();
@@ -311,7 +318,8 @@ optional<_type> _semantic_analyzer::infer_return_type_from_fn(_fn& fn, stack<_sc
 	for (auto&& stmt : local_scope.statements) {
 		switch (stmt->ast_type) {
 		case AST_RETURN: {
-			auto&& inferred_type = typeof(stmt, scope_stack, functions);
+			auto&& ret = (_return*)stmt;
+			auto&& inferred_type = infer_type(ret->expr, scope_stack, functions);
 			return_type = inferred_type;
 			found_return = true;
 			break;
@@ -362,7 +370,8 @@ optional<_type> _semantic_analyzer::infer_return_type_from_scope(stack<_scope>& 
 	for (auto&& stmt : local_scope.statements) {
 		switch (stmt->ast_type) {
 		case AST_RETURN: {
-			auto&& inferred_type = typeof(stmt, scope_stack, functions);
+			auto&& ret = (_return*)stmt;
+			auto&& inferred_type = infer_type(ret->expr, scope_stack, functions);
 			return_type = inferred_type;
 			break;
 		}
@@ -399,7 +408,7 @@ optional<_type> _semantic_analyzer::infer_return_type_from_if(_if& cond, stack<_
 	optional<_type> inferred_type;
 	switch (cond.then->ast_type) {
 	case AST_RETURN: {
-		inferred_type = typeof(cond.then, scope_stack, functions);
+		inferred_type = infer_type(cond.then, scope_stack, functions);
 		break;
 	}
 	case AST_IF: {
@@ -426,7 +435,7 @@ optional<_type> _semantic_analyzer::infer_return_type_from_if(_if& cond, stack<_
 	if (!inferred_type) {
 		switch (cond.els->ast_type) {
 		case AST_RETURN: {
-			inferred_type = typeof(cond.els, scope_stack, functions);
+			inferred_type = _typeof(cond.els, scope_stack, functions);
 			break;
 		}
 		case AST_IF: {
@@ -457,7 +466,7 @@ optional<_type> _semantic_analyzer::infer_return_type_from_while(_while& loop, s
 	// return stmt
 	switch (loop.body->ast_type) {
 	case AST_RETURN: {
-		inferred_type = typeof(loop.body, scope_stack, functions);
+		inferred_type = _typeof(loop.body, scope_stack, functions);
 		break;
 	}
 	case AST_IF: {
@@ -521,7 +530,7 @@ _type _semantic_analyzer::infer_return_type_from_last_stmt(_ast* stmt, stack<_sc
 		scope_stack.pop();
 	}
 	default: {
-		inferred_type = typeof(stmt, scope_stack, functions);
+		inferred_type = infer_type(stmt, scope_stack, functions);
 	}
 	}
 	return inferred_type;
@@ -567,6 +576,44 @@ void _semantic_analyzer::infer_type(_fn& fn, stack<_scope>& scope_stack, functio
 	}
 }
 
+_type _semantic_analyzer::infer_type(_ast* expr, stack<_scope>& scope_stack, function_table& functions)
+{
+	switch (expr->ast_type) {
+	case AST_BINOP: {
+		auto&& binop = (_binop*)expr;
+		infer_type(binop->lhs, scope_stack, functions);
+		infer_type(binop->rhs, scope_stack, functions);
+		auto&& fn = lookup_binop(binop, scope_stack, functions);
+		binop->type = fn.return_type;
+		return binop->type;
+	}
+	case AST_UNOP: {
+		auto&& unop = (_unop*)expr;
+		infer_type(unop->rhs, scope_stack, functions);
+		auto&& fn = lookup_unop(unop, scope_stack, functions);
+		unop->type = fn.return_type;
+		return unop->type;
+	}
+	case AST_FCALL: {
+		auto&& fcall = (_fcall*)expr;
+		auto&& fn = lookup_fn(fcall->id, fcall->argument_list, functions);
+		fcall->return_type = fn.return_type;
+		return fcall->return_type;
+	}
+	case AST_VAR: {
+		auto&& var = (_var*)expr;
+		auto inferred_type = resolve_type(*var, scope_stack);
+		var->type = inferred_type;
+		return var->type;
+	}
+	case AST_INT:  { return int_type;  }
+	case AST_REAL: { return real_type; }
+	case AST_CHAR: { return char_type;  }
+	case AST_BOOL: { return bool_type; }
+	case AST_TEXT: { return text_type; }
+	}
+}
+
 void _semantic_analyzer::infer_type(_vardecl& decl, stack<_scope>& scope_stack, function_table& functions)
 {
 	/*
@@ -577,12 +624,12 @@ void _semantic_analyzer::infer_type(_vardecl& decl, stack<_scope>& scope_stack, 
 			via the initialization expression.
 	*/
 	if (empty_type(decl.lhs.type)) {
-		auto inferred_type = typeof(decl.init, scope_stack, functions);
+		auto inferred_type = infer_type(decl.init, scope_stack, functions);
 		decl.lhs.type = inferred_type;
 	}
 }
 
-_type _semantic_analyzer::typeof(_ast* expr, stack<_scope>& scope_stack, function_table& functions)
+_type _semantic_analyzer::_typeof(_ast* expr, stack<_scope>& scope_stack, function_table& functions)
 {
 	switch (expr->ast_type) {
 	case AST_VAR: {
@@ -612,8 +659,9 @@ _type _semantic_analyzer::typeof(_ast* expr, stack<_scope>& scope_stack, functio
 		auto type = fn.return_type;
 		return type;
 	}
-	case AST_INT:  { return int_type; }
+	case AST_INT:  { return int_type;  }
 	case AST_REAL: { return real_type; }
+	case AST_CHAR: { return char_type; }
 	case AST_BOOL: { return bool_type; }
 	case AST_TEXT: { return text_type; }
 	}
@@ -646,8 +694,8 @@ _fn& _semantic_analyzer::lookup_binop(_binop* binop, stack<_scope> scope_stack, 
 {
 	string fn_id = token_to_string(binop->op);
 	_arg lhs_arg, rhs_arg;
-	lhs_arg.type = typeof(binop->lhs, scope_stack, functions);
-	rhs_arg.type = typeof(binop->rhs, scope_stack, functions);
+	lhs_arg.type = _typeof(binop->lhs, scope_stack, functions);
+	rhs_arg.type = _typeof(binop->rhs, scope_stack, functions);
 	vector<_arg> fn_args = { lhs_arg, rhs_arg };
 
 	auto&& fn = lookup_fn(fn_id, fn_args, functions);
@@ -658,7 +706,7 @@ _fn& _semantic_analyzer::lookup_unop(_unop* unop, stack<_scope> scope_stack, fun
 {
 	string fn_id = token_to_string(unop->op);
 	_arg arg;
-	arg.type = typeof(unop->rhs, scope_stack, functions);
+	arg.type = _typeof(unop->rhs, scope_stack, functions);
 	vector<_arg> fn_args = { arg };
 
 	auto&& fn = lookup_fn(fn_id, fn_args, functions);
@@ -778,7 +826,7 @@ void _semantic_analyzer::typecheck(_vardecl& decl, stack<_scope> scope_stack, fu
 	// the stated type of the declaration must match the type of it's init expression
 	// if the type of the declaration was inferred from the init expr, 
 	// then yes this is a 'redundant' check. but this is v1.
-	auto&& init_type = typeof(decl.init, scope_stack, functions);
+	auto&& init_type = _typeof(decl.init, scope_stack, functions);
 	if (!name_equivalent(decl.lhs.type, init_type))
 		throw _semantic_error(__FILE__, __LINE__, "decl type: " + decl.lhs.type.name + " does not match init type: " + init_type.name);
 }
@@ -788,7 +836,7 @@ void _semantic_analyzer::typecheck(_vardecl& decl, _fn& fn, stack<_scope> scope_
 {
 	// what does the type system need to say about local declarations?
 	// the stated type of the local decl must match the type of it's init expression.
-	auto&& init_type = typeof(decl.init, scope_stack, functions);
+	auto&& init_type = _typeof(decl.init, scope_stack, functions);
 	if (!name_equivalent(decl.lhs.type, init_type))
 		throw _semantic_error(__FILE__, __LINE__, "decl type: " + decl.lhs.type.name + " does not match init type: " + init_type.name);
 }
@@ -808,7 +856,7 @@ void _semantic_analyzer::typecheck(_if& if_cond, _fn& fn, stack<_scope> scope_st
 	// so perhaps we need to develop another set of functions to implement
 	// that behavior, and typechecking only consists of ensuring that
 	// the condition is boolean?
-	auto&& cond_type = typeof(if_cond.cond, scope_stack, functions);
+	auto&& cond_type = _typeof(if_cond.cond, scope_stack, functions);
 	if (!name_equivalent(cond_type, bool_type))
 		throw _semantic_error(__FILE__, __LINE__, "condition of if statement must be boolean, instead type was: " + cond_type.name);
 
@@ -825,7 +873,7 @@ void _semantic_analyzer::typecheck(_while& while_loop, _fn& fn, stack<_scope> sc
 	// via the return statement, or by implication as the last statement in the body of
 	// a function.) then the last statement in the while loops body is assumed to be the
 	// type and return value of the entire function.
-	auto&& cond_type = typeof(while_loop.cond, scope_stack, functions);
+	auto&& cond_type = _typeof(while_loop.cond, scope_stack, functions);
 	if (!name_equivalent(cond_type, bool_type))
 		throw _semantic_error(__FILE__, __LINE__, "condition of while statement must be boolean, instead type was: " + cond_type.name);
 
@@ -839,7 +887,7 @@ void _semantic_analyzer::typecheck(_return& ret, _fn& fn, stack<_scope> scope_st
 	// the type of the return expression must match the return type of
 	// the function. (at this point the return type of the function has
 	// been inferred)
-	auto&& ret_expr_type = typeof(ret.expr, scope_stack, functions);
+	auto&& ret_expr_type = _typeof(ret.expr, scope_stack, functions);
 	if (!name_equivalent(ret_expr_type, fn.return_type))
 		throw _semantic_error(__FILE__, __LINE__, "return type: " + ret_expr_type.name + " does not match expected return type: " + fn.return_type.name);
 }
@@ -870,6 +918,10 @@ void _semantic_analyzer::typecheck_expression(_ast* expr, _fn& fn, stack<_scope>
 
 _type _semantic_analyzer::_typecheck_expression(_ast* expr, _fn& fn, stack<_scope> scope_stack, function_table& functions)
 {
+	// all of this seems to have already been done by the type inference
+	// step. because in order to have infer a type we have to
+	// identify a function which we can call
+
 	// what does the type system need to say about affix expressions?
 	// the sequence of types flowing through the expression must make sense
 	// this implies that this function is going to need to walk the structure
@@ -885,11 +937,7 @@ _type _semantic_analyzer::_typecheck_expression(_ast* expr, _fn& fn, stack<_scop
 	switch (expr->ast_type) {
 	case AST_BINOP: {
 		auto binop = (_binop*)expr;
-		// just because we found it, doesn't mean
-		// we found every function which composes it, 
-		// so this code isn't handling the recursive typechecking
-		// yet. 1/31/2020
-		auto fn = lookup_binop(binop, scope_stack, functions);
+		
 	}
 	case AST_UNOP: {
 

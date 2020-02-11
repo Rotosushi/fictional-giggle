@@ -22,24 +22,45 @@ first,
 	environment	|	OS state,		|	other programs
 				|	Hardware state	|	internal/external hardware.
 
-		note:
-			divide the language into four quadrants (primary <-> composed, concrete <-> abstract)
+		
+			divide the language into another four quadrants (primary <-> composed, concrete <-> abstract)
+				each subsection divided into (state <-> behavior)
 
 			|	primary (an entity that cannot be decomposed			|	composed (an entity formed of primary and
 			|				at the current level of abstraction)		|				composed entities)
 ------------|-----------------------								----|------------------------
-			|	functions&macros:		| atoms:						|	function:				| atoms:
+			|	behavior:				| state:						|	behavior:				| state:
 concrete	|	=, +, *, cmpxchg,		|	int, real, text,			|	  push, pop, peek,		|   stack, queue, list
  provided	|	typeof, sizeof, [],		|	predefined constants		|	  prepend, append,		|   map, set, file,
  by the		|	if, while, print		|	[], *, !*,					|	  open, seek, fork,		|   socket, thread,
  language	|							|								|
 ------------|-----------------------								----|-------------------------
-			|	functions:				| atoms:						|	function:				| atoms:
+			|	behavior:				| state:						|	behavior:				| state:
 abstract	|	macro, fcall,			|	local & global vars,		|	fn,						| type (adt),
  written	|	 						|								| 
  by the		|							|	local and global consts		|
  programmer	|							|								|
 
+
+ do it a third time (static <-> dynamic, internal <-> external)
+
+						internal world				|	external world
+----------------------------------------------------|-------------------------------------------------------
+ static semantics	|	static variables, functions	|	the set of available assembly instructions
+					|	modules, static libraries	|	the set of available hardware resources
+					|								|	
+					|								|
+----------------------------------------------------|---------------------------------------------------------|
+					|	dynamic memory,				|	the value of a hardware resource during use
+					|	dynamic libraries			|	where the program is in main memory
+ dynamic semantics  |	dynamic semantic generation?|   is the program executing on a core or not.
+					|								|
+					|								|
+ 
+	programs manage state according to some defined behavior.
+	we can talk about static state, dynamic state, internal state,
+	and external state. and we have static behavior, dynamic behavior,
+	internal behavior, and external behavior. 
 
 		note:
 			the language needs to have semantics for dealing
@@ -267,7 +288,7 @@ can add new elements of the language to the language.
 		 user definiable and overloadable procedures
 		 allows programmers a syntactically light, grammatically
 		 unambiguous way of composing procedure calls. that isn't
-		 just: f(g())
+		 just: f(g()) but like, you know: f . g 
 		 because sometimes that gets awkward. (ofc f(g()) will also be supported)
 
 		precedence table:
@@ -288,10 +309,13 @@ can add new elements of the language to the language.
 			highest 
 
 	(i am a big fan of some haskell features; infix any two arg function with ``
-	and prefix any operator with (), also defining new and overloading existing operators.
+	and prefix any operator with (<op-name>), also defining new and overloading existing operators.
 	also, `` just ~feels~ like a macro to me. ofc there are issues when one considers type,
 	but that is what the static type system is for!
-	???maybe function names just have an extended char set to include common symbols.???)
+	???maybe function names just have an extended char set to include common symbols???
+
+
+	the simplest code is the code which doesn't exist.
 	
 	common functions that are needed in a systems programming language:
 	arithmetic primitives:
@@ -556,9 +580,7 @@ well, how about
 
 and/or
 
-(thesis + polythesis + polythesis + ... + polythesis) -> (polysynthesis, polysithesis, ..., polysynthesis)
-
-
+(thesis + polythesis + polythesis + ... + polythesis) -> (polysynthesis, polysynthesis, ..., polysynthesis)
 
 what are the points of tension on the design of the langauge?
 
@@ -610,19 +632,25 @@ language goals include:
 	Language features should interact in an understandable, definite way, which
 	allows them to be composed together indiscriminately. or at least in a way that 
 	makes some sense and is communicated to the programmer. one should never have to maintian
-	a laundry list of edge cases in their head while they program. usage of abstraction
+	a laundry list of edge cases in their head while they program
+	(we already have to maintain a laundry list to build our abstractions!). usage of abstraction
 	is the problem, composition of abstraction is what the languages job is.
 	the programs that are being expressed in the langauge are of the real
 	importance to the programmer, and the usage of the language should reflect this.
 	of course, with a systems programming language some concessions will have to 
 	be made to understandability in the name of performance.
-	but again, it would be nice to be able to hide those from the user of the language in 
+	but again, it would be nice to be able to hide those choices as much as possible from the user of the language in 
 	a user friendly abstraction; like replacing the GOTO with while loops, if-else if-else
 	chains, and parametrized functions.
-	but the language should be no harder to learn than C.
+	but the language should be no harder to pick-up than C.
+	(small tool box, infinite ways of composition)
 	
 	(...or at least the list of edge cases should be as small as possible,
 	 and only occur when a sensible default makes no sense.)
+
+	 (in my mind, macros are the way of speaking about the language in the language,
+	 so if you can see some pattern of code in your program, and you want to
+	 encapsulate those semantics, the macro is that encapsulation tool.)
 
 - Maintainability + Testing + Documentation
 	Code that is written today, may be talking to code that is written 20
@@ -647,14 +675,16 @@ language goals include:
 	writing code that utilizes its resources effectively is difficult. writing
 	interoperating abstractions that can utilize shared resources is difficult.
 	performance modeling should be easy to do, and require minimal cognitive
-	overhead. the shape of performance modeling is uniform in the same way testing is
-	so the language should have nicities.
+	overhead. the shape of performance modeling is uniform 
+	so the language again, can and should have nicities.
 
 - Portability + Hardware Interaction + rehostability
 	A program written without using language constructs that tie it directly
 	to the hardware, a.k.a. in a portable way,
 	should be able to be compiled and executed on any platform the back end of the compiler
-	supports.
+	supports. a portable program is one which exclusively uses kernel features, and 
+	only includes code which exclusively includes kernel code. any code which
+	directly accesses the hardware will need to do so in a non-portable way.
 
 	But what do we afford the programs which do want to tie themselves heavily
 	to the hardware? what about the programmer who has resource constraints,
@@ -662,8 +692,11 @@ language goals include:
 	if your particular project is running on an 8-bit micro processor, 
 	your view is very different to that of a processor with 16, or more cores.
 	this doesn't imply that code cannot be written portably, but at some
-	points the usage of the language will run into the hardware. the point
-	of the language being a systems language is to provide language support
+	points the usage of the language will run into the hardware.
+	when the program word size is 8, your assembly has to change to support the
+	same feature set, which is why language specs are so vaugely-specific.
+
+	the point of pink being a systems language is to provide language support
 	for programs that want to interact directly with the hardware in a way that
 	is as portable as possible. so cross compilation is a assumed use case, as is
 	conditional compilation.
@@ -671,7 +704,7 @@ language goals include:
 	rehostability is running the compiler itself on different architectures, and that
 	problem is one of good old fashioned hard work. the way that we garuntee 
 	rehostability is by way of making the kernel all that is needed to build anything
-	you could need in the language, and making non-critical components libraries.
+	you could need in the language, including the lanugage itself, and making non-critical components libraries.
 	so all one needs to rewrite when retargeting some other hardware is the kernel.
 	(that may also be unnecessary if we bootstrap the language through LLVM, or
 	 if we write it in portable c/c++.)
@@ -689,6 +722,13 @@ language goals include:
 	is currently being written has virtually infinite memory.
 	(especially wehen compared to memory constraints in the 1950's, 60's, and 70's.)
 	so that will have an influence on the design as well.
+
+	doesn't that conflict with the above goal of "trying to be performant"?
+	well no, not really. the output codes size has more to do with what the
+	user types, rather than what the compiler outputs. so the compiler will
+	instead be built to be deterministic in it's resource utilization,
+	rather than trying to be as optimal as possible.
+
 
 - Security
 	The language doesn't exist in a vacuum, a robust, expressive language

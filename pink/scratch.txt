@@ -180,7 +180,7 @@ from our perspectives and goals we can define points of friction and points of h
 	of the language that helps expressivity and communication.
 
 	and to point out friction, performance and portability are often at odds,
-	becuase the most general version is often the most portable, but the least performant.
+	becuase the most general version of an algorithm is often the most portable, but the least performant.
 	and the most performant algorithms tie themselves close to the hardware, making them
 	the least portable.
 	
@@ -198,15 +198,117 @@ static or dynamic scoping?
 lazy or strict evaluation?
 ...? and more questions than listed here
 
+this language wants deterministic resource utilization,
+so we will have a rich static semantics, with support for
+dynamic memory provided through pointers and memory allocation
+primitives. (we will be looking for ways of making memory
+manipulation easier and faster, without garbage collection.)
+
+dynamic memory will be stored somewhere called the heap, (not necessarily in
+an actual -heap-, but in the program section called the heap, opposite the stack,
+both sitting 'above' static definitions and code.)
+so each program will start with one large 'global' heap, but what about modules?
+what kind of memory will they get? how will we claim to provide better memory management
+than c?
+
+well, I have learned from others that a smart management technique is to allocate a
+whole large block of memory to provide the allocation space for some sub algorithm 
+then when that algorithm returns we can deallocate the entire block of memory.
+this is way faster than going in and running the destructors of every object
+that the sub algorithm allocated, it also may result in less memory fragmentation
+in the main heap, because that main heap only needs to worry about larger allocation
+sizes.
+
+the questions then become, what about a) returning pointers to some data that was allocated
+in that memory space by the algorithm; b) how big do we make these sub-blocks;
+c) what about when the subalgorithm tries to allocate more memory than the block can hold?
+	do we let the block grow? (and if we do let it grow, do we let it shrink?)
+
+
+a) programmers should be disallowed from returning a non-owning refrence to any local
+	variable, and if programmers return an owning refrence, then the compiler could
+	generate and use deep-copy semantics in that location, or do a move copy like in c++.
+
+b) that is a very interesting question. a modules static definition is known at compile time,
+	that is, it's size is. so we can know how much space we need to allocate on the stack.
+	but it is oftentimes impossible to tell how much dynamic memory any algorithm is going to
+	utilize. additionally, what about when we recursively nest function calls accross modules,
+	does each call stack get it's own block of dynamic memory? this is starting to get very complex
+	very fast, so how about we reframe the problem.
+	what if, instead of the compiler estimating, or using some form of heuristics to
+	pick some number to allocate, we give the user the ability to override where
+	called functions allocate their dynamic memory. so, the programmer could specify
+	that instead of all allocations happening globally, we as the caller, can constrain
+	this sub algorithm to allocating in this sub-space. and then, because the programmer
+	has more knowledge about their dynamic memory usage than the compiler could ever
+	infer, the programmer can better select a number for how big that block of memory is.
+	this would percolate down that sub-algorithms call-stack. in the same way our
+	program from the root has finite space. and then, not constraining the callee
+	would give the default semantics of whatever allocation technique the current
+	scope is using. (if that's the global scope, then we are talking about allocating
+	in the global heap)
+
+	how do we detect that our heap has collided with our stack, and make it a runtime
+	error, instead of having the program fail by the stack being overwriten?
+	
+c) well, I think this should be up to the programmer when talking about the semantics 
+	inside their program. if we are talking about the OS expanding the memory available
+	to a running program, that is outside of the scope of the compiler, as that should be
+	happening invisibly to the running program.
+
+
+documentation should explain why the code is to be doing what it is doing
+and programmers should be able to read what the code is doing by analysing the syntax
+of the code itself. then, when there is a discrepency in what we see is actually
+being done, and what we want to happen, that becomes obvious by analyzing our
+intentions vs what is actually happening.
+
+
 self - (pink)
 
+modules and libraries
+modules are your basic unit of computer program.
+	a module is a new namespace in the program,
+	and modules are used compositionally to define large programs.
+	and to reuse algorithms throughout a program, without having
+	to have a separate definition everywhere, (everytime you make
+	the user repeat the semantics, you add another opportunity to
+	have the definitions become out-of-sync, which is a nasty bug.)
 
+	a module with a root defines the starting point of a program.
+	modules do not always have to have a root, in fact only one root 
+	is allowed in any program. 
 
+	a library is simply a collection of modules with no root at all.
+	it is simply used to coallate a group of modules into a single semantic
+	unit. a library can be either static or dynamic. static libraries need to exist
+	such that the linker can stich the library directly into the static
+	definition of the program which includes the library. 
+	dynamic libraries need to exist such that the loader can stich the library
+	onto the static definition of the program to create the dynamic defintion
+	of the program which can execute in memory.
+	(modules on the other hand can only ever be used to specify the 
+		static definition of the program.)
+
+	a program then, is composed of modules and libraries, with a root.
+
+	a module is a collection of functions and variables.
+
+	and a library is a collection of modules and libraries.
+
+	when a module exports a symbol from it's scope, 
+	the compiler binds that symbol to the scope of any module or library that
+	includes that module. and the same for libraries.
+	if the programmer specifies which names they want to bring in from
+	the module, then only those names which are specified will be bound
+	in the scope. this will be the same for libraries.
 
 
 state - (atoms)
 
 primary data-types: int, real, text, bool, byte, word, etc.
+
+size-specific data-types: u8/16/32/64, s8/16/32/64, r32/64, etc.
 
 static type system.
 	name and/or structure equivalency depending on context.
@@ -216,17 +318,21 @@ lexical scoping.
 	(new local scopes are dynamic, 
 	 seprate functions get static scopes.)
 
-out of order declarations, use a name before defining the name.
+out of order declarations, programmers can use a name before defining the name.
+this is to get rid of 1) header files, and 2) two definitions per function.
+	(which is really just another place where we can make a simple an easily
+	avoidable mistake.)
 	// to support out of order decls, the language will need to 
 	// define a known failure case: "The refrenced name didn't exist xor have defined type".
 	// this failure will be signaled whenever the programmer uses a name
 	// that has not yet been defined. (this could be signaled by a specific dummy
 	// type that is only known internally to the compiler, Used BeFore Definition: UBFD,
-	// or we could use exception semantics, either with some form of scheduling whereby
+	// or we could use exception semantics, with some form of scheduling whereby
 	// we could reparse statements that failed with the known case will give the langauge
 	// out of order declaration semantics.)
 	// once the name is defined at some later point, the program could
 	// go back and fill in the type definition (create the binding).
+	
 
 sum and product types. (record and union respectively)
 	in a tradidionally functional style.
@@ -370,7 +476,7 @@ memory manipulation.
 		memory addresses, a small language runtime, and being turing complete. 
 	
 		to take this language from okay to production quality.
-		one only need add some conception of threads, processes, locks & semaphores, file systems,
+		one only need add some conception of inline assembly, threads, processes, locks & semaphores, file systems, etc.
 	
 	
 		maybe then the language could be further extended with a library of the
@@ -407,7 +513,7 @@ memory manipulation.
 	the making of it, by having interaction with optional types a default use case
 	for conditionals across the language.
 	this saves us from having to, in the same way as C, implicitly convert ints, floats, chars,
-	and pointers to booleans and then you can say things like if(some-ptr) then ... else ...
+	and pointers to booleans and then you can still say things like if(some-ptr) then ... else ...
 	with optionals semantically it still means, "if this is a valid pointer then ... else ..."
 	but done typesafely and explicitly, instead of not typesafe and using implicit conversion.
 	a pointer could still be thought of semantically as storing the address of another entity,
@@ -418,7 +524,7 @@ memory manipulation.
 	treating the location as either a source or a destination semantically will imply
 	reads or writes on that memory location. this is a nessecary semantic meaning.
 	we by nature of being a systems langauge, have to allow statements like
-	write this byte to this address.
+		write this byte to this address.
 	because that is the way in which systems work at an assembly level
 	and we want the thinnest layer of semantics possible over assembly.
 	however we don't want to be tied to any	specific assembly,
@@ -458,8 +564,9 @@ memory manipulation.
 	if you want to write programs in a compositional way, you define simpler
 	abstract semantics over more complex underlying structure. this allows
 	those who want to use the complex underlying structure but don't
-	neccessarily need to know how to use to simpler more abstract semantics.
-	which can dramatically simplify the code in other portions of the program.
+	neccessarily need to know how to use the complex underlying hardware,
+	to use the simpler more abstract semantics.
+	which can dramatically simplify the code throughout the program.
 	(if done well; when done poorly, the broken semantics seem to infect
 	 the rest of the program, causing the need for more complexity everwhere.
 	 like was observed with GOTOS, and NULL refrences.)
@@ -485,9 +592,13 @@ memory manipulation.
 
 	and if you didn't want the abstraction? well, the original semantics would
 	and should also be possible. just build on top of the bare langauge, or
-	write your own abstraction which meets your needs. 
-	if you are writing your own you can leverage the semantics of the existing
+	write your own abstraction which meets your needs. this allows programmers to
+	opt-in to any feature they use in their program. this harkens back to why there
+	is a kernel in the first place, it is the core nugget of semantics with which
+	programs can be written, as well as abstractions.
+	if you are writing your own abstractions you still have the option to leverage the semantics of the existing
 	language, and the semantics behind extending the language.
+
 
 	
 
@@ -505,7 +616,7 @@ exception semantics
 
 coroutines.
 	which will help implement harware interrupts. i think.
-	hardware interrupts can almost be considered coroutines
+	hardware interrupts can almost be considered as coroutines
 	themselves. 
 
 threads

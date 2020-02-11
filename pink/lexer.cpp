@@ -33,6 +33,7 @@ _token _lexer::gettok()
 
 		if (text == "int")   return T_INT;
 		if (text == "float") return T_REAL;
+		if (text == "char")  return T_CHAR;
 		if (text == "text")  return T_TEXT;
 		if (text == "bool")  return T_BOOL;
 		if (text == "true")  return T_TRUE;
@@ -72,29 +73,27 @@ _token _lexer::gettok()
 		// edge case: the number lexing loop
 		// appears before the operator lexing loop
 		// so this loop will falsely trigger on
-		// a lone '.'. this is the current fix
+		// a postfix '.'. this is the current fix
 		// update 10/28/2019: no longer needed as v1 doesn't have composite types
 		//if (text == ".") return T_PERIOD;
 
-		if (has_fractional) return T_LITERAL_FLOAT;
+		if (has_fractional) return T_LITERAL_REAL;
 		else return T_LITERAL_INT;
 	}
 
-	if (c == '\'') { // literal text
-		c = _getchar();
+	if (c == '\'') { // literal char
+		c = _getchar(); // eat the leading '
+		text += c; // store the single character
+		// this is where we should handle escaped chars \n, \t, \0, etc.
+		// if (c == '\\') {...}
 
-		while (c != '\'') {
-			text += c;
+		c = _getchar();  // eat the single char
+		if (c == '\'') { // make sure they ended the character literal with a '
 			c = _getchar();
-
-			// ensure we don't eat EOF
-			// also this is an error.
-			if (c == EOF) return T_ERR;
+			return T_LITERAL_CHAR;
 		}
-
-		// eat the trailing '
-		c = _getchar(); // prime the next char
-		return T_LITERAL_TEXT;
+		else
+			return T_ERR;
 	}
 
 	if (c == '\"') { // literal text
@@ -118,7 +117,11 @@ _token _lexer::gettok()
 		text += c;
 		c = _getchar();
 
-		// single char operators
+		// single char operators that are
+		// always to be interpreted as single
+		// chars, this definition actively
+		// prevents operators being defined by 
+		// the user, but it's v1.
 		if (text == "{") return T_LBRACE;
 		if (text == "}") return T_RBRACE;
 		if (text == "(") return T_LPAREN;
@@ -132,8 +135,6 @@ _token _lexer::gettok()
 		}
 
 		// multichar ops and composable ops
-		if (text == "->") return T_ARROW;
-		if (text == "=") return T_EQ;
 		if (text == ":") return T_COLON;
 		if (text == ":=") return T_COLON_EQ;
 		if (text == "::") return T_COLON_COLON;
@@ -156,8 +157,9 @@ _token _lexer::gettok()
 		if (text == ">") return T_GREATER;
 		if (text == "<=") return T_LESS_EQUALS;
 		if (text == ">=") return T_GREATER_EQUALS;
-		if (text == "==") return T_EQUALS;
-		if (text == "!=") return T_NOT_EQUALS;
+		if (text == "=") return T_EQ;
+		if (text == "!=") return T_NOT_EQ;
+		if (text == "->") return T_ARROW;
 		
 		return T_ERR;
 	}

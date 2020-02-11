@@ -167,6 +167,7 @@
     <ClInclude Include="ast.h" />
     <ClInclude Include="attributes.h" />
     <ClInclude Include="code_generation.h" />
+    <ClInclude Include="control_flow_graph.h" />
     <ClInclude Include="error.h" />
     <ClInclude Include="Entity.h" />
     <ClInclude Include="lexer.h" />

@@ -29,6 +29,7 @@ enum _ast_type {
 	AST_PROGRAM,
 	AST_INT,
 	AST_REAL,
+	AST_CHAR, // TODO: add char data support to the syntax
 	AST_TEXT,
 	AST_BOOL,
 };
@@ -105,7 +106,6 @@ enum class DECL_FLAGS : short  {
 
 };
 
-bool is_const(const _vardecl& decl) { return nth_bit_set(decl.flags, (short)DECL_FLAGS::CONST); }
 
 typedef struct _vardecl : public _ast {
 	_flags flags;
@@ -119,6 +119,8 @@ typedef struct _vardecl : public _ast {
 		init = i;
 	}
 } _vardecl;
+
+bool is_const(const _vardecl& decl) { return nth_bit_set(decl.flags, (short)DECL_FLAGS::CONST); }
 
 
 typedef struct _scope : public _ast {
@@ -141,13 +143,12 @@ typedef struct _arg : public _ast {
 	}
 
 	_arg() : _ast(AST_ARG), id(), type() {}
+	_arg(string s, _type t) : _ast(AST_ARG), id(s), type(t) {}
 } _arg;
 
 enum class FN_FLAGS : short {
 	SEEN_RETURN = 1,
 };
-
-bool seen_return(const _fn& fn) { return nth_bit_set(fn.flags, (short)FN_FLAGS::SEEN_RETURN); }
 
 typedef struct _fn : public _ast {
 	_flags flags;
@@ -158,6 +159,8 @@ typedef struct _fn : public _ast {
 
 	_fn() : _ast(AST_FN), id(), argument_list(), return_type(), body() {}
 } _fn;
+
+bool seen_return(const _fn& fn) { return nth_bit_set(fn.flags, (short)FN_FLAGS::SEEN_RETURN); }
 
 typedef struct _if : public _ast {
 	_ast* cond;
@@ -244,6 +247,13 @@ typedef struct _real : public _ast {
 	_real() : _ast(AST_REAL), value(0.0) {}
 	_real(float f) : _ast(AST_REAL), value(f) {}
 } _real;
+
+typedef struct _char : public _ast {
+	char value;
+
+	_char() : _ast(AST_CHAR), value('\0') {}
+	_char(char c) : _ast(AST_CHAR), value(c) {}
+};
 
 typedef struct _text : public _ast {
 	string value;

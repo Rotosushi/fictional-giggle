@@ -18,6 +18,7 @@ private:
 	const _type none_type = { "none", nullptr };
 	const _type int_type  = { "int", nullptr };
 	const _type real_type = { "real", nullptr };
+	const _type char_type = { "char", nullptr };
 	const _type text_type = { "text", nullptr };
 	const _type bool_type = { "bool", nullptr };
 
@@ -48,10 +49,17 @@ private:
 		only members which support assignment, then
 		the compiler can generate the code for the
 		composite structures assignment operator.
+
+		I think assignment, and constructors (or macros which construct types)
+		can be predefined by the compiler for user specified algebraic
+		data types. we let users specify dynamic memory as either non-owning
+		in which case the compiler generates shallow copy semantics,
+		or owning pointers in which case the compiler would generate 
+		deep copy semantics or move copies.
 	*/
 
 	// recursive function to find the result type of any infix expression
-	_type typeof(_ast* expr, stack<_scope>& scope_stack, function_table& functions);
+	_type _typeof(_ast* expr, stack<_scope>& scope_stack, function_table& functions);
 	// helper function to resolve the type of a name in an infix expression
 	_type resolve_type(_var& var, stack<_scope>& scope_stack);
 	// helper function to resolve the function that is being called in an infix expression.
@@ -61,14 +69,15 @@ private:
 
 	// step 1 of the type system, does every name in the program have a defined type?
 	// this is done by:
-	// 1: the user explicitly provided the type in the definition
-	//		of the name, meaning we do nothing
+	// 1: the user explicitly provided the type in the definition of the name,
+	//		 meaning we do nothing
 	// 2: the user elided the type in the name, but it's type
 	//		can be unambiguously determined by static analysis of
 	//		the parse tree.
 	void infer_types(_module& mdl, stack<_scope>& scope_stack);
 	void infer_type(_vardecl& decl, stack<_scope>& scope_stack, function_table& functions);
 	void infer_type(_fn& fn, stack<_scope>& scope_stack, function_table& functions);
+	_type infer_type(_ast* expr, stack<_scope>& scope_stack, function_table& functions);
 	// helper functions for inferring the return type of a function
 	// these functions are mutually recursive in order to walk the body of the function.
 	// aside: in a later version when walking and the actions to be preformed

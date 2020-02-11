@@ -41,29 +41,35 @@ _module* _parser::parse_module(ifstream& input)
 
 void _parser::init_precedence_table()
 {
+	// for comma separated list expressions (maybe)
 	ptable[T_COMMA] = 1;
 
-	ptable[T_EQ] = 2;
+	// assignment
+	ptable[T_COLON_EQ] = 2;
 
+	// boolean predicates
 	ptable[T_EQUALS] = 3;
-	ptable[T_NOT_EQUALS] = 3;
-
+	ptable[T_NOT_EQ] = 3;
+	// does this split in precedence give us anything?
+	// does it hurt us in any way?
 	ptable[T_LESS] = 4;
 	ptable[T_GREATER] = 4;
 	ptable[T_LESS_EQUALS] = 4;
 	ptable[T_GREATER_EQUALS] = 4;
-
+	// logical ops, not is handled as a prefix op,
+	// so has a separate precedence 
+	// (equal to having precedence 14)
 	ptable[T_OR] = 5;
 	ptable[T_XOR] = 6;
 	ptable[T_AND] = 7;
-
+	// bitwise ops
 	ptable[T_BIT_OR] = 8;
 	ptable[T_BIT_XOR] = 9;
 	ptable[T_BIT_AND] = 10;
 
 	ptable[T_BIT_LSHIFT] = 11;
 	ptable[T_BIT_RSHIFT] = 11;
-
+	// arithmetic ops
 	ptable[T_ADD] = 12;
 	ptable[T_SUB] = 12;
 
@@ -200,7 +206,8 @@ bool _parser::is_binop(_token t)
 bool _parser::is_literal(_token t)
 {
 	if (t == T_LITERAL_INT)		return true;
-	if (t == T_LITERAL_FLOAT)	return true;
+	if (t == T_LITERAL_REAL)	return true;
+	if (t == T_LITERAL_CHAR)	return true;
 	if (t == T_LITERAL_TEXT)	return true;
 	if (t == T_TRUE)			return true;
 	if (t == T_FALSE)			return true;
@@ -236,7 +243,7 @@ void _parser::parse_module_declaration(_module& mdl)
 	}
 	case T_FN: {
 		fndecl = new _fn;
-		parse_function_declaration(*fndecl, mdl.module_scope);
+		parse_function_declaration(*fndecl);
 		try {
 			mdl.functions.at(fndecl->id);
 		}
@@ -349,7 +356,7 @@ void _parser::parse_variable_declaration(_vardecl& decl)
 	}
 }
 
-void _parser::parse_function_declaration(_fn& fn, _scope& local_scope)
+void _parser::parse_function_declaration(_fn& fn)
 {
 	// 'fn' <identifier> <function-type> <function-body>
 	if (curtok() != T_FN) throw _parser_error(__FILE__, __LINE__, "invalid function definition, leading 'fn' missing, instead got: ", curtok());
@@ -360,7 +367,7 @@ void _parser::parse_function_declaration(_fn& fn, _scope& local_scope)
 	nexttok();
 
 	parse_function_type(fn);
-	parse_function_body(fn, local_scope);
+	parse_function_body(fn);
 }
 
 void _parser::parse_function_type(_fn& fn)
@@ -374,9 +381,9 @@ void _parser::parse_function_type(_fn& fn)
 		parse_return_type(fn.return_type);
 }
 
-void _parser::parse_function_body(_fn& fn, _scope& local_scope)
+void _parser::parse_function_body(_fn& fn)
 {
-	parse_scope(fn.body, local_scope);
+	parse_scope(fn.body);
 }
 
 void _parser::parse_argument_list(vector<_arg>& args)
@@ -447,6 +454,8 @@ void _parser::parse_expression(_expr& expr)
 	10/31/2019: comma separated expressions are hard to parse,
 		and will not be used in v1, their primary reason
 		for existence is tuples, and tuples aren't until v2.
+
+		example of list supporting function call for posterity
 	expr.expr_list.push_back(_parse_expression(_parse_primary_expr(), 0));
 	
 	while (curtok() == T_COMMA) {
@@ -547,10 +556,16 @@ _ast* _parser::_parse_primary_expr()
 		literal = curtext();
 		nexttok();
 		return new _int(stoi(literal));
-	case T_LITERAL_FLOAT:
+	case T_LITERAL_REAL:
 		literal = curtext();
 		nexttok();
 		return new _real(stof(literal));
+	case T_LITERAL_CHAR:
+		literal = curtext();
+		nexttok();
+		// HAZARD: this code just assumes that the literal that was
+		// lexed was a single char.
+		return new _char(literal[0]);
 	case T_LITERAL_TEXT:
 		literal = curtext();
 		nexttok();
@@ -567,14 +582,15 @@ _ast* _parser::_parse_primary_expr()
 			expression or a comma separated list 
 			of expressions, and there is no expression 
 			curtok() will be ')' or ',' . meaning we can return
-			a null value. 
+			a null value. because the expression was elided.
 
-		this might break the compiler...
+		this might turn out to be a bug.
 	*/
 	case T_RPAREN:
 		return nullptr;
 	case T_COMMA:
 		return nullptr;
+	case T_ERR:
 	default: throw _parser_error(__FILE__, __LINE__, "invalid primary expression, expected: identifier or unary expression or parenthised expression or literal, instead got: ", curtok());
 	}
 }
@@ -613,7 +629,7 @@ void _parser::parse_carg(_arg& carg)
 	carg.type.expr = parse_expression();
 }
 
-void _parser::parse_if(_if& conditional, _scope& local_scope)
+void _parser::parse_if(_if& conditional)
 {
 	/*
 	<conditional>  := 'if' '(' (<expr>)? ')' <statement>
@@ -626,16 +642,16 @@ void _parser::parse_if(_if& conditional, _scope& local_scope)
 		conditional.cond = parse_expression();
 		if (curtok() != T_RPAREN)  throw _parser_error(__FILE__, __LINE__, "invalid if, expected ')', instead got: ", curtok());
 		nexttok();
-		conditional.then = parse_statement(local_scope);
+		conditional.then = parse_statement();
 		if (curtok() == T_ELSE) {
 			nexttok();
-			conditional.els = parse_statement(local_scope);
+			conditional.els = parse_statement();
 		}
 	}
 	else  throw _parser_error(__FILE__, __LINE__, "invalid if, expected 'if', instead got: ", curtok());
 }
 
-void _parser::parse_while(_while& loop, _scope& local_scope)
+void _parser::parse_while(_while& loop)
 {
 	if (curtok() == T_WHILE) {
 		nexttok();
@@ -644,26 +660,26 @@ void _parser::parse_while(_while& loop, _scope& local_scope)
 		loop.cond = parse_expression();
 		if (curtok() != T_RPAREN) throw _parser_error(__FILE__, __LINE__, "invalid while, expected ')', instead got: ", curtok());;
 		nexttok();
-		loop.body = parse_statement(local_scope);
+		loop.body = parse_statement();
 	}
 	else throw _parser_error(__FILE__, __LINE__, "invalid while, expected 'while', instead got: ", curtok());;
 }
 
-_ast* _parser::parse_statement(_scope& local_scope)
+_ast* _parser::parse_statement()
 {
 	if (curtok() == T_LBRACE) {
 		auto block = new _scope;
-		parse_scope(*block, local_scope);
+		parse_scope(*block);
 		return block;
 	}
 	else if (curtok() == T_IF) {
 		auto cond = new _if;
-		parse_if(*cond, local_scope);
+		parse_if(*cond);
 		return cond;
 	}
 	else if (curtok() == T_WHILE) {
 		auto loop = new _while;
-		parse_while(*loop, local_scope);
+		parse_while(*loop);
 		return loop;
 	}
 	else if (curtok() == T_RETURN) {
@@ -707,18 +723,21 @@ void _parser::parse_type(_type& t)
 	case T_REAL:
 		t.name = "real";
 		break;
+	case T_CHAR:
+		t.name = "char";
+		break;
 	case T_TEXT:
 		t.name = "text";
 		break;
 	case T_BOOL:
 		t.name = "bool";
 		break;
-	default: throw _parser_error(__FILE__,__LINE__, "invalid type: expected 'int' | 'real' | 'text' | 'bool' instead got: ", curtok());
+	default: throw _parser_error(__FILE__,__LINE__, "invalid type: expected 'int' | 'real' | 'char' | 'text' | 'bool' instead got: ", curtok());
 	}
 	nexttok();
 }
 
-void _parser::parse_scope(_scope& local_scope, _scope outer_scope)
+void _parser::parse_scope(_scope& local_scope)
 {
 	/* <block> :=
 			'{' (<declaration> | <statement>)* '}'
@@ -730,44 +749,15 @@ void _parser::parse_scope(_scope& local_scope, _scope outer_scope)
 	_ast* s = nullptr;
 	short n = 0, m = 0;
 
-	/*
-	construct the scopes with name shadowing in mind.
-	when a new scope is created, pass in the old scope.
-	then when a variable decl is parsed that shares its name
-	with a previous decl we overwrite the old decl in the
-	local scope. since each scope has it's own decl table for locals,
-	when we try to resolve names and search the local scope before
-	the outer scope, by definition the algorithm shadows the name.
-	
-	note that "outer scope" refers to the next scope upwards which
-	is dependant on the parse tree. if we are parsing a module then the outer scope
-	is the global scope and if we are parsing a function body
-	then the outer scope is initially the module scope. however
-	the language as the grammar has been written supports nesting
-	scopes as much as you want within functions.
-	this is untimately why we coalesce visible symbols.
-	recursively, each scope will build up with the full definition
-	of visible symbols, and through shadowing will be able to redeclare
-	a symbols name to a new type which is really only a syntactic
-	convienence for programmers.
-	*/
-	for (auto&& bucket : outer_scope.local_symbols)
-		for (auto&& decl : bucket)
-			local_scope.local_symbols[decl.second.lhs.id] = decl.second;
-
 	do {
-		if (speculate_declaration()) {
+		if (curtok() == T_VAR) {
 			d = new _vardecl;
 			parse_variable_declaration(*d);
-			// rebind overwrites any previous bindings
-			// of the symbol in the local_scope, instead
-			// of throwing an error. this slight variation
-			// is what allows name shadowing to work lexically.
-			local_scope.local_symbols.rebind(*d);
+			local_scope.local_symbols.bind(*d);
 			n++;
 		}
 		else {
-			s = parse_statement(local_scope);
+			s = parse_statement();
 			local_scope.statements.push_back(s);
 			n++;
 		}
@@ -784,34 +774,6 @@ void _parser::parse_scope(_scope& local_scope, _scope outer_scope)
 
 	} while (curtok() != T_RBRACE); // there is a whole class of missing '}' errors we will want to report here
 	nexttok();
-
-	// unbind the names that are declared only in the outer scope.
-	// keeping bound the names which will be bound during the lifetime
-	// of this scope.
-	// this is to save storage of names, the only names a current scope needs
-	// to know are the names who fall out of scope when this scope ends.
-	// this set is the set of variables which were declared in this scope.
-	// this has the added benefiet of making lifetime management of
-	// local variables very straightforward.
-	vector<_vardecl> will_outlive;
-	for (auto&& bucket : local_scope.local_symbols)
-		for (auto&& decl : bucket) {
-			// if the name appears in the outer_scope.local_symbols then we know
-			// it is visible after the end of the current scope. if the
-			// name appears only in the local_scope.local_symbols then
-			// it was declared in the current scope and we don't remove it.
-			// if the name appears in both the current scope and
-			// the outer_scope then the name was shadowed by a declaration
-			// in the current scope. we only want to remove the declarations
-			// from the current_scope that will outlive the current scope.
-			for (auto buket : outer_scope.local_symbols)
-				for (auto dec : buket) {
-					if (dec.first == decl.first)
-						will_outlive.push_back(dec.second);
-				}
-		}
-
-	local_scope.local_symbols.unbind(will_outlive);
 }
 
 void _parser::parse_return(_return& ret)
@@ -825,7 +787,13 @@ void _parser::parse_return(_return& ret)
 	nexttok();
 }
 
-
+// TODO: remove speculation from the compiler?
+//			although, keeping the mechanisms in place
+//			will make it easier to add non LL(1)
+//			constructs to the grammar. 
+//			stuff that is hard to support without
+//			backtracking like tuples and lambdas.
+//			especially as the language gets larger.
 bool _parser::speculate_declaration()
 {
 	bool success = true;
@@ -860,6 +828,7 @@ bool _parser::speculate_type()
 	bool success = true;
 	if (speculate(T_INT));
 	else if (speculate(T_REAL));
+	else if (speculate(T_CHAR));
 	else if (speculate(T_TEXT));
 	else if (speculate(T_BOOL));
 	else success = false;

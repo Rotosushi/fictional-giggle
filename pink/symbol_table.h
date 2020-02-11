@@ -23,9 +23,9 @@ using std::optional;
 // even though we are using the std::hash to
 // generate a very different number given even
 // similar inputs. (which is nice given that strings,
-// hash similarly under straightforward hash algorithms)
+// hash very similarly under straightforward hash algorithms)
 // because we are wrapping the hash around
-// only 126 different locations our probability
+// only 12 different locations our probability
 // of collisions has been raised significantly.
 // this is unavoidable, as allocating an
 // array which could hold size_t different
@@ -38,7 +38,7 @@ using std::optional;
 // with different names but which hash to the same
 // bucket.
 
-constexpr auto SYM_TABLE_SIZE = 126;
+constexpr auto SYM_TABLE_SIZE = 12;
 
 class _symbol_table {
 public:

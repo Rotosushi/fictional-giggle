@@ -204,14 +204,223 @@ subtype polymorphism:
 	whereby the code works with values of some base/root type, and new
 	type can be defined which extend the semantics of the original type.
 	but provide the same interface and interface semantics, so the polymorphic
-	function can consistently rely on that/those aspects of the type.
-	subtype polymorphism is less interesting to me, as pink is not object-oriented
-	in the traditional sense. however single inheritance can still be usefull when 
+	function can consistently rely on that/those aspects of the type. multiple
+	inheritance is less interesting to me, as pink is not object-oriented.
+	 however single inheritance can still be usefull when 
 	creating and defining certain abstracktions, such as generic containers.
 
 i feel that having type-aspects + parametric polymorphism will do a good
 job of covering the case where some base object inherits the behavior
-of two orthoginal base classes.
+of two orthoginal base classes. we could conceive of a function working
+on a set of types, characterized by those types sharing the same semantics.
+
+
+
+---------------------------------------------------------------------------
+
+there is really only two kinds of entity that programming languages need to
+talk about, and that is single items, and groups of things.
+
+we have collections which we select from which are groups of things.
+these collections are either stored staticaly or dynamically and the
+collections are structured in different ways. they could be
+arrays, records, unions, or pointers.
+
+then we have single items, this is what the other types in the language
+are for. describing data with some encoded meaning other than structural.
+like a number, a string of characters, or an enum.
+
+we can express single items through their type, and we can express groups
+of things through their type. however, the defined actions of a
+group is different from that of a single term. luckily we can make 
+that distinction using their distinct types.
+so for the sake of not having a better name
+i am going to call groups of entities; collections
+
+a collection is considered to be an abstract grouping of entities here
+	collection are "just" a grouping of entities.
+	collections have an assosiated encoding function. (that is, semantics which
+		express the set in the hardware or software)
+	collections have a type which distinguishes between collections
+		and through that type we name collections.
+
+a positional collection would be a collection which adds one rule:
+	the members positions are important and must remain constant.
+	(they are considered internally ordered by their position.)
+
+each member of the collection shares common characteristics with
+it's other members. and it is exactly this common characteristic
+which is what defines the collection.
+
+an entity would inherit the properties of it's collection, and 
+programmers are free to define new actions and variables
+dealing with entities of that collection. (this extends the semantics
+that an entity has naturally, without having to inject code anywhere.
+you simply write more code which does new and interesting things
+with these entities.)
+
+numbers can be characterized as a collection. programming languages need to
+talk about numbers with different encodings, well that sounds like multiple
+collections of numbers each represented differently in memory according to some process.
+
+characters can be characterized as a collection. programming languages usually
+provide aggregate characters as it's own data-type, called a string.
+this aggregation process could be characterized as a collection. or multiple
+collections depending on the storage mechanism you wanted the collection in, or where
+you wanted it.
+(contiguous vs list, local vs heap)
+
+booleans can be characterized as a collection. programming languages usually
+allow some type which can take on one of the values from this collection
+and test it's value to make choices. this is the same semantic action as
+a character or a number, it's just according to a different collection, and 
+a different encoding.)
+
+(int, real, binary, decimal, octal, hexadecimal, fixed point, etc)
+every variant differs in encoding and which numberic values from the real number line 
+the collection can represent. each has it's own collection of operations. many are the same
+operation, just overloaded.
+
+other things that can be described as a collection
+(chars, enums, types, overloading, parametric-polymorphism,
+		composite structures, streams, )
+
+enums are a kind of collection where each value that variables of the type can
+assume can be reffered to by name in the text of a program.
+
+types refer to both the collection of operations (functions) that can be applied
+to the variable, and the collection of values that the variable can assume.
+this is true regardless of what the type -is-. it could be composite,
+it could be an aggregate, or it could be one of a collection of composite types.
+it could be a named type (record) or an anonymous type (tuple),
+it could be stored locally or could be stored on the heap an pointed
+to by a local pointer variable.
+
+functions are characterised by a few collections, they are typed by their
+argument list (a positional collection),
+and the body has both a positional collection of declarations which
+comprise it's physical form in the stack of the program, and
+a positional collection of statements which comprise the sequence of
+instructions which will be run to execute that function.
+
+overloading defines multiple functions with the same name into a
+collection of functions which can be disambugated by the compiler via
+argument lists.
+
+parametric-polymorphism is a collection builder notation for overloaded
+functions and types.
+
+(in this way, a function which takes a variable as a parameter,
+	should only rely on the parameter in the way the collection provides
+	a garunteed operation.
+	
+	like, if your function says it can operate on any member of the collection
+	describing all possible representations of numeric values,
+	it can only use functions which are defined for every member
+	of the collection of numeric representations.
+
+	to use a function which only makes sense on some subcollection of
+	the members of that collection could possibly be a runtime error.
+	so it should be at the minimum a warning but i think an error 
+	for now.
+	
+	I propose that should the programmer attempt to use a function
+	that isn't defined on every member of some collection, then the error
+	should indicate that every member of the collection needs to have
+	some valid function which performs that operation defined,
+	and to then list the entities which do not have the function
+	defined.
+	)
+
+(programmer specified overloaded instances of a function should be as simple
+as defining that function yourself and the compiler will choose that definition
+over the one it could construct via the polymorphic definition)
+
+composite structures (named records, tuples, unions) are positionally accessed
+collections of data, that can be created and destroyed by the language. a union
+is a collection of records that a variable can take on. 
+
+(again, this same theme keeps
+repeating, the collection defines which values the type can take on and which encoding
+the variables of the collection will use and which operations are defined and which 
+are undefined.
+
+there are three states of being for entities in a programming language
+
+what we say : the syntax which describes the entity to the language
+				and to other programmers
+
+what we mean : the abstraction we hold in our heads, or write in some meta-material
+				that describes the entity
+
+what it is : the implementation details
+
+
+if we want to enscribe entities into our programming language
+we must contend with the needs and desires of all three states.
+
+first, some basic language and ideas.
+
+we could imagine transitions of an entity between these three states,
+
+most entities start out as ideas, or "what we mean".
+then we go about encoding that entity into the syntax of
+the language, "what we say", the compiler (or interpreter)
+takes that syntax and transforms it into "what it is", or
+the sequence of instructions that carries out what we said.
+it is up to the programmer to ensure that "what it is"
+aligns with "what we mean".
+
+the language is there to provide the raw materials to
+construct "what we mean" from "what we say". even though,
+in the end, the transformation is blind to "what we mean"
+)
+
+aside:
+	imperitive : the resulting "program" is in essence
+		the emergent property of the execution of the
+		instructions.
+		(good for very low level programs,
+		 or extremely performant programs)
+
+	declarative : describes the emergent program directly
+		while hiding implementation details.
+		(good for very abstract programs)
+
+composite structures (records, arrays, unions, bit-packing)
+
+I/O (program arguments, streams of data)
+
+(a data stream is in some sense an infinite collection,
+ a collection without a predetermined number of members
+ (where ord(collection) is undefined) must be treated as
+ if it had infinite members if we wanted to explore
+ the collection's members. (iterate over them)
+ and as the creators of Unix have described, streams
+ can be used to characterize every form of I/O in
+ a programming language, web sockets, to files, to
+ program interoperation and communication.)
+
+ (we can caracterize interacting with data buses using 
+ the language of streams very intuitistically.)
+
+ (but interacting with static hardware devices usually requires
+ following some protocol before we can read or write data.
+ 
+ and devices which are not primarily characterized by the transfer 
+ of data aren't characterized well by streams at a low level.
+ 
+ this is why we need drivers, which transform the hardware interaction
+ into a stream interaction.
+
+ pink is a systems programming language, meaning it purpose is to
+ provide the tools to easily create that interaction transformation.
+
+ this is sort of ironic, as the language itself is an interaction
+ transformation.
+ )
+
+---------------------------------------------------------------------------
 
 control:
 	iteration:

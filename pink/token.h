@@ -27,7 +27,7 @@ enum _token {
 	T_XOR,
 	T_OR,
 	T_EQUALS,
-	T_NOT_EQUALS,
+	T_NOT_EQ,
 	T_LESS,
 	T_GREATER,
 	T_LESS_EQUALS,
@@ -55,11 +55,13 @@ enum _token {
 	/* primitive type tokens */
 	T_INT,
 	T_REAL,
+	T_CHAR,
 	T_TEXT,
 	T_BOOL,
 	/* literal tokens */
 	T_LITERAL_INT,
-	T_LITERAL_FLOAT,
+	T_LITERAL_REAL,
+	T_LITERAL_CHAR,
 	T_LITERAL_TEXT,
 	T_TRUE,
 	T_FALSE,

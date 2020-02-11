@@ -65,10 +65,10 @@ typedef struct _type {
 	// also as in, when i need it it needs to be in the executable,
 	// if i never use it then it doesn't need to be in the executable.
 	// and that fact is something that can be deduced via static analysis.
-	// but what, you may ask, about all the fun pointer tricks (move assignemnt)
+	// but what, you may ask, about all the fun pointer tricks (move assignemnt, etc.)
 	// that can make assignment faster? well, i feel like the
 	// compiler could deduce the use of those via static analysis.
-	// and they could then be reintroduced as a possible optimization.
+	// and they could then be reintroduced as a possible optimization pass.
 	_type() : name(), expr(nullptr) {}
 
 	_type operator=(const _type& rhs) {

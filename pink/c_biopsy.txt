@@ -68,7 +68,7 @@ define common mechanisms in programming languages.
 the kernel of a programming language is composed of it's
 	primary concrete algorithms (=, +, etc..)
 	primary concrete types (int, float, etc..)
-	primary concrete objects (int, arrays, pointers, etc..)
+	primary concrete objects (records, arrays, pointers, etc..)
 	
 2: construction mechanisms
 programming languages usually provide construction mechanisms in order
@@ -115,6 +115,8 @@ so, with some definitions out of the way, typically a programming language
 	is designed with a problem domain in mind. (and/or: abstraction layer)
 	in order to better design pink's feature set I and going to examine c's.
 	
+	given new inspiration by finding : https://www.bell-labs.com/usr/dmr/www/chist.html
+
 	c was designed to create computer systems,
 	so it exists as a simple stack based language
 	that interacts directly with the hardware. given its low level duties 
@@ -125,28 +127,28 @@ so, with some definitions out of the way, typically a programming language
 	that c brings to the table is generally enough to write a complete OS.
 	(I say this thinking about Unix and currently Linux, where they are written
 	in c that is relatively unchanged since it's inception. very recently (2018)
-	c has gotten some much needed quality of life improvements, but these 
-	features are likely to be implemented fully around the time I finish pink
-	v1 (also preforming this task will make me a better programmer)).
+	c has gotten some much needed quality of life improvements.
+	over time c has become a 'lingua franca' of
+	computer languages, where many programming languages which operate
+	at higher levels of abstraction away from the hardware than c; are using
+	c to communicate with one another.
 	all of these facts made c a very attractive	language whilst computers 
 	were still entering the collective conciousness.
 	c retains a lot of is current popularity as a result of its initial success,
 	its solidly designed kernel, and the fact that the work of porting it
 	to every hardware platform in existance has already been done.
-	c also has a lot of design mistakes that make creating and managing large
-	projects difficult. it also has portions of the design which interact
+	c also has design mistakes that make creating and managing large
+	projects more difficult than they need to be. it also has portions of the design which interact
 	in hard to conceptualize ways that have created some notoriously hard
-	to debug programs. and more recently c has become a 'lingua franca' of
-	computer languages, where many programming languages which operate
-	at higher levels of abstraction away from the hardware than c; are using
-	c to communicate with one another.
+	to debug programs.
+	
 
 	one of which is the existance of
 	implicit type casting. simply on the basis that the integrity of the data
 	is not assured in some special cases. if the integrity of the data is not
 	ensured, then the type cast needs to be explicit.
 	I think that if anything is going to be implicit,
-	it shouldn't be the destruction of information.
+	it shouldn't be the possible destruction of information.
 	Type promotion is fine because the data is the same. however
 	if you are passing a float into a function that takes an int that is
 	one of the problems the type system was built to solve. with the case
@@ -170,7 +172,7 @@ so, with some definitions out of the way, typically a programming language
 	call to be considered semantically correct; and the test function would be able to be
 	constructed of statements like, the type passed must be able to be added to or
 	have some other operation defined, probably a user function, or a reflective entity.)
-	the other usecase is dynamic memory allocation, but I think reflection
+	another usecase is dynamic memory allocation, but I think reflection
 	or macros would make this trivially easy to replace. something like:
 
 	allocate ($typename) -> typename-ptr
@@ -205,7 +207,9 @@ so, with some definitions out of the way, typically a programming language
 		giving access to both bounded and unbounded iteration.
 		the switch statement is useful, but if it isn't using
 		an specific assembly instruction it's just syntax sugar.
-		the for loop is syntactic sugar
+		the for loop is syntactic sugar, i don't mean this in a disparaging
+		way, what i am more trying to say, is that something like 
+		a for loop could be constructed out of a while loop and a macro.
 
 	w.2: the static type system is good, and I think is 100% neccessary
 		 for a systems level programming language. I think the syntax that
