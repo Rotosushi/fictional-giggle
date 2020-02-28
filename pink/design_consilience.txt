@@ -107,9 +107,16 @@ source code generation is a notoriously difficult problem.
 LISP solves a lot of the difficulty by unifying the syntax with the data being processed. 
 everything is an expression, and all expressions get evaluated,
 and every expression is represented as a whitespace separated list
+this extreeme homogeneity makes macros easy to express syntactically,
+however LISPs syntax is also ultimately it's downfall, it seems like
+it will never see widespread adoption because of it's initial learning
+curve.
 
 if we want to speak about syntax, the form we use to specify it in imperitive
-languages is Backus-Naur Form.
+languages is Backus-Naur Form. so macros seem most naturally to live here 
+semantically. in a sense a macro is allowing programmers to specify
+a new grammar that can be parsed and understood, but they do it 
+entirely in terms of the syntax of the language itself.
 
 
 

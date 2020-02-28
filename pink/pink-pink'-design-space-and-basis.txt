@@ -62,8 +62,7 @@ an entity can be either primary, or composed.
 	(if you think, "hey i don't care about resources, gimme <the-latest-hypebus>!"
 	then this language will not meet your needs. this is part of the point of the language.)
 	of course the default shouldn't be so small as to be useless; surely there is some sensible middle ground. 
-	if the program doesn't #include it, then it need not be supported by the compiled code. of course this
-	can only be done by the linker (or at that point chronologically in the program.)
+	if the program doesn't #include it, then it need not be supported by the compiled code.
 
 	note: 
 		all these words may seem to make no sense, if this is the case, try an example:
@@ -186,30 +185,30 @@ kernel:
 	to get into some of the weeds of this,
 	most harware actually executes very similarly to the model described above. a program
 	in assembly is still composed of a beginning, an ending (maybe), and a series of statements
-	which must be executed in order. we even still have typed operations
+	which must be executed in order. we even still have 'typed' operations
 	(arithmetic, logical choice, bitwise), local and global varibles,
 	and I/O. here though, the similarities end. assembly only has one more abstraction, 
 	which is the jump statement/GOTO. The GOTO is powerful, with it we can build 
 	loops, conditional statements, and functions. but it quickly makes programming
 	exceedingly difficult. especially as programs get larger. luckily the programmers
 	of the past have come up with 3 great abstractions which take the place of
-	each of the individual use cases of the GOTO. the while loop, the if-else if-else 
+	some of the individual use cases of the GOTO. the while loop, the if-else if-else 
 	conditional, and the functions which we have today. so in order to allow more
 	people to become programmers, to facilitate larger and interoperating programs,
 	and to allow programmers to think at higher levels of abstraction than just
 	what the hardware allows, we only allow programmers to use the concept of 
 	a conditional choice, and not the actual implementation, but in the case of
-	a systems programming language we always need a way to circumnavigate that.
+	a systems programming language we sometimes need a way to circumnavigate that.
 	as the programmer knows more about their intended program interaction with
 	the hardware than the language itself does.
 	pink will need to support some form of assembly injection. meaning, in some
 	portions of the code, we may need to switch which language we are parsing.
 	something that pink' supports natively. we only need to write a parser for
-	the assembly, and insert it into the language. (question: are all assembly languages LL(1)?)
+	the assembly, and insert it into the language. (question: are assembly languages LL(1)?)
 	a programmer could then #include that semantic unit into their module and start writing
 	native assembly.
 
-	generally the user of the kernel want's to build languages with the kernel
+	generally the user of pink' kernel want's to build languages with the kernel
 	so im fairly sure it will contain primitive entities for
 	basic types, operations, and functions, in a hardware independant
 	sense. in my mind, it's like a library of modules, each defining

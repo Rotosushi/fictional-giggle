@@ -27,11 +27,11 @@ to finally, "wow i can't imagine programming without *this* in the
 	language."
 
 updating the language that subsequently compiles programs is 
-as simple as updating a text file (or folder of text files)
+as simple as updating a text file (or folder of text files
+or a folder of folder of text files)
 
 we have the kernal of the language
 	then we have abstractions
-
 
 to be explicit the language will be broken in two.
 
@@ -74,7 +74,6 @@ and then use any given kernel feature with that resulting entity.
 so, if pink' is designed only to parse LL(1) languages in v1, then pink should
 be defined as an LL(1) language from the ground up.
 
-
 a compiler is traditionally defined by three phases,
 lexing, parsing and semantic-analysis;
 optimization & code-generation;
@@ -86,15 +85,17 @@ the programmer. then this text is assigned meaning by way of semantic analysis.
 this is done by walking the initial structure and defining it more fully, inferring
 information and filling in the gaps left by the syntax. then we can optionally
 walk the tree and consolidate information, or modify it in some constrained and
-known way to improve aspects of the semantics. this is also done by walking the 
-initial structure, but this time we can rely on the information provided
+known way to improve aspects of the semanticsm, so called optimization passes.
+this is also done by walking the initial structure, but this time we can rely on the information provided
 by semantic analysis to modify it. the next phase is the actual transformation,
 where again we traverse the initial structure, and this time we use it to produce
 equivalent semantics in the target language. the final phase outputs the generated code via 
-some I/O. though there are a lot of complications once you consider dynamic linking and loading.
+some I/O. though there are a lot of complications once you consider dynamic linking and loading, 
+supporting multiple hardware architectures, supporting multiple operating systems, etc.
+
 
 so it seems more like five phases.
-reading the source text in a way we can understand.
+reading the source text into some IR which we can analyze.
 preforming static analysis on some Intermediate Representation,
 preforming optimization on some IR, 
 linking the program together,
@@ -103,6 +104,9 @@ and output.
 and you need some loader to get the program into memory,
 and then you need some way of jumping into different programs
 from some reccuring starting point.
+
+so writing an OS just sort of naturally flows from this 
+level of abstraction.
 
 so the kernel of the language flows naturally into the kernel of
 the operating system. the line between language and operating system

@@ -48,6 +48,12 @@
     <ClCompile Include="symbol_table.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="control_flow_graph.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="code_generation.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="pink_examples.txt">
@@ -184,5 +190,22 @@
     <ClInclude Include="control_flow_graph.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="flags.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="hello_assembly.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="asm_io.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="hello_assembly.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
+    <MASM Include="asm_io.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
   </ItemGroup>
 </Project>

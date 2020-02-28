@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -54,6 +54,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
@@ -153,6 +154,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ast.cpp" />
+    <ClCompile Include="code_generation.cpp" />
+    <ClCompile Include="control_flow_graph.cpp" />
     <ClCompile Include="lexer.cpp" />
     <ClCompile Include="parser.cpp" />
     <ClCompile Include="pink.cpp" />
@@ -164,12 +167,15 @@
     <ClCompile Include="symbol_table.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="asm_io.h" />
     <ClInclude Include="ast.h" />
     <ClInclude Include="attributes.h" />
     <ClInclude Include="code_generation.h" />
     <ClInclude Include="control_flow_graph.h" />
     <ClInclude Include="error.h" />
     <ClInclude Include="Entity.h" />
+    <ClInclude Include="flags.h" />
+    <ClInclude Include="hello_assembly.h" />
     <ClInclude Include="lexer.h" />
     <ClInclude Include="map.h" />
     <ClInclude Include="parser.h" />
@@ -211,7 +217,12 @@
     <Text Include="thoughts_about_the_system_layer.txt" />
     <Text Include="TODO.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <MASM Include="asm_io.asm" />
+    <MASM Include="hello_assembly.asm" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
   </ImportGroup>
 </Project>

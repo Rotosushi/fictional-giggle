@@ -9,9 +9,7 @@ first,
 	what does a programming language need to talk about?
 		-> itself and its environment
 
-		divide the language into four quadrants (state <-> behavior, itself <-> environment)
-
-		
+divide the language into four quadrants (state <-> behavior, itself <-> environment)
 				|state				| behavior
 ----------------|---------------	|------------
 				|	vars, constants	|	functions
@@ -22,9 +20,8 @@ first,
 	environment	|	OS state,		|	other programs
 				|	Hardware state	|	internal/external hardware.
 
-		
-			divide the language into another four quadrants (primary <-> composed, concrete <-> abstract)
-				each subsection divided into (state <-> behavior)
+divide the language into another four quadrants (primary <-> composed, concrete <-> abstract)
+	each subsection divided into (state <-> behavior)
 
 			|	primary (an entity that cannot be decomposed			|	composed (an entity formed of primary and
 			|				at the current level of abstraction)		|				composed entities)
@@ -42,20 +39,44 @@ abstract	|	macro, fcall,			|	local & global vars,		|	fn,						| type (adt),
  programmer	|							|								|
 
 
- do it a third time (static <-> dynamic, internal <-> external)
+ do it a third time (language, split over static <-> dynamic, internal <-> external)
 
 						internal world				|	external world
-----------------------------------------------------|-------------------------------------------------------
- static semantics	|	static variables, functions	|	the set of available assembly instructions
-					|	modules, static libraries	|	the set of available hardware resources
-					|								|	
+----------------------------------------------------|--------------------------------------------------------
+					|	static variables, functions	|	the set of available assembly instructions
+ static semantics   |	modules, static libraries	|	the set of available hardware resources
+					|								|	the usage specification of hardware components
 					|								|
-----------------------------------------------------|---------------------------------------------------------|
+----------------------------------------------------|--------------------------------------------------------
 					|	dynamic memory,				|	the value of a hardware resource during use
 					|	dynamic libraries			|	where the program is in main memory
  dynamic semantics  |	dynamic semantic generation?|   is the program executing on a core or not.
 					|								|
-					|								|
+--------------------|-------------------------------|--------------------------------------------------------
+					
+lets do it another time for fun (state, split over mutable <-> immutable, shared <-> unshared)
+
+		 |		immutable		|			mutable
+---------|----------------------|---------------------------------
+		 | 						|
+shared	 |	needs no 			|	needs synchronisation
+		 |	 synchronisation	|
+		 |						|
+---------|----------------------|---------------------------------
+		 |						|
+unshared |	needs no			|	needs no
+		 |	 synchronisation	|	 synchronisation
+		 |						|
+---------|----------------------|---------------------------------
+
+if we take this into account along with considering aspects of abstraction,
+the language should favor creation paths such that the programs
+which are easiest to describe are the ones that tend to avoid 
+shared mutable data. a big step in this direction recently has
+been the removal of global variables, for now, only constants can be
+declared outside of a functions scope.
+
+
  
 	programs manage state according to some defined behavior.
 	we can talk about static state, dynamic state, internal state,
@@ -308,12 +329,7 @@ can add new elements of the language to the language.
 			procedure evaluation (unary functions(a.k.a prefix functions), postfix functions)
 			highest 
 
-	(i am a big fan of some haskell features; infix any two arg function with ``
-	and prefix any operator with (<op-name>), also defining new and overloading existing operators.
-	also, `` just ~feels~ like a macro to me. ofc there are issues when one considers type,
-	but that is what the static type system is for!
-	???maybe function names just have an extended char set to include common symbols???
-
+	
 
 	the simplest code is the code which doesn't exist.
 	
@@ -451,7 +467,7 @@ can add new elements of the language to the language.
 
 		modules are used when you want to think about the operation or the program
 		at a coarse grained level. it allows programmers to describe the boundary
-		between their abstraction, the module and the rest of the program.
+		between their abstractions, thier modules and the rest of the program.
 		in C++ this is acheived via the class abstraction. but as has been observed
 		by others and me, there isn't much difference between f(a) and a.f().
 		so, in the interest of keeping our data structures as small
@@ -466,7 +482,7 @@ can add new elements of the language to the language.
 			of errors that serves as vital debugging information. the
 			benefiets of the static typing system are increased by at least
 			a magnitude when you consider that every macro will be typechecked
-			after expansion. (and when you remember that one of the main problems with
+			during and after expansion. (and when you remember that one of the main problems with
 			c/c++'s preprocessor is that it is untyped)
 			
 			algebraic data types seem like
@@ -474,7 +490,7 @@ can add new elements of the language to the language.
 			which when considered with pointers, are the basis of every data
 			structure that I know of.
 
-			 optional typing
+			optional typing
 			gives a uniform way of describing the error case with a nil value,
 			for functions whose return type is primitive or a ptr. this instead can be
 			the hinge by which implicit boolean operations work. 
@@ -500,6 +516,8 @@ can add new elements of the language to the language.
 
 			how useful would this be? does this clean the syntax
 			and make it more legible? does it make it less legible?
+			how does this effect refactoring? does this create any bugs
+			during copy/paste of code? ..etc.
 
 
 	extension mechanisms:
@@ -511,7 +529,7 @@ can add new elements of the language to the language.
 		need to be built in order to talk about new entities. this is seen with
 		threads, this is seen with interrupts, and this is seen with exceptions.
 		(additionally; exotic primary types, exotic memory layouts, direct
-		 interaction with the hardware of a system,)
+		 interaction with the hardware of a system, etc.)
 		these places are where the language needs to be extended in order to add
 		or modify features of it. in order to facillitate these extensions
 		addition to the language, the language will itself be able to be extended.
@@ -531,9 +549,9 @@ can add new elements of the language to the language.
 
 2: the construction mechanisms
 the construction mechanisms are used to create instances of
-entities in the programming language. they are the primary entities
+entities in programs. they are the primary entities
 which describe local variables, file scoped variables, global variables,
-dynamic memory, and the control the flow of functions. meaning this is also
+dynamic memory, and they control the flow of functions. meaning this is also
 where they call functions, operations, OS operations, 
 and where they interact with the hardware.
 

@@ -265,7 +265,7 @@ collections of numbers each represented differently in memory according to some 
 
 characters can be characterized as a collection. programming languages usually
 provide aggregate characters as it's own data-type, called a string.
-this aggregation process could be characterized as a collection. or multiple
+this aggregation process could be characterized as another collection. or multiple
 collections depending on the storage mechanism you wanted the collection in, or where
 you wanted it.
 (contiguous vs list, local vs heap)
@@ -294,14 +294,17 @@ this is true regardless of what the type -is-. it could be composite,
 it could be an aggregate, or it could be one of a collection of composite types.
 it could be a named type (record) or an anonymous type (tuple),
 it could be stored locally or could be stored on the heap an pointed
-to by a local pointer variable.
+to by a local pointer variable. the type of something is what we use
+to distinguish proper from improper usage of variables as well as what\
+functions the user means.
 
 functions are characterised by a few collections, they are typed by their
 argument list (a positional collection),
-and the body has both a positional collection of declarations which
+and the body has both a collection of declarations which
 comprise it's physical form in the stack of the program, and
 a positional collection of statements which comprise the sequence of
-instructions which will be run to execute that function.
+instructions which will be run to execute that function. with
+items executed in the sequence of their appearance.
 
 overloading defines multiple functions with the same name into a
 collection of functions which can be disambugated by the compiler via
@@ -329,7 +332,10 @@ functions and types.
 	should indicate that every member of the collection needs to have
 	some valid function which performs that operation defined,
 	and to then list the entities which do not have the function
-	defined.
+	defined. i don't know if this is exactly describing what i mean.
+	really, the compiler should be focused on pointing out the 
+	points of friction between what you have stated, and what is missing
+	to fully implement the underlying semantics.
 	)
 
 (programmer specified overloaded instances of a function should be as simple
@@ -359,6 +365,7 @@ what it is : the implementation details
 if we want to enscribe entities into our programming language
 we must contend with the needs and desires of all three states.
 
+
 first, some basic language and ideas.
 
 we could imagine transitions of an entity between these three states,
@@ -374,7 +381,6 @@ aligns with "what we mean".
 the language is there to provide the raw materials to
 construct "what we mean" from "what we say". even though,
 in the end, the transformation is blind to "what we mean"
-)
 
 aside:
 	imperitive : the resulting "program" is in essence
@@ -384,10 +390,28 @@ aside:
 		 or extremely performant programs)
 
 	declarative : describes the emergent program directly
-		while hiding implementation details.
+		while hiding more of the implementation details.
 		(good for very abstract programs)
 
+the raw materials:
+
+atoms: 
+atoms are state described by type
+they can be described using
 composite structures (records, arrays, unions, bit-packing)
+local variables 
+local and global constants
+
+
+functions:
+can be described using the three basic forms
+if, while, and the sequence of instructions.
+the behavior is always in terms of lower understood
+	operations. which can be convienently and
+	succinctly expressed by affix expressions
+assignment semantics by default
+new forms can be described using macros.
+
 
 I/O (program arguments, streams of data)
 
@@ -396,7 +420,7 @@ I/O (program arguments, streams of data)
  (where ord(collection) is undefined) must be treated as
  if it had infinite members if we wanted to explore
  the collection's members. (iterate over them)
- and as the creators of Unix have described, streams
+ and as the creators of Unix noticed, streams
  can be used to characterize every form of I/O in
  a programming language, web sockets, to files, to
  program interoperation and communication.)
@@ -411,7 +435,7 @@ I/O (program arguments, streams of data)
  of data aren't characterized well by streams at a low level.
  
  this is why we need drivers, which transform the hardware interaction
- into a stream interaction.
+ into a stream interaction, or some other kind of interaction.
 
  pink is a systems programming language, meaning it purpose is to
  provide the tools to easily create that interaction transformation.
@@ -438,7 +462,8 @@ abstraction:
 
 Binding Time:
 a binding is an association between two things.
-the time at which the descision is made.
+the binding time is the time at which we create bindings
+for things.
 
 (none of these are intended to be complete descriptions of every binding that occurs during the time,
 	rather they are to pin down what kinds of descisions that are being made, 
@@ -449,8 +474,9 @@ Language Design Time - we decide which control structures and primitive types ar
 
 Language Implementation Time -  conceptually in this case, this will be bindings
 	which are created when pink' outputs a new compiler, or when pink is implemented.
-	traditional languages specification does not equal their implementation.
+	traditionally, a languages specification does not equal their implementation.
 	the specification document is treated as a purely abstract document.
+	(existing purely in the realm of "what we mean")
 	so there can be a difference in the language when you consider different
 	compilers for the language. typically this includes things like the precision
 	of the primitive types, the binding of primitive I/O operations to the OS, 
@@ -459,7 +485,8 @@ Language Implementation Time -  conceptually in this case, this will be bindings
 
 Program Writing Time - programmers make their descisions here. so they are working with
 	the abstractions provided to them by someone else, or the abstractions they
-	write themselves.
+	write themselves. writing the low level and high level structure of their
+	program in the source text to be analyzed.
 
 Compile Time - compilers map the source code to some semantically equivalent machine code.
 	they also lay out the static memory of the program. in here we have most of the stages of the
@@ -483,7 +510,7 @@ Run Time - run time is from the point at which the program starts, to the point 
 	execution time. virtual address translation happens here, one instruction at a time.
 
 static bindings occur before run-time, 
-dynamic binding occus during run-time.
+dynamic bindings occur during run-time.
 
 early binding generally implies greater efficiency
 later binding generally implies greater flexibility
