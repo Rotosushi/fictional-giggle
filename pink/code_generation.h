@@ -14,16 +14,18 @@ public:
 private:
 	string final_sequence;
 	
-	string gen_data(Module& m);
-	string gen_text(Module& m);
-	string gen_bss(Module& m);
+	string gen_data_segment(Module& m);
+	string gen_text_segment(Module& m);
+	string gen_bss_segment(Module& m);
+
+	string gen_data_stmt(Ast* stmt);
 	
-	string gen_alloc_string_literal(string literal);
+	string gen_alloc_string_literal(StringLiteral& sl);
+
+	string gen_text_stmt(Ast* stmt);
 
 	string gen_main(Module& m);
-	string gen_stmt(Ast* stmt);
 	string gen_print(Print* print);
-	
 	string gen_export_label(string label);
 	
 	string gen_label(string label);
@@ -32,6 +34,7 @@ private:
 	string gen_push(string reg);
 	string gen_pop(string reg);
 	string gen_mov(string dest, string source);
+	string gen_lea(string dest, string source);
 	string gen_call(string fname);
 	
 	string gen_alloc_stack(string size);

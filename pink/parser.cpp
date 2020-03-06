@@ -50,6 +50,8 @@ Print* Parser::parse_print()
 
 	if (curtok() != Token::LITERAL_STRING) throw;
 	auto arg = new StringLiteral;
+	// the first string literal we parse will be the zero'th
+	// the next will be the first, then the second, and so on.
 	arg->which = (counts[((short)CountType::StringLiteral)])++;
 	arg->text  = curtext();
 	stmt->arg = arg;
