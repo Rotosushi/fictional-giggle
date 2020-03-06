@@ -35,7 +35,8 @@ type equivalence:
 	how to write an int into an int, a real into a real, 
 	text into text, bools into bools. all the compiler must do is
 	a deep copy, and all deep copies share the same form, 
-	(depending of course on the shape of the types.)
+	(depending of course on the shape of the types.) which means
+	the compiler can generate deep copies as well.
 	if we consider the case of int -> real we can garuntee the
 	cast will not change the value of the underlying representation.
 	we will have to change the state however, because the interpretation

@@ -5,9 +5,7 @@ void Parser::parse_module(Module& m)
 	/*
 		<module> := <stmt>*
 		
-		<stmt> := 'print' <number>
-
-		<number> := <literal_integer>
+		<stmt> := 'print' <string-literal> ';'
 	*/
 	Ast* stmt;
 	while (curtok() != Token::END) {
@@ -50,11 +48,11 @@ Print* Parser::parse_print()
 	if (curtok() != Token::PRINT) throw;
 	nexttok();
 
-	// we can grab whatever was lexed here
-	// because this ast only cares about
-	// printing what was parsed.
-	stmt->token = curtok();
-	stmt->text  = curtext();
+	if (curtok() != Token::LITERAL_STRING) throw;
+	auto arg = new StringLiteral;
+	arg->which = (counts[((short)CountType::StringLiteral)])++;
+	arg->text  = curtext();
+	stmt->arg = arg;
 	nexttok();
 
 	if (curtok() != Token::SEMICOLON) throw;

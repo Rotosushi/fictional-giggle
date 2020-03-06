@@ -6,6 +6,10 @@ using std::string;
 #include "lexer.h"
 #include "ast.h"
 
+enum class CountType : short {
+	StringLiteral = 0,
+}
+
 class Parser {
 public:
 	void parse_module(Module& m);
@@ -16,6 +20,7 @@ private:
 
 	Token  tokBuf;
 	string texBuf;
+	int counts[] = { 0,0,0,0,0 };
 
 	Token  curtok();
 	string curtext();
@@ -23,6 +28,7 @@ private:
 
 	Ast* parse_stmt();
 	Print* parse_print();
+
 };
 
 //#include <stack>

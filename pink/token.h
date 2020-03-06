@@ -8,7 +8,7 @@ enum class Token {
 
 	PRINT,
 
-	LITERAL_CHAR,
+	LITERAL_STRING,
 };
 
 //#include <string>

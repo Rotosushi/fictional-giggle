@@ -54,12 +54,12 @@ Token Lexer::gettok()
 	if (c == EOF) return Token::END;
 
 	// eat a single line comment
-	if (c == '#')
+	else if (c == '#')
 		while (c != '\n' && c != '\r' && c != EOF)
 			c = _getchar();
 
 	// could be a reserved word
-	if (isalpha(c)) {
+	else if (isalpha(c)) {
 		curtext += c;
 		c = _getchar();
 
@@ -72,21 +72,22 @@ Token Lexer::gettok()
 		return Token::ERR;
 	}
 	
-	// eat a literal character
-	else if (c == '\'') {
+	// start of a string literal
+	else if (c == '\"') {
 		c = _getchar();
+		
 		// eat the literal
-		curtext += c;
-		c = _getchar();
-
+		while (c != '\"') {
+			curtext += c;
+			c = _getchar();
+			// make sure we don't eat the EOF
+			if (c == EOF) return Token::ERR;
+		}
 		// TODO: check for escape sequences
 		// for now, character literals must be a
 		// single character.
-		if (c != '\'') return Token::ERR;
-		else {
-			c = _getchar();
-			return Token::LITERAL_CHAR;
-		}
+		c = _getchar();
+		return Token::LITERAL_STRING;
 	}
 
 	// could be a language symbol

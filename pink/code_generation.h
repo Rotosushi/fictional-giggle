@@ -4,17 +4,29 @@
 using std::string;
 
 #include "ast.h"
+#include "AsmFile.h"
 
 class CodeGen {
 public:
-	const string& generate_instruction_sequence(Module& m);
+	AsmFile generate_asm_file(Module& m);
 
 	CodeGen() {}
 private:
 	string final_sequence;
+	
+	string gen_data(Module& m);
+	string gen_text(Module& m);
+	string gen_bss(Module& m);
+	
+	string gen_alloc_string_literal(string literal);
 
+	string gen_main(Module& m);
 	string gen_stmt(Ast* stmt);
 	string gen_print(Print* print);
+	
+	string gen_export_label(string label);
+	
+	string gen_label(string label);
 
 	string gen_ret();
 	string gen_push(string reg);
@@ -26,15 +38,14 @@ private:
 	string gen_dealloc_stack(string size);
 
 	// function entry and exit
-	string gen_min_fn_decl(string name);
-	string gen_min_fn_endp(string name);
 	string gen_min_fn_prolouge();
 	string gen_min_fn_epilouge();
+	string gen_max_fn_prolouge();
+	string gen_max_fn_epilouge();
 
 	// function call
-	string gen_min_fn_call(string fname);
 
-	string gen_prepare_first_gpr_arg();
+
 	// string generate_prepare_stack_args(...);
 	// string generate_prepare_first_xmm_arg(...);
 	// string generate_prepare_first_ymm_arg(...);

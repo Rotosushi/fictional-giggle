@@ -8,6 +8,7 @@ using std::vector;
 
 enum class AstType {
 	ERR,
+	STRINGLITERAL,
 	MODULE,
 	PRINT,
 };
@@ -19,6 +20,11 @@ typedef struct Ast {
 	Ast(AstType t) : type(t)   {}
 } Ast;
 
+typedef struct StringLiteral : public Ast {
+	int which;
+	string text;
+} StringLiteral;
+
 typedef struct Module : public Ast {
 	string name;
 	vector<Ast*> stmts;
@@ -27,10 +33,9 @@ typedef struct Module : public Ast {
 } Module;
 
 typedef struct Print : public Ast {
-	Token  token;
-	string text;
+	Ast* arg;
 
-	Print() : Ast(AstType::PRINT), token(), text() {}
+	Print() : Ast(AstType::PRINT), arg(nullptr) {}
 } Print;
 
 //#include <map>

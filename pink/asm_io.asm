@@ -1,67 +1,51 @@
-	includelib System32
+
+
+	global WriteStr
+	global ReadStr	
 	
-	; HANDLE WINAPI GetStdHandle (
-	;	_IN_ DWORD nStdHandle
-	; )
-	; nStdHandle can be one of
-	; (-10, -11, -12) where
-	; -10: STD_INPUT_HANDLE
-	; -11: STD_OUTPUT_HANDLE
-	; -12: STD_ERROR_HANDLE
-	extern GetStdHandle:near
-
-	; BOOL WINAPI ReadConsole (
-	;	_IN_     HANDLE  hConsoleInput
-	;	_OUT_    LPVOID  lpBuffer
-	;	_IN_     DWORD   nNumberOfCharsToRead
-	;	_OUT_    LPDWORD lpNumberOfCharsRead
-	;	_IN_opt_ LPVOID  pInputControl
-	extern ReadConsoleW:near
-
-	; BOOL WINAPI WriteConsole (
-	;	_IN_	   HANDLE hConsoleOutput
-	;	_IN_ const VOID*  lpBuffer
-	;	_IN_	   DWORD  nNumberOfCharsToWrite
-	;	_Out_opt   LPDWORD lpNumberOfCharsWritten
-	;	_Reserved_ LPVOID  lpReserved
-	extern WriteConsoleW:near
-
-	.code
-
-; void WriteStr (const char* source, int length)
-; {
-;	return WriteConsole
-; }
-; rcx = source
-; rdx = length
-WriteStr proc public
+	section .text
+	
+; a const char* and an int are both class INTEGER
+; and will be passed in the usual argument registers
+;	rdi, rsi, rdx, rcx, r8, r9
+; ssize_t WriteStr (const char* buffer, int count)
+WriteStr:
 	push rbp
 	mov  rbp, rsp
 	
-	sub rsp, 20h
-	mov [rsp+8], rcx
-	mov [rsp+10h], rdx
-
-	mov rcx, -11 ; STD_OUTPUT_HANDLE
-	call GetStdHandle
-
-	mov rcx, rax     ; rax holds the handle from GetStdHandle
-	mov rdx, [rsp+8] ; [rsp] holds the source pointer 
-	mov r8,  [rsp+10h] ; [rsp+8] holds the length of the buffer
-	lea r9,	 [rsp+18h] ; we need a pointer to somewhere for lpNumberOfCharsWritten
-	sub rsp, 28h     ; allocate shadow set + 8
-	mov r10, 0
-	mov [rsp+8], r10 ; push the fifth arg, which needs to be a nullptr
-	call WriteConsoleW
-	add rsp, 28h
-
-	add rsp, 20h
+	; save arguments onto the stack
+	mov [rbp+8],   rdi  ; store the buffer address
+	mov [rbp+10h], rsi  ; store the count
+	
+	; ssize_t write(int fd, const void* buf, size_t count)
+	mov rax, 1		    ; set syscall# = write (1) 
+	mov rdi, 1			; set fd  = stdout (1)
+	mov rsi, [rbp+8]	; set rsi = buffer 
+	mov rdx, [rbp+10h]  ; set rdx = count
+	syscall
+	; rax = the return value
 	pop rbp
 	ret
-WriteStr endp
+
 	
-	end
+; ssize_t ReadStr (const char* buffer, int count)
+ReadStr:
+	push rbp
+	mov rbp, rsp
 	
+	; save args onto the stack
+	mov [rbp+8],   rdi	
+	mov [rbp+10h], rsi
+	
+	; ssize_t read(int fd, void* dest, int count)
+	mov rax, 0 			; set syscall# = read (0)
+	mov rdi, 0			; set fd = stdin (0)
+	mov rsi, [rbp+8]    ; set rsi = buffer
+	mov rdx, [rbp+10]	; set rdx = count
+	syscall
+	; rax = the return value
+	pop rbp
+	ret
 	
 	
 	

@@ -24,10 +24,20 @@ each portion having a different set of assumptions; and a
 sort of trajectory from "*this* was usefull in this one project" to
 "hey *this* can also be applied *here*, maybe i can apply it *elsewhere*"
 to finally, "wow i can't imagine programming without *this* in the
-	language."
+	language." (im also not saying this to imply that every
+	peice of code will or has to follow that trajectory, it 
+	is merely another categorization we can imagine placing on
+	the code, one which is orthoginal to other categories,
+	because it is entirely reliant on how individual 
+	programmers organize and think about code.
+	a computer language cannot know a-priori which
+	code is going to end up in a library, or which
+	will end up in an executable, the language is merely
+	there to facilitate that tranformation, as an
+	essential component of the program lifecycle.
 
 updating the language that subsequently compiles programs is 
-as simple as updating a text file (or folder of text files
+then as simple as updating a text file (or folder of text files
 or a folder of folder of text files)
 
 we have the kernal of the language
@@ -52,14 +62,17 @@ then this language will be used to specify pink. and other programming languages
 
 a current question is how to describe the runtime of a language within a language,
 but i plan on answering that after developing pink and pink'. after first writing a plain
-pink implementation.
+pink implementation. gotta write a runtime before you can imagine 
+exactly what goes into automating the generation of a runtime.
 
 why two languages? well, it is my instinct, that once both are
 in place, a macro facility like in
 lisp will be achievable in the subsequent LL(1) parsable language. given
 that the language can then be extended by both language maintainers,
 and by programmers using the language (hopefully library writers mostly)
- using a kernel grammar, is the true goal. 
+ and being able to rely on a kernel grammar, is the true goal. 
+ what the kernel gives to the language is a path to portability
+ and an automation of the simplest tasks.
 the hope is then that in order to add a new 
 feature, the compiler or the compiler prime would be able to tell you
 every point of friction between this new feature and the existing language,
@@ -85,21 +98,21 @@ the programmer. then this text is assigned meaning by way of semantic analysis.
 this is done by walking the initial structure and defining it more fully, inferring
 information and filling in the gaps left by the syntax. then we can optionally
 walk the tree and consolidate information, or modify it in some constrained and
-known way to improve aspects of the semanticsm, so called optimization passes.
+known way to improve aspects of the semantics in so called optimization passes.
+the compiler can optimize against time or space.
 this is also done by walking the initial structure, but this time we can rely on the information provided
 by semantic analysis to modify it. the next phase is the actual transformation,
 where again we traverse the initial structure, and this time we use it to produce
 equivalent semantics in the target language. the final phase outputs the generated code via 
-some I/O. though there are a lot of complications once you consider dynamic linking and loading, 
+some I/O. there are a plethora of complications once you consider dynamic linking and loading, 
 supporting multiple hardware architectures, supporting multiple operating systems, etc.
 
 
-so it seems more like five phases.
+so it seems more like four phases.
 reading the source text into some IR which we can analyze.
 preforming static analysis on some Intermediate Representation,
 preforming optimization on some IR, 
-linking the program together,
-and output.
+and then linking the program together,
 
 and you need some loader to get the program into memory,
 and then you need some way of jumping into different programs
