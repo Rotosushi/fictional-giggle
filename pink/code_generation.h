@@ -21,6 +21,8 @@ private:
 	string gen_data_stmt(Ast* stmt);
 	
 	string gen_alloc_string_literal(StringLiteral& sl);
+	string gen_string_nametag(StringLiteral& sl);
+	string gen_string_lengthtag(StringLiteral& sl);
 
 	string gen_text_stmt(Ast* stmt);
 
@@ -36,6 +38,7 @@ private:
 	string gen_mov(string dest, string source);
 	string gen_lea(string dest, string source);
 	string gen_call(string fname);
+	string gen_syscall();
 	
 	string gen_alloc_stack(string size);
 	string gen_dealloc_stack(string size);

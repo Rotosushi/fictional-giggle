@@ -1,5 +1,6 @@
 
 <programming-language> : an example and axioms
+
 state we will call atoms.
 
 behavior we will call functions.
@@ -86,7 +87,7 @@ an entity can be either primary, or composed.
 
 
 	a composed entity is an entity that has been constructed out
-	of other entities. 
+	of other entities. primary, or composed.
 
 an entity can be either concrete, or abstract.
 
@@ -200,7 +201,10 @@ kernel:
 	a conditional choice, and not the actual implementation, but in the case of
 	a systems programming language we sometimes need a way to circumnavigate that.
 	as the programmer knows more about their intended program interaction with
-	the hardware than the language itself does.
+	the hardware than the language itself does. (if we invert this relationship,
+	and assume that the language knows more than the user 
+	(or then they should have to know), the language can offer a higher level of abstraction,
+	from which the language can transform into the correct interaction) 
 	pink will need to support some form of assembly injection. meaning, in some
 	portions of the code, we may need to switch which language we are parsing.
 	something that pink' supports natively. we only need to write a parser for

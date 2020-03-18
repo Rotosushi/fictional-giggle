@@ -15,15 +15,14 @@ semantic analysis (and optimizations), assigns meaning to
 
 code-generation, the process of creating an equivalent
 	semantics in the target language as specified by some
-	internal representation.
+	internal representation according to some defined process.
 
-linking, the process of coalesing multiple libraries into a single 
-	library, or one root and optionally multiple libraries into a single
-	executable.
+linking, the process of coalesing multiple semantic units into a single 
+		semantic unit.
 
 atoms:
 
-	variables, talking about computer memory
+	variables, the smallest unit of computer memory
 	
 	root, begins the definition of an executable
 	
@@ -32,7 +31,10 @@ atoms:
 	
 behavior:
 
-	functions, define and parametrize semantics 
+	statements, the smallest unit of computation
+
+	functions, define and parametrize groupings
+		of statements.
 
 
 we want to define programs compositionally.
@@ -45,7 +47,7 @@ executables have one and only one point of entry, and they
 correspondingly have one and only one point of exit. it is
 along this boundary that the operating system can invoke
 the process or reap it's resources once it returns.
-a library is hence, not invokable by the operating system.
+a library is therefore not invokable by the operating system.
 it is however, used to define programs which are then invoked by 
 the operating system, which then themselves invoke the 
 library functions. this boundary allows programmers to 

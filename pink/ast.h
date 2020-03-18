@@ -23,6 +23,8 @@ typedef struct Ast {
 typedef struct StringLiteral : public Ast {
 	int which;
 	string text;
+	
+	StringLiteral : Ast(AstType::STRINGLITERAL), which(), text() {}
 } StringLiteral;
 
 typedef struct Module : public Ast {

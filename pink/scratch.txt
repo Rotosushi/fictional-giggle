@@ -20,6 +20,7 @@ and/or
 
 what are the points of tension on the design of the langauge?
 
+
 so, in order to talk about that we must fist define our context:
 
 any language exists in the greater world.

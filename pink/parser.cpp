@@ -1,17 +1,35 @@
 #include "parser.h"
 
-void Parser::parse_module(Module& m)
+Module Parser::parse_module()
 {
 	/*
 		<module> := <stmt>*
 		
 		<stmt> := 'print' <string-literal> ';'
 	*/
+	Module m;
 	Ast* stmt;
+	nexttok();
 	while (curtok() != Token::END) {
 		stmt = parse_stmt();
 		m.stmts.push_back(stmt);
 	}
+	return m;
+}
+
+Module Parser::parse_module(string s) 
+{
+	Module m;
+	
+	lexer.set_instring(s);
+	
+	nexttok();
+	while (curtok() != Token::END) {
+		auto stmt = parse_stmt();
+		m.stmts.push_back(stmt);
+	}
+	
+	return m;
 }
 
 Token Parser::curtok()

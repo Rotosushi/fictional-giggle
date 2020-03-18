@@ -8,11 +8,12 @@ using std::string;
 
 enum class CountType : short {
 	StringLiteral = 0,
-}
+};
 
 class Parser {
 public:
-	void parse_module(Module& m);
+	Module parse_module();
+	Module parse_module(string s);
 
 	Parser() : lexer() {}
 private:
@@ -20,7 +21,7 @@ private:
 
 	Token  tokBuf;
 	string texBuf;
-	int counts[] = { 0,0,0,0,0 };
+	int counts[5] = { 0,0,0,0,0 };
 
 	Token  curtok();
 	string curtext();

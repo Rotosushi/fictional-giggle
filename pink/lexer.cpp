@@ -3,6 +3,8 @@ using std::string;
 #include <fstream>
 using std::ifstream;
 
+#include <cstdio>
+
 #include "lexer.h"
 #include "token.h"
 
@@ -74,18 +76,32 @@ Token Lexer::gettok()
 	
 	// start of a string literal
 	else if (c == '\"') {
+		// don't insert the leading " 
+		// into the string literal.
 		c = _getchar();
 		
-		// eat the literal
-		while (c != '\"') {
-			curtext += c;
+		// the string literal could start with
+		// an excape sequence.
+		if (c == '\\') {
 			c = _getchar();
-			// make sure we don't eat the EOF
-			if (c == EOF) return Token::ERR;
+			curtext += c;
 		}
-		// TODO: check for escape sequences
-		// for now, character literals must be a
-		// single character.
+		// eat the literal
+		do {
+			c = _getchar();
+			
+			if (c == '\\') {
+				// this only handles single character
+				// excape sequences
+				c = _getchar();
+				curtext += c;
+			} 
+			// make sure we don't eat the EOF
+			else if (c == EOF) return Token::ERR;
+			else if (c == '\"') break;
+			else curtext += c;
+		} while (1);
+		
 		c = _getchar();
 		return Token::LITERAL_STRING;
 	}
@@ -112,7 +128,7 @@ int Lexer::_getchar()
 		else return EOF;
 	};
 	switch (input_state) {
-	case 0: return getchar();
+	case 0: return getc(stdin);
 	case 1: return infile.get();
 	case 2: return string_getchar(instring);
 	default: throw;

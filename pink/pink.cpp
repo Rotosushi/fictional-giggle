@@ -1,19 +1,36 @@
-// pink.cpp : This file contains the 'main' function. Program execution begins and ends there.
 
 
 #include <string>
 using std::string;
+#include <exception>
+using std::exception;
 
 #include <cstdio>
-#include "hello_assembly.h"
 
-#include "asm_io.h"
+#include "ast.h"
+#include "parser.h"
+#include "code_generation.h"
 
 int main(int argc, char** argv)
 {
-	string str = "Hello, Assembly!";
-	WriteStr(str.c_str(), str.size());
+	try {
+	// behavior
+	Parser p;
+	CodeGen c;
 	
+	// state
+	Module m;
+	AsmFile output;
+	
+	m = p.parse_module("print \"Hello, World!\";");
+	output = c.generate_asm_file(m);
+	
+	fputs(output.data.c_str(), stdout);
+	fputs(output.bss.c_str(), stdout);
+	fputs(output.text.c_str(), stdout);
+	} catch (const exception& e) {
+		fputs(e.what(), stderr);
+	}
 	return 0; 
 }
 
