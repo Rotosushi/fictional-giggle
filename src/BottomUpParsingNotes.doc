@@ -1,0 +1,52 @@
+
+# this procedure is the driver for the Finite State Machine
+# described by the ShiftReduceTable
+proc Scan (StartState, TermStack, InputTokens, ShiftReduceTable)
+{
+  push (TermStack, StartState);
+  accepted <- false;
+
+  while (not accepted) {
+    action <- ShiftReduceTable[peek(TermStack)][peek(InputTokens)];
+    if (action = shift s) {
+    # when we shift, we simply take the current token off
+    # the input stream, record it, and advance the InputTokens
+    # for the next iteration. or, we notice that we are shifting
+    # the accept state onto the stack, and we can stop iteration.
+      push(TermStack, s);
+      if (peek(TermStack) = AcceptState)
+        accepted <- true;
+      else
+        advance(InputTokens);
+
+    } else if (action = reduce A -> y) {
+    # the reduction rule associates some term A
+    # with a list of terms which it matches y.
+    # when we preform a reduction we pop the
+    # list of matched terms off the top of the
+    # TermStack, exactly that list specified in y,
+    # and push the reduced term
+    # onto the front of the InputTokens, then when
+    # we look at our state the next time around, we
+    # are matching a term outward of the reduced term against
+    # the reduction.
+      pop(TermStack, |y|);
+      prepend(InputTokens, A);
+
+    }  else error();
+  }
+}
+
+# a function which, given a grammar of the form (T, NT, P, S)
+# produces the set of rules which model the CFSM.
+proc ComputeLR0(grammar) -> (Set, State) {
+  States <- 0;
+  StartItems <- { Start -> @ RHS(p) | p is in ProductionsFor(Start)};
+  StartState <- AddState (States, StartItems);
+
+  while ((s <- ExtractElement(WorkList)) != nil) {
+    computeNextState(States, s);
+  }
+
+  return (States, StartState);
+}

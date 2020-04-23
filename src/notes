@@ -1,0 +1,53 @@
+Just enough to say what is interesting,
+  no more.
+
+
+
+question:
+  what tasks in particular force the c language programmer to
+  drop to assembly, and why can we not envision sensible
+  abstractions which encapsulate these tasks?
+
+
+one task is the context switch.
+  where the operating system takes one task off of the running
+  state and stores it in memory, then loads a new task into
+  the running state. doing this requires directly talking about
+  the registers in use by the current program, and the registers
+  in use by the new program.
+
+  why does c fail? the programmer has no way of
+  directly refrencing the data in any of the working
+  set of registers.
+  essentially we can't say "save register rax into memory".
+  why does c not provide some sort of a built-in?
+  well, the notion of a hardware register is
+  not directly knowable at the level of abstraction
+  in which as programming language operates.
+  this makes sense from a language implementation
+  perspective, as it is difficult though not impossible to envision
+  what changes to the compiler
+  is required to allow the programmer to store
+  and directly access the active register set.
+
+  (specific compilers have specific ways of inlining
+  assembly, but you can always write a separate
+  assembly source file and call it like a c-function,
+  though this requires knowing the c-abi of your
+  particular compiler; additionally, compiling
+  a separate assembly file complicates the build
+  process somewhat.)
+
+  what really throws a wrench in the works
+  however is our goal of portability. which
+  specific registers you have access to is a matter
+  of which exact specific CPU you have, and is usually
+  only knowable by refrencing the relevant documentation.
+  so, these two factors (portability concerns, having to
+  descend a level of abstraction to get things done), to me
+  point to the solution living outside of the kernel of the
+  language. if we can construct the relevant semantics
+  to speak assembly, or somehow give direct handles which
+  can be accessed by the understood abstractions, but do it
+  by composing together the more base abstractions that we
+  have available.
