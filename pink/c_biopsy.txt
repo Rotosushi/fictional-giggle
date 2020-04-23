@@ -5,7 +5,9 @@ prefix: or setting up some language
 	by CDL, the language is composed of two things,
 	functions and atoms (which is
 	simply an object considered together with its type;
-	CDL explicitly refers to is as 'an object with it's type',
+	CDL explicitly refers to is as 'an object with it's type'
+	and then bemusingly complain that they have no grouping noun,
+	well, atoms it is!
 	and functions they call algorithms, but it's 2019, and that language
 	is not how we talk about programs now.)
 
@@ -15,7 +17,10 @@ prefix: or setting up some language
 		type
 
 	the name is how we refer to any given entity in the text of
-	our program.
+	our program. names are bound to their type and value within 
+	the current environment. the storage location of the value
+	will depend on both the kind of entity and where textually
+	it is stated.
 
 	the value is the encapsulated state of the entity
 		-> this can be as simple as an integer, to something
@@ -23,8 +28,13 @@ prefix: or setting up some language
 		state that a given type would be associated with.
 
 	the type is the encapsulated behavior of the entity
-		-> this is the body of a function, or the set of
-			operations valid on an instance of that type.
+		-> this is the functions arguments mapped to its returns,
+			T -> T
+			or the set of operations valid on an instance of that type.
+			the type is used to deduce which functions the programmer
+			is referring to textually. each type is associated
+			with some particular configuration of state. the type
+			is used to deduce how it the state could be/is configured.
 
 in other words; the type holds the set of valid internal representations (value)
 	for an instance of that type, and the set of valid operations on that type.
@@ -48,7 +58,8 @@ in other words; the type holds the set of valid internal representations (value)
 	
 	a composed entity is anything that could further be decomposed into
 	composed or primary entities. i.e: an algebraic data type, an array,
-	a stream object, 
+	a stream object. this composition of parts to make a whole is
+	a common theme of all languages.
 	
 an entity can further be categorized as
 	concrete
@@ -92,6 +103,14 @@ mechanisms to build new primary entities
 programming languages sometimes provide extension mechanisms, by which
 a programmer can extend the semantics or syntax of the language by means 
 of some entity(ies) in the language. (this is accomplished in lisp, and some lisp variants using macros) 
+here is where i see the most opportunity for growth. if the parts of
+the language can themselves be specified in a language, then we can
+mechanize the extensions via the specification language. if the 
+specified language can interface directly with the specification language.
+and both languages share the same base syntax and semantics, only different
+abstractions and types, then we can extend the specified language
+by the specified language itself. this would require that the
+specified languages kernel be open to extension.
 
 all entities in a programming language can be categorized thusly
 
@@ -154,7 +173,8 @@ so, with some definitions out of the way, typically a programming language
 	one of the problems the type system was built to solve. with the case
 	of casting a float to an int for some arithmetic operation, I would
 	much rather the user leverage the overloaded add function to add two floats,
-	or be explicit about their cast. 
+	and be explicit about their cast.
+	 
 	The void* is my next issue,
 	the problems that it solves still need to be solved however. Issues with
 	the void* arise from passing the wrong type of data into a function
@@ -175,7 +195,11 @@ so, with some definitions out of the way, typically a programming language
 	another usecase is dynamic memory allocation, but I think reflection
 	or macros would make this trivially easy to replace. something like:
 
+	definition
 	allocate ($typename) -> typename-ptr
+	
+	usage
+	ptr-type <- allocate(typename)
 
 
 	the good parts:
@@ -206,7 +230,7 @@ so, with some definitions out of the way, typically a programming language
 		implementing functions. while loops are also a good abstraction, 
 		giving access to both bounded and unbounded iteration.
 		the switch statement is useful, but if it isn't using
-		an specific assembly instruction it's just syntax sugar.
+		a specific assembly instruction it's just syntax sugar.
 		the for loop is syntactic sugar, i don't mean this in a disparaging
 		way, what i am more trying to say, is that something like 
 		a for loop could be constructed out of a while loop and a macro.
@@ -229,7 +253,7 @@ so, with some definitions out of the way, typically a programming language
 		expressions, or infix functions, are a syntacticaly light,
 		grammatically unambiguous way of composing functions. I really
 		like this syntax for function composition, even though it
-		will be restricted to two arg w/a return argument functions.
+		will be restricted to two arg w/a return argument functions,
 		and one transient arg functions. (input type == output type)
 
 	m.1:
@@ -265,7 +289,9 @@ so, with some definitions out of the way, typically a programming language
 	memory that could change externally, or maybe that this function is intented to
 	be an interrupt handler. there needs to be communication to the compiler
 	about information that cannot otherwise be inferred or known by semantic
-	analysis
+	analysis, this is a systems language afterall, in essence this means
+	that we assume the programmer knows more about the execution environment
+	than the compiler does, or can know.
 
 	m.2: 
 		the header-file/source file split is the other half to c's solution
@@ -293,7 +319,19 @@ so, with some definitions out of the way, typically a programming language
 	combining pointers with optional types gives pink an easy abstraction
 	to use instead of nullptrs, either the pointer exists or the entire type is Nil.
 	there can be no null refrence exception, because the language does not 
-	create null refrences.
+	create null refrences. this is different than the programmer creating
+	their own invalid pointer by freeing the memory and then maintaining
+	a pointer to the freed memory and accessing it, and in this case we could
+	be pointing at free memory (which the runtime can catch and then throw
+	an exception, luckily) or in the case of the ABA problem, that freed
+	pointer is accessed after the memory it pointed to was reused by the
+	program and now it points to 'in-use' memory, but it is not the data
+	that we expect to find at that location. this can be especially bad
+	if the program then writes to the ABA problem pointer. potentially
+	corrupting multiple parts of the program simultaneously. what if the
+	free operation flips the type of the pointer to Maybe Nil instead of
+	Maybe Ptr. so typewise no operations are allowed on that name after
+	it's memory is freed?
 
 	q.2:
 		the dynamic memory system of c is mostly fine, but it's interface in the language

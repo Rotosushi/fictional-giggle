@@ -274,7 +274,8 @@ modules are your basic unit of computer program.
 	and to reuse algorithms throughout a program, without having
 	to have a separate definition everywhere, (everytime you make
 	the user repeat the semantics, you add another opportunity to
-	have the definitions become out-of-sync, which is a nasty bug.)
+	have the definitions become out-of-sync, which adds viscosity
+	to the language.)
 
 	a module with a root defines the starting point of a program.
 	modules do not always have to have a root, in fact only one root 
@@ -288,18 +289,22 @@ modules are your basic unit of computer program.
 	dynamic libraries need to exist such that the loader can stich the library
 	onto the static definition of the program to create the dynamic defintion
 	of the program which can execute in memory.
-	(modules on the other hand can only ever be used to specify the 
-		static definition of the program.)
 
 	a program then, is composed of modules and libraries, with a root.
 
 	a module is a collection of functions and variables.
 
 	and a library is a collection of modules and libraries.
+	
+	(this rhymes with the compositional nature of the language itself)
 
 	when a module exports a symbol from it's scope, 
 	the compiler binds that symbol to the scope of any module or library that
-	includes that module. and the same for libraries.
+	includes that module. and the same for libraries. each symbol bound in
+	each environment must be unique. (you can have two names in separate
+	environments which are the same, because the compiler can tell which
+	name you are talking about by which environment you are talking about
+	it in.)
 	if the programmer specifies which names they want to bring in from
 	the module, then only those names which are specified will be bound
 	in the scope. this will be the same for libraries.

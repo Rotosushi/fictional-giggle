@@ -74,7 +74,9 @@ the language should favor creation paths such that the programs
 which are easiest to describe are the ones that tend to avoid 
 shared mutable data. a big step in this direction recently has
 been the removal of global variables, for now, only constants can be
-declared outside of a functions scope.
+declared outside of a functions scope. closed over values within a
+function body could be required to maintain state accross calls
+which complicates this considerably.
 
 
  
@@ -115,7 +117,7 @@ declared outside of a functions scope.
 
 			in a closed language these interactions or 'friction points' only need 
 			to be contended with during implementation/maintinence/upgrade/extension  
-			of the languages primitives and only by the languages programmer. code that
+			of the languages primitives and only by the languages programmers. code that
 			is written in the language, by users, relies upon the primitives that the
 			language provides in order to implement/maintain/upgrade/extend their own
 			programs.
@@ -131,7 +133,9 @@ declared outside of a functions scope.
 			having to redefine previously existing features, this would go a long way
 			towords allowing something like implicit interoperability. just by having both
 			programs use the same primitives. to say that another way, all user written
-			semantic extensions are composite.
+			semantic extensions are composite, never primary, they define new primary
+			features from the perspective of pink, but pink' would consider them
+			composite.
 
 			note:
 			theoretically this kernel could be used with user grammars to describe
@@ -203,7 +207,7 @@ fn +(a: int, b: int) -> int, though it is hoped that by having the
 basics of the language in place, the programmer can rely on already
 defined grammar primitives to define further language primitives.)
 (it is up to the reader to think
-of other ways in which this distinction is relevant.)
+of other ways in which this distinction is relevant. and they are encouraged to do so)
 
 
 1: the kernel
@@ -276,8 +280,10 @@ can add new elements of the language to the language.
 			overhead. (here 'you don't care' should be read like 'the overhead is minimal for
 			the usability gained') you will need string processing on (nearly) every system,
 			so this is something that is a no-brainer for inclusion in the semantics of the
-			language. The only thing c really gained from it's descision about strings is
-			a reputation for nasty bugs and security flaws.
+			language. additionally, the underlying semantics of string processing
+			are well understood and shouldn't be repeated by real programs in the wild.
+			 The only thing c really gained from it's descision about strings is
+			a reputation for nasty bugs and security flaws. 
 
 	composite type primitives:
 		[], (), adt, *, !*, **..., !**...,
@@ -473,7 +479,9 @@ can add new elements of the language to the language.
 		so, in the interest of keeping our data structures as small
 		as possible, we defer to the f(a) syntax. and will not be explicitly
 		providing a class primitive (however I am sure that it would be
-		possible to define one using macros)
+		possible to define one using macros) we may include existential types,
+		which can be used to model classes fairly directly, but are not
+		classes themselves.
 
 		note: 
 			I feel that a static typing system makes development easier,
@@ -491,8 +499,8 @@ can add new elements of the language to the language.
 			structure that I know of.
 
 			optional typing
-			gives a uniform way of describing the error case with a nil value,
-			for functions whose return type is primitive or a ptr. this instead can be
+			gives a uniform way of describing the error case with a nil value.
+			for functions whose return type is primitive or a ptr this instead can be
 			the hinge by which implicit boolean operations work. 
 			instead of the c like, zero is false every other value is true.
 			
@@ -536,7 +544,11 @@ can add new elements of the language to the language.
 		from within the language itself.
 
 		interestingly, you could define dialects of the language, and enforce
-		their use using nothing more than a #include or #require.
+		their use using nothing more than a #include or #require. the
+		style guide of a company could be expressed directly as a semantic phase
+		via macros, which could then be run against code alongside
+		the compiler, and it could be written by leveraging the existing
+		compiler infrastructure.
 		
 		the language that pink is written in will be reffered to 
 		as pink prime (or pink') pink will be a compiler written by specification.
@@ -569,15 +581,19 @@ where new language facilities are written, and where new language dialects and
 other languages entirely can be described.
 
 these are the four pillars of pink;
-	1: the kernel, by which we acheive program portability
+	1: the kernel, by which we acheive the base language, and portability
 	2: construction, by which we specify our actual programs
-	3: abstraction, by which we specify new entities in the language.
-	4: exstension, by which we specify new kinds of entity.
+	3: abstraction, by which we specify new entities in the language
+	4: exstension, by which we specify new kinds of entity
 
 	note:
 		one must consider the interoperation of all entities within a language,
 		but this is a question that cannot be answered in the abstract,
-		from an initial design perspective.
+		from an initial design perspective. also, if we consider the set
+		F of language features, and set G of each of the interactions,
+		the mental reasoning becomes exponentially more complex as each
+		feature is added, due to the interactions between each previous
+		feature and the new feature.
 
 
 
@@ -635,16 +651,21 @@ language goals include:
 	language. 
 	
 	"stop telling me what you are going to say, and just say it."
+	
+	"reduce ritual, highlight reasoning."
 
 	Programmers fluent in the language should be able to easily read what
 	one another are saying and doing in their code. 
 	common abstractions should have a common form
-	common tasks should have a common form
+	common tasks should have a common form.
 	it should be easy to say what is easy to do.
 	it would be really nice if it was easy to say what is hard to do.
 
 	the language should be designed to communicate effectively what
-	the computer is doing to other human beings. 
+	the computer is doing to other human beings. obviously, we cannot
+	expect to introduce no learning curve, but the point is that we 
+	are trying to 'speak' clearly and communicate effectively as
+	a primary concern at all times.
 
 - Orthoginality
 	Language features should interact in an understandable, definite way, which
@@ -661,14 +682,19 @@ language goals include:
 	a user friendly abstraction; like replacing the GOTO with while loops, if-else if-else
 	chains, and parametrized functions.
 	but the language should be no harder to pick-up than C.
-	(small tool box, infinite ways of composition)
+	(small tool box, infinite ways of composition
+	 hopefully translates to easy to learn, hard to master.)
 	
 	(...or at least the list of edge cases should be as small as possible,
 	 and only occur when a sensible default makes no sense.)
 
 	 (in my mind, macros are the way of speaking about the language in the language,
 	 so if you can see some pattern of code in your program, and you want to
-	 encapsulate those semantics, the macro is that encapsulation tool.)
+	 encapsulate those semantics, the macro is that encapsulation tool.
+	 just like the function abstraction is a tool for encapsulating some pattern
+	 of real existance. (finances, engineering, art though rarely)
+	 any process which can be conceived as a series of steps over time
+	 has some ability to be represented as an algorithm.
 
 - Maintainability + Testing + Documentation
 	Code that is written today, may be talking to code that is written 20
@@ -737,8 +763,8 @@ language goals include:
 	the first compilers
 	were written with severe memory constraints, and the design was influenced
 	by that, both of the compiler and of the output code. the compiler that
-	is currently being written has virtually infinite memory.
-	(especially wehen compared to memory constraints in the 1950's, 60's, and 70's.)
+	is currently being written has functionally infinite memory.
+	(especially when compared to memory constraints in the 1950's, 60's, and 70's.)
 	so that will have an influence on the design as well.
 
 	doesn't that conflict with the above goal of "trying to be performant"?
@@ -847,7 +873,7 @@ sum and product types. (record and union respectively)
 	can say if(this-version) ... else if(other-version) ...
 	and the compiler can generate code which disambiguates between instances.
 	this feels like such a basic pattern of use that the compiler could generate
-	some of the boilerplate.
+	some of the boilerplate. unlike using unions in c/c++
 
 polymorphic type constructors.
 	so we can support generic types better.
@@ -866,19 +892,26 @@ owning pointers.
 	offload the maintience of deep copy constructors
 	and deep assignment operators.
 	if you have a plain pointer, the language will assume
-	that you will be using it as a non-owning refrence to
-	some memory, in shorthand this means regular pointers
+	that you will be using it as a owning refrence to
+	some memory, meaning it will generate and store that memory on the heap.
+	and, when the owning refrence is destroyed, we destroy the owned memory.
+	if you want a plain refrence, you need a non-owning pointer. which
 	will have mostly c's pointer semantics, whereby we are talking about
 	the addresses when we copy, compare, assign, or construct.
-	and when the programmer has an owning refrence we assume
-	they want to deeply copy the structure they have. in this way
+	whereas when the programmer has an owning refrence we assume
+	they want to deeply copy the structure they have. and create/destroy
+	in an instanced fashion (with the compiler hopefully able to silently
+	generate move semantics when applicable to save on constructors. in this way
 	owning pointers will be able to be treated by programmers like
 	they would treat variables in python.
 	when we copy, compare, assign, or construct, we will create
 	a new exact copy in memory and assign it to the owning refrence.
 	so two owning pointers will ~always~ point to separate instances
-	of the type. and a regular pointer may point to a separate instance
-	or may point to the same instance as another pointer.
+	of the type, and assigning one owning pointer to another will create
+	a new instance with the same value. a non-owning pointer may point to a separate instance
+	or may point to the same instance as another pointer. this way we hope
+	to sidestep a lot of the headache of pointers by making the easy
+	creation path also the most safe.
 
 	this subject sort of naturally leads to questions about the semantics behind
 	returning, assigning, copying, and constructing owned vs. not owned refrences, 
@@ -896,20 +929,25 @@ owning pointers.
 	members of the pointed to object, instead of having to explicitly use
 	the indirection operator once, it should work when the indirection operator
 	is used as well. however, if you have two layers of indirection
-	then you would need to use the indirection operator once. (twice should also
-	be semantically valid.) and so on to however many layers of indirection the user has
-	specified.
+	then you would need to use the indirection operator once. twice should also
+	be semantically valid, it means three layers of indirection.
+	and so on to however many layers of indirection the user has
+	specified. though, maybe this invites more bugs than it helps with,
+	like when we consider the subtle interactions between subtyping and
+	the other language features.
 
 None type, Optional Type, Any type (can only exist with refrence semantics?).
 	a None type representing the empty set useful in many programming idioms, 
 	an optional type representing either None, or Some type. whcih better represents functions which can fail.
 	a refrence Any type, simply to provide a syntactic style more closely related to C, and
-		because I don't know if parametric polymorphism plue optional types will allow the language
-		the requisite tools to solve all possible low level coding problems. My assumption is that it will.
+		because I don't know if parametric polymorphism plus optional types will allow the language
+		the requisite tools to solve all possible low level coding problems. My assumption is that we do
+		not need an Any type to solve all possible low level problems.
 		but if there is any edge cases i don't know about, my assumption is the equivalent to
 		a void* would allow the language any semantics it couldn't otherwise recreate from C.
 		to still remove null refrences from the language, the defining occurance of an any pointer
-		must be associated with some valid memory.
+		must be associated with some valid memory. so only accessing the memory
+		requires a cast each time,
 
 
 
@@ -933,7 +971,7 @@ memory manipulation.
 	the language will need to be able to write to and read from any memory location
 	with impunity at some point. this is needed to implement low-level computer systems.
 	with these semantics it becomes possible to implement drivers for hardware components.
-	which be written portably on top of lower level semantics that were conditionally
+	which could be written portably on top of lower level semantics that were conditionally
 	compiled like in C.
 	the semantics that pink has access to are more expressive than C, and
 	so it follows that we would be able to write a more expressive inteface on top of what
@@ -973,7 +1011,7 @@ memory manipulation.
 	but how can a systems language that doesn't have null refrences work?
 	if you know c code, you know that typecasting a void* is how most
 	c programms add more expressivity and flexibility to their functions.
-	the common operations on c pointers that i know are
+	the common operations on void* c pointers that i know are
 
 	using a void* to operate on memory in a typeless way. used in situations
 	when you only need to know about the size of the memory you are pointing at.
@@ -982,11 +1020,14 @@ memory manipulation.
 
 	you can have one function that operates on a union of types, and through
 	checking a tag you can choose which cast is safe to do.
-	I use this pattern in my code, but it isn't always used.
+	I use this pattern in my code, but it isn't always used. a replacement
+	pattern is subclassing and method calls, but this is nearly equivalent
+	assembly, either way, you are using type information to direct the
+	flow of control, which means some sort of compare-and-jump code.
 
 	well, you cannot have a pointer that points to null,
 	sure. but what if pointers are idiomatically always wrapped in an optional type
-	(or, this is a use case of single inheritance, wherby a pointer 'is-an' optional type)
+	(or, this is a use case of single inheritance, whereby a pointer 'is-an' optional type)
 	, whereby
 	we either recieve a valid pointer, or the type of the entire expression is None.
 	that then allows the language to leverage it's own type system to solve the problem
@@ -1002,8 +1043,10 @@ memory manipulation.
 	and then we can remove the special case of a pointer to address zero being
 	a nullptr. a non-valid pointer is always signaled by never returning a pointer in
 	the first place. so you either have some usable type, or you have a None type.
+	(of course this says nothing about using pointers to access protected memory 
+	regions, that is an orthoginal issue, which is handled by the operating system)
 	
-	treating the location as either a source or a destination semantically will imply
+	treating the location or bound name as either a source or a destination semantically will imply
 	reads or writes on that memory location. this is a nessecary semantic meaning.
 	we by nature of being a systems langauge, have to allow statements like
 	write this byte to this address.
@@ -1017,13 +1060,31 @@ memory manipulation.
 	on a pointer will be safe. and because the language further cannot know what
 	the programmer themselves intends to do when they read to or write from arbitrary memory.
 	the language cannot ensure a-priori that these are safe operations.
+	the language itself cannot read the documentation of each hardware device
+	and perform static analysis to ensure that the code is correct, in fact
+	anyone arguing that the language -should- do something like that fundamentally
+	misunderstands the nature of programming languages as tools of semantic creation.
 	so we need to give programmers the tools to specify exactly what those intentions are
-	and to specify what those safe vs. unsafe operations are.
+	and to specify what those safe vs. unsafe operations are. the programmer themselves is
+	responsible for dictating the final safe-ness of their programs, in much the
+	same way any other engineer signs off on the safe-ness of their projects.
 	we cannot know if writing a logic high to some location will cause bus contention for instance.
 	the programmer knows these semantics, and in trying to interface with
 	the hardware they have, will have to enforce arbitrary constraints by the very behavior
 	of their program in order to ensure correct operation. so why not give them the tools
-	to enforce those semantics on users of their code
+	to enforce those semantics on users of their code, to drive those expectations
+	onto the client code programmatically. For a real example consider
+	company style-guides and program linters, both have some meta-constraints
+	on the textual layout of their programs, and both rely on users actually
+	using the program, but what if program linting could be written into
+	the toolchain of compilation, whereby the breaking of some coding
+	style standard could be reported as a kind of compilation warning/error?
+	That seems real neat to me, epecially if instead of having the linter
+	having to have some separate semantic parser for the language, the
+	parser could be the same one that is used to parse for the compiler?
+	each tool could be given as a specification written atop the
+	grammar kernel, and therefore all of the toolings understanding of
+	the language could be unified in the same place.
 
 	if that makes no sense, lets try a real example:
 	say you wanted to write a driver for some specific harware component, a UART driver.

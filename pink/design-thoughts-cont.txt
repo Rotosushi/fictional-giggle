@@ -32,13 +32,13 @@ type equivalence:
 	the machine word as the different type.
 	any type that shares structural equivalence can have it's
 	cast function written by the compiler. because we know
-	how to write an int into an int, a real into a real, 
-	text into text, bools into bools. all the compiler must do is
+	how to write an int into an real, a real into a int, 
+	int into text, bools into ints. all the compiler must do is
 	a deep copy, and all deep copies share the same form, 
 	(depending of course on the shape of the types.) which means
 	the compiler can generate deep copies as well.
 	if we consider the case of int -> real we can garuntee the
-	cast will not change the value of the underlying representation.
+	cast will not change the physical value of the underlying representation.
 	we will have to change the state however, because the interpretation
 	of the bits is what matters. all such casts, where types have a one-to-one
 	mapping of their value sets from the one to the other can be considered 'safe'
@@ -48,8 +48,8 @@ type equivalence:
 	these 'safe' coercions are mostly fine in C, for sure.
 	however they still have the ability to cause subtle bugs, especially
 	the implicit casts of pointers to booleans and integers to pointers.
-	if we consider our language relying on structural equivalence to identify
-	types and then we consider the feature of implicit casts between user defined
+	if we consider the feature of our language relying on structural equivalence to 
+	decide type equivalence only and then we consider the feature of implicit casts between user defined
 	types that are considered structurally equivalent; that is just asking to
 	magnify the subtle bugs already present with implicit casts, it overall
 	weakens the type system just for some syntactic brevety that only has the 
@@ -58,11 +58,14 @@ type equivalence:
 	of type equivalence and assignment from the langauge. and if we remove
 	implicit casts from the language (or rather never add them in the first place.)
 	we can ensure that when a user wants to cast between structurally equivalent
-	types, they need not write the function themselves. (which also automates the task
+	types, they need not write the function themselves, but they can still cast when they need it. (which also automates the task
 	of maintaining it's validity in lock-step with the type definition, which lessens
-	the maintinence burden of the type. in fact, all types.)
+	the maintinence burden of the type. in fact, all types. which is especially nice
+	when we consider writing "are these two types equivalent")
+	
 	important to note however that the user will still need to define their own
 	casts between structurally different types.
+	and to define value equivalence separately.
 	
 	
 	a definition of structural equivalence will need to apply

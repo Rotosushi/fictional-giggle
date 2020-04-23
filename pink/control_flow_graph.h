@@ -90,6 +90,39 @@
 //	scope (functions) are where we start, because programs start with root.
 //	the root function will have it's own local stack allocated.
 //	the body of a function will always start as a basic block.
+//	this makes functions as values a bit confusing, maybe instead of
+//	a stack of functions only, we conceive of it differently?
+//
+// 	what if there is simply a staging area, which is able to save,
+//	restore and execute functions, and then we use the staging area to
+//	decouple the execution stack and the control flow of the larger 
+//	program. this would seem to require more of a runtime than C, which
+//	we kinda don't want.
+//
+//  alternatively, we could say functions-as-values are treated as
+//	locally-scoped function definitions which can be stored in the
+//	'local-space' of the surrounding functions definition. so
+//	each call to a function which returns a function is supported
+//	semantically by inlineing the returned functions definition in
+//	the definitions's context. this has the effect of restating the
+//	code in each call-site, but each call site can support it's
+//	own instanced definition, to support potentially parametric
+//  closure bindings. this however, means that the compiler needs
+//	to have the definition of the called function available to the
+//	generator of the caller function, which complicates that process.
+//	(suddenly we need to know more than just "what are the parameters
+//	to the called function and in what order")
+//	however, this is reminding me so much of function templates in c++
+//	that it is a little silly. what if we just maintain the set of functions
+//	which get called and what bindings they have for each function-constructor,
+//	then when the code
+//	calls a given constructor the compiler can deduce which function from the
+//	set is being reffered to via static analysis. (we can say the local
+//	binding just points to a definition somewhere else, and when the user
+//	calls equivalent definitions we can have both peices of code call the
+//	same physical location, this would save on having to repeat the definition
+//	at each call site.
+//	
 //
 //	an if has two locations it can jump to.
 //
@@ -106,21 +139,22 @@
 //	would simplify reasoning about those locations.
 //
 //	each program will have a graph which starts from root. 
-//	each vertex will point to the possible points where control
+//	each node will have a vertex to the possible nodes where control
 //	could flow. local jumps could be represented as a local dag.
 //	where we track the flow of control from a statement to statement sense.
 //	we can also go a level up and consider the program as
-//	a whole to be a dag where the nodes represent modules and
-//	the edges represent the data dependencies.
+//	a particular sequence of function calls, with a dag representing that
+//	sequence, or we could go another level up and consider the program
+//	at a larger level of granularity, and consider the dag where the 
+//  nodes represent modules and the edges represent the data dependencies.
 //	
-//	so it's not one dag, it's three dags.
+//	so it's not one dag, it's three dags. (these could all be represented
+//	with one dag and different types of node)
 //	one in a statement sense, one in a function sense,
 //	and one in a module sense.
-//	we can unify the statement and function dags by encoding
-//	the function call graph into the basic flow control.
 //
-//	a module exposes one or more names, either functions
-//	or constants (for now.)
+//	a module exposes one or more names and their accompanying type, as
+//  well as requesting one or more names and their accompanying types.
 //
 //	maybe we could represent macros as a fourth kind
 //	of dag, a user definable dag. where we are interested in the structure of the dag,
@@ -134,24 +168,31 @@
 //	represented by the same construct. the list.
 //	they are all encoded into the s-expression.
 //	in the imperitive sense, we need to define those actions
-//	from which composition of these three dags may emerge.
+//	from which composition of these three dags may emerge. we need to
+//	make explicit what is implicit in the declarative actions.
 //
-//	the execution of each of the statements in sequence makes up the 
-//	algorithm. from this perspective we can say that the emergent
+//	programming is the design and maintinence of algorithms,
+//	the execution of statements in sequence makes up every algorithm. 
+//	from this perspective we can say that the emergent
 //	property of the execution of each of the statements in sequence
 //	is the algorithm. a declarative language states this emergent property
 //	directly in the syntax.
 //	the macro is in a sense, encapsulating some syntactically definable
-//	form of this declarative sense and allowing the imperative language to
-//	substitute actions in certain locations. in the way a functional language
+//	form of this declarative sense and allowing the language to
+//	substitute actions in specific semantic locations. in the way a functional language
 //	operating on it's own code as data can.
 //	it is not textual substitution, it is allowing the user
-//	to elide sectons of the AST, and then later bind those
-//	holes to a type, which is specified by the macro
-//	expansion call.
+//	to elide sections of the AST, and then later bind those
+//	holes to a type or function, which is specified by the macro
+//	expansion call. the process of filling in those holes is
+//	(and this is a hunch) equivalent to the process of filling
+//  in the 'holes' defined by variables. i.e. can be done by the 
+//	substitution algorithm. we can conceive of these holes 
+//	parametricly or as free variables which bind to names via
+//  an algorithm.
 
 //	
-/* macros could act like some sort of name */
+
 //*/
 //
 //enum _control_block_type {

@@ -367,8 +367,11 @@ Attributes = {
 
 		# this step is less pinned down for me right now. the intermediate
 		# representation is something that i don't have a clear idea of yet.
-		# it's hard to justify some structure that is too different from
-		# just using the AST directly, because the AST is already there.
+		# it seems hard to justify some structure that is different from
+		# just using the AST directly, because the AST is already there,
+		# and already expresses the structure of the program directly.
+		# however every compiler i have looked into does this, is there
+		# some problem set I am not thinking of?
 
 		IR  <- generate-IR (%%);
 
@@ -404,7 +407,7 @@ Attributes = {
 	| <type-declaration>	 { %% <- %1; }
 
 <comment> := '#' *(_) <EOL>
-# a haskell like '_'; meaning 'anything' and discard the binding
+# a haskell like '_'; meaning 'anything' and ignore the binding
 
 <compiler-directive> { compiler-directive }  
 	:=  'root' <identifier> ';'		 { %% <- %2; }
@@ -412,7 +415,7 @@ Attributes = {
 	| 'export' <identifier-list> ';' { %% <- %2; }
 
 # macro from observation
-# <*-list> := <*> *(',' <*>) { %% <- create list(*); append(%%, %1); for (it in %3) append(%%, it); }
+# <*-list> := <*> *(',' <*>) { %% <- create list(*); append(%%, %1); for (it in %3) append(%%, it) }
 
 <identifier-list> { ids } 
 	:= <identifier> *(',' <identifier>) {
@@ -460,7 +463,7 @@ Attributes = {
 <variable-declaration> { declaration } 
 	:= <identifier> ':' <type> ?('=' <initializer>) ';' {
 		%% <- if (%4) then declaration(%1, ':=', %3, %4)
-				      else declaration($1, $2, %3);
+				      else declaration(%1, %2, %3);
 	} 
 	| <identifier> ('::' | ':=') <initializer> ';' {
 		%% <- declaration (%1, %2, %3);
