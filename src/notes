@@ -3,10 +3,17 @@ Just enough to say what is interesting,
 
 
 
+how does operator overloading interact with
+template/parametric-polymorphic functions
+in the case of concrete vs abstract entities?
+
+
+
 question:
   what tasks in particular force the c language programmer to
   drop to assembly, and why can we not envision sensible
-  abstractions which encapsulate these tasks?
+  abstractions which encapsulate these tasks in a higher level
+  language?
 
 
 one task is the context switch.
@@ -14,35 +21,47 @@ one task is the context switch.
   state and stores it in memory, then loads a new task into
   the running state. doing this requires directly talking about
   the registers in use by the current program, and the registers
-  in use by the new program.
+  in use by the new program. (as well as a myriad of other OS
+  subtleties I am sure.)
 
-  why does c fail? the programmer has no way of
-  directly refrencing the data in any of the working
+  why does c fail?
+  the programmer has no way of
+  directly referencing the data in any of the working
   set of registers.
-  essentially we can't say "save register rax into memory".
+  essentially we can't say "save register rax into memory"
+  in the language of c.
   why does c not provide some sort of a built-in?
   well, the notion of a hardware register is
   not directly knowable at the level of abstraction
   in which as programming language operates.
+  the very notion breaks from the idea of operating
+  a level higher up from the hardware itself.
   this makes sense from a language implementation
-  perspective, as it is difficult though not impossible to envision
-  what changes to the compiler
+  perspective, as it is difficult though not
+  impossible to envision what changes to the compiler
   is required to allow the programmer to store
   and directly access the active register set.
 
   (specific compilers have specific ways of inlining
-  assembly, but you can always write a separate
-  assembly source file and call it like a c-function,
+  assembly, but that means referencing the mete-material
+  of the compiler, and this binds your project even tighter
+  to which specific compiler you are using which could
+  have consequences.
+  you can always write a separate
+  assembly source file and call your assembly like a c-function,
   though this requires knowing the c-abi of your
-  particular compiler; additionally, compiling
-  a separate assembly file complicates the build
-  process somewhat.)
+  particular operating system and also assuming that
+  your language has a c foreign function interface,
+  which admittedly plenty of languages do.
+  additionally, assembling a separate assembly
+  file complicates the build process somewhat.)
 
   what really throws a wrench in the works
   however is our goal of portability. which
   specific registers you have access to is a matter
   of which exact specific CPU you have, and is usually
-  only knowable by refrencing the relevant documentation.
+  only knowable by referencing the relevant documentation.
+
   so, these two factors (portability concerns, having to
   descend a level of abstraction to get things done), to me
   point to the solution living outside of the kernel of the
@@ -50,4 +69,125 @@ one task is the context switch.
   to speak assembly, or somehow give direct handles which
   can be accessed by the understood abstractions, but do it
   by composing together the more base abstractions that we
-  have available.
+  have available in the language already. like, maybe
+  we define what a base CPU type would need to provide
+  through an abstract type a'la ML, and specify what the
+  writer of a conforming CPU structure should export
+  like, general purpose registers, floating point registers,
+  and status registers, then a conforming implementation of
+  a specific CPU structure could conform to what is specified,
+  but also export more signatures which could represent the
+  specialty features of the CPU or specialty hardware components.
+  then, programmers could utilize that abstraction to write low
+  level code, that interacts directly with the hardware, while
+  saying it in the syntax of the language.
+
+
+another task is driver development
+  when talking directly to hardware, most of what is
+  being done is managing state. some but not all hardware
+  is built based on some standard (or de-facto-standard) abstraction,
+  which implies that there is some abstract data type which
+  could encapsulate the state management and provide some
+  nice interface for the language, in example, one could
+  imagine a UART device interface that provides a memcpy
+  style interface where the systems programmer just has to
+  specify which array of bytes they want written to the device
+  and a single call handles that for them. using a memcpy style
+  interface with a UART device would imply that the programmers
+  code would stop running until the UART device was done transmitting
+  a trait that we probably do not want to have, given that UART
+  data transmission is orders of magnitude slower than the
+  CPU is processing instructions, in order to facilitate some sort
+  of time disconnect there are a few different abstractions that
+  one can choose from, you could describe it with coroutines, async/await,
+  threads, or you could leverage the interrupt mechanisms of the
+  CPU, each choice has a distinct effect on the shape of user code.
+  in my mind, a good systems language would give the tools in such
+  a way that the programmer can write each effectively.
+
+
+
+
+
+
+
+
+
+
+
+notes about parsing with bison:
+
+the type here (%nterm) needs to be able to directly
+represent each node in the grammar.
+of which there are 5.
+
+in the trivial calculator, we can get by with
+each term having the same type. namely int.
+
+here we need to express the abstract syntax tree
+in terms of a c-style union. which is an untagged
+union. since we are compiling in c11 mode I think,
+we can specify unnammed unions in the ast, so we can
+just say, AstTypeName.nil instead of refrencing it
+through AstTypeName.union.nil
+making our declarations here look more like we are using
+the regular bison union, but each AstNode also tracks its
+kind and type making the rest of the compilers job more
+straightforward.
+(spoiler alert, we can't)
+
+to paraphrase the bison documentation
+
+%nterm <typename> nonterminal
+
+this statement declares the nonterminal to be represented
+by the name 'typename' within the union type 'api.value.type'.
+additionally any number of nonterminals can be declared here
+and all will have the specified type
+
+my question:
+  what is the type bison selects for %token directives that
+  are used trivially within the grammar? especially in the
+  circumstance in which I have specified my own custom type
+  in api.value.type
+
+the best response I've found from the documentation:
+{from: https://www.gnu.org/software/bison/manual/html_node/Mfcalc-Declarations.html}
+  "Since values can now have various types, it is necessary to
+   associate a type with each grammar symbol whose semantic value is used."
+   "The Bison construct %nterm is used for declaring
+   nonterminal symbols, just as %token is used for declaring
+   token types. Previously we did not use %nterm before because
+   nonterminal symbols are normally declared implicitly by the
+   rules that define them. ~~~But exp must be declared explicitly
+   so we can specify its value type~~~"
+
+My assumed answer:
+  don't worry about it unless you are relying on the terminal/nonterminal
+  symbol having some particular type, in which case specify
+  that type with a %nterm, %token, or %type directive
+
+this raises an additional question,
+  if 'typename' is the expected name of the union
+  field associated with the terminal/nonterminal symbol,
+  then what about places where we parse some sub-field
+  of an entity?
+  such as, i am reading the name of the argument, i would
+  like that stored as a trivial char* until i can record it
+  into the full lambda ast node, after consuming that input.
+
+  the way the documentation is worded makes me assume that
+  even if i add some new terminal symbol it will be represented
+  by a full Ast node by bison? or maybe they secretly aren't
+  but only nonterminal lhs values are constructed as Ast nodes.
+
+the final verdict:
+  all of these issues are solved by using pointers to a union value
+  and only making bison differentiate between simple char*'s and
+  Ast* nodes.
+  when we extend the data we need to track to strings and integers
+  and floats and such, we must extend the grammar and probably
+  the underlying data-representation to account for the new data.
+  but again, -we- should manage that, and constrain the LALR parser
+  to just construct the AST.

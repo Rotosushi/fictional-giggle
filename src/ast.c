@@ -1,38 +1,40 @@
 #include <string.h>
+#include <stdlib.h>
 
-#include "type.h"
 #include "ast.h"
 
-
-Ast* CreateNodeNil()
+Ast* CreateAstTypeInfer()
 {
   Ast* node = (Ast*)malloc(sizeof(Ast));
-  node->tag  = N_NIL;
-  node->type.kind = K_DATA;
-  node->type.bt.tag  = T_NIL;
-  node->b.nil.null = '\0';
+  node->tag = N_TYPE;
+  node->u.type.tag = T_INFER;
+  node->u.type.u.null = '\0';
   return node;
 }
 
-Ast* CreateNodeName(char* name)
+Ast* CreateAstTypeNil()
 {
   Ast* node = (Ast*)malloc(sizeof(Ast));
-  node->tag  = N_NAME;
-  /*
-    this is actually an important default descision.
-    what is the type of any given name?
-    here we choose the most obvious solution, the name
-    has no type by itself. this is because the type
-    of a name is defined in the environment. so we
-    delay the descision to some later point of the program.
-    why then include a type in the Name nodes? because the
-    type has been defined as a property of the Node itself,
-    instead of a property of the language entities themselves.
-    so it makes sense to give this known name node
-    state/kind/type a name, UNDEF.
-  */
-  node->type.kind = K_UNDEF;
-  node->type.bt.tag = T_UNDEF;
+  node->tag           = N_TYPE;
+  node->u.type.tag    = T_NIL;
+  node->u.type.u.null = '\0';
+  return node;
+}
+
+Ast* CreateAstTypeFn(Ast* lhs, Ast* rhs)
+{
+  Ast* node = (Ast*)malloc(sizeof(Ast));
+  node->tag = N_TYPE;
+  node->u.type.tag = T_FUNC;
+  node->u.type.u.rarrow.lhs = lhs;
+  node->u.type.u.rarrow.rhs = rhs;
+  return node;
+}
+
+Ast* CreateAstId(char* name)
+{
+  Ast* node = (Ast*)malloc(sizeof(Ast));
+  node->tag  = N_ID;
   /*
     we want to avoid all of the shallow copy subtleties.
     so we make a deep copy.
@@ -40,47 +42,100 @@ Ast* CreateNodeName(char* name)
     in char* is more likely than not; yytext. which is a very volatile
     ptr.
   */
-  node->b.name.s = strdup(name);
+  node->u.id.s = strdup(name);
   return node;
 }
 
-Ast* CreateNodeLambda(Arg arg, Ast* body)
+Ast* CreateAstLambda(char* name, Ast* type, Ast* body)
 {
   Ast* node = (Ast*)malloc(sizeof(Ast));
   node->tag = N_LAMBDA;
-  InitFuncType(&node->type, arg.type, body->type);
-  node->b.lambda.arg.name.s = strdup(arg.name.s);
-  node->b.lambda.arg.type   = arg.type;
-  node->b.lambda.body       = body;
+  node->u.lambda.arg.id.s = strdup(name);
+  node->u.lambda.arg.type = type;
+  node->u.lambda.body     = body;
   return node;
 }
 
-Ast* CreateNodeCall(Ast* l, Ast* r)
+Ast* CreateAstCall(Ast* l, Ast* r)
 {
   Ast* node = (Ast*)malloc(sizeof(Ast));
   node->tag = N_CALL;
-  /*
-    we don't want to typecheck at creation time,
-    so unless it is starkly obvious what the type
-    is, we mark it unknown, given knowing the type
-    of a call involves inspecting both ptrs, it
-    is not starkly obvious what the type of this
-    call is.
-  */
-  node->type.kind = K_UNDEF;
-  node->type.b.bt = T_UNDEF;
-  node->lhs = l;
-  node->rhs = r;
+  node->u.call.lhs = l;
+  node->u.call.rhs = r;
   return node;
 }
 
-Ast*	CreateNodeBind(char* name, Ast* term)
+Ast* CreateAstBind(char* name, Ast* term)
 {
   Ast* node = (Ast*)malloc(sizeof(Ast));
   node->tag = N_BIND;
-  node->type.kind = K_UNDEF;
-  node->type.b.bt = T_UNDEF;
-  node->b.bind.name.s = strdup(name);
-  node->b.bind.term = term;
+  node->u.bind.id.s = strdup(name);
+  node->u.bind.term = term;
   return node;
+}
+
+void AstDeleteType(Ast* type);
+void AstDeleteId(Ast* id);
+void AstDeleteLambda(Ast* lambda);
+void AstDeleteCall(Ast* call);
+void AstDeleteBind(Ast* bind);
+
+void AstDelete(Ast* ast)
+{
+  switch (ast->tag) {
+    case N_TYPE:
+      AstDeleteType(ast);
+      break;
+    case N_ID:
+      AstDeleteId(ast);
+      break;
+    case N_LAMBDA:
+      AstDeleteLambda(ast);
+      break;
+    case N_CALL:
+      AstDeleteCall(ast);
+      break;
+    case N_BIND:
+      AstDeleteBind(ast);
+      break;
+    default:
+      fprintf(stderr, "Unexpected Ast Tag!");
+      exit(1);
+  }
+}
+
+void AstDeleteType(Ast* type)
+{
+  if (type->u.type.tag == T_FUNC) {
+    AstDeleteType(type->u.type.u.rarrow.lhs);
+    AstDeleteType(type->u.type.u.rarrow.rhs);
+  }
+  free (type);
+}
+
+void AstDeleteId(Ast* id)
+{
+  free(id->u.id.s);
+  free(id);
+}
+
+void AstDeleteLambda(Ast* lambda)
+{
+  free(lambda->u.lambda.arg.id.s);
+  AstDeleteType(lambda->u.lambda.arg.type);
+  AstDelete(lambda->u.lambda.body);
+}
+
+void AstDeleteCall(Ast* call)
+{
+  AstDelete(call->u.call.lhs);
+  AstDelete(call->u.call.rhs);
+  free(call)
+}
+
+void AstDeleteBind(Bind* bind)
+{
+  free(bind->u.bind.id.s);
+  AstDelete(bind->u.bind.term);
+  free(bind);
 }
