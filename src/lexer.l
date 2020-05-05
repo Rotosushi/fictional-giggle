@@ -41,16 +41,13 @@ SPACE   [[:space:]]
 
 DIGIT   [[:digit:]]
 
-ID      [[:alpha:]][[:alnum:]\_\-]*
+ID      [a-zA-Z][a-zA-Z0-9_-]*
 
 
 
 %%
 
-
 {SPACE}+    /* eat whitespace */
-
-ID    { yylval->str = strdup(yytext); return ID; }
 
 "nil" { return NIL; }
 ":"   { return COLON; }
@@ -60,6 +57,7 @@ ID    { yylval->str = strdup(yytext); return ID; }
 "=>"  { return REQARROW; }
 ";"   { return SEMICOLON; }
 
+[a-zA-Z][a-zA-Z0-9_-]*    { yylval->ID = strdup(yytext); return ID; }
 
 .     printf ("unrecognized input: <%s>\n", yytext);
 

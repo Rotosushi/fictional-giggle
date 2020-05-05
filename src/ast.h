@@ -2,23 +2,6 @@
 #ifndef AST_H
 #define AST_H
 
-
-typedef enum NodeTag {
-	N_TYPE,
-	N_ID,
-	N_LAMBDA,
-	N_CALL,
-	N_BIND
-} NodeTag;
-
-typedef enum TypeTag {
-	T_INFER,
-	T_NIL,
-	T_FUNC,
-} TypeTag;
-
-struct Ast;
-
 /*
 	a type can either be
 	nil, or type -> type,
@@ -39,6 +22,23 @@ struct Ast;
 	and then when we need to look up types,
 	we can do it via the environment.
 */
+
+typedef enum NodeTag {
+	N_TYPE,
+	N_ID,
+	N_LAMBDA,
+	N_CALL,
+	N_BIND
+} NodeTag;
+
+typedef enum TypeTag {
+	T_INFER,
+	T_NIL,
+	T_FUNC,
+} TypeTag;
+
+struct Ast;
+
 typedef struct Type {
 	TypeTag tag;
 	union {
@@ -105,5 +105,14 @@ Ast* CreateAstCall(Ast* l, Ast* r);
 Ast* CreateAstBind(char* name, Ast* term);
 
 void AstDelete(Ast* ast);
+
+
+char* AstTypeToString(Ast*);
+char* AstIdToString(Ast*);
+char* AstLambdaToString(Ast*);
+char* AstCallToString(Ast*);
+char* AstBindToString(Ast*);
+
+char* AstToString(Ast*);
 
 #endif /* AST_H */
