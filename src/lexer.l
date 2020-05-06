@@ -41,10 +41,6 @@ SPACE   [[:space:]]
 
 DIGIT   [[:digit:]]
 
-ID      [a-zA-Z][a-zA-Z0-9_-]*
-
-
-
 %%
 
 {SPACE}+    /* eat whitespace */
@@ -56,6 +52,8 @@ ID      [a-zA-Z][a-zA-Z0-9_-]*
 "->"  { return RARROW; }
 "=>"  { return REQARROW; }
 ";"   { return SEMICOLON; }
+"("   { return LPAREN; }
+")"   { return RPAREN; }
 
 [a-zA-Z][a-zA-Z0-9_-]*    { yylval->ID = strdup(yytext); return ID; }
 

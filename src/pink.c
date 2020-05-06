@@ -103,7 +103,8 @@ int main(int argc, char** argv)
 			*/
 
 			if (result != NULL) {
-				PrintAst(result);
+				char* ast_string = AstToString(result);
+				printf ("==>> %s \n", ast_string);
 				AstDelete(result);
 			}
 			if (scanner_buffer_handle != NULL)
@@ -111,9 +112,12 @@ int main(int argc, char** argv)
 
 			if (input != NULL)
 				free (input);
+		} else if (chars_read == 0){
+			printf("exiting!");
+			break;
 		} else {
 			/* fgets failed */
-			perror ("fgets failed: ");
+			perror ("fgets failed");
 			exit(1);
 		}
 	} /* !while(1) */

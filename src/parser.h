@@ -77,12 +77,22 @@ typedef void* yyscan_t;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 70 "parser.y"
 
-  Ast*  ast;
-  char* str;
-
-#line 86 "parser.h"
+  /* term  */
+  Ast* term;
+  /* name  */
+  Ast* name;
+  /* lambda  */
+  Ast* lambda;
+  /* call  */
+  Ast* call;
+  /* bind  */
+  Ast* bind;
+  /* type  */
+  Ast* type;
+  /* ID  */
+  char* ID;
+#line 96 "parser.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -113,7 +123,7 @@ enum { YYPUSH_MORE = 4 };
 
 typedef struct yypstate yypstate;
 
-int yypush_parse (yypstate *ps, int pushed_char, YYSTYPE const *pushed_val, YYLTYPE *pushed_loc, yyscan_t scanner);
+int yypush_parse (yypstate *ps, int pushed_char, YYSTYPE const *pushed_val, YYLTYPE *pushed_loc, Ast** result, yyscan_t scanner);
 
 yypstate * yypstate_new (void);
 void yypstate_delete (yypstate *ps);

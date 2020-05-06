@@ -171,21 +171,17 @@ typedef void* yyscan_t;
 
   */
 input:
-  term { *result = $1; YYACCEPT; }
+  term { *result = $1; }
 
 term:
-    name    { $$ = $1; *result = $$; }
-  | lambda  { $$ = $1; *result = $$; }
-  | call    { $$ = $1; *result = $$; }
-  | bind    { $$ = $1; *result = $$; }
-  | NIL     { $$ = CreateAstTypeNil(); *result = $$; }
+    NIL     { $$ = CreateAstTypeNil(); }
+  | name    { $$ = $1; }
+  | lambda  { $$ = $1; }
+  | call    { $$ = $1; }
+  | bind    { $$ = $1; }
 
 name: /* [a-zA-Z][a-zA-Z0-9_-]+ */
   ID  { $$ = CreateAstId($1); }
-
-lambda: /* \ name : type => term */
-    BSLASH ID COLON type REQARROW term { $$ = CreateAstLambda($2, $4, $6); }
-  | BSLASH ID REQARROW term            { $$ = CreateAstLambda($2, NULL, $4);}
 
 call: /* term term */
   term term { $$ = CreateAstCall($1, $2); }
@@ -193,13 +189,14 @@ call: /* term term */
 bind: /* name := term */
   ID COLONEQUALS term { $$ = CreateAstBind($1, $3); }
 
+lambda: /* \ name : arg_type => term */
+    BSLASH ID COLON type REQARROW term { $$ = CreateAstLambda($2, $4, $6); }
+  | BSLASH ID REQARROW term            { $$ = CreateAstLambda($2, CreateAstTypeInfer(), $4); }
+
 type:
-    %empty              { $$ = CreateAstTypeInfer(); }
-  | NIL                 { $$ = CreateAstTypeNil();   }
+    NIL                 { $$ = CreateAstTypeNil(); }
   | type RARROW type    { $$ = CreateAstTypeFn($1, $3); }
   | LPAREN type RPAREN  { $$ = $2; }
-
-
 
 %%
 

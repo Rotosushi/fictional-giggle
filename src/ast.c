@@ -158,11 +158,13 @@ void AstDeleteBind(Ast* bind)
 }
 
 
+
+
 char* AstTypeToString(Ast* ast)
 {
   char* result = NULL;
   if (ast != NULL) {
-    Type* type = &(ast->type);
+    Type* type = &(ast->u.type);
     switch (type->tag) {
       case T_INFER: {
         result = strdup("infer");
@@ -174,49 +176,148 @@ char* AstTypeToString(Ast* ast)
       }
       case T_FUNC: {
         char* t1 = AstTypeToString(type->u.rarrow.lhs);
+        if (!t1) {
+          fprintf (stderr, "malformed type! aborting");
+          exit(1);
+        }
         char* t2 = AstTypeToString(type->u.rarrow.rhs);
+        if (!t2) {
+          fprintf (stderr, "malformed type! aborting");
+          exit(1);
+        }
         char* rarrow = " -> ";
         int len = strlen(t1) + 4 + strlen(t2) + 1;
         result = (char*)calloc(len, sizeof(char));
         strcat(result, t1);
         strcat(result, rarrow);
         strcat(result, t2);
+        free (t1);
+        free (t2);
         break;
       }
       default: {
-        fprintf("Unknown Type tag; aborting");
+        fprintf(stderr, "unknown type tag! aborting");
         exit(1);
       }
     }
   }
+  return result;
 }
 
 char* AstIdToString(Ast* ast)
 {
+  char* result = NULL;
   if (ast != NULL) {
-
+    char* id = ast->u.id.s;
+    if (id == NULL) {
+      fprintf(stderr, "malformed id; aborting");
+      exit(1);
+    }
+    int len  = strlen (ast->u.id.s) + 1;
+    result = (char*)calloc(len, sizeof(char));
+    //strcat(result, " ");
+    strcat(result,  id);
+    //strcat(result, " ");
   }
+  return result;
 }
 
 char* AstLambdaToString(Ast* ast)
 {
+  char* result = NULL;
   if (ast != NULL) {
+    char *bs = " \\ ", *cln = " : ", *rarw = " => ";
 
+    char* arg_id = ast->u.lambda.arg.id.s;
+    if   (arg_id == NULL) {
+      fprintf(stderr, "malformed arg_id; aborting");
+      exit(1);
+    }
+
+    char* arg_type = AstTypeToString(ast->u.lambda.arg.type);
+    if   (arg_type == NULL) {
+      fprintf(stderr, "malformed arg_type; aborting");
+      exit(1);
+    }
+
+    char* body = AstToString(ast->u.lambda.body);
+    if   (body == NULL) {
+      fprintf(stderr, "malformed body; aborting");
+      exit(1);
+    }
+
+    int len = strlen(bs)       \
+            + strlen(arg_id)   \
+            + strlen(cln)      \
+            + strlen(arg_type) \
+            + strlen(rarw)     \
+            + strlen(body) + 1;
+    result  = (char*)calloc(len, sizeof(char));
+    strcat(result, bs);
+    strcat(result, arg_id);
+    strcat(result, cln);
+    strcat(result, arg_type);
+    strcat(result, rarw);
+    strcat(result, body);
+    free(arg_type);
+    free(body);
   }
+  return result;
 }
 
 char* AstCallToString(Ast* ast)
 {
+  char* result = NULL;
   if (ast != NULL) {
+    char* spc = " ";
+    char* lhs = AstToString(ast->u.call.lhs);
+    if   (lhs == NULL) {
+       fprintf(stderr, "malformed call lhs! aborting");
+       exit(1);
+    }
+    char* rhs = AstToString(ast->u.call.rhs);
+    if   (rhs == NULL) {
+       fprintf(stderr, "malformed call rhs! aborting");
+       exit(1);
+    }
 
+    int len   = strlen(spc) + strlen(lhs) + strlen(rhs) + 1;
+    result    = (char*)calloc(len, sizeof(char));
+    strcat(result, lhs);
+    strcat(result, spc);
+    strcat(result, rhs);
+    free(lhs);
+    free(rhs);
   }
+  return result;
 }
 
 char* AstBindToString(Ast* ast)
 {
+  char* result = NULL;
   if (ast != NULL) {
+    char* clneq = " := ";
 
+    char* id    = ast->u.bind.id.s;
+    if (id == NULL) {
+      fprintf(stderr, "malformed bind id! aborting");
+      exit(1);
+    }
+
+    char* term  = AstToString(ast->u.bind.term);
+    if (term == NULL) {
+      fprintf(stderr, "malformed bind term! aborting");
+      exit(1);
+    }
+
+    int len = strlen(id) + strlen(clneq) + strlen(term) + 1;
+    result  = (char*)calloc(len, sizeof(char));
+    strcat(result, id);
+    strcat(result, clneq);
+    strcat(result, term);
+    free(term);
   }
+  return result;
 }
 
 char* AstToString(Ast* ast)
@@ -249,4 +350,5 @@ char* AstToString(Ast* ast)
         exit(1);
     }
   }
+  return result;
 }
