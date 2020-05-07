@@ -24,7 +24,8 @@
 #include "lexer.h"
 
 #include "ast.h"
-#include "printer.h"
+#include "typechecker.h"
+#include "symboltable.h"
 
 int main(int argc, char** argv)
 {
@@ -37,8 +38,9 @@ int main(int argc, char** argv)
 	YYSTYPE* lval = (YYSTYPE*)malloc(sizeof(YYSTYPE));
 	YYLTYPE* lloc = (YYLTYPE*)malloc(sizeof(YYLTYPE));
 	Ast* result = NULL;
+	symboltable env;
 
-	yydebug = 1;
+	//yydebug = 1;
 
 	/* in order to support reentrancy
 	     the parser and lexer internal state
@@ -55,10 +57,11 @@ int main(int argc, char** argv)
 	yylex_init (&scanner);
 	parser = yypstate_new();
 
+
 	printf("Welcome to Pink v0.0.1!\npress ctrl+d to end a line\npress ctrl+c to end your session\n");
 
 	while (1) {
-		input = (char*)calloc(input_buf_size, sizeof(char));
+		input = (char*)calloc(input_buf_size + 2, sizeof(char));
 
 		printf(":> ");
 		chars_read = getline(&input, &input_buf_size, stdin);
@@ -103,10 +106,18 @@ int main(int argc, char** argv)
 			*/
 
 			if (result != NULL) {
-				char* ast_string = AstToString(result);
-				printf ("==>> %s \n", ast_string);
+				Ast* type = type_of(result, &env);
+				if (type != NULL) {
+					char* ast_string = AstToString(result);
+					char* type_string = AstToString(type);
+					printf (":ast  %s\n", ast_string);
+					printf (":type %s\n", type_string);
+				} else {
+					printf ("term not typable!\n");
+				}
 				AstDelete(result);
 			}
+
 			if (scanner_buffer_handle != NULL)
 				yy_delete_buffer(scanner_buffer_handle, scanner);
 

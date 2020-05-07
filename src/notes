@@ -1,12 +1,12 @@
+
+
 Just enough to say what is interesting,
   no more.
-
 
 
 how does operator overloading interact with
 template/parametric-polymorphic functions
 in the case of concrete vs abstract entities?
-
 
 
 question:
@@ -33,36 +33,42 @@ one task is the context switch.
   why does c not provide some sort of a built-in?
   well, the notion of a hardware register is
   not directly knowable at the level of abstraction
-  in which as programming language operates.
+  in which a programming language operates.
   the very notion breaks from the idea of operating
   a level higher up from the hardware itself.
-  this makes sense from a language implementation
-  perspective, as it is difficult though not
+  we can make sense of the statement rax = some-word-sized-value;
+  from a language implementation
+  perspective, it is difficult though not
   impossible to envision what changes to the compiler
   is required to allow the programmer to store
   and directly access the active register set.
 
-  (specific compilers have specific ways of inlining
+  specific compilers have specific ways of inlining
   assembly, but that means referencing the mete-material
-  of the compiler, and this binds your project even tighter
+  of your compiler, and this binds your project even tighter
   to which specific compiler you are using which could
-  have consequences.
+  have consequences. (and you have already decided to write
+  assembly, so you throw portability out of the window for that
+  particular component.)
+
   you can always write a separate
   assembly source file and call your assembly like a c-function,
+  (using your favorite assembler)
   though this requires knowing the c-abi of your
-  particular operating system and also assuming that
+  particular operating system and it assumes that
   your language has a c foreign function interface,
   which admittedly plenty of languages do.
+  (c's abi is very straightforward)
   additionally, assembling a separate assembly
-  file complicates the build process somewhat.)
+  file complicates your build process somewhat.
 
   what really throws a wrench in the works
   however is our goal of portability. which
   specific registers you have access to is a matter
   of which exact specific CPU you have, and is usually
-  only knowable by referencing the relevant documentation.
+  only knowable by referencing the exact relevant documentation.
 
-  so, these two factors (portability concerns, having to
+  so, these two factors (portability negation, having to
   descend a level of abstraction to get things done), to me
   point to the solution living outside of the kernel of the
   language. if we can construct the relevant semantics
@@ -80,31 +86,61 @@ one task is the context switch.
   specialty features of the CPU or specialty hardware components.
   then, programmers could utilize that abstraction to write low
   level code, that interacts directly with the hardware, while
-  saying it in the syntax of the language.
+  saying it in the syntax of the language. and, if you want to
+  write code that preforms a task switch you can do so against
+  the abstraction, which hopefully can compile down to some minimal
+  assembly.
 
 
 another task is driver development
   when talking directly to hardware, most of what is
   being done is managing state. some but not all hardware
-  is built based on some standard (or de-facto-standard) abstraction,
+  is built based on a standard (or de-facto-standard) abstraction,
   which implies that there is some abstract data type which
   could encapsulate the state management and provide some
-  nice interface for the language, in example, one could
+  nice interface for the language. in example, one could
   imagine a UART device interface that provides a memcpy
   style interface where the systems programmer just has to
   specify which array of bytes they want written to the device
-  and a single call handles that for them. using a memcpy style
-  interface with a UART device would imply that the programmers
-  code would stop running until the UART device was done transmitting
+  and a single call handles that for them. so, this immediately
+  runs into complications when considering implementation of a memcpy style
+  interface with a UART device. it would seem to imply that the programmers
+  code stops running until the UART device was done transmitting.
   a trait that we probably do not want to have, given that UART
-  data transmission is orders of magnitude slower than the
-  CPU is processing instructions, in order to facilitate some sort
-  of time disconnect there are a few different abstractions that
-  one can choose from, you could describe it with coroutines, async/await,
+  data transmission is orders of magnitude slower than the CPU.
+  in order to facilitate some sort of time disconnect
+  there are a few different abstractions that one can choose from,
+  you could describe it with coroutines, async/await,
   threads, or you could leverage the interrupt mechanisms of the
   CPU, each choice has a distinct effect on the shape of user code.
+  and on the semantics of user code in some cases.
   in my mind, a good systems language would give the tools in such
-  a way that the programmer can write each effectively.
+  a way that programmers can write each effectively, and a clever
+  api programmer could insulate user code from the difficult choices
+  allowing learning programmers to utilize the hardware they have
+  in a sensible, safe, and (hopefully) as fast as the hand-rolled
+  assembly could hope to be.
+
+  parts of this problem that add layers of complication:
+    there are lots of different hardware protocols!
+        which ones do we support?
+
+    those de-facto-standards make for inconsistent hardware
+      designs, where some hardware claiming to implement the
+      same standard transmission protocol like SPI, could
+      implement the standard in subtly different ways,
+      such as different STOP bit patterns, different START
+      bit patterns, parts of the standard are unimplemented, etc.
+
+        how the heck could any single algorithm be written to account
+        for all those subtleties?
+        essentially, we can't have
+        "the SPI algorithm"
+        we have to have
+        "the <device-specific> SPI algorithm"
+        could we imagine
+        "the conforming SPI algorithm functor"?
+
 
 
 

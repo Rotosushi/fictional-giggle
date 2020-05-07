@@ -81,7 +81,7 @@ typedef void* yyscan_t;
   to support using the rules in the naturally recursive way
   each non-terminal value is only ever a pointer to the relevant node.
 */
-%nterm <Ast*> term name lambda call bind type
+%nterm <Ast*> term name lambda call bind type subterm
 
 %token NIL
 %token <char*> ID
@@ -174,11 +174,12 @@ input:
   term { *result = $1; }
 
 term:
-    NIL     { $$ = CreateAstTypeNil(); }
+    type    { $$ = $1; }
   | name    { $$ = $1; }
   | lambda  { $$ = $1; }
   | call    { $$ = $1; }
   | bind    { $$ = $1; }
+  | subterm { $$ = $1; }
 
 name: /* [a-zA-Z][a-zA-Z0-9_-]+ */
   ID  { $$ = CreateAstId($1); }
@@ -197,6 +198,9 @@ type:
     NIL                 { $$ = CreateAstTypeNil(); }
   | type RARROW type    { $$ = CreateAstTypeFn($1, $3); }
   | LPAREN type RPAREN  { $$ = $2; }
+
+subterm:
+    LPAREN term RPAREN  { $$ = $2; }
 
 %%
 

@@ -90,9 +90,11 @@ union YYSTYPE
   Ast* bind;
   /* type  */
   Ast* type;
+  /* subterm  */
+  Ast* subterm;
   /* ID  */
   char* ID;
-#line 96 "parser.h"
+#line 98 "parser.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

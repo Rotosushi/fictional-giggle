@@ -39,6 +39,31 @@ typedef enum TypeTag {
 
 struct Ast;
 
+/*
+	c's type systems limitations
+	force us to be less typesafe
+	than I would like, in a language
+	with subtype polymorphism,
+	we can describe a Type clearly
+	as a subtype of Ast. then
+	the function type members could be
+	two pointers to Type instead of
+	pointers to Ast, which would allow
+	the same composition of type nodes
+	to describe recursive types as is
+	provided by Ast pointers, but it
+	would disallow assigning a lambda
+	Ast node or a Call Ast Node to a type variable,
+	something which is probably a semantic error
+	on the part of the programmer.
+
+	(
+	though in a pure type system;
+		where types are first class values,
+	  I could imagine some meaning for a
+	  type-described-by-a-lambda.
+	)
+*/
 typedef struct Type {
 	TypeTag tag;
 	union {
@@ -106,12 +131,7 @@ Ast* CreateAstBind(char* name, Ast* term);
 
 void AstDelete(Ast* ast);
 
-
-char* AstTypeToString(Ast*);
-char* AstIdToString(Ast*);
-char* AstLambdaToString(Ast*);
-char* AstCallToString(Ast*);
-char* AstBindToString(Ast*);
+Ast* CopyAst(Ast* ast);
 
 char* AstToString(Ast*);
 

@@ -1,7 +1,10 @@
 #include <string.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <stdio.h>
+#include <stdbool.h>
 
+#include "error.h"
 #include "ast.h"
 
 Ast* CreateAstTypeInfer()
@@ -43,7 +46,7 @@ Ast* CreateAstId(char* name)
     in char* is more likely than not; yytext. which is a very volatile
     ptr.
   */
-  node->u.id.s = strdup(name);
+  node->u.id.s = name;
   return node;
 }
 
@@ -51,7 +54,7 @@ Ast* CreateAstLambda(char* name, Ast* type, Ast* body)
 {
   Ast* node = (Ast*)malloc(sizeof(Ast));
   node->tag = N_LAMBDA;
-  node->u.lambda.arg.id.s = strdup(name);
+  node->u.lambda.arg.id.s = name;
   if (type == NULL) node->u.lambda.arg.type = CreateAstTypeInfer();
   else              node->u.lambda.arg.type = type;
   node->u.lambda.body     = body;
@@ -71,7 +74,7 @@ Ast* CreateAstBind(char* name, Ast* term)
 {
   Ast* node = (Ast*)malloc(sizeof(Ast));
   node->tag = N_BIND;
-  node->u.bind.id.s = strdup(name);
+  node->u.bind.id.s = name;
   node->u.bind.term = term;
   return node;
 }
@@ -102,8 +105,7 @@ void AstDelete(Ast* ast)
         AstDeleteBind(ast);
         break;
       default:
-        fprintf(stderr, "Unexpected Ast Tag!");
-        exit(1);
+        error_abort("malformed ast tag! aborting");
     }
   }
 }
@@ -158,7 +160,65 @@ void AstDeleteBind(Ast* bind)
 }
 
 
+Ast* CopyAstType(Ast* type);
+Ast* CopyAstId(Ast* id);
+Ast* CopyAstLambda(Ast* lambda);
+Ast* CopyAstCall(Ast* call);
+Ast* CopyAstBind(Ast* bind);
 
+Ast* CopyAst(Ast* ast)
+{
+  switch(ast->tag) {
+    case N_TYPE:   return CopyAstType(ast);
+    case N_ID:     return CopyAstId(ast);
+    case N_LAMBDA: return CopyAstLambda(ast);
+    case N_CALL:   return CopyAstCall(ast);
+    case N_BIND:   return CopyAstBind(ast);
+    default: error_abort ("malformed ast! aborting");
+  }
+}
+
+Ast* CopyAstType(Ast* type)
+{
+  switch (type->u.type.tag) {
+    case T_NIL:   return CreateAstTypeNil();
+    case T_INFER: return CreateAstTypeInfer();
+    case T_FUNC:  return CreateAstTypeFn(CopyAst(type->u.type.u.rarrow.lhs), \
+                                         CopyAst(type->u.type.u.rarrow.rhs));
+    default: error_abort("malformed type! aborting");
+  }
+}
+
+Ast* CopyAstId(Ast* id)
+{
+  return CreateAstId(strdup(id->u.id.s));
+}
+
+Ast* CopyAstLambda(Ast* lambda)
+{
+  return CreateAstLambda(strdup(lambda->u.lambda.arg.id.s), \
+                         CopyAstType(lambda->u.lambda.arg.type), \
+                         CopyAst(lambda->u.lambda.body));
+}
+
+Ast* CopyAstCall(Ast* call)
+{
+  return CreateAstCall(CopyAst(call->u.call.lhs), \
+                       CopyAst(call->u.call.rhs));
+}
+
+Ast* CopyAstBind(Ast* bind)
+{
+  return CreateAstBind(strdup(bind->u.bind.id.s), \
+                       CopyAst(bind->u.bind.term));
+}
+
+
+char* AstTypeToString(Ast*);
+char* AstIdToString(Ast*);
+char* AstLambdaToString(Ast*);
+char* AstCallToString(Ast*);
+char* AstBindToString(Ast*);
 
 char* AstTypeToString(Ast* ast)
 {
@@ -177,27 +237,43 @@ char* AstTypeToString(Ast* ast)
       case T_FUNC: {
         char* t1 = AstTypeToString(type->u.rarrow.lhs);
         if (!t1) {
-          fprintf (stderr, "malformed type! aborting");
-          exit(1);
+          error_abort("malformed type! aborting");
         }
         char* t2 = AstTypeToString(type->u.rarrow.rhs);
         if (!t2) {
-          fprintf (stderr, "malformed type! aborting");
-          exit(1);
+          error_abort("malformed type! aborting");
+
         }
+        char* lprn = "(", *rprn = ")";
         char* rarrow = " -> ";
-        int len = strlen(t1) + 4 + strlen(t2) + 1;
-        result = (char*)calloc(len, sizeof(char));
-        strcat(result, t1);
-        strcat(result, rarrow);
-        strcat(result, t2);
-        free (t1);
-        free (t2);
+        int len;
+        bool grouped = type->u.rarrow.lhs->u.type.tag == T_FUNC;
+        if (grouped) {
+          len = 1 + strlen(t1) + 1 + 4 + strlen(t2) + 1;
+          result = (char*)calloc(len, sizeof(char));
+          strcat(result, lprn);
+          strcat(result, t1);
+          strcat(result, rprn);
+          strcat(result, rarrow);
+          strcat(result, t2);
+          free (t1);
+          free (t2);
+        }
+        else {
+          len = strlen(t1) + 4 + strlen(t2) + 1;
+          result = (char*)calloc(len, sizeof(char));
+          strcat(result, t1);
+          strcat(result, rarrow);
+          strcat(result, t2);
+          free (t1);
+          free (t2);
+        }
+
+
         break;
       }
       default: {
-        fprintf(stderr, "unknown type tag! aborting");
-        exit(1);
+        error_abort("unknown type tag! aborting");
       }
     }
   }
@@ -210,8 +286,7 @@ char* AstIdToString(Ast* ast)
   if (ast != NULL) {
     char* id = ast->u.id.s;
     if (id == NULL) {
-      fprintf(stderr, "malformed id; aborting");
-      exit(1);
+      error_abort("malformed id! aborting");
     }
     int len  = strlen (ast->u.id.s) + 1;
     result = (char*)calloc(len, sizeof(char));
@@ -230,20 +305,17 @@ char* AstLambdaToString(Ast* ast)
 
     char* arg_id = ast->u.lambda.arg.id.s;
     if   (arg_id == NULL) {
-      fprintf(stderr, "malformed arg_id; aborting");
-      exit(1);
+      error_abort("malformed arg id! aborting");
     }
 
     char* arg_type = AstTypeToString(ast->u.lambda.arg.type);
     if   (arg_type == NULL) {
-      fprintf(stderr, "malformed arg_type; aborting");
-      exit(1);
+      error_abort("malformed arg type! aborting");
     }
 
     char* body = AstToString(ast->u.lambda.body);
     if   (body == NULL) {
-      fprintf(stderr, "malformed body; aborting");
-      exit(1);
+      error_abort("malformed body! aborting");
     }
 
     int len = strlen(bs)       \
@@ -269,23 +341,23 @@ char* AstCallToString(Ast* ast)
 {
   char* result = NULL;
   if (ast != NULL) {
-    char* spc = " ";
+    char* spc = " ", *lprn = "(", *rprn = ")";
     char* lhs = AstToString(ast->u.call.lhs);
     if   (lhs == NULL) {
-       fprintf(stderr, "malformed call lhs! aborting");
-       exit(1);
+       error_abort("malformed call lhs! aborting");
     }
     char* rhs = AstToString(ast->u.call.rhs);
     if   (rhs == NULL) {
-       fprintf(stderr, "malformed call rhs! aborting");
-       exit(1);
+       error_abort("malformed call rhs! aborting");
     }
 
-    int len   = strlen(spc) + strlen(lhs) + strlen(rhs) + 1;
+    int len   = strlen(lhs) + strlen(spc) + 1 + strlen(rhs) + 2;
     result    = (char*)calloc(len, sizeof(char));
     strcat(result, lhs);
     strcat(result, spc);
+    strcat(result, lprn);
     strcat(result, rhs);
+    strcat(result, rprn);
     free(lhs);
     free(rhs);
   }
@@ -300,14 +372,12 @@ char* AstBindToString(Ast* ast)
 
     char* id    = ast->u.bind.id.s;
     if (id == NULL) {
-      fprintf(stderr, "malformed bind id! aborting");
-      exit(1);
+      error_abort("malformed bind id! aborting");
     }
 
     char* term  = AstToString(ast->u.bind.term);
     if (term == NULL) {
-      fprintf(stderr, "malformed bind term! aborting");
-      exit(1);
+      error_abort("malformed bind term! aborting");
     }
 
     int len = strlen(id) + strlen(clneq) + strlen(term) + 1;
@@ -346,8 +416,7 @@ char* AstToString(Ast* ast)
         break;
       }
       default:
-        fprintf (stderr, "Unknown Ast Tag, aborting");
-        exit(1);
+        error_abort("malformed type tag! aborting");
     }
   }
   return result;
