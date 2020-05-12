@@ -54,6 +54,8 @@ DIGIT   [[:digit:]]
 ";"   { return SEMICOLON; }
 "("   { return LPAREN; }
 ")"   { return RPAREN; }
+"{"   { return LBRACE; }
+"}"   { return RBRACE; }
 
 [a-zA-Z][a-zA-Z0-9_-]*    { yylval->ID = strdup(yytext); return ID; }
 

@@ -183,8 +183,8 @@ Ast* CopyAstType(Ast* type)
   switch (type->u.type.tag) {
     case T_NIL:   return CreateAstTypeNil();
     case T_INFER: return CreateAstTypeInfer();
-    case T_FUNC:  return CreateAstTypeFn(CopyAst(type->u.type.u.rarrow.lhs), \
-                                         CopyAst(type->u.type.u.rarrow.rhs));
+    case T_FUNC:  return CreateAstTypeFn(CopyAstType(type->u.type.u.rarrow.lhs), \
+                                         CopyAstType(type->u.type.u.rarrow.rhs));
     default: error_abort("malformed type! aborting");
   }
 }

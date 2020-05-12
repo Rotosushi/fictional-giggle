@@ -77,9 +77,32 @@ typedef void* yyscan_t;
 %define api.value.type union
 /*
   each of the nonterminal symbols within the grammar is associated
-  with a field within the structure of the Ast.
+  with a field within the taggeed union structure of the Ast.
   to support using the rules in the naturally recursive way
   each non-terminal value is only ever a pointer to the relevant node.
+  this allows the Ast construction functions to be written
+  in a way that allows for the highly compositional style
+  of programming that structured programming encourages.
+  so, astute observers will notice that ID's are bald
+  char*'s. they will also probably notice that the
+  Ast constructors that are used in the rules that
+  utilize the ID nonterminals take char*s as parameters
+  in those positions.
+  this is the same mechanism that will be used when the
+  language is extended to add int's, floats, chars,
+  strings, and all other primitive literals to the language.
+  the lexer will contain the logic to read in each literal
+  and the parser will accept a token, and the language will
+  accept a new type.
+
+  if we want to give programmers the means to define new
+  primitive type value literals, we could give them
+  the means to define the logic of the recognizer,
+  the type, and the token would probably need to be
+  treated in a more general way from the perspective
+  of the parser. the representation (the type) would need to
+  be built up from defined types to be supported by the
+  back end.
 */
 %nterm <Ast*> term name lambda call bind type subterm
 
@@ -89,6 +112,7 @@ typedef void* yyscan_t;
 %token BSLASH
 %token RARROW REQARROW
 %token LPAREN RPAREN
+%token LBRACE RBRACE
 
 
 %%
@@ -168,7 +192,18 @@ typedef void* yyscan_t;
   of yypush_parse result is correct, and in main we see no
   state change. curious...
 
+  the issue was the order of the pointer arguments in the call site of the
+  yypush_parse function, because the last argument is an
+  opaque ptr to the lexers internal state, c happily casts
+  the Ast* to a void* and the void* to an Ast* and doesn't even
+  warn me about it. i am unsure why/how the lexer was even running
+  when it was given the wrong structure, but okay...
 
+  i fixed it by passing a ptr-to-ptr, and modifying
+  the ptr in the above context, and not relying on
+  the value of the parameter after the call to yypush_parse,
+  in addition to fixing the order of the arguments in my
+  call to yypush_parse.
   */
 input:
   term { *result = $1; }
@@ -179,10 +214,20 @@ term:
   | lambda  { $$ = $1; }
   | call    { $$ = $1; }
   | bind    { $$ = $1; }
-  | subterm { $$ = $1; }
+/*  | subterm { $$ = $1; } */
+
+
+type:
+    NIL                 { $$ = CreateAstTypeNil(); }
+  | type RARROW type    { $$ = CreateAstTypeFn($1, $3); }
+  | LPAREN type RPAREN  { $$ = $2; }
 
 name: /* [a-zA-Z][a-zA-Z0-9_-]+ */
   ID  { $$ = CreateAstId($1); }
+
+lambda: /* \ name : arg_type => term */
+    BSLASH ID COLON type REQARROW term { $$ = CreateAstLambda($2, $4, $6); }
+  | BSLASH ID REQARROW term            { $$ = CreateAstLambda($2, CreateAstTypeInfer(), $4); }
 
 call: /* term term */
   term term { $$ = CreateAstCall($1, $2); }
@@ -190,18 +235,10 @@ call: /* term term */
 bind: /* name := term */
   ID COLONEQUALS term { $$ = CreateAstBind($1, $3); }
 
-lambda: /* \ name : arg_type => term */
-    BSLASH ID COLON type REQARROW term { $$ = CreateAstLambda($2, $4, $6); }
-  | BSLASH ID REQARROW term            { $$ = CreateAstLambda($2, CreateAstTypeInfer(), $4); }
-
-type:
-    NIL                 { $$ = CreateAstTypeNil(); }
-  | type RARROW type    { $$ = CreateAstTypeFn($1, $3); }
-  | LPAREN type RPAREN  { $$ = $2; }
-
+/*
 subterm:
-    LPAREN term RPAREN  { $$ = $2; }
-
+    LBRACE term RBRACE  { $$ = $2; }
+*/
 %%
 
 /* epilogue */

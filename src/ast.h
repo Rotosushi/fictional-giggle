@@ -28,7 +28,7 @@ typedef enum NodeTag {
 	N_ID,
 	N_LAMBDA,
 	N_CALL,
-	N_BIND
+	N_BIND,
 } NodeTag;
 
 typedef enum TypeTag {
@@ -40,7 +40,7 @@ typedef enum TypeTag {
 struct Ast;
 
 /*
-	c's type systems limitations
+	c's type system's limitations
 	force us to be less typesafe
 	than I would like, in a language
 	with subtype polymorphism,
@@ -61,7 +61,8 @@ struct Ast;
 	though in a pure type system;
 		where types are first class values,
 	  I could imagine some meaning for a
-	  type-described-by-a-lambda.
+	  type-described-by-a-lambda,
+		it could be a parametric type constructor.
 	)
 */
 typedef struct Type {
@@ -74,6 +75,7 @@ typedef struct Type {
 		} rarrow;
 	} u;
 } Type;
+
 
 
 /* a name simply owns the string which is the name */
@@ -114,6 +116,7 @@ typedef struct Ast {
 	NodeTag tag;
 	union {
 		Type   type;
+		Value  value;
 		Id     id;
 		Lambda lambda;
 		Call   call;

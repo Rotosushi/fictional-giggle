@@ -4,9 +4,93 @@ Just enough to say what is interesting,
   no more.
 
 
+
+  one of the problems that is starting to become clear
+  is the tension between what the typechecker calls
+  a valid program, and the actual semantics which
+  arise from the body of functions. the raison d'etre
+  of typechecking is to ensure that a typeable program
+  is a program that will not generate runtime errors.
+  {source: https://mitpress.mit.edu/books/types-and-programming-languages }
+  however, this is not possible through tree analysis
+  of the program alone, the sources of error are too
+  varied and unknowable for static analysis to cope with.
+  however, this does not disqualify the type system from
+  existance, it simply points out that the class of
+  errors which are knowable through static analysis is
+  some subset of the full set of possible errors.
+  the really nice thing about static analysis however is
+  the properties that it shares with mathematics in general,
+  namely, it is deterministic and replicable. (depending of course
+  on the specific typesystem, this is words about some idea of a
+  typesystem, not specific typesystems, or about judgements which
+  are undecidable.)
+  in layman's terms, it always finds the errors it is looking for
+  if they exist in the source text; and since the typesystem runs each
+  time we attempt to compile or execute the program, so it is always
+  making judgements about what code exists now. it's judgements cannot
+  become outdated in the sense that a programs comments can become
+  outdated. for the programmer to change the typesystem's judgements
+  they must necessarily change the source text itself.
+
+  these two ideas of the program's semantics can become
+  unaligned in specific cases.
+  For instance consider the UNIX system call: exit,
+  which in the language of Pink
+  has the type Int -> Nil, that is it's a function
+  that looks like it takes an Int value and returns
+  nothing. however the actual result of calling this
+  function is that the caller is taken off the
+  scheduler's list and stops executing.
+  now, this may seem like a minor semantic difference,
+  especially since you as a programmer have to type
+  exit(some-num); and are presumably writing a path
+  of execution that intentionally calls exit.
+  however, to the compiler exit is just another function,
+  that can be called, so if a programmer were to make the
+  error of calling exit, and then writing code after that
+  call expecting the program to evaluate that semantics,
+  they would be dissappointed to find out that code
+  existing after the call to exit will never be able to
+  execute, it is in effect unreachable, and dead. now, in the
+  knowable error case of the programmer writing code
+  after the execution of a return statement, the compiler
+  can issue a warning, it can delete or never compile
+  any code that appears dead in the source text in this
+  manner, and in general the compiler writer can choose
+  to preform actions when the case arises. however in the
+  case of an operating system abstraction such as the call
+  to exit the compiler cannot know that a call to that
+  system function will result in the program stopping
+  execution, and therefore it cannot issue a warning,
+  nor can it remove the dead code from the program source.
+  in effect the error cases that can arise from using
+  the operating systems abstractions is by definition
+  larger than the set of errors that can arise from
+  using the language abstractions, just when considering
+  the two from a theoretical perspective.
+  however the larger issue in the design of the language,
+  and really in the design of any language is that
+  the semantics of the program source text is only ever
+  able to be partially checked for correctness.
+  the gap that exists between what the semantic analysis
+  can perceive and manipulate and what the programmer can
+  perceive and manipulate is large. and if we want to
+  automate checking the correctness of the programs semantics.
+  we are attempting to bridge that gap, this can be begum by
+  writing tests. but it will soon become apparent that
+  wether or not your question can be asked systematically has more to
+  do with what question you are attempting to answer than
+  what problems you are trying to solve.
+
+
+
 how does operator overloading interact with
 template/parametric-polymorphic functions
 in the case of concrete vs abstract entities?
+
+to begin in answering that question:
+https://www.researchgate.net/publication/221252351_A_Calculus_for_Overloaded_Functions_with_Subtyping
 
 
 question:
@@ -138,9 +222,12 @@ another task is driver development
         "the SPI algorithm"
         we have to have
         "the <device-specific> SPI algorithm"
-        could we imagine
-        "the conforming SPI algorithm functor"?
 
+        but could we imagine
+        "the conforming SPI algorithm functor"?
+        and then specializing it per-device?
+        because if we can, that can help to insulate
+        programmers code from driver code.
 
 
 
@@ -202,7 +289,11 @@ the best response I've found from the documentation:
 My assumed answer:
   don't worry about it unless you are relying on the terminal/nonterminal
   symbol having some particular type, in which case specify
-  that type with a %nterm, %token, or %type directive
+  that type with a %nterm, %token, or %type directive.
+
+  if you attempt to access the value of a non-terminal or token that
+  does not have a type associated with it, bison will reject that
+  grammar.
 
 this raises an additional question,
   if 'typename' is the expected name of the union
@@ -218,6 +309,9 @@ this raises an additional question,
   by a full Ast node by bison? or maybe they secretly aren't
   but only nonterminal lhs values are constructed as Ast nodes.
 
+  this is why the %token <typename> TOK
+  directive exists.
+
 the final verdict:
   all of these issues are solved by using pointers to a union value
   and only making bison differentiate between simple char*'s and
@@ -225,5 +319,6 @@ the final verdict:
   when we extend the data we need to track to strings and integers
   and floats and such, we must extend the grammar and probably
   the underlying data-representation to account for the new data.
+  we will distinguish between Ast* nodes, char*'s, Ints, and Floats,
   but again, -we- should manage that, and constrain the LALR parser
   to just construct the AST.
