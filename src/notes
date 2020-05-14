@@ -1,7 +1,15 @@
 
 
-Just enough to say what is interesting,
+Just enough to say what is interesting
   no more.
+
+
+  -> make it work
+  -> document how/why it works
+  -> pay off technical debt
+  -> make it work better or
+  -> make it do another thing
+  -> loop/iterate/recur
 
 
 
@@ -13,10 +21,10 @@ Just enough to say what is interesting,
   is a program that will not generate runtime errors.
   {source: https://mitpress.mit.edu/books/types-and-programming-languages }
   however, this is not possible through tree analysis
-  of the program alone, the sources of error are too
+  of the program alone, as the sources of error are too
   varied and unknowable for static analysis to cope with.
   however, this does not disqualify the type system from
-  existance, it simply points out that the class of
+  existence, it simply points out that the class of
   errors which are knowable through static analysis is
   some subset of the full set of possible errors.
   the really nice thing about static analysis however is
@@ -77,11 +85,56 @@ Just enough to say what is interesting,
   can perceive and manipulate and what the programmer can
   perceive and manipulate is large. and if we want to
   automate checking the correctness of the programs semantics.
-  we are attempting to bridge that gap, this can be begum by
+  we are attempting to bridge that gap, this can be begun by
   writing tests. but it will soon become apparent that
   wether or not your question can be asked systematically has more to
   do with what question you are attempting to answer than
   what problems you are trying to solve.
+  if we recall our earlier example, the difference between the
+  implications the type gives to the meaning of a function
+  and the meaning of the actual function may or may not be aligned.
+  and one fundamental problem is that
+  the typechecker can only truly decide based on the exact
+  implications that the type information brings (which is
+  to say the noticably smaller of the two categories.)
+  consider again the Linux syscall exit, say as language designers
+  we decide to give it special meaning, and makes it so we can
+  issue a warning/make judgements about it's actual meaning.
+  well, then why stop at just one syscall? what is the argument
+  against just adding special consideration for operating system
+  abstractions into the understood semantics of the language?
+  well, the strongest argument for me is the dependency it
+  introduces on the core language, firstly it says the
+  core language includes some notion of the operating system,
+  (which is another program authored by other people, so keeping
+  pace will take extra work) and secondly it asks another big question,
+  why not the other operating systems too? these both add a lot of weight
+  to the project that I as a single engineer cannot keep pace with.
+  in the end, a library is a better home for these things
+  because they are not fundamental to the core of the language.
+  this alleviates the core from having to consider as much material,
+  which helps the design by not adding as much meaning to enforce/know.
+  adding special meaning to expressions to subtly alter the
+  underlying semantics is an active area of interest to this language
+  because it addresses a few fundamental problems, two of which are how do
+  we address what c calls volatile semantics, and as a mechanism
+  for maybe saying to the compiler that exit() will cease the operation of
+  this program, etc.
+
+  however what types really bring to the table is that
+  reasoning can be encoded into them. types in
+  particular are the axis on which modularity swings.
+  where functions can abstract over reasoning,
+  types can encode reasoning, allowing functions to
+  abstract over still further reasoning. what static semantics
+  enforce about usage of type ensures that usage of
+  type is correct (in-so-far-as the typechecker can actually check,
+  as it turns out a lot of interesting and potentially useful
+  properties cannot be decided through static analysis.)
+  which means that orthoginal to the meaning we as programmers
+  have added to some particular semantics, the compiler can
+  also interpret those semantics to evaluate them or to
+  produce a program with those semantics in some other language.
 
 
 

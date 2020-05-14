@@ -52,7 +52,6 @@ void unbind(char* name, symboltable* symtable)
     free(ths);
   }
   else while (ths != NULL) {
-    cmp = strcmp(name, ths->id);
     if (cmp == 0) {
       /* remove the end of the list */
       if (ths->next == NULL) {
@@ -64,8 +63,7 @@ void unbind(char* name, symboltable* symtable)
       }
       /* remove some middle element */
       else {
-        prv = ths;
-        ths = ths->next;
+        prv->next = ths->next;
         free(ths->id);
         AstDelete(ths->term);
         free(prv);
@@ -74,6 +72,7 @@ void unbind(char* name, symboltable* symtable)
     }
     prv = ths;
     ths = ths->next;
+    cmp = strcmp(name, ths->id);
   }
 }
 

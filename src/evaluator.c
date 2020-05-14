@@ -49,15 +49,20 @@ bool is_in_dom_of(char* name, Ast* term);
     to own the new copy, which then we are back to
     modifying the passed tree in place, and it
     "just happens" to be a copy.
-    this is a very common cyclical issue with memory management in c.
+    this is a very common cyclical issue with memory management.
+    the most sensible solution is to try as much as possible to
+    delete the memory you allocate yourself, and to pass
+    dynamic allocations as return values as little as possible.
+    this obviously has an effect on the shape of the code that
+    you write.
 
     honestly, we are going to modify in place. from now on, evaluate
     own's and consumes the passed term data.
 */
-Ast* evaluate(Ast* term, symboltable* env)
+void evaluate(Ast** term, symboltable* env)
 {
-
-  switch(term->tag) {
+  /* dynamic type dispatch! */
+  switch((*term)->tag) {
     case N_TYPE:   return evaluate_type(term);   /* return the type as a value. */
     case N_ID:     return evaluate_id(term);     /* return the bound term. */
     case N_LAMBDA: return evaluate_lambda(term); /* return the lambda as a value. */
@@ -68,25 +73,39 @@ Ast* evaluate(Ast* term, symboltable* env)
 }
 
 
-Ast* evaluate_type(Ast* type, symboltable* env)
+void evaluate_type(Ast** type, symboltable* env)
 {
   /*
   when we allow names to be bound to type terms
     it only seems natural to allow typenames to then
     occur in type expressions. however this is beyond
     the scope of v0.0.1.
-    maybe v0.0.2
+    maybe v0.0.2.
+    we currently do not allow names to appear in the
+    bodies of type expressions, so there is no way
+    for any term bound to a type value to need any
+    amount of computation (the programmer cannot express
+    any type that would need replacing). however, eventually
+    standard variable replacement can be used in the
+    same way it is used by the other rules, just replacing
+    the bound term in place by pointer assignment.
+    it just so happens that the name is bound to a type
+    expression only legal in a type expression. just
+    as an int is only legal in int expressions, and so forth.
+    this is really an extension of the idea that nil is the
+    literal expressing the singular value of type Nil, and
+    nil can appear in regular expressions, just as the names of
+    types can appear in so-called type expressions.
+    however, a type expression would consist of the typename Nil
+    appearing, and not the literal nil. this is subtle and
+    if the programmer is not careful with capitalization
+    they will easily generate a bug. hopefully something
+    we can discover and label a compiler error.
   */
-  if (type != NULL) {
-    return type;
-  }
-  else {
-      printf("cannot evaluate NULL type!");
-      return NULL;
-  }
+
 }
 
-Ast* evaluate_id(Ast* id, symboltable* env)
+void evaluate_id(Ast** id, symboltable* env)
 {
   /*
    in order to evalute an id,
@@ -94,30 +113,34 @@ Ast* evaluate_id(Ast* id, symboltable* env)
    it is bound to. this is done by
    looking up the symbol in the Environment
    and returning the bound term as the result.
+   if we cannot find the binding in the environment,
+   then to term is not typeable.
   */
-  if (id != NULL) {
-    symbol* sym = lookup(id->u.id.s, env);
+  if (id != NULL && *id != NULL) {
+    symbol* sym = lookup((*id)->u.id.s, env);
     if (sym != NULL) {
-      return sym->term;
+      // free the memory originally associated with this node.
+      free (*id);
+      (*id) = sym->term;
     }
     else {
-      printf("name not bound in env!");
-      return NULL;
+      printf("name {%s} not bound in env!", (*id)->u.id.s);
     }
   }
   else {
     printf("cannot evaluate/lookup NULL id!");
-    return NULL;
   }
 }
 
-Ast* evaluate_lambda(Ast* lambda, symboltable* env)
+Ast* evaluate_lambda(Ast** lambda, symboltable* env)
 {
   /* a lambda is a value, so it can itself
       be the valid result of execution.
       that is, beta-reduction stops once the
       term is in normal form, and the normal-form
-      is any value.
+      is any value. which again a lambda term is
+      a valid value form. so we don't need to
+      evaluate lambda terms on their own.
    */
   if (lambda != NULL) {
     return lambda;
@@ -128,15 +151,15 @@ Ast* evaluate_lambda(Ast* lambda, symboltable* env)
   }
 }
 
-Ast* evaluate_call(Ast* call, symboltable* env)
+Ast* evaluate_call(Ast** call, symboltable* env)
 {
   if (call != NULL) {
     Ast* lhs = call->u.call.lhs;
     Ast* rhs = call->u.call.rhs;
 
-    if (lhs->tag != N_LAMBDA) {
-      printf ("cannot call a non-function value");
-      return NULL
+    // evaluate the lhs down to a lambda term
+    switch(lhs->tag) {
+
     }
 
     /*
@@ -175,7 +198,7 @@ Ast* evaluate_call(Ast* call, symboltable* env)
   }
 }
 
-Ast* evaluate_bind(Ast* ast, symboltable* env)
+Ast* evaluate_bind(Ast** ast, symboltable* env)
 {
   if (ast != NULL) {
     Ast* term = ast->u.bind.term;
@@ -193,14 +216,23 @@ Ast* evaluate_bind(Ast* ast, symboltable* env)
   }
 }
 
-Ast* substitute(char* name, Ast* term, Ast* value, symboltable* env)
+Ast* substitute(char* name, Ast** term, Ast* value, symboltable* env)
 {
   switch(term->tag) {
     case N_ID: {
-      if (strcmp(id, term->u.id.s) == 0) {
+      /*
+      [id -> value2]id  := value2
+      [id -> value2]id' := id'
+      */
+      if (strcmp(name, term->u.id.s) == 0) {
         // this is an Ast node which is an ID
         // that matches the ID we are replacing
-        // so we replace.
+        // so we replace. we know for a fact,
+        // that the term in a part of the tree
+        // maybe it is one size of a call term,
+        // or a bind term, either way, that term
+        // stores a pointer to the id node pointed
+        // to by term,
         return value;
       }
       // the name doesn't match, so we can simply return
@@ -211,32 +243,78 @@ Ast* substitute(char* name, Ast* term, Ast* value, symboltable* env)
     case N_CALL: {
       // when we encounter a call Ast we pass the substitution
       // along to it's subterms.
-      Ast* lhs = term->u.call.lhs;
-      Ast* rhs = term->u.call.rhs;
-      lhs = substitute(name, lhs, value, env);
-      rhs = substitute(name, rhs, value, env);
-      return CreateAstCall(lhs, rhs);
+      Ast *lhs = term->u.call.lhs, *rhs = term->u.call.rhs;
+      term->u.call.lhs = substitute(name, term->u.call.lhs, value, env);
+      term->u.call.rhs = substitute(name, term->u.call.rhs, value, env);
+      /*
+        if the substitution operation replaced the term with
+        the value, then the address will have changed, because those
+        two Ast nodes will have different memory locations. if it
+        is a pointer to the same lhs or rhs node, then there was no
+        operation applied and the address will be the same, because
+        we returned the node we were passed. (or, the operation took
+        place wthin the node below, and again, that same node is attached.)
+        (think about the case of
+        the rhs of the call node being a ptr to an Ast id node
+        containing the bound variable.
+        the above assignment operation will have replaced the lhs
+        ptr with the value ptr by means of the 'return value;'
+        expression in the 'case N_ID:' above.) only in the case in which
+        the call to substitute preformed a replacement do we need to
+        free the memory allocated to the now old lhs/rhs.
+        if the node wasn't replaced, then we don't want to free
+        what is there, as it's correct.
+        !!!DANGEROUS CODE!!!
+        it's usually always a bad idea to rely on ptr comparisons,
+        but what other strategy gives the correct semantics?
+        Garbage Collection, ...
+        deleting the subterm when and where we decide to replace?
+        i.e. in the case N_ID above.
+        but then how do we communicate that to the above
+        callers? (two-star ptr), make substitution return void.
+        only ever operate on the tree in place from the two star ptr
+      */
+      if (lhs != term->u.call.lhs) AstDelete(lhs);
+      if (rhs != term->u.call.rhs) AstDelete(rhs);
+      return term;
     }
 
     case N_BIND: {
       // when we encounter a bind we pass the substitution
-      // along to it's subterm
+      // along to it's subterm, instances of the bound variable
+      // occuring in the subterm will be replaced with the value.
+      // what happens when the bind operation is binding the name
+      // we are substituting for?
       Ast* st = term->u.bind.term;
-      st = substitute(st);
+      st = substitute(name, term->u.bind.term, value, env);
       return CreateAstBind(term->u.bind.id, st);
     }
 
     case N_TYPE: {
-      // ...
-    }
-
-    case N_VALUE: {
-      // ...
+      // handle nil literal here,
+      // are type descriptors values?
+      // i argue yes. then it becomes easy to
+      // compose types using named bindings, instead of
+      // having a separate type naming process.
+      // like 'typedef', or 'type', etc.
+      // instead we leverage the already existant
+      // binding operation, and type expressions
+      // are now just another kind of expression.
+      // operators on type describing new types
+      // work the same as an operator on value describing
+      // new values. except the value is always referring
+      // to some type, which can then be used in other
+      // type expressions. in a parallel sense to how
+      // an integer value can be passed in and out of
+      // functions on integers, and in each case the
+      // result is itself an integer that can be further
+      // manipulated.
     }
 
     case N_LAMBDA: {
-      if (value->tag == N_VALUE)
+      // ...
     }
+
 
 
   }
@@ -382,10 +460,118 @@ Examples:
   function operates and looks up the name in the function lambda
   when evaluating within the substituted-lambda the search will conclude
   at the wrong variable, we will observe the binding of the argument,
-  before we reach the free variable that the programmer acctually
-  means, resulting in a semantic change depending on what we substitute.
+  before we reach the free variable that the programmer meant.
+  resulting in a semantic change depending on what we substitute.
   to avoid that, the argument name within the function being substituted into
   shall be changed, before the substitution action occurs.
+
+  currently, i am reading { https://arxiv.org/pdf/0905.2539v3.pdf,
+  https://en.wikipedia.org/wiki/Explicit_substitution#cite_ref-7,
+  }
+  which describes a lambda calculus extended with an explicit
+  substitution method. this explicit substitution method is
+  essentially a fomal implementation of the substitution method
+  described in beta-reduction in the lambda calculus literature.
+  which, as is rightly pointed out by the author of the paper,
+  exists as a meta-operation to be carried out atomically,
+  and thus sidesteps any conversation of the difficulties in
+  implementing this operation, and leaving that difficulty
+  essentially 'up to the reader', their mental 'abstract machine'
+  is what preforms the substitution so you have to calibrate that right?
+  obviously this is a great
+  resource in learning how to implement the substituion operation
+  on my lambda terms. interestingly, because the substitution operation
+  is explicit, this means that programmers could potentially write
+  subtitutions themselves.
+
+  here is a super usefull inductive definition of free and bound variables
+  i first encountered here { https://arxiv.org/pdf/0905.2539v3.pdf }
+  I have since encountered it elsewhere.
+
+  terms of the the lambda calculus we are currently considering
+
+    t := x            variable
+       | \x => t      function literal
+       | t t'         application
+       | t[x -> t']    substitution
+
+  substitution and the function literal, both
+  bind free occurances of x within the body of t.
+  with the function, that value can be bound by
+  application, whereas with substitution, the replacement
+  term appears in the body of the expression.
+
+  consider some term t, consisting of scentances in the lambda calculus.
+  the free variables in the term denoted FV(t) is the set constructed
+  by the following inductive relations:
+  FV(t) :=
+    FV(x)         := {x}
+    FV(\x => u)   := FV(u) minus/compliment {x}
+    FV(u v)       := FV(u) union FV(v)
+    FV(u[x -> v])    := (FV(u) minus {x}) union FV(v)
+
+  the term BV(t) stands for the set of bound variables in
+  some term t. and can be described by the following set of
+  inductive relations:
+  BV(t) :=
+    BV(x)       := {}
+    BV(\x => u) := BV(u) union {x}
+    BV(u v)     := BV(u) union BV(v)
+    BV(u[x -> v])  := BV(u) union {x} union BV(v)
+
+
+  inductive relations translate relatively naturally
+  into if () then () else if () then () else if () then () ... else ()
+  blocks of code. they translate more naturally into
+  functions representing each lemma, and invoked depending
+  on the type of the current tree node being looked at.
+  especially if we fenagle the data-structures such that
+  we can manipulated them in the same way as within the lemmas.
+
+  { another source:  K. H. Rose, Explicit Substitution – Tutorial & Survey, BRICS LS-96-3, September 1996 }
+  the result of renaming all free occurances of y in M to z
+  is written M[y -> z]
+  it can be defined by induction on terms in the lambda calculus thus:
+    (M, N ranges over valid scentances,
+     x, y, x', ... range over valid variable names,
+     )
+
+    M[y -> z] :=
+      (variables)
+      x[y -> z]           := z if x = y
+      x[y -> z]           := x if x != y
+
+      (procedures/functions/abstractions)
+      (\x => M)[y -> z]   := \x' => M[x -> x'][y -> z]
+                             where we select x' such that
+                             x' is-not-in (FV(\x => M) union {y, z})
+
+      (M N)[y -> z]       := (M[y -> z]) (N[y -> z])
+
+      (composition of substitutions)
+      (M[x -> N])[y -> z] := M[x -> x'][y -> z] [x' -> N[y -> z]]
+                             where we select x' such that
+                             x' is-not-in (FV(\x => M) union {y, z})
+
+
+  two terms are alpha equivalent if they share the same form
+  minus the consideration of the names of the bound variables.
+  that is \x => x         is alpha equivalent to \y => y
+          \z => z x       is alpha equivalent to \k => k x
+          \a => \b => a b is alpha equivalent to \c => \d => c d
+
+  this can also be defined inductively over terms using the alpha-equivalence
+  operator which I will denote (a=)
+    x         a= x
+    \x => M   a= \y => N     if (M[x -> z] a= N[y -> z])
+                             where we select z such that
+                             z is-not-in FV(M) union FV(N)
+
+    M N       a= P Q         if ((M a= P) and (N a= Q)
+
+    M[x -> N] a= P[y -> Q]   if ((N a= Q) and (M[x -> z] a= P[y -> z]))
+                             where we select z such that
+                             z is-not-in (FV(M) union FV(P))
 */
 }
 

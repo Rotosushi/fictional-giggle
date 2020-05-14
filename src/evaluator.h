@@ -60,13 +60,19 @@ execution
 
 so the overal goal of the evaluate function is to take
 an ast and reduce it down to a value.
-then we print it and bam! a REPL.
-
+(then we print it and bam! a REPL.)
+So, the evaluator needs to operate until the ast
+represents some valid language value.
+which is either a function, or nil.
 
 */
 
-
+#ifndef EVALUATOR_H
+#define EVALUATOR_H
 
 
 /* evaluate a term one-step */
-Ast* evaluate(Ast* term, symboltable* env);
+void evaluate(Ast** term, symboltable* env);
+
+
+#endif

@@ -14,7 +14,7 @@
  *
  *
  *
- *
+ *	Programmer: Cade Weinberg
  *
  */
 #include <stdio.h>
@@ -27,7 +27,13 @@
 #include "symboltable.h"
 #include "error.h"
 
+/*
+	if we are operating in an interactive capacity,
+	I think get_input is a viable candidate for
+	yywrap...
+ */
 char* get_input(int max_len, FILE* in_stream);
+
 Ast* parse_buffer(char* buf, int len, yypstate* parser, yyscan_t scanner);
 
 
@@ -39,9 +45,14 @@ the data structure that the entire program is
 built around is the Ast.
 
 if the code needs to walk the tree and preform actions,
-the general strategy for tree walking is recursive,
+the general strategy employed for tree walking is recursive,
 which means that memory is going to be used linearly
-with the size of the input.
+with the size of the input, specifically relative to the depth
+of the tree. memory has to be used linearly
+to represent the input as a tree, then each task that
+needs to walk the tree, if it walks it recursively, will
+always use memory equal to or less than some linear scale
+of the depth of the tree.
 
 this probably isn't the best strategy for compilation
 in the long term, especially as we consider having to
@@ -52,13 +63,36 @@ tree walking tied into the structure of the
 algorithms that walk the tree, instead of factoring
 out the walking logic. but that is waiting until
 after we can preform execution on terms in the
-limited calculus currently specified.
+limited calculus currently specified. i.e. getting
+something that gives feedback correctly is first priority
+then make it nice, then upgrade it.
+
+in the split walk/action pattern the
+walk algorithm takes as a param a fn ptr to
+the action to call, this action fn takes a void*
+which we use to pass the node being acted on currently,
+and then the action can do it's work.
+within the body of the action code includes a
+typecast from the void* to the Ast* type,
+and then it can do work with the Ast node.
+actions include:
+	-> tree construction itself
+	-> tree deletion
+	-> tree copying
+	-> printing the tree
+	-> typechecking
+
+a refactor to improve the preformance of the program,
+by reducing the memory usage of algorithms working
+on the Ast to O(1) instead of O(n), which I think
+can be done by walking in an iterative style.
+
+
 */
 
 int main(int argc, char** argv)
 {
 	char * input = NULL;
-	int chars_read;
 	yy_size_t input_buf_size = 512;
 	yyscan_t scanner;
 	yypstate* parser;
@@ -85,24 +119,14 @@ int main(int argc, char** argv)
 	printf("Welcome to Pink v0.0.1!\npress ctrl+d to end a line\npress ctrl+c to end your session\n");
 
 	while (1) {
-		/* we add two here to garuntee that the resulting
-		   buffer is always formatted in the way that flex
-			 wants for the call to yyscan_buffer, namely
-			 to have the input buffer be double-null-terminated.
-			 even if the resulting call to getline fills the input
-			 buffer completely.
-	  */
-		input = (char*)calloc(input_buf_size + 2, sizeof(char));
 
-		printf(":> ");
-		chars_read = getline(&input, &input_buf_size, stdin);
+		input = get_input(input_buf_size, stdin);
 
-		if (chars_read > 0) {
+		if (input != NULL) {
 			result = parse_buffer(input, input_buf_size, parser, scanner);
 
 			if (result != NULL) {
 				Ast* type = type_of(result, &env);
-				Ast* val  = value_of(result, &env);
 				if (type != NULL) {
 					char* ast_string  = AstToString(result);
 					char* type_string = AstToString(type);
@@ -209,7 +233,7 @@ char* get_input(int max_len, FILE* in_stream)
 
 	printf(":> ");
 	chars_read = getline(&input, &max_len, stdin);
-	
+
 	if (chars_read < 0) {
 		free(input);
 		return NULL;
