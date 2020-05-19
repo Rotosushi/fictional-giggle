@@ -69,7 +69,9 @@ typedef void* yyscan_t;
     RARROW = 264,
     REQARROW = 265,
     LPAREN = 266,
-    RPAREN = 267
+    RPAREN = 267,
+    LBRACE = 268,
+    RBRACE = 269
   };
 #endif
 
@@ -90,11 +92,11 @@ union YYSTYPE
   Ast* bind;
   /* type  */
   Ast* type;
-  /* subterm  */
-  Ast* subterm;
+  /* parenterm  */
+  Ast* parenterm;
   /* ID  */
   char* ID;
-#line 98 "parser.h"
+#line 100 "parser.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

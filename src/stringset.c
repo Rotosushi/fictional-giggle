@@ -221,9 +221,9 @@ StringSet* complement (StringSet* s1, StringSet* s2)
   else {
 
     /* append all members of the first list
-       which are members of the second list */
+       which are not members of the second list */
     while (s1e != NULL) {
-      if (isMember(s1e->str, s2))
+      if (!isMember(s1e->str, s2))
         append(s1e->str, sr);
 
       s1e = s1e->next;

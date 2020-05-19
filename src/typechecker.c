@@ -353,6 +353,7 @@ Ast* typeofType(Ast* type, symboltable* env)
     printf("type NULL!\n");
     return NULL;
   }
+  return NULL;
 }
 
 Ast* typeofId(Ast* id, symboltable* env)

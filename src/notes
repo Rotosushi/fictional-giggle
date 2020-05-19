@@ -12,6 +12,10 @@ Just enough to say what is interesting
   -> loop/iterate/recur
 
 
+ gdb -tui <program-name>
+
+ opens gdb with a scrollable view of your program.
+
 
   one of the problems that is starting to become clear
   is the tension between what the typechecker calls

@@ -25,6 +25,7 @@
 #include "ast.h"
 #include "typechecker.h"
 #include "symboltable.h"
+#include "evaluator.h"
 #include "error.h"
 
 /*
@@ -32,7 +33,7 @@
 	I think get_input is a viable candidate for
 	yywrap...
  */
-char* get_input(int max_len, FILE* in_stream);
+char* get_input(int max_len, int* chars_read, FILE* in_stream);
 
 Ast* parse_buffer(char* buf, int len, yypstate* parser, yyscan_t scanner);
 
@@ -97,8 +98,11 @@ int main(int argc, char** argv)
 	yyscan_t scanner;
 	yypstate* parser;
 	symboltable env;
+	Ast* result;
+	int chars_read = 0;
 
-	yydebug = 1;
+	// enable/disable parser trace printing
+	//yydebug = 1;
 
 	/* in order to support reentrancy
 	     the parser and lexer internal state
@@ -120,7 +124,7 @@ int main(int argc, char** argv)
 
 	while (1) {
 
-		input = get_input(input_buf_size, stdin);
+		input = get_input(input_buf_size, &chars_read, stdin);
 
 		if (input != NULL) {
 			result = parse_buffer(input, input_buf_size, parser, scanner);
@@ -128,10 +132,14 @@ int main(int argc, char** argv)
 			if (result != NULL) {
 				Ast* type = type_of(result, &env);
 				if (type != NULL) {
-					char* ast_string  = AstToString(result);
+					Ast* copy = CopyAst(result);
+					evaluate(&copy, &env);
+					char* ast_string = AstToString(result);
 					char* type_string = AstToString(type);
+					char* eval_string = AstToString(copy);
 					printf (":ast  %s\n", ast_string);
 					printf (":type %s\n", type_string);
+					printf ("==>>  %s\n", eval_string);
 				}
 				else {
 					printf ("term not typable!\n");
@@ -142,13 +150,8 @@ int main(int argc, char** argv)
 			if (input != NULL)
 				free (input);
 		}
-		else if (chars_read == EOF) {
-			printf("exiting!");
-			break;
-		}
 		else {
-			/* fgets failed */
-			perror ("fgets failed");
+			perror("getline ");
 			exit(1);
 		}
 	} /* !while(1) */
@@ -219,9 +222,9 @@ Ast* parse_buffer(char* buf, int len, yypstate* parser, yyscan_t scanner)
 }
 
 
-char* get_input(int max_len, FILE* in_stream)
+char* get_input(int max_len, int* chars_read, FILE* in_stream)
 {
-	int chars_read;
+	int num_chars;
 	/* we add two here to garuntee that the resulting
 		 buffer is always formatted in the way that flex
 		 wants for the call to yyscan_buffer, namely
@@ -232,12 +235,14 @@ char* get_input(int max_len, FILE* in_stream)
 	char* input = (char*)calloc(max_len + 2, sizeof(char));
 
 	printf(":> ");
-	chars_read = getline(&input, &max_len, stdin);
+	num_chars = getline(&input, (size_t*)&max_len, stdin);
 
-	if (chars_read < 0) {
+	if (num_chars < 0) {
 		free(input);
+		*chars_read = 0;
 		return NULL;
 	} else {
+		*chars_read = num_chars;
 		return input;
 	}
 }

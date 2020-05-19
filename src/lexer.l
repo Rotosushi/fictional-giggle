@@ -59,6 +59,9 @@ DIGIT   [[:digit:]]
 
 [a-zA-Z][a-zA-Z0-9_-]*    { yylval->ID = strdup(yytext); return ID; }
 
+"\0" /* this ignores the extra NULL characters in the buffer we
+        manage for user input
+     */
 .     printf ("unrecognized input: <%s>\n", yytext);
 
 %%

@@ -53,7 +53,7 @@ execution
 
   ENV |- term2 : type2 = value2, id is-not-in FV(ENV)
     ----------------------------------------------
-    id := value2 -> bind (id, (type2, value2)), ENV)
+    id := value2 -> bind (id, (type2, value2)), ENV) : Nil
 
 
 
@@ -70,6 +70,8 @@ which is either a function, or nil.
 #ifndef EVALUATOR_H
 #define EVALUATOR_H
 
+#include "ast.h"
+#include "symboltable.h"
 
 /* evaluate a term one-step */
 void evaluate(Ast** term, symboltable* env);

@@ -24,18 +24,21 @@
 */
 
 typedef enum NodeTag {
-	N_TYPE,
 	N_ID,
-	N_LAMBDA,
+	N_VALUE,
 	N_CALL,
 	N_BIND,
 } NodeTag;
 
 typedef enum TypeTag {
-	T_INFER,
 	T_NIL,
-	T_FUNC,
+	T_LAMBDA,
 } TypeTag;
+
+typedef enum ValueTag {
+	V_TYPE,
+	V_LAMBDA,
+} ValueTag;
 
 struct Ast;
 
@@ -76,8 +79,6 @@ typedef struct Type {
 	} u;
 } Type;
 
-
-
 /* a name simply owns the string which is the name */
 typedef struct Id {
 	char* s;
@@ -94,6 +95,24 @@ typedef struct Lambda {
 	Arg  arg;
 	struct Ast* body;
 } Lambda;
+
+/* the value struct conveys that this term is a representable thing
+	 something which has existance and can be acted upon.
+*/
+typedef struct Value {
+	ValueTag tag;
+	union {
+		Type   type;
+		Lambda lambda;
+		/*
+		char*  string_literal
+		int    int_literal
+		double real_literal
+		...
+		*/
+	} u;
+} Value;
+
 
 /* a call needs to point to it's left and right terms */
 typedef struct Call {
@@ -115,20 +134,17 @@ typedef struct Bind {
 typedef struct Ast {
 	NodeTag tag;
 	union {
-		Type   type;
-		Value  value;
 		Id     id;
-		Lambda lambda;
+		Value  value;
 		Call   call;
 		Bind   bind;
 	} u;
 } Ast;
 
-Ast* CreateAstTypeInfer();
-Ast* CreateAstTypeNil();
-Ast* CreateAstTypeFn(Ast* lhs, Ast* rhs);
 Ast* CreateAstId(char* name);
-Ast* CreateAstLambda(char* name, Ast* type, Ast* body);
+Ast* CreateAstValueTypeNil();
+Ast* CreateAstValueTypeFn(Ast* l, Ast* r);
+Ast* CreateAstValueFn(char* name, Ast* type, Ast* body);
 Ast* CreateAstCall(Ast* l, Ast* r);
 Ast* CreateAstBind(char* name, Ast* term);
 
@@ -136,6 +152,6 @@ void AstDelete(Ast* ast);
 
 Ast* CopyAst(Ast* ast);
 
-char* AstToString(Ast*);
+char* AstToString(Ast* ast);
 
 #endif /* AST_H */
