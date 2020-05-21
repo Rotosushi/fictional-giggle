@@ -13,7 +13,7 @@ Ast* evaluate_type(Ast* type, symboltable* env);
 Ast* evaluate_lambda(Ast* lambda, symboltable* env);
 
 Ast* evaluate_id(Ast* id, symboltable* env);
-Ast* evaluate_value(Ast* val, symboltable* env);
+Ast* evaluate_entity(Ast* val, symboltable* env);
 Ast* evaluate_call(Ast* call, symboltable* env);
 Ast* evaluate_bind(Ast* bind, symboltable* env);
 
@@ -38,14 +38,14 @@ Ast* evaluate(Ast* term, symboltable* env)
   /* dynamic type dispatch! */
   switch(term->tag) {
     case N_ID:     return evaluate_id(term, env);    /* return the bound term. */
-    case N_VALUE:  return evaluate_value(term, env); /* values are already in beta-normal form */
+    case N_ENTITY: return evaluate_entity(term, env); /* values are already in beta-normal form */
     case N_CALL:   return evaluate_call(term, env);  /* return the result of calling the fn. */
     case N_BIND:   return evaluate_bind(term, env);  /* evaluate the bind and return the value nil. */
     default: error_abort("malformed ast node tag! aborting");
   }
 }
 
-Ast* evaluate_value(Ast* value, symboltable* env)
+Ast* evaluate_entity(Ast* entity, symboltable* env)
 {
   /* values are what we use to evaluate
       they are not themselves evaluated.
@@ -56,7 +56,7 @@ Ast* evaluate_value(Ast* value, symboltable* env)
       the former are beta-normal forms,
       the latter are reducable expressions.
   */
-  return CopyAst(value);
+  return CopyAst(entity);
 }
 
 Ast* evaluate_id(Ast* id, symboltable* env)
@@ -86,6 +86,8 @@ Ast* evaluate_id(Ast* id, symboltable* env)
   else {
     error_abort("cannot evaluate/lookup NULL id!");
   }
+  // suppressing a warning...
+  return NULL;
 }
 
 
@@ -110,21 +112,25 @@ Ast* evaluate_call(Ast* call, symboltable* env)
       Ast* lhs = (*call)->u.call.lhs;
       Ast* rhs = (*call)->u.call.rhs;
     */
-    // evaluate the lhs down to a lambda value
+    /*
+      evaluate the lhs down to a lambda value
+      ensuring that we only ever manipulate copies of
+      the passed in structure.
+    */
     Ast* tmp = NULL;
     Ast* lhs = CopyAst(call->u.call.lhs);
-    while(lhs->tag != N_VALUE) {
+    while(lhs->tag != N_ENTITY) {
       tmp = lhs;
       lhs = evaluate(lhs, env);
       DeleteAst(tmp);
     }
 
-    if (lhs->u.value.tag != V_LAMBDA)
+    if (lhs->u.entity.tag != E_LAMBDA)
       error_abort("cannot call a non-lambda term! aborting");
 
     // evaluate the rhs down to a value.
     Ast* rhs = CopyAst(call->u.call.rhs);
-    while(call->u.call.rhs->tag != N_VALUE) {
+    while(call->u.call.rhs->tag != N_ENTITY) {
       tmp = rhs;
       rhs = evaluate(rhs, env);
       DeleteAst(tmp);
@@ -149,7 +155,7 @@ Ast* evaluate_call(Ast* call, symboltable* env)
   }
 }
 
-Ast* evaluate_bind(Ast* ast, symboltable* env)
+Ast* evaluate_bind(Ast* bind, symboltable* env)
 {
   /*
                         term -> term'
@@ -162,14 +168,14 @@ Ast* evaluate_bind(Ast* ast, symboltable* env)
   */
   if (ast != NULL) {
 
-    Ast *term = ast->u.bind.term, *tmp = NULL;
-    while (ast->u.bind.term->tag != N_VALUE) {
+    Ast *term = bind->u.bind.term, *tmp = NULL;
+    while (bind->u.bind.term->tag != N_ENTITY) {
       tmp = term;
       term = evaluate(term, env);
       DeleteAst(tmp);
     }
 
-    bind (ast->u.bind.id.s, ast->u.bind.term, env);
+    bind (bind->u.bind.id.s, bind->u.bind.term, env);
     return CreateAstTypeNil();
 
   }
@@ -184,99 +190,133 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
   switch((*term)->tag) {
     case N_ID: {
       /*
+      {term} is a node containing the name we are looking for
+      so we can replace {term} with {value}
       [id -> value2]id  := value2
       [id -> value2]id' := id'
+
+      again, when term is a two star pointer it makes
+      semantic sense to "replace" the term with the value.
+      we can quite literally delete the old data and attatch
+      a copy of the value.
       */
       if (strcmp(name, (*term)->u.id.s) == 0) {
         (*term) = CopyAst(value);
       }
     }
 
-    case N_LAMBDA: {
-      /*
-      [id -> value2](\ id : type = term)  := (\ id : type = term)
-      [id -> value2](\ id' : type = term) :=
-        if (id' is-not-in(value2))
-        then (\id' : type = [id ->value2]term)
-        else (\[id' -> id'']id' : type = [id -> value2][id' -> id'']term)
+    case N_ENTITY: {
+      if ((*term)->u.entity.tag == E_TYPE) {
+        /*
+          this is where typename substitution will happen.
+        */
+      }
+      else if ((*term)->u.entity.tag == E_LAMBDA) {
+        /*
+        [id -> value2](\ id : type = term)  := (\ id : type = term)
+        [id -> value2](\ id' : type = term) :=
+          if (id' is-not-in(value2))
+          then (\id' : type = [id ->value2]term)
+          else (\[id' -> id'']id' : type = [id -> value2][id' -> id'']term)
 
-        this is the case that the body of a lambda
-        is itself another lambda, so we need to decide wether to
-        pass the substitution on to the body of that lambda.
+          this is the case that the body of a lambda
+          is itself another lambda, so we need to decide wether to
+          pass the substitution on to the body of that lambda.
+          it would be nice if we could simply pass the substitution
+          body into the body of the lambda, but there are two
+          contravening cases. the argument of the lambda matches
+          the name we are replacing for, or the argument of the lambda
+          matches a free variable in the value we substituting.
 
-        if the binding created by the lambda is the same
-        as the binding we are trying to replace, then we
-        do not substitute within the body of that abstraction.
-        as the name we are looking for is already bound within
-        the abstraction, and substitution would introduce an unintentional
-        binding. if the bound variable of the lambda
-        does not match the name we are trying to replace then
-        we can pass the substituion operation into the body,
-      */
-      if (strcmp(name, (*term)->u.value.u.lambda.arg.id.s) == 0) {
-        return;
+          if the binding created by the lambda is the same
+          as the binding we are trying to replace, then we
+          do not substitute within the body of that abstraction.
+          as the name we are looking for is already bound within
+          the abstraction, and substitution would introduce an unintentional
+          binding. if the bound variable of the lambda
+          does not match the name we are trying to replace then
+          we can almost pass the substituion operation into the body,
+        */
+        if (strcmp(name, (*term)->u.entity.u.lambda.arg.id.s) == 0) {
+          return;
+        }
+        else {
+          /*
+           the binding does not match,
+            however we need to aware of one more case,
+            if a free variable in the body of the value
+            we are substituting for happens to match the binding
+            of the lambda, an unintentional binding will occur.
+            (think through what happens when we call the function
+             'lookup' on a free variable which occurs in the value
+             being substituted into the body of a lambda, whose
+             name matches the lambdas binding name, after execution of
+             the substitution.
+             when lookup tries to resolve the name, it will encounter
+             the definition of the argument binding before
+             it will encounter the binding that the free
+             variables author intended, hence the unintentional
+             binding.)
+            in this case we need to rename the binding of
+            the lamdba abstraction throughout it's body before
+            we substitute for the value.
+
+            a possible solution would be to gather up the free
+            variables present in (value) into a list and search that list
+            for the argument name. this is in fact the solution that is
+            most obvious given the formal definition of substitution
+            and renaming.
+            this would require at least
+            as much work as searching the tree directly
+            to build the list of free variables, plus
+            the work required to then search the list.
+            (not to mention all of the allocation and deallocation
+            of the list itself.)
+            it is more efficient to directly search the subtree
+            for free variables of the conficting name.
+
+          */
+
+          if (appears_free_in((*term)->u.entity.u.lambda.arg.id.s, value)) {
+            // make a copy to rename.
+            Ast* lambda = CopyAst(*term);
+            /* renames the argument of lambda
+               to a random string of characters
+               throughout the body of the lambda,
+               being careful to avoid names which
+               occur free in value.
+            */
+            rename_binding((*lambda), value);
+            DeleteAst((*term));
+            (*term) = (*lambda)
+          }
+
+          /*
+          when the term is a two star ptr it makes direct semantic sense
+          to simply apply substitution to the body of the lambda
+          that is occupying term. the term itself remains what it was before
+          and the substitution operation is free to modify deeper in the
+          tree.
+          */
+          substitute(name, &((*term)->u.entity.u.lambda.body), value, env);
+        }
+        break;
       }
       else {
-        /*
-         the binding does not match, so now we need to
-          perform the substitution within the body of
-          the lambda abstraction.
-
-          however we need to aware of one more case,
-          if a free variable in the body of the value
-          we are substituting for happens to match the binding
-          of the lambda, an unintentional binding will occur.
-          (think through what happens when we call the function
-           lookup on a free variable which occurs in the value
-           being substituted into the body of a lambda, whose
-           name matches the lambdas binding name.
-           when lookup resolves the name, it will encounter
-           the definition of the argument binding before
-           it will encounter the binding that the free
-           variables author intended, hence the unintentional
-           binding.)
-          in this case we need to rename the binding of
-          the lamdba abstraction throughout it's body before
-          we substitute for the value.
-
-          a possible solution would be to gather up the free
-          variables present in (value) into a list and search that list
-          for the argument name. this would require at least
-          as much work as searching the tree directly
-          to build the list of free variables, plus
-          the work required to then search the list.
-          (not to mention all of the allocation and deallocation
-          of the list itself.)
-          it is more efficient to directly search the subtree
-          for free variables of the conficting name.
-
-        */
-        if (appears_free_in((*term)->u.value.u.lambda.arg.id.s, value)) {
-          /* renames the argument of lambda
-             to a random string of characters
-             throughout the body of the lambda,
-             being careful to avoid names which
-             occur free in value.
-          */
-          rename_binding((*term), value);
-        }
-
-        /*
-        when the term is a two star ptr it makes direct semantic sense
-        to simply apply substitution to the body of the lambda
-        that is occupying term.
-        */
-        substitute(name, &((*term)->u.value.u.lambda.body), value, env);
+        error_abort("malformed entity tag! aborting");
       }
-      break;
     }
 
     case N_CALL: {
-      //   [id -> value2]lhs rhs := [id -> value2]lhs [id -> value2]rhs
-      // when we encounter a call Ast we pass the substitution
-      // along to it's subterms.
-      substitute(name, term->u.call.lhs, value, env);
-      substitute(name, term->u.call.rhs, value, env);
+      /*
+        [id -> value2]lhs rhs := [id -> value2]lhs [id -> value2]rhs
+        when we encounter a call Ast we pass the substitution
+        along to it's subterms. and we do not modify the call
+        term itself. (no names can appear inside of the call term)
+        names can only appear as leafs from this node.
+      */
+      substitute(name, &((*term)->u.call.lhs), value, env);
+      substitute(name, &((*term)->u.call.rhs), value, env);
       break;
     }
 
@@ -295,7 +335,7 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
         appears bound in some lambda above this term.
         so it shouldn't happen right?
       */
-      substitute(name, term->u.bind.term, value, env);
+      substitute(name, &((*term)->u.bind.term), value, env);
       break;
     }
   }
@@ -386,30 +426,46 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
        function calls to happen based upon which particular value is
        inside of the tag upon loading that memory at runtime.
        so, the runtime needs to have some conception of type, however
-       it doesn't need to be full and manipulatable (yet). if the runtime
+       it doesn't need to be full and manipulatable. if the runtime
        needs to have the same understanding of type that the compiler
-       and programmer does, then the runtime will have a full conception
-       of type. and new types could presumably be created at runtime, this
+       and programmer does, then the runtime would have a full conception
+       of type and new types could presumably be created at runtime, this
        adds a lot of complexity to the runtime, so much so that it would
        seem to require that the full evaluation and typechecking facilities
-       of the compiler during the runtime of some program. which
+       of the compiler be available during the runtime of some program. which
        would require the existance of the evaluator and typechecker
        in the executable generated by the compiler. so this seems like
        something that adds so much complexity that it is above and
-       beyond what a language designed for describing the static
-       portions of a program would want to include in it's feature set.
+       beyond what a systems language is designed for,
+       which is ultimately the subset of programs which are describable
+       without extending the programs definition at runtime.
+
+       we can deduce constraints around which features can go into
+       the kernel this way.
+       for instance, we now know that the full set of types that
+       any particular program has knowledge of at compile time is
+       always greater than or equal to the set of types that same
+       program has conception of at runtime.
+       if some future feature is proposed as an addition to the
+       kernel, and the feature makes new types known to some program
+       during the execution of said program, we can categorically refute
+       that features inclusion into the kernel.
+       (this says nothing about a library which provides this feature
+        to the eager programmer.)
+
        the kernel of pink is trying to align with what is statically
        expressable by the runtime given any particular architecture.
        this means that the language itself needs to avoid what adds
        too much dynamic semantics to the kernel. tagged unions are fine
-       because they are so useful, and even if you were going to provide
+       because they are so useful, and they are knowable through static analysis
+       alone. and even if you were going to provide
        an untagged union a-la c, it is still pragmatic to always use the
-       tagged union in a tagged manner to avoid nasty runtime errors.
+       untagged union in a tagged manner to avoid nasty runtime errors.
        this means that the programmer must implement the tag portion of the
        union themselves, while this is so basic as to be near trivial,
-       it still invites human error into the equation, especially when
-       the compiler can just provide a tagged union for the programmer to
-       use themselves.
+       it still invites human error into the equation, which just seems silly
+       especially when the compiler can just provide a tagged union
+       for the programmer to use.
 
         types are not
        values in the traditional sense of them being able to have
@@ -419,13 +475,17 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
        larger types, and we want to provide functions which
        work with more than one type, in order to provide
        polymorphic containers. (we also want to provide constraints
-       around which types can be instanciated where.)
+       around which types can be instanciated where, to allow for
+        programatic type shrinking, to give programmers finer grained
+        control over which types are allowed to be bound within some
+        function.)
        from this perspective, types are providing a layer of indirection,
        and that indirection is being used to encode semantics.
        we can consider '->' to literally be an operator
        that takes in two type-values T1, T2 as arguments and returns
        the type-value 'T1 -> T2'. we can consider sum and product
        types similarly, the operators being * and | usually.
+       T1 + T2 ==>> {T1 + T2}
        but I see an argument for + and | respectively, as that conveys
        the summing or alternates meaning by leveraging the
        metaphorical implications of "+" adding two entities together,
@@ -464,7 +524,70 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
         if we consider the two, we can bang out some particular
         implementation of a function with the types replaced throughout
         the body, then each location the function is called can correspond
-        to the implementation with that particular type-signature.
+        to the implementation with that particular type-signature. we can
+        in some sense imagine a function whose parameter has no specific
+        type as having whichever type some particular call site has
+        specified for it. that particular call-site has (assumedly)
+        supplied a parameter with some known type, which means
+        that this call-site means to call the version of the
+        function where the polymorphic parameters type has been
+        substituted for this actual parameters type.
+        in this sense the function \x=>x is not a single
+        function literal, but a set of functions, each of
+        which has every known type substituted in for the
+        polymorphic parameter x.
+        we can say something like
+        (\x=>x) === { (\x:t => x) | t is-in Types_in(ENV) }
+
+        (we assume here that Types_in(ENV) returns some collection
+          usable with the boolean membership predicate 'is_in'
+          such that t can select from any type which has been
+          defined in the program text.
+          and, i suppose when we allow definitions to appear after
+          useage, the question will be
+          rephrased to 't can select from any type that appears
+          in the total set of source text')
+        typechecking can be partially carried out during parsing
+        but given mutually recursive definitions of functions,
+        sometimes it is semantically convenient or syntactically
+        required for some names to appear before any definition can
+        be given to them.
+
+        then when we apply the function to some argument
+        (\x=>x)10
+        we see that the argument to the polymorphic parameter
+        has a type Int. so we can know that we want to call
+        the member of the set { \x:t => x | t is-in Types_in(ENV) }
+        whose type (t) is Int.
+
+        going just one step further, if we adopt c++'s
+        template function instanciation rule, which
+        simply says that the compiler is not required to
+        typecheck every member of the set { \x:t => x | t is-in Types_in(ENV) }
+        it only has to typecheck those members which the
+        text of the program requests be applied; we can
+        allow more programs to typecheck, because not every
+        polymorphic function needs to work when instanciated
+        with every type available to the program, only the
+        versions that are typed out by the programmer are
+        required to typecheck.
+
+        notice that this definition sortof extends over the
+        case of an overloaded function. if we have a function
+        fn (+) a:(Int, Int), b:(Int, Int) => (fst(a) + fst(b), snd(a) + snd(b));
+        and
+        fn (+) a:(Real, Real), b:(Real, Real) => (fst(a) + fst(b), snd(a) + snd(b));
+
+        these functions are both instances of the function described
+        by the set
+        { fn (+) a:(t, t), b:(t, t) => a + b | t is-in Types_in(ENV) }
+
+        so, this leads me to think that there is a case for making each
+        function defined by a 'type-erased' set, but in the case of
+        there being no actual polymorphic parameter, we only allow the programmer
+        to select between definitions whose parameters types match, and there
+        is no ability to generate new versions of the function.
+
 
         aside:
         lambdas cannot be naturally recursive without
@@ -610,7 +733,7 @@ bool appears_free_in(char* name, Ast* term)
       }
 
       case N_LAMBDA: {
-        if (strcmp(name, term->u.lambda.arg.id.s) == 0) {
+        if (strcmp(name, term->u.entity.u.lambda.arg.id.s) == 0) {
           // the name is bound by the lambda so
           // if the name appears in the body of the
           // lambda it will be associated with the
@@ -621,7 +744,7 @@ bool appears_free_in(char* name, Ast* term)
         else {
           // search the body of the lambda for instances of
           // the name.
-          return (appears_free_in(name, term->u.lambda.body));
+          return (appears_free_in(name, term->u.entity.u.lambda.body));
         }
       }
 
@@ -668,28 +791,6 @@ void rename_binding_in_body(char* new_name, char* old_name, Ast* term)
 {
   switch (term->tag)
   {
-    case N_LAMBDA: {
-      /*
-        if the body of the lambda we are replacing the name for
-        is itself a lambda whose biding matches the name we are
-        looking to replace, we do not replace, because that lambda
-        is introducing that binding for it's own body, and that makes
-        it a separate binding than the one we are looking for.
-        if the binding is not the one that we are looking for, then
-        we need to look for instances of the binding within the
-        body of the lambda.
-       */
-      if (strcmp(old_name, term->u.lambda.arg.id.s) == 0) {}
-      else {
-        rename_binding_in_body(new_name, old_name, term->u.lambda.body);
-      }
-    }
-    case N_TYPE: {
-      /* names cannot yet appear in type expressions.
-         there is no way that a name could appear in
-         a type expression that we would need to replace.
-       */
-    }
     case N_ID: {
       /*
         this could be the node we want to replace
@@ -700,6 +801,33 @@ void rename_binding_in_body(char* new_name, char* old_name, Ast* term)
         term->u.id.s = strdup(new_name);
       }
       /* we don't want to rename this node */
+    }
+    case N_ENTITY: {
+      /*
+        if the body of the lambda we are replacing the name for
+        is itself a lambda whose biding matches the name we are
+        looking to replace, we do not replace, because that lambda
+        is introducing that binding for it's own body, and that makes
+        it a separate binding than the one we are looking for.
+        if the binding is not the one that we are looking for, then
+        we need to look for instances of the binding within the
+        body of the lambda.
+       */
+      if (term->u.entity.tag == E_LAMBDA) {
+        if (strcmp(old_name, term->u.entity.u.lambda.arg.id.s) == 0) {}
+        else {
+          rename_binding_in_body(new_name, old_name, term->u.entity.u.lambda.body);
+        }
+      }
+      else if (term->u.entity.tag == E_TYPE) {
+      /* names cannot yet appear in type expressions.
+         there is no way that a name could appear in
+         a type expression that we would need to replace.
+       */
+      }
+      else {
+        error_abort("malformed entity tag! aborting");
+      }
     }
     case N_CALL: {
       rename_binding_in_body(new_name, old_name, term->u.call.lhs);
@@ -715,7 +843,7 @@ void rename_binding_in_body(char* new_name, char* old_name, Ast* term)
 
 void rename_binding(Ast* lambda, Ast* invalid_bindings)
 {
-  char* arg_name = lambda->u.lambda.arg.id.s;
+  char* arg_name = strdup(lambda->u.entity.u.lambda.arg.id.s);
   char* new_name = NULL;
   do {
     if (new_name)
@@ -724,9 +852,10 @@ void rename_binding(Ast* lambda, Ast* invalid_bindings)
     new_name = generate_name(5);
   } while (appears_free_in(new_name, invalid_bindings));
 
-  free(lambda->u.lambda.arg.id.s);
-  lambda->u.lambda.arg.id.s = new_name;
-  rename_binding_in_body(new_name, arg_name, lambda->u.lambda.body);
+  free(lambda->u.entity.u.lambda.arg.id.s);
+  lambda->u.entity.u.lambda.arg.id.s = new_name;
+  rename_binding_in_body(new_name, arg_name, lambda->u.entity.u.lambda.body);
+  free(arg_name);
 }
 
 

@@ -84,8 +84,8 @@ union YYSTYPE
   Ast* term;
   /* name  */
   Ast* name;
-  /* value  */
-  Ast* value;
+  /* entity  */
+  Ast* entity;
   /* lambda  */
   Ast* lambda;
   /* call  */

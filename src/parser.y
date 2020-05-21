@@ -129,7 +129,7 @@ typedef void* yyscan_t;
   some new union member which represents the new action
   in the grammar.
 */
-%nterm <Ast*> term name value lambda call bind type parenterm
+%nterm <Ast*> term name entity lambda call bind type parenterm
 
 %token NIL
 %token <char*> ID
@@ -149,7 +149,7 @@ input:
 
 term:
     name      { $$ = $1; }
-  | value     { $$ = $1; }
+  | entity    { $$ = $1; }
   | call      { $$ = $1; }
   | bind      { $$ = $1; }
   | parenterm { $$ = $1; }
@@ -158,18 +158,18 @@ term:
 name: /* [a-zA-Z][a-zA-Z0-9_-]+ */
   ID  { $$ = CreateAstId($1); }
 
-value:
+entity:
     type   { $$ = $1; }
   | lambda { $$ = $1; }
 
 
 type: /* nil | type -> type | ( type ) */
-    NIL                 { $$ = CreateAstValueTypeNil(); }
-  | type RARROW type    { $$ = CreateAstValueTypeFn($1, $3); }
+    NIL                 { $$ = CreateAstEntityTypeNil(); }
+  | type RARROW type    { $$ = CreateAstEntityTypeFn($1, $3); }
   | LPAREN type RPAREN  { $$ = $2; }
 
 lambda: /* \ name : arg_type => term */
-    BSLASH ID COLON type REQARROW term { $$ = CreateAstValueFn($2, $4, $6); }
+    BSLASH ID COLON type REQARROW term { $$ = CreateAstEntityFn($2, $4, $6); }
   //| BSLASH ID REQARROW term            { $$ = CreateAstLambda($2, CreateAstTypeInfer(), $4); }
 
 call: /* term term */

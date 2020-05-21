@@ -15,37 +15,37 @@ Ast* CreateAstId(char* name)
   return node;
 }
 
-Ast* CreateAstValueTypeNil()
+Ast* CreateAstEntityTypeNil()
 {
-  Ast* node                   = (Ast*)malloc(sizeof(Ast));
-  node->tag                   = N_VALUE;
-  node->u.value.tag             = V_TYPE;
-  node->u.value.u.type.tag    = T_NIL;
-  node->u.value.u.type.u.null = '\0';
+  Ast* node                    = (Ast*)malloc(sizeof(Ast));
+  node->tag                    = N_ENTITY;
+  node->u.entity.tag           = E_TYPE;
+  node->u.entity.u.type.tag    = T_NIL;
+  node->u.entity.u.type.u.null = '\0';
   return node;
 }
 
-Ast* CreateAstValueTypeFn(Ast* lhs, Ast* rhs)
+Ast* CreateAstEntityTypeFn(Ast* lhs, Ast* rhs)
 {
-  Ast* node                         = (Ast*)malloc(sizeof(Ast));
-  node->tag                         = N_VALUE;
-  node->u.value.tag                   = V_TYPE;
-  node->u.value.u.type.tag          = T_LAMBDA;
-  node->u.value.u.type.u.rarrow.lhs = lhs;
-  node->u.value.u.type.u.rarrow.rhs = rhs;
+  Ast* node                          = (Ast*)malloc(sizeof(Ast));
+  node->tag                          = N_ENTITY;
+  node->u.entity.tag                 = E_TYPE;
+  node->u.entity.u.type.tag          = T_LAMBDA;
+  node->u.entity.u.type.u.rarrow.lhs = lhs;
+  node->u.entity.u.type.u.rarrow.rhs = rhs;
   return node;
 }
 
 
 
-Ast* CreateAstValueFn(char* name, Ast* type, Ast* body)
+Ast* CreateAstEntityFn(char* name, Ast* type, Ast* body)
 {
-  Ast* node                       = (Ast*)malloc(sizeof(Ast));
-  node->tag                       = N_VALUE;
-  node->u.value.tag               = V_LAMBDA;
-  node->u.value.u.lambda.arg.id.s = name;
-  node->u.value.u.lambda.arg.type = type;
-  node->u.value.u.lambda.body     = body;
+  Ast* node                        = (Ast*)malloc(sizeof(Ast));
+  node->tag                        = N_ENTITY;
+  node->u.entity.tag               = E_LAMBDA;
+  node->u.entity.u.lambda.arg.id.s = name;
+  node->u.entity.u.lambda.arg.type = type;
+  node->u.entity.u.lambda.body     = body;
   return node;
 }
 
@@ -68,7 +68,7 @@ Ast* CreateAstBind(char* name, Ast* term)
 }
 
 void DeleteAstId(Ast* id);
-void DeleteAstValue(Ast* value);
+void DeleteAstEntity(Ast* entity);
 void DeleteAstCall(Ast* call);
 void DeleteAstBind(Ast* bind);
 
@@ -79,8 +79,8 @@ void DeleteAst(Ast* ast)
       case N_ID:
         DeleteAstId(ast);
         break;
-      case N_VALUE:
-        DeleteAstValue(ast);
+      case N_ENTITY:
+        DeleteAstEntity(ast);
         break;
       case N_CALL:
         DeleteAstCall(ast);
@@ -94,26 +94,26 @@ void DeleteAst(Ast* ast)
   }
 }
 
-void DeleteAstValue(Ast* value)
+void DeleteAstEntity(Ast* entity)
 {
-  if (value != NULL) {
-    switch (value->u.value.tag) {
-      case V_TYPE:   {
-        if (value->u.value.u.type.tag == T_LAMBDA) {
-          DeleteAstValue(value->u.value.u.type.u.rarrow.lhs);
-          DeleteAstValue(value->u.value.u.type.u.rarrow.rhs);
+  if (entity != NULL) {
+    switch (entity->u.entity.tag) {
+      case E_TYPE:   {
+        if (entity->u.entity.u.type.tag == T_LAMBDA) {
+          DeleteAstEntity(entity->u.entity.u.type.u.rarrow.lhs);
+          DeleteAstEntity(entity->u.entity.u.type.u.rarrow.rhs);
         }
-        free(value);
+        free(entity);
         break;
       }
-      case V_LAMBDA: {
-        if (value->u.value.u.lambda.arg.id.s != NULL)
-          free (value->u.value.u.lambda.arg.id.s);
-        DeleteAstValue(value->u.value.u.lambda.arg.type);
-        DeleteAst(value->u.value.u.lambda.body);
+      case E_LAMBDA: {
+        if (entity->u.entity.u.lambda.arg.id.s != NULL)
+          free (entity->u.entity.u.lambda.arg.id.s);
+        DeleteAstEntity(entity->u.entity.u.lambda.arg.type);
+        DeleteAst(entity->u.entity.u.lambda.body);
         break;
       }
-      default: error_abort("malformed value tag! aborted");
+      default: error_abort("malformed entity tag! aborted");
     }
   }
 }
@@ -148,39 +148,39 @@ void DeleteAstBind(Ast* bind)
 
 
 Ast* CopyAstId(Ast* id);
-Ast* CopyAstValue(Ast* value);
+Ast* CopyAstEntity(Ast* entity);
 Ast* CopyAstCall(Ast* call);
 Ast* CopyAstBind(Ast* bind);
 
 Ast* CopyAst(Ast* ast)
 {
   switch(ast->tag) {
-    case N_ID:    return CopyAstId(ast);
-    case N_VALUE: return CopyAstValue(ast);
-    case N_CALL:  return CopyAstCall(ast);
-    case N_BIND:  return CopyAstBind(ast);
+    case N_ID:     return CopyAstId(ast);
+    case N_ENTITY: return CopyAstEntity(ast);
+    case N_CALL:   return CopyAstCall(ast);
+    case N_BIND:   return CopyAstBind(ast);
     default: error_abort ("malformed ast! aborting");
   }
 }
 
-Ast* CopyAstValue(Ast* value)
+Ast* CopyAstEntity(Ast* entity)
 {
-  switch (value->u.value.tag) {
-    case V_TYPE: {
-      switch(value->u.value.u.type.tag) {
-        case T_NIL:    return CreateAstValueTypeNil();
+  switch (entity->u.entity.tag) {
+    case E_TYPE: {
+      switch(entity->u.entity.u.type.tag) {
+        case T_NIL:    return CreateAstEntityTypeNil();
 
-        case T_LAMBDA: return CreateAstValueTypeFn(CopyAstValue(value->u.value.u.type.u.rarrow.lhs), \
-                                                   CopyAstValue(value->u.value.u.type.u.rarrow.rhs));
+        case T_LAMBDA: return CreateAstEntityTypeFn(CopyAstEntity(entity->u.entity.u.type.u.rarrow.lhs), \
+                                                   CopyAstEntity(entity->u.entity.u.type.u.rarrow.rhs));
         default: error_abort("malformed type! aborting");
       }
     }
-    case V_LAMBDA: {
-      return CreateAstValueFn(strdup(value->u.value.u.lambda.arg.id.s), \
-                              CopyAstValue(value->u.value.u.lambda.arg.type), \
-                              CopyAst(value->u.value.u.lambda.body));
+    case E_LAMBDA: {
+      return CreateAstEntityFn(strdup(entity->u.entity.u.lambda.arg.id.s), \
+                              CopyAstEntity(entity->u.entity.u.lambda.arg.type), \
+                              CopyAst(entity->u.entity.u.lambda.body));
     }
-    default: error_abort("malformed value! aborting");
+    default: error_abort("malformed entity! aborting");
   }
 }
 
@@ -202,18 +202,18 @@ Ast* CopyAstBind(Ast* bind)
 }
 
 char* AstIdToString(Ast*);
-char* AstValueTypeToString(Ast*);
-char* AstValueLambdaToString(Ast*);
-char* AstValueToString(Ast*);
+char* AstEntityTypeToString(Ast*);
+char* AstEntityLambdaToString(Ast*);
+char* AstEntityToString(Ast*);
 char* AstCallToString(Ast*);
 char* AstBindToString(Ast*);
 
 
-char* AstValueTypeToString(Ast* ast)
+char* AstEntityTypeToString(Ast* ast)
 {
   char* result = NULL;
   if (ast != NULL) {
-    Type* type = &(ast->u.value.u.type);
+    Type* type = &(ast->u.entity.u.type);
 
     switch (type->tag) {
       case T_NIL: {
@@ -222,11 +222,11 @@ char* AstValueTypeToString(Ast* ast)
       }
 
       case T_LAMBDA: {
-        char* t1 = AstValueToString(type->u.rarrow.lhs);
+        char* t1 = AstEntityToString(type->u.rarrow.lhs);
         if (!t1) {
           error_abort("malformed type! aborting");
         }
-        char* t2 = AstValueToString(type->u.rarrow.rhs);
+        char* t2 = AstEntityToString(type->u.rarrow.rhs);
         if (!t2) {
           error_abort("malformed type! aborting");
         }
@@ -234,7 +234,7 @@ char* AstValueTypeToString(Ast* ast)
         char* rarrow = " -> ";
         int len;
         // this could seg-fault, but only if the tree is malformed.
-        bool grouped = type->u.rarrow.lhs->u.value.u.type.tag == T_LAMBDA;
+        bool grouped = type->u.rarrow.lhs->u.entity.u.type.tag == T_LAMBDA;
         if (grouped) {
           len = 1 + strlen(t1) + 1 + 4 + strlen(t2) + 1;
           result = (char*)calloc(len, sizeof(char));
@@ -265,22 +265,22 @@ char* AstValueTypeToString(Ast* ast)
   return result;
 }
 
-char* AstValueLambdaToString(Ast* ast)
+char* AstEntityLambdaToString(Ast* ast)
 {
   char* result = NULL;
   if (ast != NULL) {
     char *bs = " \\ ", *cln = " : ", *rarw = " => ";
-    char* arg_id = ast->u.value.u.lambda.arg.id.s;
+    char* arg_id = ast->u.entity.u.lambda.arg.id.s;
     if   (arg_id == NULL) {
       error_abort("malformed arg id! aborting");
     }
 
-    char* arg_type = AstValueToString(ast->u.value.u.lambda.arg.type);
+    char* arg_type = AstEntityToString(ast->u.entity.u.lambda.arg.type);
     if   (arg_type == NULL) {
       error_abort("malformed arg type! aborting");
     }
 
-    char* body = AstToString(ast->u.value.u.lambda.body);
+    char* body = AstToString(ast->u.entity.u.lambda.body);
     if   (body == NULL) {
       error_abort("malformed body! aborting");
     }
@@ -304,16 +304,16 @@ char* AstValueLambdaToString(Ast* ast)
   return result;
 }
 
-char* AstValueToString(Ast* ast)
+char* AstEntityToString(Ast* ast)
 {
   char* result = NULL;
   if (ast != NULL) {
-    switch (ast->u.value.tag) {
-      case V_TYPE: {
-        result = AstValueTypeToString(ast);
+    switch (ast->u.entity.tag) {
+      case E_TYPE: {
+        result = AstEntityTypeToString(ast);
       }
-      case V_LAMBDA: {
-        result = AstValueLambdaToString(ast);
+      case E_LAMBDA: {
+        result = AstEntityLambdaToString(ast);
       }
     }
   }
@@ -395,8 +395,8 @@ char* AstToString(Ast* ast)
   char* result = NULL;
   if (ast != NULL) {
     switch (ast->tag) {
-      case N_VALUE: {
-        result = AstValueToString(ast);
+      case N_ENTITY: {
+        result = AstEntityToString(ast);
         break;
       }
       case N_ID: {

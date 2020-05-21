@@ -133,7 +133,7 @@ int main(int argc, char** argv)
 				Ast* type = type_of(result, &env);
 				if (type != NULL) {
 					Ast* copy = CopyAst(result);
-					evaluate(&copy, &env);
+					evaluate(copy, &env);
 					char* ast_string = AstToString(result);
 					char* type_string = AstToString(type);
 					char* eval_string = AstToString(copy);

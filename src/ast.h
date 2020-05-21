@@ -25,7 +25,7 @@
 
 typedef enum NodeTag {
 	N_ID,
-	N_VALUE,
+	N_ENTITY,
 	N_CALL,
 	N_BIND,
 } NodeTag;
@@ -35,10 +35,10 @@ typedef enum TypeTag {
 	T_LAMBDA,
 } TypeTag;
 
-typedef enum ValueTag {
-	V_TYPE,
-	V_LAMBDA,
-} ValueTag;
+typedef enum EntityTag {
+	E_TYPE,
+	E_LAMBDA,
+} EntityTag;
 
 struct Ast;
 
@@ -62,7 +62,7 @@ struct Ast;
 
 	(
 	though in a pure type system;
-		where types are first class values,
+		where types are first class Entitys,
 	  I could imagine some meaning for a
 	  type-described-by-a-lambda,
 		it could be a parametric type constructor.
@@ -96,11 +96,12 @@ typedef struct Lambda {
 	struct Ast* body;
 } Lambda;
 
-/* the value struct conveys that this term is a representable thing
+/* the entity struct conveys that this term is a thing,
 	 something which has existance and can be acted upon.
+	 it may not be representable at runtime, or it may.
 */
-typedef struct Value {
-	ValueTag tag;
+typedef struct Entity {
+	EntityTag tag;
 	union {
 		Type   type;
 		Lambda lambda;
@@ -111,7 +112,7 @@ typedef struct Value {
 		...
 		*/
 	} u;
-} Value;
+} Entity;
 
 
 /* a call needs to point to it's left and right terms */
@@ -128,23 +129,23 @@ typedef struct Bind {
 
 /*
 	the ast needs to provide the uniform type so that we can talk about
-	ast's as objects and values. we use a tagged union implementation
+	ast's as objects and Entitys. we use a tagged union implementation
 	to ensure correct usage of the union.
 */
 typedef struct Ast {
 	NodeTag tag;
 	union {
 		Id     id;
-		Value  value;
+		Entity entity;
 		Call   call;
 		Bind   bind;
 	} u;
 } Ast;
 
 Ast* CreateAstId(char* name);
-Ast* CreateAstValueTypeNil();
-Ast* CreateAstValueTypeFn(Ast* l, Ast* r);
-Ast* CreateAstValueFn(char* name, Ast* type, Ast* body);
+Ast* CreateAstEntityTypeNil();
+Ast* CreateAstEntityTypeFn(Ast* l, Ast* r);
+Ast* CreateAstEntityFn(char* name, Ast* type, Ast* body);
 Ast* CreateAstCall(Ast* l, Ast* r);
 Ast* CreateAstBind(char* name, Ast* term);
 
