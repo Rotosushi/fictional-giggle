@@ -84,6 +84,8 @@ union YYSTYPE
   Ast* term;
   /* name  */
   Ast* name;
+  /* value  */
+  Ast* value;
   /* lambda  */
   Ast* lambda;
   /* call  */
@@ -96,7 +98,7 @@ union YYSTYPE
   Ast* parenterm;
   /* ID  */
   char* ID;
-#line 100 "parser.h"
+#line 102 "parser.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

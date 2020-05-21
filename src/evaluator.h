@@ -73,8 +73,7 @@ which is either a function, or nil.
 #include "ast.h"
 #include "symboltable.h"
 
-/* evaluate a term one-step */
-void evaluate(Ast** term, symboltable* env);
+Ast* evaluate(Ast* term, symboltable* env);
 
 
 #endif

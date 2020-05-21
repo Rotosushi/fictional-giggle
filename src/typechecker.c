@@ -280,9 +280,11 @@ Subtype polymorphism: (pretty sure the literature denotes it with "<:" )
 
 
 
-Ast* typeofType(Ast* type, symboltable* env);
+Ast* typeofValueType(Ast* type, symboltable* env);
+Ast* typeofValueLambda(Ast* lambda, symboltable* env);
+
 Ast* typeofId(Ast* id, symboltable* env);
-Ast* typeofLambda(Ast* lambda, symboltable* env);
+Ast* typeofValue(Ast* value, symboltable* env);
 Ast* typeofCall(Ast* call, symboltable* env);
 Ast* typeofBind(Ast* bind, symboltable* env);
 
@@ -297,11 +299,10 @@ Ast* type_of(Ast* term, symboltable* env)
 {
   if (term != NULL) {
       switch(term->tag) {
-        case N_TYPE:   return typeofType(term, env);
-        case N_ID:     return typeofId(term, env);
-        case N_LAMBDA: return typeofLambda(term, env);
-        case N_CALL:   return typeofCall(term, env);
-        case N_BIND:   return typeofBind(term, env);
+        case N_ID:    return typeofId(term, env);
+        case N_VALUE: return typeofValue(term, env);
+        case N_CALL:  return typeofCall(term, env);
+        case N_BIND:  return typeofBind(term, env);
         default:  error_abort("malformed Ast node! aborting");
       }
   }
@@ -311,28 +312,25 @@ Ast* type_of(Ast* term, symboltable* env)
   }
 }
 
-Ast* typeofType(Ast* type, symboltable* env)
+Ast* typeofValueType(Ast* type, symboltable* env)
 {
   if (type != NULL) {
     /* ENV |- nil : Nil */
-    if (type->u.type.tag == T_NIL) {
-      return CreateAstTypeNil();
+    if (type->u.value.u.type.tag == T_NIL) {
+      return CreateAstValueTypeNil();
     }
-    /* dunno what exactly to do with this yet... */
-    else if (type->u.type.tag == T_INFER) {
-      return CreateAstTypeInfer();
     /*
      build up the function type recursively.
       ENV |- :T1, |- :T2
       ------------------
       ENV |- T1 -> T2
     */
-    } else if (type->u.type.tag == T_FUNC) {
-      Ast* t1 = typeofType(type->u.type.u.rarrow.lhs, env);
+     else if (type->u.value.u.type.tag == T_LAMBDA) {
+      Ast* t1 = typeofValue(type->u.value.u.type.u.rarrow.lhs, env);
       if (t1 != NULL) {
-        Ast* t2 = typeofType(type->u.type.u.rarrow.rhs, env);
+        Ast* t2 = typeofValue(type->u.value.u.type.u.rarrow.rhs, env);
         if (t2 != NULL) {
-          return CreateAstTypeFn(t1, t2);
+          return CreateAstValueTypeFn(t1, t2);
         }
         else {
           printf("function type type2 NULL\n!");
@@ -379,7 +377,7 @@ Ast* typeofId(Ast* id, symboltable* env)
   }
 }
 
-Ast* typeofLambda(Ast* lambda, symboltable* env)
+Ast* typeofValueLambda(Ast* lambda, symboltable* env)
 {
   /*
         ENV |- id : type1, term : type2
@@ -387,7 +385,7 @@ Ast* typeofLambda(Ast* lambda, symboltable* env)
     ENV |- \ id : type1 => term : type1 -> type2
   */
   if (lambda != NULL) {
-    Ast* type1 = type_of(lambda->u.lambda.arg.type, env);
+    Ast* type1 = type_of(lambda->u.value.u.lambda.arg.type, env);
     if (type1 != NULL) {
       /*
         question:
@@ -398,11 +396,11 @@ Ast* typeofLambda(Ast* lambda, symboltable* env)
           inject the parameter into the environment while
           we typecheck the body
       */
-      bind(lambda->u.lambda.arg.id.s, lambda->u.lambda.arg.type, env);
-      Ast* type2 = type_of(lambda->u.lambda.body, env);
-      unbind(lambda->u.lambda.arg.id.s, env);
+      bind(lambda->u.value.u.lambda.arg.id.s, lambda->u.value.u.lambda.arg.type, env);
+      Ast* type2 = type_of(lambda->u.value.u.lambda.body, env);
+      unbind(lambda->u.value.u.lambda.arg.id.s, env);
       if (type2 != NULL)
-        return CreateAstTypeFn(type1, type2);
+        return CreateAstValueTypeFn(type1, type2);
         else {
           printf("lambda body not typeable!\n");
           return NULL;
@@ -436,8 +434,8 @@ Ast* typeofCall(Ast* call, symboltable* env)
 
       if (typeB != NULL) {
 
-        if (typeA->u.type.tag == T_FUNC) {
-            Ast* type1 = type_of(typeA->u.type.u.rarrow.lhs, env);
+        if (typeA->u.value.u.type.tag == T_LAMBDA) {
+            Ast* type1 = type_of(typeA->u.value.u.type.u.rarrow.lhs, env);
             // Ast* type2 = type_of(typeA->u.type.u.rarrow.rhs)
 
             if (type1 != NULL) {
@@ -485,7 +483,7 @@ Ast* typeofBind(Ast* bind, symboltable* env)
   if (bind != NULL) {
     Ast* type2 = type_of(bind->u.bind.term, env);
     if (type2 != NULL) {
-      return CreateAstTypeNil();
+      return CreateAstValueTypeNil();
     }
     else {
       printf("bind term not typeable!\n");
@@ -513,15 +511,16 @@ Ast* typeofBind(Ast* bind, symboltable* env)
 bool typesEqual(Ast* t1, Ast* t2, symboltable* env)
 {
   if (t1 != NULL && t2 != NULL) {
-    if (t1->tag != N_TYPE || t2->tag != N_TYPE)
+    if  (t1->tag != N_VALUE         \
+      || t1->u.value.tag != V_TYPE  \
+      || t2->tag != N_VALUE         \
+      || t2->u.value.tag != V_TYPE)
       error_abort("non-type ast cannot compare to type ast! aborting");
-    if (t1->u.type.tag == T_NIL && t2->u.type.tag == T_NIL)
+    if (t1->u.value.u.type.tag == T_NIL && t2->u.value.u.type.tag == T_NIL)
       return true;
-    else if (t1->u.type.tag == T_INFER && t2->u.type.tag == T_INFER)
-      return true;
-    else if (t1->u.type.tag == T_FUNC && t2->u.type.tag == T_FUNC)
-      return typesEqual(t1->u.type.u.rarrow.lhs, t2->u.type.u.rarrow.lhs, env) \
-          && typesEqual(t1->u.type.u.rarrow.rhs, t2->u.type.u.rarrow.rhs, env);
+    else if (t1->u.value.u.type.tag == T_LAMBDA && t2->u.value.u.type.tag == T_LAMBDA)
+      return typesEqual(t1->u.value.u.type.u.rarrow.lhs, t2->u.value.u.type.u.rarrow.lhs, env) \
+          && typesEqual(t1->u.value.u.type.u.rarrow.rhs, t2->u.value.u.type.u.rarrow.rhs, env);
     else
       return false;
   }

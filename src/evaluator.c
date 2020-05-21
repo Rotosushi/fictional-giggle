@@ -9,11 +9,13 @@
 #include "symboltable.h"
 #include "error.h"
 
-void evaluate_type(Ast** type, symboltable* env);
-void evaluate_id(Ast** id, symboltable* env);
-void evaluate_lambda(Ast** lambda, symboltable* env);
-void evaluate_call(Ast** call, symboltable* env);
-void evaluate_bind(Ast** bind, symboltable* env);
+Ast* evaluate_type(Ast* type, symboltable* env);
+Ast* evaluate_lambda(Ast* lambda, symboltable* env);
+
+Ast* evaluate_id(Ast* id, symboltable* env);
+Ast* evaluate_value(Ast* val, symboltable* env);
+Ast* evaluate_call(Ast* call, symboltable* env);
+Ast* evaluate_bind(Ast* bind, symboltable* env);
 
 void substitute(char* name, Ast** term, Ast* value, symboltable* env);
 bool appears_free_in(char* name, Ast* term);
@@ -21,95 +23,43 @@ void rename_binding(Ast* lambda, Ast* value);
 
 
 /*
-
-
-  so, the general usage of evaluate should take in
-  an Ast describing the syntax of the language.
-  and act like the abstract machine that evaluate's
-  Asts, which reduces the tree down to a new tree
-  representing the value original expression.
-  so, the 'result' of a name is it's value.
-  the 'result' of a type is itself.
-  the 'result' of a lambda is itself.
-  the 'result' of a call is the application of substitution of the lhs
-    throughout the body of the rhs for the name of the parameter.
-  the 'result' of a bind is that the environment binds a name
-    to some term as it's value.
-
-    i think that the evaluator should be written
-    to construct a result tree from evaluating the passed
-    tree, and should not modify the passed tree.
-    that gets tricky when reducing terms we create
-    during previous reductions, when do we deallocate
-    them, if we can't tell the difference between a node
-    that was created during reduction (an intermediate term)
-    or one that was created by the parser. (and we can't tell that easily)
-    the process of in place creation could be emulated by making a local copy,
-    and preforming the reductions in place on the local copy.
-    but then, does this scope own that memory, and
-    then we return the new memory which the outer scope now needs to know
-    to deallocate, or does that make it
-    make more sense for the outer scope
-    to own the new copy, which then we are back to
-    modifying the passed tree in place, and it
-    "just happens" to be a copy.
-    this is a very common cyclical issue with memory management.
-    the most sensible solution is to try as much as possible to
-    delete the memory you allocate yourself, and to pass
-    dynamic allocations as return values as little as possible.
-    this obviously has an effect on the shape of the code that
-    you write.
-
-    honestly, we are going to modify in place. from now on, evaluate
-    own's and consumes the passed term data.
+  evaluate allocates new memory to describe the result of
+  evaluation, instead of modifying the tree in place, as
+  the latter stategy is harder w.r.t. avoiding introducing
+  pointer cycles into the tree structure, which cause
+  DeleteAst to seg-fault. instead, each function maintains
+  it's own memory footprint as evaluation occurs, allocating
+  and deallocating intermediate results, and subsequently
+  returning the final result tree. (which could be as simple
+  as a single leaf node.)
 */
-void evaluate(Ast** term, symboltable* env)
+Ast* evaluate(Ast* term, symboltable* env)
 {
   /* dynamic type dispatch! */
-  switch((*term)->tag) {
-    case N_TYPE:   evaluate_type(term, env);   break;   /* return the type as a value. */
-    case N_ID:     evaluate_id(term, env);     break;   /* return the bound term. */
-    case N_LAMBDA: evaluate_lambda(term, env); break; /* return the lambda as a value. */
-    case N_CALL:   evaluate_call(term, env);   break;  /* return the result of calling the fn. */
-    case N_BIND:   evaluate_bind(term, env);   break;   /* evaluate the bind and return the value nil. */
+  switch(term->tag) {
+    case N_ID:     return evaluate_id(term, env);    /* return the bound term. */
+    case N_VALUE:  return evaluate_value(term, env); /* values are already in beta-normal form */
+    case N_CALL:   return evaluate_call(term, env);  /* return the result of calling the fn. */
+    case N_BIND:   return evaluate_bind(term, env);  /* evaluate the bind and return the value nil. */
     default: error_abort("malformed ast node tag! aborting");
   }
 }
 
-
-void evaluate_type(Ast** type, symboltable* env)
+Ast* evaluate_value(Ast* value, symboltable* env)
 {
-  /*
-  when we allow names to be bound to type terms
-    it only seems natural to allow typenames to then
-    occur in type expressions. however this is beyond
-    the scope of v0.0.1.
-    maybe v0.0.2.
-    we currently do not allow names to appear in the
-    bodies of type expressions, so there is no way
-    for any term bound to a type value to need any
-    amount of computation (the programmer cannot express
-    any type that would need replacing). however, eventually
-    standard variable replacement can be used in the
-    same way it is used by the other rules, just replacing
-    the bound term in place by pointer assignment.
-    it just so happens that the name is bound to a type
-    expression only legal in a type expression. just
-    as an int is only legal in int expressions, and so forth.
-    this is really an extension of the idea that nil is the
-    literal expressing the singular value of type Nil, and
-    nil can appear in expressions, just as the names of
-    types can appear in so-called type expressions.
-    however, a type expression would consist of the typename Nil
-    appearing, and not the literal nil. this is subtle and
-    if the programmer is not careful with capitalization
-    they will easily generate a bug. hopefully something
-    we can discover and label a compiler error.
+  /* values are what we use to evaluate
+      they are not themselves evaluated.
+      intuitively;
+      we don't evaluate '3' we evaluate
+      '3' + '4'. we dont evaluate
+      \x=>x we evaluate (\x=>x)nil
+      the former are beta-normal forms,
+      the latter are reducable expressions.
   */
-
+  return CopyAst(value);
 }
 
-void evaluate_id(Ast** id, symboltable* env)
+Ast* evaluate_id(Ast* id, symboltable* env)
 {
   /*
    in order to evalute an id,
@@ -124,13 +74,10 @@ void evaluate_id(Ast** id, symboltable* env)
    -------------------------
        id -> value
   */
-  if (id != NULL && *id != NULL) {
-    symbol* sym = lookup((*id)->u.id.s, env);
+  if (id != NULL) {
+    symbol* sym = lookup(id->u.id.s, env);
     if (sym != NULL) {
-      // free the memory originally associated with this node.
-      free (*id);
-      // replace the original term with the value bound to the symbol
-      (*id) = sym->term;
+      return CopyAst(sym->term);
     }
     else {
       error_abort("cannot find name in environment! aborting");
@@ -141,32 +88,8 @@ void evaluate_id(Ast** id, symboltable* env)
   }
 }
 
-void evaluate_lambda(Ast** lambda, symboltable* env)
-{
-  /* a lambda is a value, so it can itself
-      be the valid result of execution.
-      that is, beta-reduction stops once the
-      term is in normal form, and the normal-form
-      is any value. which again a lambda term is
-      a valid value form. so we don't need to
-      evaluate lambda terms on their own.
 
-      think of it from the perspective of some caller,
-      we are calling evaluate, which dispatched
-      to evaluate_lambda on some term,
-      that term is either the root, or we are one
-      step away from the caller node, and are visiting a
-      leaf node, of either call or bind.
-      1) the user entered a lambda value on it's own,
-        -> the lambda is a value, so it makes sense to print
-            the lambda-literal as the result of execution.
-      2) the lambda was returned as the result of some execution
-        -> the lambda is a value, so it makes sense to print
-            the lambda-literal as the result of execution.
-   */
-}
-
-void evaluate_call(Ast** call, symboltable* env)
+Ast* evaluate_call(Ast* call, symboltable* env)
 {
   /*
   in order to evaluate a call expression, we want to
@@ -182,69 +105,51 @@ void evaluate_call(Ast** call, symboltable* env)
 
       (\ id : type = term) (value2) -> [id -> value2]term
   */
-  if (call != NULL && *call != NULL) {
+  if (call != NULL) {
     /*
       Ast* lhs = (*call)->u.call.lhs;
       Ast* rhs = (*call)->u.call.rhs;
     */
     // evaluate the lhs down to a lambda value
-    while((*call)->u.call.lhs->tag != N_LAMBDA) {
-
-      if ((*call)->u.call.lhs->tag == N_TYPE) {
-        error_abort("cannot evaluate a type to a lambda value! aborting");
-      }
-      else if ((*call)->u.call.lhs->tag == N_BIND) {
-        error_abort("cannot evaluate a bind to a lambda value! aborting");
-      }
-
-      evaluate(&((*call)->u.call.lhs), env);
+    Ast* tmp = NULL;
+    Ast* lhs = CopyAst(call->u.call.lhs);
+    while(lhs->tag != N_VALUE) {
+      tmp = lhs;
+      lhs = evaluate(lhs, env);
+      DeleteAst(tmp);
     }
+
+    if (lhs->u.value.tag != V_LAMBDA)
+      error_abort("cannot call a non-lambda term! aborting");
 
     // evaluate the rhs down to a value.
-    while(1) {
-        NodeTag rhs_tag = (*call)->u.call.rhs->tag;
-      if (rhs_tag == N_LAMBDA)
-        break;
-      else if (rhs_tag == N_ID)
-        evaluate(&((*call)->u.call.rhs), env);
-      else if (rhs_tag == N_CALL)
-        evaluate(&((*call)->u.call.rhs), env);
-      else if (rhs_tag == N_BIND)
-        evaluate(&((*call)->u.call.rhs), env);
-      else if (rhs_tag == N_TYPE)
-        break;
-      else error_abort("malformed ast node tag! aborting");
+    Ast* rhs = CopyAst(call->u.call.rhs);
+    while(call->u.call.rhs->tag != N_VALUE) {
+      tmp = rhs;
+      rhs = evaluate(rhs, env);
+      DeleteAst(tmp);
     }
-
-    substitute((*call)->u.call.lhs->u.lambda.arg.id.s, \
-               &((*call)->u.call.lhs->u.lambda.body), \
-               (*call)->u.call.rhs, \
-               env);
-
-    Ast* result_of_substitution = CopyAst((*call)->u.call.lhs->u.lambda.body);
-    /*
-      because substitute preforms replacement via ptr assignment,
-      the ptr that the second argument holds will change to
-      the ptr that was passed as the rhs, therefore when we
-      delete the lhs we also delete the rhs as well, because
-      well, the body of the lambda literally becomes the rhs.
-      then the algorithm which is correct becomes incorrect because
-      this program creates a refrence loop.
-
-      so, how should substitution work in order to avoid this?
-
-      assign a copy of the rhs?
-        does that enforce the right semantics?
+    /* we return a copy in case substitute needs to
+       rename a subterm in order to execute the
+       substitution, in order to avoid modifying the
+       original term.
     */
-    AstDelete((*call));
-    (*call) = result_of_substitution;
+    tmp = CopyAst(lhs->u.lambda.body);
+    substitute(lhs->u.lambda.arg.id.s, \
+               &tmp,                   \
+               rhs,                    \
+               env);
+    DeleteAst(lhs);
+    DeleteAst(rhs);
+    return tmp;
+
   }
   else {
     error_abort("canot evaluate NULL call! aborting");
   }
 }
 
-void evaluate_bind(Ast** ast, symboltable* env)
+Ast* evaluate_bind(Ast* ast, symboltable* env)
 {
   /*
                         term -> term'
@@ -255,28 +160,17 @@ void evaluate_bind(Ast** ast, symboltable* env)
         ----------------------------------------------
       id := value -> bind (id, (type, value)), ENV) : Nil
   */
-  if (ast != NULL && *ast != NULL) {
+  if (ast != NULL) {
 
-    NodeTag term_tag = (*ast)->u.bind.term->tag;
-
-    while (1) {
-      if (term_tag == N_LAMBDA)
-        break;
-      else if (term_tag == N_TYPE)
-        break;
-      else if (term_tag == N_ID)
-        evaluate(&((*ast)->u.bind.term), env);
-      else if (term_tag == N_BIND)
-        evaluate(&((*ast)->u.bind.term), env);
-      else if (term_tag == N_CALL)
-        evaluate(&((*ast)->u.bind.term), env);
-      else
-        error_abort("malformed ast node! aborting");
+    Ast *term = ast->u.bind.term, *tmp = NULL;
+    while (ast->u.bind.term->tag != N_VALUE) {
+      tmp = term;
+      term = evaluate(term, env);
+      DeleteAst(tmp);
     }
 
-    bind ((*ast)->u.bind.id.s, (*ast)->u.bind.term, env);
-    AstDelete((*ast));
-    (*ast) = CreateAstTypeNil();
+    bind (ast->u.bind.id.s, ast->u.bind.term, env);
+    return CreateAstTypeNil();
 
   }
   else {
@@ -286,6 +180,7 @@ void evaluate_bind(Ast** ast, symboltable* env)
 
 void substitute(char* name, Ast** term, Ast* value, symboltable* env)
 {
+  /* substitute {name} for {value} within {term} */
   switch((*term)->tag) {
     case N_ID: {
       /*
@@ -293,11 +188,8 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
       [id -> value2]id' := id'
       */
       if (strcmp(name, (*term)->u.id.s) == 0) {
-        AstDelete((*term));
         (*term) = CopyAst(value);
       }
-      // the name doesn't match, so we do nothing.
-      break;
     }
 
     case N_LAMBDA: {
@@ -316,21 +208,12 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
         as the binding we are trying to replace, then we
         do not substitute within the body of that abstraction.
         as the name we are looking for is already bound within
-        the abstraction.
-        if the bound variable of the lambda
+        the abstraction, and substitution would introduce an unintentional
+        binding. if the bound variable of the lambda
         does not match the name we are trying to replace then
         we can pass the substituion operation into the body,
-        however there is another possible issue that could
-        arise, and that is in the case that the variable
-        bound by the lambda appears in the Free Variables of
-        the value we are substituting in. in this case we
-        must rename the bound variable of the lambda abstraction
-        before we can pass the substituion into the body of the lambda.
-        in the case that the bound variable does not appear free in
-        in the value we can just perform the substitution.
       */
-      char* arg_name = (*term)->u.lambda.arg.id.s;
-      if (strcmp(name, arg_name) == 0) {
+      if (strcmp(name, (*term)->u.value.u.lambda.arg.id.s) == 0) {
         return;
       }
       else {
@@ -368,17 +251,22 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
           for free variables of the conficting name.
 
         */
-        if (appears_free_in(arg_name, value)) {
-          /* renames the argument of (*term)
+        if (appears_free_in((*term)->u.value.u.lambda.arg.id.s, value)) {
+          /* renames the argument of lambda
              to a random string of characters
-             throughout the body of (*term),
+             throughout the body of the lambda,
              being careful to avoid names which
              occur free in value.
           */
           rename_binding((*term), value);
         }
 
-        substitute(name, &((*term)->u.lambda.body), value, env);
+        /*
+        when the term is a two star ptr it makes direct semantic sense
+        to simply apply substitution to the body of the lambda
+        that is occupying term.
+        */
+        substitute(name, &((*term)->u.value.u.lambda.body), value, env);
       }
       break;
     }
@@ -387,8 +275,8 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
       //   [id -> value2]lhs rhs := [id -> value2]lhs [id -> value2]rhs
       // when we encounter a call Ast we pass the substitution
       // along to it's subterms.
-      substitute(name, &((*term)->u.call.lhs), value, env);
-      substitute(name, &((*term)->u.call.rhs), value, env);
+      substitute(name, term->u.call.lhs, value, env);
+      substitute(name, term->u.call.rhs, value, env);
       break;
     }
 
@@ -407,20 +295,16 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
         appears bound in some lambda above this term.
         so it shouldn't happen right?
       */
-      substitute(name, &((*term)->u.bind.term), value, env);
-      break;
-    }
-
-    case N_TYPE: {
+      substitute(name, term->u.bind.term, value, env);
       break;
     }
   }
 }
       /*
        are type descriptors values?
-       i argue yes. then it becomes easy to
-       compose types using named bindings, instead of
-       having a separate type naming process.
+       i argue yes. simply because then it becomes easy to
+       compose types using named bindings, and expressions,
+       instead of having a separate type naming process,
        like 'typedef', or 'type', etc. it makes more sense
        to consider there being a single unified 'naming'
        or 'binding' process, which is used to implement the
@@ -441,7 +325,7 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
        essentially the language definition is repeated
        but only for types; this can be avoided if instead
        of 'lifting' the semantics to meet the type, we 'push'
-       the type down to meet the semantics.
+       the type down to meet the semantics already present.
        following this, my observation
        is that we already use types to distinguish
        entities in our language, and we can select between
@@ -466,20 +350,66 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
        new values, because types are entities, just like values
        are entities, but types are not themselves values in the
        traditional sense. for instance we can not create an instance
-       of a type, that makes no sense as the type is a description of
+       of a type, that makes no sense, as the type is a description of
        the encoding of some value. instead we can
-       create instances of values of some type.
+       create instances of values according-to/of some type.
 
        (it makes some sense to say "i have some
        encoding(type), and I can create a new copy of the encoding,
+       and apply that encoding elsewhere.
        however since the base types themselves are always constants
        we never need to create copies, we can just use pointers
-       with no downsides)
+       with no downsides, each can simply refer to the base types.)
+
+       the difference between type entities and other entities which are
+       useful to name in the program, is that
        essentially types are only useful to the compiler and the programmer,
        not the machine, so the runtime doesn't have a sense of type.
        there may be checks of tags, but that is a particular implementation
        of runtime type, there is no intrisic sense of type in the actual
-       instructions that execute.
+       instructions that execute. whereas integers are a thing that the
+       all three (programmer, compiler, machine) have a sense of, meaning
+       it makes sense to have integers which exist during any stage of
+       compilation. following a similar thread of logic, a type only
+       really exists to communicate to the programmer and compiler,
+       hence they only need to have a full manipulatable existance during
+       programming and compilation. this doesn't tell the whole story
+       however, as there are some cases in which the type needs to exist
+       during the runtime, say in the case of a tagged union, the compiler
+       used the type information to generate both the object in question,
+       and functions which operate on objects of said type.
+       however, when the code operates on some object which was created
+       dynamically and needs to decide which function to call passing in
+       this object, the runtime then needs to be able to distinguish
+       between the alternate types. this can probably be implemented using
+       a tag for each of the possible alternates, and arranging overloaded
+       function calls to happen based upon which particular value is
+       inside of the tag upon loading that memory at runtime.
+       so, the runtime needs to have some conception of type, however
+       it doesn't need to be full and manipulatable (yet). if the runtime
+       needs to have the same understanding of type that the compiler
+       and programmer does, then the runtime will have a full conception
+       of type. and new types could presumably be created at runtime, this
+       adds a lot of complexity to the runtime, so much so that it would
+       seem to require that the full evaluation and typechecking facilities
+       of the compiler during the runtime of some program. which
+       would require the existance of the evaluator and typechecker
+       in the executable generated by the compiler. so this seems like
+       something that adds so much complexity that it is above and
+       beyond what a language designed for describing the static
+       portions of a program would want to include in it's feature set.
+       the kernel of pink is trying to align with what is statically
+       expressable by the runtime given any particular architecture.
+       this means that the language itself needs to avoid what adds
+       too much dynamic semantics to the kernel. tagged unions are fine
+       because they are so useful, and even if you were going to provide
+       an untagged union a-la c, it is still pragmatic to always use the
+       tagged union in a tagged manner to avoid nasty runtime errors.
+       this means that the programmer must implement the tag portion of the
+       union themselves, while this is so basic as to be near trivial,
+       it still invites human error into the equation, especially when
+       the compiler can just provide a tagged union for the programmer to
+       use themselves.
 
         types are not
        values in the traditional sense of them being able to have
@@ -527,19 +457,27 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
         unit, which would allow the type binding to occur
         positionally different, in the same way that some
         languages allow you to call functions without considering
-        the positions of the arguments.
+        the positions of the arguments. although then
+        that will definetly throw a wrench into implementing
+        multiple-dispatch. and multple-dispatch seems more useful
+        in conjunction with parametric polymorphism.
+        if we consider the two, we can bang out some particular
+        implementation of a function with the types replaced throughout
+        the body, then each location the function is called can correspond
+        to the implementation with that particular type-signature.
 
         aside:
         lambdas cannot be naturally recursive without
         a y-combinator being typeable in the language.
         (essentially, typeing the y-combinator does not
          converge, because the y-combinator itself does
-         not converge. it recurs indefinetely.)
-         I still don't fully understand how the solutions to
-         typing the y-combinator actually work. however
+         not converge. it recurs indefinetely.
+        being able to type the y-combinator means adding
+        some amount of lazy-execution to the language.)
+        however
         i do know that the y-combinator is only truly
         necessary if you are unwilling to extend the
-        calculus with a function abstrcation which
+        calculus with a function abstraction which
         introduces a named function, and then this
         abstraction can provide the name of the function
         within the body of the function, thus allowing for
@@ -548,25 +486,31 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
         the issue a bit, and we will revist the
         y-combinator at a later point, when for
         some reason we want to have recursive lambdas.
-        otherwise we could allow both function literals to
+        otherwise we could allow both styles of function literal to
         appear, and they can have separate semantics.
         additionally, recursion is used to implement looping
         in it's most base case, and Pink is already planning on
         providing a while loop to the base calculus, so
-        lambdas will have to borrow the expressive power of
-        Djikstra's three instead.
+        lambdas can borrow the expressive power of
+        Djikstra's three instead. and, mutual recursion is
+        also available if the lambdas in question have been bound to
+        names within the current environment.
 
 
        aside:
        if the compiler expects a * -> * and it is given a *
-       that should be a semantic error right?
-       we cannot determine what behavior the syntax is
+       that shortcuts to a semantic error right?
+       we obviously cannot determine what behavior the syntax is
        going to request of the type before we have looked
        at the syntax, but just on type information alone,
        if the syntax expects a * -> * and is given an *.
        then my hypothesis is that that syntax will not
        typecheck. unless we can envision some type *
-       what can be called like a function.
+       what can be called like a function. but that
+       does not make sense categorically, as every
+       entity that can be called like a function
+       must have type * -> *, as that is exactly
+       what it means to be callable like a function.
 
       */
 

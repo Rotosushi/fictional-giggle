@@ -30,7 +30,7 @@ typedef void* yyscan_t;
 
 %defines "parser.h"
 %locations
-%define lr.type ielr
+%define lr.type lalr
 %define parse.error verbose
 %define parse.trace
 %define api.pure full

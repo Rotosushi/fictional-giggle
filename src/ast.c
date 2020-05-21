@@ -19,7 +19,7 @@ Ast* CreateAstValueTypeNil()
 {
   Ast* node                   = (Ast*)malloc(sizeof(Ast));
   node->tag                   = N_VALUE;
-  node->value.tag             = V_TYPE;
+  node->u.value.tag             = V_TYPE;
   node->u.value.u.type.tag    = T_NIL;
   node->u.value.u.type.u.null = '\0';
   return node;
@@ -29,7 +29,7 @@ Ast* CreateAstValueTypeFn(Ast* lhs, Ast* rhs)
 {
   Ast* node                         = (Ast*)malloc(sizeof(Ast));
   node->tag                         = N_VALUE;
-  node->value.tag                   = V_TYPE;
+  node->u.value.tag                   = V_TYPE;
   node->u.value.u.type.tag          = T_LAMBDA;
   node->u.value.u.type.u.rarrow.lhs = lhs;
   node->u.value.u.type.u.rarrow.rhs = rhs;
@@ -67,26 +67,26 @@ Ast* CreateAstBind(char* name, Ast* term)
   return node;
 }
 
-void AstDeleteId(Ast* id);
-void AstDeleteValue(Ast* value);
-void AstDeleteCall(Ast* call);
-void AstDeleteBind(Ast* bind);
+void DeleteAstId(Ast* id);
+void DeleteAstValue(Ast* value);
+void DeleteAstCall(Ast* call);
+void DeleteAstBind(Ast* bind);
 
-void AstDelete(Ast* ast)
+void DeleteAst(Ast* ast)
 {
   if (ast != NULL) {
     switch (ast->tag) {
       case N_ID:
-        AstDeleteId(ast);
+        DeleteAstId(ast);
         break;
       case N_VALUE:
-        AstDeleteValue(ast);
+        DeleteAstValue(ast);
         break;
       case N_CALL:
-        AstDeleteCall(ast);
+        DeleteAstCall(ast);
         break;
       case N_BIND:
-        AstDeleteBind(ast);
+        DeleteAstBind(ast);
         break;
       default:
         error_abort("malformed ast tag! aborting");
@@ -94,14 +94,14 @@ void AstDelete(Ast* ast)
   }
 }
 
-void AstDeleteValue(Ast* value)
+void DeleteAstValue(Ast* value)
 {
   if (value != NULL) {
     switch (value->u.value.tag) {
       case V_TYPE:   {
         if (value->u.value.u.type.tag == T_LAMBDA) {
-          AstDeleteValue(value->u.value.u.type.u.rarrow.lhs);
-          AstDeleteValue(value->u.value.u.type.u.rarrow.rhs);
+          DeleteAstValue(value->u.value.u.type.u.rarrow.lhs);
+          DeleteAstValue(value->u.value.u.type.u.rarrow.rhs);
         }
         free(value);
         break;
@@ -109,8 +109,8 @@ void AstDeleteValue(Ast* value)
       case V_LAMBDA: {
         if (value->u.value.u.lambda.arg.id.s != NULL)
           free (value->u.value.u.lambda.arg.id.s);
-        AstDeleteValue(value->u.value.u.lambda.arg.type);
-        AstDelete(value->u.value.u.lambda.body);
+        DeleteAstValue(value->u.value.u.lambda.arg.type);
+        DeleteAst(value->u.value.u.lambda.body);
         break;
       }
       default: error_abort("malformed value tag! aborted");
@@ -118,7 +118,7 @@ void AstDeleteValue(Ast* value)
   }
 }
 
-void AstDeleteId(Ast* id)
+void DeleteAstId(Ast* id)
 {
   if (id != NULL) {
     if (id->u.id.s != NULL)
@@ -127,21 +127,21 @@ void AstDeleteId(Ast* id)
   }
 }
 
-void AstDeleteCall(Ast* call)
+void DeleteAstCall(Ast* call)
 {
   if (call != NULL) {
-    AstDelete(call->u.call.lhs);
-    AstDelete(call->u.call.rhs);
+    DeleteAst(call->u.call.lhs);
+    DeleteAst(call->u.call.rhs);
     free(call);
   }
 }
 
-void AstDeleteBind(Ast* bind)
+void DeleteAstBind(Ast* bind)
 {
   if (bind != NULL) {
     if (bind->u.bind.id.s != NULL)
       free(bind->u.bind.id.s);
-    AstDelete(bind->u.bind.term);
+    DeleteAst(bind->u.bind.term);
     free(bind);
   }
 }
@@ -167,11 +167,11 @@ Ast* CopyAstValue(Ast* value)
 {
   switch (value->u.value.tag) {
     case V_TYPE: {
-      switch(value->u.value.type.tag) {
+      switch(value->u.value.u.type.tag) {
         case T_NIL:    return CreateAstValueTypeNil();
 
-        case T_LAMBDA: return CreateAstValueTypeFn(CopyAstValue(type->u.value.u.type.u.rarrow.lhs), \
-                                                   CopyAstValue(type->u.value.u.type.u.rarrow.rhs));
+        case T_LAMBDA: return CreateAstValueTypeFn(CopyAstValue(value->u.value.u.type.u.rarrow.lhs), \
+                                                   CopyAstValue(value->u.value.u.type.u.rarrow.rhs));
         default: error_abort("malformed type! aborting");
       }
     }
@@ -221,7 +221,7 @@ char* AstValueTypeToString(Ast* ast)
         break;
       }
 
-      case T_FUNC: {
+      case T_LAMBDA: {
         char* t1 = AstValueToString(type->u.rarrow.lhs);
         if (!t1) {
           error_abort("malformed type! aborting");

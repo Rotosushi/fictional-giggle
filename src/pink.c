@@ -144,7 +144,7 @@ int main(int argc, char** argv)
 				else {
 					printf ("term not typable!\n");
 				}
-				AstDelete(result);
+				DeleteAst(result);
 			}
 
 			if (input != NULL)

@@ -20,6 +20,9 @@ symbol* lookup(char* name, symboltable* symtable)
 
 void bind(char* name, Ast* term, symboltable* symtable)
 {
+  /* the binding list simply maintains the order
+      in which the elements are inserted
+  */
   symbol* sym = (symbol*)malloc(sizeof(symbol));
   sym->id   = strdup(name);
   sym->term = CopyAst(term);
@@ -48,7 +51,7 @@ void unbind(char* name, symboltable* symtable)
   if (cmp == 0) {
     symtable->symbols = symtable->symbols->next;
     free(ths->id);
-    AstDelete(ths->term);
+    DeleteAst(ths->term);
     free(ths);
   }
   else while (ths != NULL) {
@@ -58,14 +61,14 @@ void unbind(char* name, symboltable* symtable)
         symtable->end = prv;
         prv->next    = NULL;
         free(ths->id);
-        AstDelete(ths->term);
+        DeleteAst(ths->term);
         free(ths);
       }
       /* remove some middle element */
       else {
         prv->next = ths->next;
         free(ths->id);
-        AstDelete(ths->term);
+        DeleteAst(ths->term);
         free(prv);
       }
       break;
@@ -83,7 +86,7 @@ void destroySymtable(symboltable* symtable)
     prv = ths;
     ths = ths->next;
     free(prv->id);
-    AstDelete(prv->term);
+    DeleteAst(prv->term);
     free(prv);
   }
   symtable->end = NULL;

@@ -148,7 +148,7 @@ Ast* CreateAstValueFn(char* name, Ast* type, Ast* body);
 Ast* CreateAstCall(Ast* l, Ast* r);
 Ast* CreateAstBind(char* name, Ast* term);
 
-void AstDelete(Ast* ast);
+void DeleteAst(Ast* ast);
 
 Ast* CopyAst(Ast* ast);
 
