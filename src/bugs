@@ -1,23 +1,8 @@
 Bugs:
 
-B1: l :- x := \y : nil => y
-    works as intended,
-    x now has type nil -> nil
-    x can be applied to the term nil
-      and will evaluate to nil
+z := \y:nil->nil=>\x:nil=>y x
+does not parse!
 
-    however
-    l :- z := \z : nil => z
-    this line typechecks and evaluates,
-    however upon accessing z the program seg-faults.
 
-B2: l :- y := \z:nil => z
-      :- x := nil
-
-    now,
-      :- y x
-      evaluates to nil properly
-
-      :- y y x
-      calls error_abort complaining about a malformed node.
-      it should evaluate to nil
+Heisenbugs:
+  sometimes evaluation of a call segmentation faults????

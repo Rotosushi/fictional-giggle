@@ -379,3 +379,142 @@ the final verdict:
   we will distinguish between Ast* nodes, char*'s, Ints, and Floats,
   but again, -we- should manage that, and constrain the LALR parser
   to just construct the AST.
+
+
+------------------------------------------------------------------------------
+
+term:
+    id
+  | \ id : type => term
+  | term term
+
+
+  consider some primitive type *
+
+  where shall it live in memory?
+  well, given that the we mean for the
+  full set of knowable types to be static
+  before the program begins execution,
+  and given that we require each name
+  which appears in the source text of
+  the program have a known type before
+  the program begins execution.
+
+  we can allow types to be defined statically
+  by the programmer, but each type must have
+  a static definition present in the source text.
+
+  what distinguishes the type *
+  from our other type  * -> * ?
+
+  well, the size of each instance of a specific *
+  is bounded before the program runs.
+  Int, Char, Real, Bool, Nil.
+  each has a statically known and unchanging set of
+  values any entity with said type can be assigned.
+  any entity which has this type can be allocated exactly
+  as any other entity of that type would be. meaning
+  the type is in some ways a description of the
+  entities representation in the hardware.
+  we have instructions which operate on integers,
+  we can read/write integers from/to memory,
+  and that's really all we can ever do with integers.
+
+  if we have an expression which acts upon integers
+  say 3 + 4
+  that expression has static size.
+  if we consider an expression acting on entites,
+  if the entities type and value and the operation are known
+  in the source text, then the language can compute the
+  expression directly during compilation or interpretation.
+  if x := 3 + 4
+  then we can assign 7 to x instead of preforming the
+  computation at runtime.
+
+  if x:Int, y:Int
+  then x + y also has static size, but the value of the
+  expression is not known until the value of x and y is known.
+  so, we can know that it is safe to store the result of
+  computing x + y into z by means of the following expression
+  z := x + y. if we were to simply enter this expression
+  into an interpreter, then it should rightly complain that
+  x and y do not hold any values, so we cannot know what to
+  store into z.
+
+  ( aside:
+    so, we want to initially circumnavigate this issue a bit
+    by allowing out of order usage/declarations, which allow
+    programmers to enter recursive/mutually-recursive
+    functions/types, which are useful. so maybe instead of
+    immediately complaining, the interpreter asks for more
+    user input in the hopes that a definition for x
+    or y would be entered by the user, maybe this could
+    be the case for other constructs in the lang?
+    and maybe the compiler would eat input until EOF looking for
+    a decl after use.
+    )
+
+    if you want to parametrize the expression, and
+    preform the operation potentially on many entities
+    of said type, then you can define a function.
+    this is the purpose of the other type in the language
+    * -> *
+    but how big are functions, and where are they allocated?
+    especially if they are first class! what in the heck can
+    it mean to pass instructions around?
+    well, maybe we don't pass instructions around, but we
+    reallocate the instructions in places where it becomes
+    unavoidable to do so. in simple cases, passing lambda's
+    into other functions can almost assuredly be semantically
+    represented via function pointers. with the lambda itself
+    being allocated locally in the definition of the outer
+    function, passing a function back can be done via a function
+    pointer as well, as long as there are no closed over values
+    in the passed back function, (in a simple case, something like
+      \x:Int => \(y:Int, z:Int) => x * (y + z);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+------------------------------------------------------------------------------

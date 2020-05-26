@@ -75,60 +75,7 @@ typedef void* yyscan_t;
 }
 */
 %define api.value.type union
-/*
-  each of the nonterminal symbols within the grammar is associated
-  with a field within the taggeed union structure of the Ast.
-  to support using the rules in the naturally recursive way
-  each non-terminal value is only ever a pointer to the relevant node.
-  this allows the Ast construction functions to be written
-  in a way that allows for the highly compositional style
-  of programming that structured programming encourages.
-  so, astute observers will notice that ID's are bald
-  char*'s. they will also probably notice that the
-  Ast constructors that are used in the rules that
-  utilize the ID nonterminals take char*s as parameters
-  in those positions.
-  this is the same mechanism that will be used when the
-  language is extended to add int's, floats, chars,
-  strings, and all other primitive literals to the language.
-  the lexer will contain the logic to read in each literal
-  and the parser will accept a token, and the language will
-  accept a new type.
 
-  if we want to give programmers the means to define new
-  primitive type value literals, we could give them
-  the means to define the logic of the recognizer,
-  the type, and the token would probably need to be
-  treated in a more general way from the perspective
-  of the parser. the representation (the type) would need to
-  be built up from defined types to be supported by the
-  back end.
-
--------------------------------------------------------------------------
-
-  so, if we take a slightly more experienced look at what entities
-  appear in the untyped lambda calculus
-  we have variables, lambdas, and application.
-  the lamdba is taken to be the literal value that
-   variables range over, and application is the
-  basic action that can be performed upon lambda values.
-
-  so, in expanding the calculus, and say, adding another
-  type and literal value that can appear and be ranged over
-  with variables; nil.
-
-  we can treat nil literals and lambda literals as
-  kinds of literal, each with a type. this allows then
-  for the evaluator to construct statements like
-  "evaluate until this term becomes a value" in a
-  way that need not consider exactly which value we
-  are evaluating down too.
-
-  in considering extension of other kinds of actions that
-  are recognized, (such as 'bind') the Ast simply must be extended to contain
-  some new union member which represents the new action
-  in the grammar.
-*/
 %nterm <Ast*> term name entity lambda call bind type parenterm
 
 %token NIL
@@ -153,7 +100,10 @@ term:
   | call      { $$ = $1; }
   | bind      { $$ = $1; }
   | parenterm { $$ = $1; }
-/*  | subterm { $$ = $1; } */
+/*  | subterm { $$ = $1; }
+  this is what I would want to make the
+  explicit scope construct.
+*/
 
 name: /* [a-zA-Z][a-zA-Z0-9_-]+ */
   ID  { $$ = CreateAstId($1); }
@@ -180,6 +130,7 @@ bind: /* name := term */
 
 parenterm: /* ( term ) */
   LPAREN term RPAREN { $$ = $2; }
+/* | LPAREN tuple RPAREN { $$ = $2; } */
 
 /*
 subterm: { term }

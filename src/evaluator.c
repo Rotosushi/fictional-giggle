@@ -28,10 +28,9 @@ void rename_binding(Ast* lambda, Ast* value);
   the latter stategy is harder w.r.t. avoiding introducing
   pointer cycles into the tree structure, which cause
   DeleteAst to seg-fault. instead, each function maintains
-  it's own memory footprint as evaluation occurs, allocating
+  it's own memory during evaluation, allocating
   and deallocating intermediate results, and subsequently
-  returning the final result tree. (which could be as simple
-  as a single leaf node.)
+  returning the final result tree.
 */
 Ast* evaluate(Ast* term, symboltable* env)
 {
@@ -43,6 +42,7 @@ Ast* evaluate(Ast* term, symboltable* env)
     case N_BIND:   return evaluate_bind(term, env);  /* evaluate the bind and return the value nil. */
     default: error_abort("malformed ast node tag! aborting");
   }
+  return NULL;
 }
 
 Ast* evaluate_entity(Ast* entity, symboltable* env)
@@ -63,7 +63,7 @@ Ast* evaluate_id(Ast* id, symboltable* env)
 {
   /*
    in order to evalute an id,
-   we need to discover what value
+   we need to discover what entity
    it is bound to. this is done by
    looking up the symbol in the Environment
    and returning the bound term as the result.
@@ -87,6 +87,8 @@ Ast* evaluate_id(Ast* id, symboltable* env)
     error_abort("cannot evaluate/lookup NULL id!");
   }
   // suppressing a warning...
+  // id either is or isn't NULL, so why does clang warn here?
+  // clang can't know that error_abort calls exit?
   return NULL;
 }
 
@@ -95,8 +97,10 @@ Ast* evaluate_call(Ast* call, symboltable* env)
 {
   /*
   in order to evaluate a call expression, we want to
-  replace the call node with the result of substituting
-  the rhs throughout the body of the lhs.
+  return the result of substituting
+  the rhs throughout the body of the lhs for the bound name.
+
+
             term1 -> term1'
         ----------------------
       term1 term2 -> term1' term2
@@ -130,7 +134,7 @@ Ast* evaluate_call(Ast* call, symboltable* env)
 
     // evaluate the rhs down to a value.
     Ast* rhs = CopyAst(call->u.call.rhs);
-    while(call->u.call.rhs->tag != N_ENTITY) {
+    while(rhs->tag != N_ENTITY) {
       tmp = rhs;
       rhs = evaluate(rhs, env);
       DeleteAst(tmp);
@@ -140,8 +144,8 @@ Ast* evaluate_call(Ast* call, symboltable* env)
        substitution, in order to avoid modifying the
        original term.
     */
-    tmp = CopyAst(lhs->u.lambda.body);
-    substitute(lhs->u.lambda.arg.id.s, \
+    tmp = CopyAst(lhs->u.entity.u.lambda.body);
+    substitute(lhs->u.entity.u.lambda.arg.id.s, \
                &tmp,                   \
                rhs,                    \
                env);
@@ -153,9 +157,11 @@ Ast* evaluate_call(Ast* call, symboltable* env)
   else {
     error_abort("canot evaluate NULL call! aborting");
   }
+
+  return NULL;
 }
 
-Ast* evaluate_bind(Ast* bind, symboltable* env)
+Ast* evaluate_bind(Ast* bind_ast, symboltable* env)
 {
   /*
                         term -> term'
@@ -166,26 +172,29 @@ Ast* evaluate_bind(Ast* bind, symboltable* env)
         ----------------------------------------------
       id := value -> bind (id, (type, value)), ENV) : Nil
   */
-  if (ast != NULL) {
+  if (bind_ast != NULL) {
 
-    Ast *term = bind->u.bind.term, *tmp = NULL;
-    while (bind->u.bind.term->tag != N_ENTITY) {
+    Ast *term = bind_ast->u.bind.term, *tmp = NULL;
+    while (bind_ast->u.bind.term->tag != N_ENTITY) {
       tmp = term;
       term = evaluate(term, env);
       DeleteAst(tmp);
     }
 
-    bind (bind->u.bind.id.s, bind->u.bind.term, env);
-    return CreateAstTypeNil();
+    bind (bind_ast->u.bind.id.s, bind_ast->u.bind.term, env);
+    return CreateAstEntityTypeNil();
 
   }
   else {
     error_abort("cannot evaluate NULL bind");
   }
+  return NULL;
 }
 
 void substitute(char* name, Ast** term, Ast* value, symboltable* env)
 {
+  if (name == NULL || term == NULL || *term == NULL || value == NULL)
+    return;
   /* substitute {name} for {value} within {term} */
   switch((*term)->tag) {
     case N_ID: {
@@ -195,12 +204,13 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
       [id -> value2]id  := value2
       [id -> value2]id' := id'
 
-      again, when term is a two star pointer it makes
+      when term is a two star pointer it makes
       semantic sense to "replace" the term with the value.
       we can quite literally delete the old data and attatch
       a copy of the value.
       */
       if (strcmp(name, (*term)->u.id.s) == 0) {
+        DeleteAst((*term));
         (*term) = CopyAst(value);
       }
     }
@@ -219,11 +229,9 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
           then (\id' : type = [id ->value2]term)
           else (\[id' -> id'']id' : type = [id -> value2][id' -> id'']term)
 
-          this is the case that the body of a lambda
-          is itself another lambda, so we need to decide wether to
-          pass the substitution on to the body of that lambda.
+          {term} is another lambda;
           it would be nice if we could simply pass the substitution
-          body into the body of the lambda, but there are two
+          operation into the body of the lambda, but there are two
           contravening cases. the argument of the lambda matches
           the name we are replacing for, or the argument of the lambda
           matches a free variable in the value we substituting.
@@ -233,9 +241,7 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
           do not substitute within the body of that abstraction.
           as the name we are looking for is already bound within
           the abstraction, and substitution would introduce an unintentional
-          binding. if the bound variable of the lambda
-          does not match the name we are trying to replace then
-          we can almost pass the substituion operation into the body,
+          binding.
         */
         if (strcmp(name, (*term)->u.entity.u.lambda.arg.id.s) == 0) {
           return;
@@ -249,46 +255,76 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
             of the lambda, an unintentional binding will occur.
             (think through what happens when we call the function
              'lookup' on a free variable which occurs in the value
-             being substituted into the body of a lambda, whose
-             name matches the lambdas binding name, after execution of
-             the substitution.
+             being substituted into the body of a lambda, after
+             execution of the substitution whose name matches the
+             lambdas binding name;
              when lookup tries to resolve the name, it will encounter
              the definition of the argument binding before
-             it will encounter the binding that the free
-             variables author intended, hence the unintentional
-             binding.)
-            in this case we need to rename the binding of
+             it will encounter the binding that existed at the
+             time of {value}'s creation. hence, the unintentional
+             binding.
+             the generally accepted solutions to this problem are
+             -renaming the argument of the lambda before substitution.
+                such that no binding will occur.
+             -making it so the evaluation of terms doesn't depend
+              on the typed names. this can be achieved in two ways
+                -De Bruijn notation
+                -Combinator Calculus.
+
+            because of the simplicity of implementation
+            we will choose to rename the binding of
             the lamdba abstraction throughout it's body before
             we substitute for the value.
 
-            a possible solution would be to gather up the free
+            this has two downsides pointed out by some literature
+            -it can be hard to reason about correctness formally
+            -it relies on string manipulation, which is less efficient
+              than the integer manipulation that De Bruijn notation
+              relies upon.
+
+            we don't need to reason formally about the correctness
+            of Pink, if we can test it's correctness.
+
+            string manipulation is something that I am willing to
+            spend cycles on. especially early on in the languages lifetime.
+
+            I can see an argument for conversion to a DeBruijn manipulation
+            of terms for a more final form of the interpreter.
+            along with linearizing (i mean moving from using a naturally
+            recursive style, to a tail-recursive style) the tree traversal algorithm,
+            and separating the walking from the actions. as that would
+            have an impact on every module of the code that can be written
+            as an operation upon the tree. Which is a large portion of this program.
+
+
+
+
+
+            how do we know if the name bound to the lambda occurs free
+            in {value}? well,
+            a possible solution would be to gather the free
             variables present in (value) into a list and search that list
-            for the argument name. this is in fact the solution that is
-            most obvious given the formal definition of substitution
+            for the argument name. this is in fact the solution that imo
+            most straghtforwardly flows from the formal definition of substitution
             and renaming.
-            this would require at least
+            however, this would require at least
             as much work as searching the tree directly
             to build the list of free variables, plus
             the work required to then search the list.
             (not to mention all of the allocation and deallocation
             of the list itself.)
             it is more efficient to directly search the subtree
-            for free variables of the conficting name.
+            for free variables of the conficting name. but this
+            becomes another place where the algorithm is tied intimately
+            to the structure of the Ast.
 
           */
 
           if (appears_free_in((*term)->u.entity.u.lambda.arg.id.s, value)) {
-            // make a copy to rename.
             Ast* lambda = CopyAst(*term);
-            /* renames the argument of lambda
-               to a random string of characters
-               throughout the body of the lambda,
-               being careful to avoid names which
-               occur free in value.
-            */
-            rename_binding((*lambda), value);
+            rename_binding(lambda, value);
             DeleteAst((*term));
-            (*term) = (*lambda)
+            (*term) = lambda;
           }
 
           /*
@@ -358,10 +394,12 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
        representation, like a type.
        If types become 'first-class' then suddenly the mechanisms
        for describing new types become the same as describing
-       new values and new kinds of entity.
-       normally types are bound by special variables
+       new values and new kinds of entity. Operations on
+       values of type, cannot be instanciated or manioulated at runtime.
+       in most implementations, types are bound by special names
        which can bind types only and a special form of abstraction
-       is used to bind type-variables to type-values,
+       is used to bind type-variables to type-values, within the body
+       of regular lambdas.
        essentially the language definition is repeated
        but only for types; this can be avoided if instead
        of 'lifting' the semantics to meet the type, we 'push'
@@ -374,6 +412,7 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
        be bound to (i.e. an entity) then, we can use the
        usual name binding and substitution mechanisms to
        define what is known as first order polymorphism.
+
        so, if we reimagine type operators as
        operators taking types as arguments, where the
        value of a type is it's description of that type.
@@ -410,10 +449,11 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
        instructions that execute. whereas integers are a thing that the
        all three (programmer, compiler, machine) have a sense of, meaning
        it makes sense to have integers which exist during any stage of
-       compilation. following a similar thread of logic, a type only
+       compilation. following along this thread, a type only
        really exists to communicate to the programmer and compiler,
        hence they only need to have a full manipulatable existance during
-       programming and compilation. this doesn't tell the whole story
+       programming and compilation.
+       this doesn't tell the whole story
        however, as there are some cases in which the type needs to exist
        during the runtime, say in the case of a tagged union, the compiler
        used the type information to generate both the object in question,
@@ -421,12 +461,11 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
        however, when the code operates on some object which was created
        dynamically and needs to decide which function to call passing in
        this object, the runtime then needs to be able to distinguish
-       between the alternate types. this can probably be implemented using
-       a tag for each of the possible alternates, and arranging overloaded
-       function calls to happen based upon which particular value is
-       inside of the tag upon loading that memory at runtime.
-       so, the runtime needs to have some conception of type, however
-       it doesn't need to be full and manipulatable. if the runtime
+       between objects of the alternate types. this can be implemented using
+       a tag for each of the possible alternates, an we can discover which
+       of the alternates some particular object holds at runtime. this
+       information can then be used to choose code paths during runtime.
+       if we say that the runtime
        needs to have the same understanding of type that the compiler
        and programmer does, then the runtime would have a full conception
        of type and new types could presumably be created at runtime, this
@@ -436,15 +475,23 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
        would require the existance of the evaluator and typechecker
        in the executable generated by the compiler. so this seems like
        something that adds so much complexity that it is above and
-       beyond what a systems language is designed for,
-       which is ultimately the subset of programs which are describable
-       without extending the programs definition at runtime.
+       beyond what a systems language is designed for, which is describing
+       programs who's job it is to interface with the hardware directly.
+       so, maybe runtime types can exist as a library which can be requested,
+       but the dependency is so great it more than likely outweighs any advantages.
+       because, in the end, the language needs to be useful to programmers,
+       and if you are writing code for an 8-bit microprocessor, you probably
+       want to avoid putting in any extra data, as the storage facilities are
+       highly limited compared to where the compiler is running.
+       this would also introduce the temptation to optimize the compiler
+       against running on restricted hardware, which is again not really
+       the point of the language.
 
        we can deduce constraints around which features can go into
        the kernel this way.
        for instance, we now know that the full set of types that
        any particular program has knowledge of at compile time is
-       always greater than or equal to the set of types that same
+       strictly greater than or equal to the set of types that same
        program has conception of at runtime.
        if some future feature is proposed as an addition to the
        kernel, and the feature makes new types known to some program
@@ -455,8 +502,8 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
 
        the kernel of pink is trying to align with what is statically
        expressable by the runtime given any particular architecture.
-       this means that the language itself needs to avoid what adds
-       too much dynamic semantics to the kernel. tagged unions are fine
+       this means that the language kernel needs to avoid adding to much
+       dynamic semantics to the kernel. tagged unions are fine
        because they are so useful, and they are knowable through static analysis
        alone. and even if you were going to provide
        an untagged union a-la c, it is still pragmatic to always use the
@@ -465,7 +512,37 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
        union themselves, while this is so basic as to be near trivial,
        it still invites human error into the equation, which just seems silly
        especially when the compiler can just provide a tagged union
-       for the programmer to use.
+       for the programmer to use. in this we can notice that problems
+       never go away if they are not solved. we can do two things with
+       problems, move them somewhere else, or solve them ourselves.
+       (astute observers may recall a similar discussion of string
+        manipulation, any way you slice it, the safe way of handling
+        strings must, by it's very existance, take some overhead.
+        if we ignore safe handling procedures, a'la C, we do not
+        accomplish 'solving the problem' we accomplish 'making the problem
+        the programmers problem and not ours', so we simply make programming
+        in the language take some background knowledge in why particular
+        patterns of use cause errors, which most of the time, breaks the
+        facade that the language is giving you a layer of abstraction.
+        (essentially; in learning why C arrays are unsafe, you are really
+         learning about why assembly arrays are unsafe.))
+        so, the work of checking the cell of memory containing the
+        tag of the union is either the language designers problem
+        or the programmers problem. or we can accept that some
+        scentances in the language will both be accepted by the
+        language as legal, and contain semantic errors.
+        however, the more we leave to the programmer, the more
+        viscosity we leave in the language. giving programmers
+        a nice Api around a dynamic text object is something which
+        takes the work it takes to do right and no less.
+        if a programmer want's a version which eskews safety in
+        some cases for speed then they should be forced to write
+        it themselves, perhaps with manual management of
+        dynamic arrays and character primitives.
+        the case of a union is less simple, because if we must
+        choose to make every union in the language tagged garuntees
+        that overhead for the rest of the lifetime of the language.
+
 
         types are not
        values in the traditional sense of them being able to have
@@ -481,6 +558,15 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
         function.)
        from this perspective, types are providing a layer of indirection,
        and that indirection is being used to encode semantics.
+       for Pink, the set of primitives is meant to model the
+       actual hardware primitives, so that the programmer
+       can 1) have some notion about the programs composition
+       in the assembly, 2) the language can then lower the
+       level of abstraction it works at, allowing the programmer
+       to interact directly with the hardware using it's natural
+       sizes. (where a c programmer want's a byte sized value
+        the type 'char' is what they reach for, in Pink that
+        is the purpose of the u8, or s8 primitive types. )
        we can consider '->' to literally be an operator
        that takes in two type-values T1, T2 as arguments and returns
        the type-value 'T1 -> T2'. we can consider sum and product
@@ -572,7 +658,7 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
         versions that are typed out by the programmer are
         required to typecheck.
 
-        notice that this definition sortof extends over the
+        notice that this definition extends over the
         case of an overloaded function. if we have a function
         fn (+) a:(Int, Int), b:(Int, Int) => (fst(a) + fst(b), snd(a) + snd(b));
         and
@@ -585,8 +671,9 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
         so, this leads me to think that there is a case for making each
         function defined by a 'type-erased' set, but in the case of
         there being no actual polymorphic parameter, we only allow the programmer
-        to select between definitions whose parameters types match, and there
+        to select between definitions whose parameters types exactly match, and there
         is no ability to generate new versions of the function.
+        then, multiple dispatch can be done via accessing members of this set.
 
 
         aside:
@@ -718,10 +805,7 @@ also notice:
 bool appears_free_in(char* name, Ast* term)
 {
   switch(term->tag) {
-      case N_TYPE: {
-        // names cannot appear in types
-        return false;
-      }
+
 
       case N_ID: {
         // name might appear in ID, better check.
@@ -732,19 +816,28 @@ bool appears_free_in(char* name, Ast* term)
         }
       }
 
-      case N_LAMBDA: {
-        if (strcmp(name, term->u.entity.u.lambda.arg.id.s) == 0) {
-          // the name is bound by the lambda so
-          // if the name appears in the body of the
-          // lambda it will be associated with the
-          // parameter binding.
-          // i.e. the name appears bound in term, not free.
-          return false;
+      case N_ENTITY: {
+          if (term->u.entity.tag == E_TYPE) {
+            // names cannot appear in types, yet...
+            return false;
+          }
+          else if (term->u.entity.tag == E_LAMBDA) {
+          if (strcmp(name, term->u.entity.u.lambda.arg.id.s) == 0) {
+            // the name is bound by the lambda so
+            // if the name appears in the body of the
+            // lambda it will be associated with the
+            // parameter binding.
+            // i.e. the name appears bound in term, not free.
+            return false;
+          }
+          else {
+            // search the body of the lambda for instances of
+            // the name.
+            return (appears_free_in(name, term->u.entity.u.lambda.body));
+          }
         }
         else {
-          // search the body of the lambda for instances of
-          // the name.
-          return (appears_free_in(name, term->u.entity.u.lambda.body));
+          error_abort("malformed entity tag! aborting");
         }
       }
 
@@ -824,6 +917,7 @@ void rename_binding_in_body(char* new_name, char* old_name, Ast* term)
          there is no way that a name could appear in
          a type expression that we would need to replace.
        */
+       return;
       }
       else {
         error_abort("malformed entity tag! aborting");
@@ -1098,6 +1192,10 @@ Examples:
 
   two terms are alpha equivalent if they share the same form
   minus the consideration of the names of the bound variables.
+  (the literature says "modulo alpha-equivalence/variable renaming"
+    where modulo refers to the (%) operator whitch returns the remainder after division.
+    which i suppose is a metaphor for what is left after
+    removing/dividing alpha-equivalence from the fomulae?)
   that is \x => x         is alpha equivalent to \y => y
           \z => z x       is alpha equivalent to \k => k x
           \a => \b => a b is alpha equivalent to \c => \d => c d

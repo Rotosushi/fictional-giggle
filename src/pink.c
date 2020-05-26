@@ -102,7 +102,7 @@ int main(int argc, char** argv)
 	int chars_read = 0;
 
 	// enable/disable parser trace printing
-	//yydebug = 1;
+	yydebug = 1;
 
 	/* in order to support reentrancy
 	     the parser and lexer internal state
@@ -133,7 +133,7 @@ int main(int argc, char** argv)
 				Ast* type = type_of(result, &env);
 				if (type != NULL) {
 					Ast* copy = CopyAst(result);
-					evaluate(copy, &env);
+					copy = evaluate(copy, &env);
 					char* ast_string = AstToString(result);
 					char* type_string = AstToString(type);
 					char* eval_string = AstToString(copy);
@@ -182,6 +182,7 @@ Ast* parse_buffer(char* buf, int len, yypstate* parser, yyscan_t scanner)
 	Ast* result   = NULL;
 	YYSTYPE* lval = (YYSTYPE*)malloc(sizeof(YYSTYPE));
 	YYLTYPE* lloc = (YYLTYPE*)malloc(sizeof(YYLTYPE));
+	
 	YY_BUFFER_STATE scanner_buffer_handle = yy_scan_buffer(buf, len, scanner);
 	if (scanner_buffer_handle == NULL) {
 		fprintf(stderr, "yy_scan_buffer failed!");

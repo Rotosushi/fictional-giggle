@@ -8,9 +8,9 @@
 	or (type)
 	however we don't need to maintain
 	any semantic notion of ()
-	because they control the
-	parse tree by their
-	very use in the grammar.
+	because their work can be
+	entirely accomplished by their
+	directing of the parser.
 
 	when we have user defined types,
 	maybe instead of specifying each type

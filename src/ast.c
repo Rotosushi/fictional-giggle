@@ -269,7 +269,7 @@ char* AstEntityLambdaToString(Ast* ast)
 {
   char* result = NULL;
   if (ast != NULL) {
-    char *bs = " \\ ", *cln = " : ", *rarw = " => ";
+    char *bs = " \\ ", *cln = " : ", *reqarw = " => ";
     char* arg_id = ast->u.entity.u.lambda.arg.id.s;
     if   (arg_id == NULL) {
       error_abort("malformed arg id! aborting");
@@ -289,14 +289,14 @@ char* AstEntityLambdaToString(Ast* ast)
             + strlen(arg_id)   \
             + strlen(cln)      \
             + strlen(arg_type) \
-            + strlen(rarw)     \
+            + strlen(reqarw)     \
             + strlen(body) + 1;
     result  = (char*)calloc(len, sizeof(char));
     strcat(result, bs);
     strcat(result, arg_id);
     strcat(result, cln);
     strcat(result, arg_type);
-    strcat(result, rarw);
+    strcat(result, reqarw);
     strcat(result, body);
     free(arg_type);
     free(body);
@@ -311,10 +311,14 @@ char* AstEntityToString(Ast* ast)
     switch (ast->u.entity.tag) {
       case E_TYPE: {
         result = AstEntityTypeToString(ast);
+        break;
       }
       case E_LAMBDA: {
         result = AstEntityLambdaToString(ast);
+        break;
       }
+      default:
+        error_abort("malformed entity tag! aborting");
     }
   }
   return result;

@@ -299,10 +299,10 @@ Ast* type_of(Ast* term, symboltable* env)
 {
   if (term != NULL) {
       switch(term->tag) {
-        case N_ID:    return typeofId(term, env);
+        case N_ID:     return typeofId(term, env);
         case N_ENTITY: return typeofEntity(term, env);
-        case N_CALL:  return typeofCall(term, env);
-        case N_BIND:  return typeofBind(term, env);
+        case N_CALL:   return typeofCall(term, env);
+        case N_BIND:   return typeofBind(term, env);
         default:  error_abort("malformed Ast node! aborting");
       }
   }
@@ -311,6 +311,44 @@ Ast* type_of(Ast* term, symboltable* env)
     return NULL;
   }
 }
+
+
+Ast* typeofId(Ast* id, symboltable* env)
+{
+  /*
+        id is-in FV(ENV)
+      ------------------
+    ENV |- id : type = value
+  */
+  if (id != NULL) {
+    char* name = id->u.id.s;
+    symbol* sym = lookup(name, env);
+    if (sym != NULL)
+      return type_of(sym->term, env);
+      else {
+        printf("Id is not typeable, Id <%s> not in ENV!\n", name);
+        return NULL;
+      }
+  }
+  else {
+    printf("Id NULL!");
+    return NULL;
+  }
+}
+
+Ast* typeofEntity(Ast* type, symboltable* env)
+{
+  if (type != NULL) {
+    switch (type->u.entity.tag) {
+      case E_TYPE:   return typeofEntityType(type, env);
+      case E_LAMBDA: return typeofEntityLambda(type, env);
+      default:
+        error_abort("malformed entity tag! aborting");
+    }
+  }
+  return NULL;
+}
+
 
 Ast* typeofEntityType(Ast* type, symboltable* env)
 {
@@ -352,29 +390,6 @@ Ast* typeofEntityType(Ast* type, symboltable* env)
     return NULL;
   }
   return NULL;
-}
-
-Ast* typeofId(Ast* id, symboltable* env)
-{
-  /*
-        id is-in FV(ENV)
-      ------------------
-    ENV |- id : type = value
-  */
-  if (id != NULL) {
-    char* name = id->u.id.s;
-    symbol* sym = lookup(name, env);
-    if (sym != NULL)
-      return type_of(sym->term, env);
-      else {
-        printf("Id is not typeable, Id <%s> not in ENV!\n", name);
-        return NULL;
-      }
-  }
-  else {
-    printf("Id NULL!");
-    return NULL;
-  }
 }
 
 Ast* typeofEntityLambda(Ast* lambda, symboltable* env)
