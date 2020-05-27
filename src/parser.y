@@ -133,6 +133,10 @@ subterm: { term }
 void yyerror (YYLTYPE* lloc, Ast** result, yyscan_t scanner, char const* s)
 {
 
-  fprintf (stderr, "%s\n", s);
+  fprintf (stderr, "[%d:%d-%d:%d]%s\n", lloc->first_line
+                                      , lloc->first_column
+                                      , lloc->last_line
+                                      , lloc->last_column
+                                      ,s);
 
 }

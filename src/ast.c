@@ -248,8 +248,8 @@ Ast* CopyAstEntity(Ast* entity)
         case T_NIL:    return CreateAstEntityTypeNil(NULL);
 
         case T_LAMBDA: return CreateAstEntityTypeFn(CopyAstEntity(entity->u.entity.u.type.u.rarrow.lhs), \
-                                                   CopyAstEntity(entity->u.entity.u.type.u.rarrow.rhs),  \
-                                                   NULL);
+                                                    CopyAstEntity(entity->u.entity.u.type.u.rarrow.rhs),  \
+                                                    NULL);
         default: error_abort("malformed type! aborting", __FILE__, __LINE__);
       }
     }
@@ -315,6 +315,7 @@ char* AstEntityTypeToString(Ast* ast)
         char* rarrow = " -> ";
         int len;
         // this could seg-fault, but only if the tree is malformed.
+        // this is also the perfect place for a local function.
         bool grouped = type->u.rarrow.lhs->u.entity.u.type.tag == T_LAMBDA;
         if (grouped) {
           len = 1 + strlen(t1) + 1 + 4 + strlen(t2) + 1;
@@ -370,7 +371,7 @@ char* AstEntityLambdaToString(Ast* ast)
             + strlen(arg_id)   \
             + strlen(cln)      \
             + strlen(arg_type) \
-            + strlen(reqarw)     \
+            + strlen(reqarw)   \
             + strlen(body) + 1;
     result  = (char*)calloc(len, sizeof(char));
     strcat(result, bs);
