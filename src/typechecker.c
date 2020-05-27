@@ -303,7 +303,7 @@ Ast* type_of(Ast* term, symboltable* env)
         case N_ENTITY: return typeofEntity(term, env);
         case N_CALL:   return typeofCall(term, env);
         case N_BIND:   return typeofBind(term, env);
-        default:  error_abort("malformed Ast node! aborting");
+        default:  error_abort("malformed Ast node! aborting", __FILE__, __LINE__);
       }
   }
   else {
@@ -322,9 +322,12 @@ Ast* typeofId(Ast* id, symboltable* env)
   */
   if (id != NULL) {
     char* name = id->u.id.s;
-    symbol* sym = lookup(name, env);
-    if (sym != NULL)
-      return type_of(sym->term, env);
+    Ast* term = lookup(name, env);
+    if (term != NULL) {
+      Ast* type = type_of(term, env);
+      DeleteAst(term);
+      return type;
+    }
       else {
         printf("Id is not typeable, Id <%s> not in ENV!\n", name);
         return NULL;
@@ -343,7 +346,7 @@ Ast* typeofEntity(Ast* type, symboltable* env)
       case E_TYPE:   return typeofEntityType(type, env);
       case E_LAMBDA: return typeofEntityLambda(type, env);
       default:
-        error_abort("malformed entity tag! aborting");
+        error_abort("malformed entity tag! aborting", __FILE__, __LINE__);
     }
   }
   return NULL;
@@ -355,7 +358,7 @@ Ast* typeofEntityType(Ast* type, symboltable* env)
   if (type != NULL) {
     /* ENV |- nil : Nil */
     if (type->u.entity.u.type.tag == T_NIL) {
-      return CreateAstEntityTypeNil();
+      return CreateAstEntityTypeNil(NULL);
     }
     /*
      build up the function type recursively.
@@ -368,7 +371,7 @@ Ast* typeofEntityType(Ast* type, symboltable* env)
       if (t1 != NULL) {
         Ast* t2 = typeofEntity(type->u.entity.u.type.u.rarrow.rhs, env);
         if (t2 != NULL) {
-          return CreateAstEntityTypeFn(t1, t2);
+          return CreateAstEntityTypeFn(t1, t2, NULL);
         }
         else {
           printf("function type type2 NULL\n!");
@@ -382,7 +385,7 @@ Ast* typeofEntityType(Ast* type, symboltable* env)
       }
     }
     else
-      error_abort("malformed type tag! aborting");
+      error_abort("malformed type tag! aborting", __FILE__, __LINE__);
 
   }
   else {
@@ -415,7 +418,7 @@ Ast* typeofEntityLambda(Ast* lambda, symboltable* env)
       Ast* type2 = type_of(lambda->u.entity.u.lambda.body, env);
       unbind(lambda->u.entity.u.lambda.arg.id.s, env);
       if (type2 != NULL)
-        return CreateAstEntityTypeFn(type1, type2);
+        return CreateAstEntityTypeFn(type1, type2, NULL);
         else {
           printf("lambda body not typeable!\n");
           return NULL;
@@ -498,7 +501,7 @@ Ast* typeofBind(Ast* bind, symboltable* env)
   if (bind != NULL) {
     Ast* type2 = type_of(bind->u.bind.term, env);
     if (type2 != NULL) {
-      return CreateAstEntityTypeNil();
+      return CreateAstEntityTypeNil(NULL);
     }
     else {
       printf("bind term not typeable!\n");
@@ -530,7 +533,7 @@ bool typesEqual(Ast* t1, Ast* t2, symboltable* env)
       || t1->u.entity.tag != E_TYPE  \
       || t2->tag != N_ENTITY        \
       || t2->u.entity.tag != E_TYPE)
-      error_abort("non-type ast cannot compare to type ast! aborting");
+      error_abort("non-type ast cannot compare to type ast! aborting", __FILE__, __LINE__);
     if (t1->u.entity.u.type.tag == T_NIL && t2->u.entity.u.type.tag == T_NIL)
       return true;
     else if (t1->u.entity.u.type.tag == T_LAMBDA && t2->u.entity.u.type.tag == T_LAMBDA)
@@ -539,7 +542,7 @@ bool typesEqual(Ast* t1, Ast* t2, symboltable* env)
     else
       return false;
   }
-  error_abort("malformed type! aborting");
+  error_abort("malformed type! aborting", __FILE__, __LINE__);
   return false;
 }
 

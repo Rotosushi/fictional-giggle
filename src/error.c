@@ -13,8 +13,8 @@
   and into this file first and foremost.
 */
 
-void error_abort(char* s)
+void error_abort(char *s, const char* file, int line)
 {
-  fprintf(stderr, "%s\n", s);
+  fprintf(stderr, "f: %s \n l: %d \n %s\n", file, line, s);
   exit(1);
 }

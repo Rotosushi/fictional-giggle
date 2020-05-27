@@ -4,28 +4,61 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#include "error.h"
+#include "parser.h"
 #include "ast.h"
+#include "error.h"
 
-Ast* CreateAstId(char* name)
+
+/*
+struct YYLTYPE {
+int first_line;
+int first_column;
+int last_line;
+int last_column;
+};
+*/
+
+Ast* CreateAstId(char* name, YYLTYPE* llocp)
 {
   Ast* node    = (Ast*)malloc(sizeof(Ast));
   node->tag    = N_ID;
   node->u.id.s = name;
+  if (llocp != NULL) {
+    node->lloc.first_line   = llocp->first_line;
+    node->lloc.first_column = llocp->first_column;
+    node->lloc.last_line    = llocp->last_line;
+    node->lloc.last_column  = llocp->last_column;
+  } else {
+    node->lloc.first_line   = 0;
+    node->lloc.first_column = 0;
+    node->lloc.last_line    = 0;
+    node->lloc.last_column  = 0;
+  }
   return node;
 }
 
-Ast* CreateAstEntityTypeNil()
+Ast* CreateAstEntityTypeNil(YYLTYPE* llocp)
 {
   Ast* node                    = (Ast*)malloc(sizeof(Ast));
   node->tag                    = N_ENTITY;
   node->u.entity.tag           = E_TYPE;
   node->u.entity.u.type.tag    = T_NIL;
   node->u.entity.u.type.u.null = '\0';
+  if (llocp != NULL) {
+    node->lloc.first_line   = llocp->first_line;
+    node->lloc.first_column = llocp->first_column;
+    node->lloc.last_line    = llocp->last_line;
+    node->lloc.last_column  = llocp->last_column;
+  } else {
+    node->lloc.first_line   = 0;
+    node->lloc.first_column = 0;
+    node->lloc.last_line    = 0;
+    node->lloc.last_column  = 0;
+  }
   return node;
 }
 
-Ast* CreateAstEntityTypeFn(Ast* lhs, Ast* rhs)
+Ast* CreateAstEntityTypeFn(Ast* lhs, Ast* rhs, YYLTYPE* llocp)
 {
   Ast* node                          = (Ast*)malloc(sizeof(Ast));
   node->tag                          = N_ENTITY;
@@ -33,12 +66,23 @@ Ast* CreateAstEntityTypeFn(Ast* lhs, Ast* rhs)
   node->u.entity.u.type.tag          = T_LAMBDA;
   node->u.entity.u.type.u.rarrow.lhs = lhs;
   node->u.entity.u.type.u.rarrow.rhs = rhs;
+  if (llocp != NULL) {
+    node->lloc.first_line   = llocp->first_line;
+    node->lloc.first_column = llocp->first_column;
+    node->lloc.last_line    = llocp->last_line;
+    node->lloc.last_column  = llocp->last_column;
+  } else {
+    node->lloc.first_line   = 0;
+    node->lloc.first_column = 0;
+    node->lloc.last_line    = 0;
+    node->lloc.last_column  = 0;
+  }
   return node;
 }
 
 
 
-Ast* CreateAstEntityFn(char* name, Ast* type, Ast* body)
+Ast* CreateAstEntityFn(char* name, Ast* type, Ast* body, YYLTYPE* llocp)
 {
   Ast* node                        = (Ast*)malloc(sizeof(Ast));
   node->tag                        = N_ENTITY;
@@ -46,24 +90,57 @@ Ast* CreateAstEntityFn(char* name, Ast* type, Ast* body)
   node->u.entity.u.lambda.arg.id.s = name;
   node->u.entity.u.lambda.arg.type = type;
   node->u.entity.u.lambda.body     = body;
+  if (llocp != NULL) {
+    node->lloc.first_line   = llocp->first_line;
+    node->lloc.first_column = llocp->first_column;
+    node->lloc.last_line    = llocp->last_line;
+    node->lloc.last_column  = llocp->last_column;
+  } else {
+    node->lloc.first_line   = 0;
+    node->lloc.first_column = 0;
+    node->lloc.last_line    = 0;
+    node->lloc.last_column  = 0;
+  }
   return node;
 }
 
-Ast* CreateAstCall(Ast* l, Ast* r)
+Ast* CreateAstCall(Ast* l, Ast* r, YYLTYPE* llocp)
 {
   Ast* node        = (Ast*)malloc(sizeof(Ast));
   node->tag        = N_CALL;
   node->u.call.lhs = l;
   node->u.call.rhs = r;
+  if (llocp != NULL) {
+    node->lloc.first_line   = llocp->first_line;
+    node->lloc.first_column = llocp->first_column;
+    node->lloc.last_line    = llocp->last_line;
+    node->lloc.last_column  = llocp->last_column;
+  } else {
+    node->lloc.first_line   = 0;
+    node->lloc.first_column = 0;
+    node->lloc.last_line    = 0;
+    node->lloc.last_column  = 0;
+  }
   return node;
 }
 
-Ast* CreateAstBind(char* name, Ast* term)
+Ast* CreateAstBind(char* name, Ast* term, YYLTYPE* llocp)
 {
   Ast* node         = (Ast*)malloc(sizeof(Ast));
   node->tag         = N_BIND;
   node->u.bind.id.s = name;
   node->u.bind.term = term;
+  if (llocp != NULL) {
+    node->lloc.first_line   = llocp->first_line;
+    node->lloc.first_column = llocp->first_column;
+    node->lloc.last_line    = llocp->last_line;
+    node->lloc.last_column  = llocp->last_column;
+  } else {
+    node->lloc.first_line   = 0;
+    node->lloc.first_column = 0;
+    node->lloc.last_line    = 0;
+    node->lloc.last_column  = 0;
+  }
   return node;
 }
 
@@ -89,7 +166,7 @@ void DeleteAst(Ast* ast)
         DeleteAstBind(ast);
         break;
       default:
-        error_abort("malformed ast tag! aborting");
+        error_abort("malformed ast tag! aborting", __FILE__, __LINE__);
     }
   }
 }
@@ -113,7 +190,7 @@ void DeleteAstEntity(Ast* entity)
         DeleteAst(entity->u.entity.u.lambda.body);
         break;
       }
-      default: error_abort("malformed entity tag! aborted");
+      default: error_abort("malformed entity tag! aborted", __FILE__, __LINE__);
     }
   }
 }
@@ -159,7 +236,7 @@ Ast* CopyAst(Ast* ast)
     case N_ENTITY: return CopyAstEntity(ast);
     case N_CALL:   return CopyAstCall(ast);
     case N_BIND:   return CopyAstBind(ast);
-    default: error_abort ("malformed ast! aborting");
+    default: error_abort ("malformed ast! aborting", __FILE__, __LINE__);
   }
 }
 
@@ -168,37 +245,41 @@ Ast* CopyAstEntity(Ast* entity)
   switch (entity->u.entity.tag) {
     case E_TYPE: {
       switch(entity->u.entity.u.type.tag) {
-        case T_NIL:    return CreateAstEntityTypeNil();
+        case T_NIL:    return CreateAstEntityTypeNil(NULL);
 
         case T_LAMBDA: return CreateAstEntityTypeFn(CopyAstEntity(entity->u.entity.u.type.u.rarrow.lhs), \
-                                                   CopyAstEntity(entity->u.entity.u.type.u.rarrow.rhs));
-        default: error_abort("malformed type! aborting");
+                                                   CopyAstEntity(entity->u.entity.u.type.u.rarrow.rhs),  \
+                                                   NULL);
+        default: error_abort("malformed type! aborting", __FILE__, __LINE__);
       }
     }
     case E_LAMBDA: {
-      return CreateAstEntityFn(strdup(entity->u.entity.u.lambda.arg.id.s), \
+      return CreateAstEntityFn(strdup(entity->u.entity.u.lambda.arg.id.s),       \
                               CopyAstEntity(entity->u.entity.u.lambda.arg.type), \
-                              CopyAst(entity->u.entity.u.lambda.body));
+                              CopyAst(entity->u.entity.u.lambda.body),           \
+                              NULL);
     }
-    default: error_abort("malformed entity! aborting");
+    default: error_abort("malformed entity! aborting", __FILE__, __LINE__);
   }
 }
 
 Ast* CopyAstId(Ast* id)
 {
-  return CreateAstId(strdup(id->u.id.s));
+  return CreateAstId(strdup(id->u.id.s), NULL);
 }
 
 Ast* CopyAstCall(Ast* call)
 {
   return CreateAstCall(CopyAst(call->u.call.lhs), \
-                       CopyAst(call->u.call.rhs));
+                       CopyAst(call->u.call.rhs), \
+                       NULL);
 }
 
 Ast* CopyAstBind(Ast* bind)
 {
-  return CreateAstBind(strdup(bind->u.bind.id.s), \
-                       CopyAst(bind->u.bind.term));
+  return CreateAstBind(strdup(bind->u.bind.id.s),  \
+                       CopyAst(bind->u.bind.term), \
+                       NULL);
 }
 
 char* AstIdToString(Ast*);
@@ -224,11 +305,11 @@ char* AstEntityTypeToString(Ast* ast)
       case T_LAMBDA: {
         char* t1 = AstEntityToString(type->u.rarrow.lhs);
         if (!t1) {
-          error_abort("malformed type! aborting");
+          error_abort("malformed type! aborting", __FILE__, __LINE__);
         }
         char* t2 = AstEntityToString(type->u.rarrow.rhs);
         if (!t2) {
-          error_abort("malformed type! aborting");
+          error_abort("malformed type! aborting", __FILE__, __LINE__);
         }
         char* lprn = "(", *rprn = ")";
         char* rarrow = " -> ";
@@ -258,7 +339,7 @@ char* AstEntityTypeToString(Ast* ast)
         break;
       }
       default: {
-        error_abort("unknown type tag! aborting");
+        error_abort("unknown type tag! aborting", __FILE__, __LINE__);
       }
     }
   }
@@ -272,17 +353,17 @@ char* AstEntityLambdaToString(Ast* ast)
     char *bs = " \\ ", *cln = " : ", *reqarw = " => ";
     char* arg_id = ast->u.entity.u.lambda.arg.id.s;
     if   (arg_id == NULL) {
-      error_abort("malformed arg id! aborting");
+      error_abort("malformed arg id! aborting", __FILE__, __LINE__);
     }
 
     char* arg_type = AstEntityToString(ast->u.entity.u.lambda.arg.type);
     if   (arg_type == NULL) {
-      error_abort("malformed arg type! aborting");
+      error_abort("malformed arg type! aborting", __FILE__, __LINE__);
     }
 
     char* body = AstToString(ast->u.entity.u.lambda.body);
     if   (body == NULL) {
-      error_abort("malformed body! aborting");
+      error_abort("malformed body! aborting", __FILE__, __LINE__);
     }
 
     int len = strlen(bs)       \
@@ -318,7 +399,7 @@ char* AstEntityToString(Ast* ast)
         break;
       }
       default:
-        error_abort("malformed entity tag! aborting");
+        error_abort("malformed entity tag! aborting", __FILE__, __LINE__);
     }
   }
   return result;
@@ -330,7 +411,7 @@ char* AstIdToString(Ast* ast)
   if (ast != NULL) {
     char* id = ast->u.id.s;
     if (id == NULL) {
-      error_abort("malformed id! aborting");
+      error_abort("malformed id! aborting", __FILE__, __LINE__);
     }
     int len  = strlen (ast->u.id.s) + 1;
     result = (char*)calloc(len, sizeof(char));
@@ -348,11 +429,11 @@ char* AstCallToString(Ast* ast)
     char* spc = " ", *lprn = "(", *rprn = ")";
     char* lhs = AstToString(ast->u.call.lhs);
     if   (lhs == NULL) {
-       error_abort("malformed call lhs! aborting");
+       error_abort("malformed call lhs! aborting", __FILE__, __LINE__);
     }
     char* rhs = AstToString(ast->u.call.rhs);
     if   (rhs == NULL) {
-       error_abort("malformed call rhs! aborting");
+       error_abort("malformed call rhs! aborting", __FILE__, __LINE__);
     }
 
     int len = strlen(lhs) + strlen(spc) + 1 + strlen(rhs) + 2;
@@ -376,12 +457,12 @@ char* AstBindToString(Ast* ast)
 
     char* id = ast->u.bind.id.s;
     if (id == NULL) {
-      error_abort("malformed bind id! aborting");
+      error_abort("malformed bind id! aborting", __FILE__, __LINE__);
     }
 
     char* term = AstToString(ast->u.bind.term);
     if (term == NULL) {
-      error_abort("malformed bind term! aborting");
+      error_abort("malformed bind term! aborting", __FILE__, __LINE__);
     }
 
     int len = strlen(id) + strlen(clneq) + strlen(term) + 1;
@@ -416,7 +497,7 @@ char* AstToString(Ast* ast)
         break;
       }
       default:
-        error_abort("malformed type tag! aborting");
+        error_abort("malformed type tag! aborting", __FILE__, __LINE__);
     }
   }
   return result;

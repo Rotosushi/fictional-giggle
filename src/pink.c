@@ -102,7 +102,7 @@ int main(int argc, char** argv)
 	int chars_read = 0;
 
 	// enable/disable parser trace printing
-	yydebug = 1;
+	//yydebug = 1;
 
 	/* in order to support reentrancy
 	     the parser and lexer internal state
@@ -123,7 +123,25 @@ int main(int argc, char** argv)
 	printf("Welcome to Pink v0.0.1!\npress ctrl+d to end a line\npress ctrl+c to end your session\n");
 
 	while (1) {
-
+		/*
+			nice error messages are possible!
+			we use the fact that we are getting
+			input a line at a time, and we refactor
+			the Ast to store the location data of each
+			token/token-range. this should meet the
+			data gathering requirements, when an
+			error is spotted, we need to be able to
+			call an error reporting routine,
+			the exact location of the error is only known
+			the moment we discover the error.
+			the input text isn't generally usefull for
+			the evaluator or typechecker to know
+			until we need to call the error reporting
+			routine. but we need to be able to put together
+			the location of the erroneous token and
+		  the full input string, then we can
+			underscore the text of the erroneous token.
+		*/
 		input = get_input(input_buf_size, &chars_read, stdin);
 
 		if (input != NULL) {
@@ -137,7 +155,6 @@ int main(int argc, char** argv)
 					char* ast_string = AstToString(result);
 					char* type_string = AstToString(type);
 					char* eval_string = AstToString(copy);
-					printf (":ast  %s\n", ast_string);
 					printf (":type %s\n", type_string);
 					printf ("==>>  %s\n", eval_string);
 				}
@@ -182,7 +199,7 @@ Ast* parse_buffer(char* buf, int len, yypstate* parser, yyscan_t scanner)
 	Ast* result   = NULL;
 	YYSTYPE* lval = (YYSTYPE*)malloc(sizeof(YYSTYPE));
 	YYLTYPE* lloc = (YYLTYPE*)malloc(sizeof(YYLTYPE));
-	
+
 	YY_BUFFER_STATE scanner_buffer_handle = yy_scan_buffer(buf, len, scanner);
 	if (scanner_buffer_handle == NULL) {
 		fprintf(stderr, "yy_scan_buffer failed!");
@@ -209,7 +226,7 @@ Ast* parse_buffer(char* buf, int len, yypstate* parser, yyscan_t scanner)
 				continue;
 			}
 			else {
-				error_abort("\nunknown parser status, aborting\n");
+				error_abort("\nunknown parser status, aborting\n", __FILE__, __LINE__);
 			}
 	}
 
@@ -231,7 +248,9 @@ char* get_input(int max_len, int* chars_read, FILE* in_stream)
 		 wants for the call to yyscan_buffer, namely
 		 to have the input buffer be double-null-terminated.
 		 even if the resulting call to getline fills the input
-		 buffer completely.
+		 buffer completely. if the buffer given to
+		 yyscan_buffer is not formatted in this way, then
+		 the function fails.
 	*/
 	char* input = (char*)calloc(max_len + 2, sizeof(char));
 

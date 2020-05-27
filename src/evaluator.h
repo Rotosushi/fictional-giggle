@@ -73,6 +73,9 @@ which is either a function, or nil.
 #include "ast.h"
 #include "symboltable.h"
 
+/*
+
+*/
 Ast* evaluate(Ast* term, symboltable* env);
 
 

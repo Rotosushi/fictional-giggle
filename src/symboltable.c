@@ -6,13 +6,19 @@
 #include "ast.h"
 #include "error.h"
 
-symbol* lookup(char* name, symboltable* symtable)
+Ast* lookup(char* name, symboltable* symtable)
 {
+  if (name == NULL)
+    error_abort("cannot lookup NULL name! aborting", __FILE__, __LINE__);
+
+  if (symtable == NULL)
+    error_abort("cannot lookup name in NULL symbol-table! aborting", __FILE__, __LINE__);
+
   symbol* sym = symtable->symbols;
   while (sym != NULL)
   {
     int cmp = strcmp(name, sym->id);
-    if (cmp == 0) return sym;
+    if (cmp == 0) return CopyAst(sym->term);
     sym = sym->next;
   }
   return NULL;
@@ -20,6 +26,15 @@ symbol* lookup(char* name, symboltable* symtable)
 
 void bind(char* name, Ast* term, symboltable* symtable)
 {
+  if (name == NULL)
+    error_abort("cannot bind NULL name! aborting", __FILE__, __LINE__);
+
+  if (term == NULL)
+    error_abort("cannot bind a name to a NULL term! aborting", __FILE__, __LINE__);
+
+  if (symtable == NULL)
+    error_abort("cannot bind name in NULL symbol-table! aborting", __FILE__, __LINE__);
+
   /* the binding list simply maintains the order
       in which the elements are inserted
   */
@@ -41,8 +56,10 @@ void bind(char* name, Ast* term, symboltable* symtable)
 void unbind(char* name, symboltable* symtable)
 {
   if (name == NULL)
-    error_abort("cannot unbind empty name! aborting");
+    error_abort("cannot unbind empty name! aborting", __FILE__, __LINE__);
 
+  if (symtable == NULL)
+    error_abort("cannot unbind name from empty symbol-table! aborting", __FILE__, __LINE__);
 
   symbol *prv = NULL, *ths = symtable->symbols;
 

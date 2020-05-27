@@ -6,15 +6,6 @@
 
 #include "ast.h"
 
-/*
-typedef struct YYLTYPE
-{
-  int first_line;
-  int first_column;
-  int last_line;
-  int last_column;
-} YYLTYPE;
-*/
 
 void yyerror (YYLTYPE*, Ast**, yyscan_t, char const *);
 %}
@@ -106,7 +97,7 @@ term:
 */
 
 name: /* [a-zA-Z][a-zA-Z0-9_-]+ */
-  ID  { $$ = CreateAstId($1); }
+  ID  { $$ = CreateAstId($1, &@1); }
 
 entity:
     type   { $$ = $1; }
@@ -114,19 +105,19 @@ entity:
 
 
 type: /* nil | type -> type | ( type ) */
-    NIL                 { $$ = CreateAstEntityTypeNil(); }
-  | type RARROW type    { $$ = CreateAstEntityTypeFn($1, $3); }
+    NIL                 { $$ = CreateAstEntityTypeNil(&@1); }
+  | type RARROW type    { $$ = CreateAstEntityTypeFn($1, $3, &@$); }
   | LPAREN type RPAREN  { $$ = $2; }
 
 lambda: /* \ name : arg_type => term */
-    BSLASH ID COLON type REQARROW term { $$ = CreateAstEntityFn($2, $4, $6); }
+    BSLASH ID COLON type REQARROW term { $$ = CreateAstEntityFn($2, $4, $6, &@$); }
   //| BSLASH ID REQARROW term            { $$ = CreateAstLambda($2, CreateAstTypeInfer(), $4); }
 
 call: /* term term */
-  term term { $$ = CreateAstCall($1, $2); }
+  term term { $$ = CreateAstCall($1, $2, &@$); }
 
 bind: /* name := term */
-  ID COLONEQUALS term { $$ = CreateAstBind($1, $3); }
+  ID COLONEQUALS term { $$ = CreateAstBind($1, $3, &@$); }
 
 parenterm: /* ( term ) */
   LPAREN term RPAREN { $$ = $2; }

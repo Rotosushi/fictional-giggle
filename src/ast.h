@@ -2,6 +2,24 @@
 #ifndef AST_H
 #define AST_H
 
+
+/*
+	this is the definition of the location tracking
+	structure used by the parser and Ast to store the
+	textual location of tokens, the compiler uses this
+	information for precise error reporting
+*/
+typedef struct StringLocation
+{
+  int first_line;
+  int first_column;
+  int last_line;
+  int last_column;
+} StringLocation;
+
+struct YYLTYPE;
+
+
 /*
 	a type can either be
 	nil, or type -> type,
@@ -134,6 +152,7 @@ typedef struct Bind {
 */
 typedef struct Ast {
 	NodeTag tag;
+	StringLocation lloc;
 	union {
 		Id     id;
 		Entity entity;
@@ -142,12 +161,12 @@ typedef struct Ast {
 	} u;
 } Ast;
 
-Ast* CreateAstId(char* name);
-Ast* CreateAstEntityTypeNil();
-Ast* CreateAstEntityTypeFn(Ast* l, Ast* r);
-Ast* CreateAstEntityFn(char* name, Ast* type, Ast* body);
-Ast* CreateAstCall(Ast* l, Ast* r);
-Ast* CreateAstBind(char* name, Ast* term);
+Ast* CreateAstId(char* name, struct YYLTYPE* llocp);
+Ast* CreateAstEntityTypeNil(struct YYLTYPE* llocp);
+Ast* CreateAstEntityTypeFn(Ast* l, Ast* r, struct YYLTYPE* llocp);
+Ast* CreateAstEntityFn(char* name, Ast* type, Ast* body, struct YYLTYPE* llocp);
+Ast* CreateAstCall(Ast* l, Ast* r, struct YYLTYPE* llocp);
+Ast* CreateAstBind(char* name, Ast* term, struct YYLTYPE* llocp);
 
 void DeleteAst(Ast* ast);
 

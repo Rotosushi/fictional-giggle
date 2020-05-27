@@ -17,6 +17,7 @@ Ast* evaluate_entity(Ast* val, symboltable* env);
 Ast* evaluate_call(Ast* call, symboltable* env);
 Ast* evaluate_bind(Ast* bind, symboltable* env);
 
+// interesting to note that this is the only place where the Ast is trimmed.
 void substitute(char* name, Ast** term, Ast* value, symboltable* env);
 bool appears_free_in(char* name, Ast* term);
 void rename_binding(Ast* lambda, Ast* value);
@@ -40,7 +41,7 @@ Ast* evaluate(Ast* term, symboltable* env)
     case N_ENTITY: return evaluate_entity(term, env); /* values are already in beta-normal form */
     case N_CALL:   return evaluate_call(term, env);  /* return the result of calling the fn. */
     case N_BIND:   return evaluate_bind(term, env);  /* evaluate the bind and return the value nil. */
-    default: error_abort("malformed ast node tag! aborting");
+    default: error_abort("malformed ast node tag! aborting", __FILE__, __LINE__);
   }
   return NULL;
 }
@@ -75,16 +76,16 @@ Ast* evaluate_id(Ast* id, symboltable* env)
        id -> value
   */
   if (id != NULL) {
-    symbol* sym = lookup(id->u.id.s, env);
-    if (sym != NULL) {
-      return CopyAst(sym->term);
+    Ast* term = lookup(id->u.id.s, env);
+    if (term != NULL) {
+      return term;
     }
     else {
-      error_abort("cannot find name in environment! aborting");
+      error_abort("cannot find name in environment! aborting", __FILE__, __LINE__);
     }
   }
   else {
-    error_abort("cannot evaluate/lookup NULL id!");
+    error_abort("cannot evaluate/lookup NULL id!", __FILE__, __LINE__);
   }
   // suppressing a warning...
   // id either is or isn't NULL, so why does clang warn here?
@@ -130,7 +131,7 @@ Ast* evaluate_call(Ast* call, symboltable* env)
     }
 
     if (lhs->u.entity.tag != E_LAMBDA)
-      error_abort("cannot call a non-lambda term! aborting");
+      error_abort("cannot call a non-lambda term! aborting", __FILE__, __LINE__);
 
     // evaluate the rhs down to a value.
     Ast* rhs = CopyAst(call->u.call.rhs);
@@ -155,7 +156,7 @@ Ast* evaluate_call(Ast* call, symboltable* env)
 
   }
   else {
-    error_abort("canot evaluate NULL call! aborting");
+    error_abort("canot evaluate NULL call! aborting", __FILE__, __LINE__);
   }
 
   return NULL;
@@ -182,11 +183,11 @@ Ast* evaluate_bind(Ast* bind_ast, symboltable* env)
     }
 
     bind (bind_ast->u.bind.id.s, bind_ast->u.bind.term, env);
-    return CreateAstEntityTypeNil();
+    return CreateAstEntityTypeNil(NULL);
 
   }
   else {
-    error_abort("cannot evaluate NULL bind");
+    error_abort("cannot evaluate NULL bind", __FILE__, __LINE__);
   }
   return NULL;
 }
@@ -323,6 +324,16 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
           if (appears_free_in((*term)->u.entity.u.lambda.arg.id.s, value)) {
             Ast* lambda = CopyAst(*term);
             rename_binding(lambda, value);
+            /* theoretically we can avoid a function call and
+               the dynamic type dispatch if we could call the
+               DeleteAstEntity directly since we know for sure
+               that we are deleting an entity node here. but
+               that is minor savings at the cost of breaking
+               open the mutually recursive deletion function
+               for any module working with the Ast, which is
+               just asking for abuse. this version is slightly
+               more resilient to refactoring due to is genericity
+               as well. */
             DeleteAst((*term));
             (*term) = lambda;
           }
@@ -339,7 +350,7 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
         break;
       }
       else {
-        error_abort("malformed entity tag! aborting");
+        error_abort("malformed entity tag! aborting", __FILE__, __LINE__);
       }
     }
 
@@ -376,6 +387,160 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
     }
   }
 }
+
+
+bool appears_free_in(char* name, Ast* term)
+{
+ switch(term->tag) {
+
+
+     case N_ID: {
+       // name might appear in ID, better check.
+       if (strcmp(name, term->u.id.s) == 0) {
+         return true;
+       } else {
+         return false;
+       }
+     }
+
+     case N_ENTITY: {
+         if (term->u.entity.tag == E_TYPE) {
+           // names cannot appear in types, yet...
+           return false;
+         }
+         else if (term->u.entity.tag == E_LAMBDA) {
+         if (strcmp(name, term->u.entity.u.lambda.arg.id.s) == 0) {
+           // the name is bound by the lambda so
+           // if the name appears in the body of the
+           // lambda it will be associated with the
+           // parameter binding.
+           // i.e. the name appears bound in term, not free.
+           return false;
+         }
+         else {
+           // search the body of the lambda for instances of
+           // the name.
+           return (appears_free_in(name, term->u.entity.u.lambda.body));
+         }
+       }
+       else {
+         error_abort("malformed entity tag! aborting", __FILE__, __LINE__);
+       }
+     }
+
+     case N_CALL: {
+       return appears_free_in(name, term->u.call.lhs) \
+           || appears_free_in(name, term->u.call.rhs);
+     }
+
+     case N_BIND: {
+       // search the bound term for instances of the name
+       // however the bound id is required to be != to
+       // the name we are looking for, as the name
+       // we are looking for is bound!
+       // so something should have caught that
+       // bug before this point, we assume.
+       return appears_free_in(name, term->u.bind.term);
+     }
+     default: error_abort("malformed Ast node tag! aborting", __FILE__, __LINE__);
+ }
+}
+
+/* this is a very simplistic version of
+  renaming. it ensures
+  the semantics, and should be kept separate
+  from anything but evaluating a given Ast.
+  we don't want to rename the bindings the user
+  types in, because that would confuse the
+  writer of the program.
+   */
+char* generate_name(int len)
+{
+ const char symset[]  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+ const int  symsetlen = 52;
+ char* result = (char*)calloc(len + 1, sizeof(char));
+ int i = 0;
+ while (i < len) {
+   result[i] = symset[rand() % symsetlen];
+   i++;
+ }
+ return result;
+}
+
+void rename_binding_in_body(char* new_name, char* old_name, Ast* term)
+{
+ switch (term->tag)
+ {
+   case N_ID: {
+     /*
+       this could be the node we want to replace
+     */
+     if (strcmp(old_name, term->u.id.s) == 0) {
+       /* we want to rename this node */
+       free(term->u.id.s);
+       term->u.id.s = strdup(new_name);
+     }
+     /* we don't want to rename this node */
+   }
+   case N_ENTITY: {
+     /*
+       if the body of the lambda we are replacing the name for
+       is itself a lambda whose biding matches the name we are
+       looking to replace, we do not replace, because that lambda
+       is introducing that binding for it's own body, and that makes
+       it a separate binding than the one we are looking for.
+       if the binding is not the one that we are looking for, then
+       we need to look for instances of the binding within the
+       body of the lambda.
+      */
+     if (term->u.entity.tag == E_LAMBDA) {
+       if (strcmp(old_name, term->u.entity.u.lambda.arg.id.s) == 0) {}
+       else {
+         rename_binding_in_body(new_name, old_name, term->u.entity.u.lambda.body);
+       }
+     }
+     else if (term->u.entity.tag == E_TYPE) {
+     /* names cannot yet appear in type expressions.
+        there is no way that a name could appear in
+        a type expression that we would need to replace.
+      */
+      return;
+     }
+     else {
+       error_abort("malformed entity tag! aborting", __FILE__, __LINE__);
+     }
+   }
+   case N_CALL: {
+     rename_binding_in_body(new_name, old_name, term->u.call.lhs);
+     rename_binding_in_body(new_name, old_name, term->u.call.rhs);
+   }
+   case N_BIND: {
+     rename_binding_in_body(new_name, old_name, term->u.bind.term);
+   }
+   default: error_abort("malformed Ast node tag! aborting", __FILE__, __LINE__);
+ }
+}
+
+
+void rename_binding(Ast* lambda, Ast* invalid_bindings)
+{
+ char* arg_name = strdup(lambda->u.entity.u.lambda.arg.id.s);
+ char* new_name = NULL;
+ do {
+   if (new_name)
+     free(new_name);
+
+   new_name = generate_name(5);
+ } while (appears_free_in(new_name, invalid_bindings));
+
+ free(lambda->u.entity.u.lambda.arg.id.s);
+ lambda->u.entity.u.lambda.arg.id.s = new_name;
+ rename_binding_in_body(new_name, arg_name, lambda->u.entity.u.lambda.body);
+ free(arg_name);
+}
+
+
+
       /*
        are type descriptors values?
        i argue yes. simply because then it becomes easy to
@@ -802,155 +967,6 @@ also notice:
      to call based on type.
     )
  */
-bool appears_free_in(char* name, Ast* term)
-{
-  switch(term->tag) {
-
-
-      case N_ID: {
-        // name might appear in ID, better check.
-        if (strcmp(name, term->u.id.s) == 0) {
-          return true;
-        } else {
-          return false;
-        }
-      }
-
-      case N_ENTITY: {
-          if (term->u.entity.tag == E_TYPE) {
-            // names cannot appear in types, yet...
-            return false;
-          }
-          else if (term->u.entity.tag == E_LAMBDA) {
-          if (strcmp(name, term->u.entity.u.lambda.arg.id.s) == 0) {
-            // the name is bound by the lambda so
-            // if the name appears in the body of the
-            // lambda it will be associated with the
-            // parameter binding.
-            // i.e. the name appears bound in term, not free.
-            return false;
-          }
-          else {
-            // search the body of the lambda for instances of
-            // the name.
-            return (appears_free_in(name, term->u.entity.u.lambda.body));
-          }
-        }
-        else {
-          error_abort("malformed entity tag! aborting");
-        }
-      }
-
-      case N_CALL: {
-        return appears_free_in(name, term->u.call.lhs) \
-            || appears_free_in(name, term->u.call.rhs);
-      }
-
-      case N_BIND: {
-        // search the bound term for instances of the name
-        // however the bound id is required to be != to
-        // the name we are looking for, as the name
-        // we are looking for is bound!
-        // so something should have caught that
-        // bug before this point, we assume.
-        return appears_free_in(name, term->u.bind.term);
-      }
-      default: error_abort("malformed Ast node tag! aborting");
-  }
-}
-
-/* this is a very simplistic version of
-   renaming. it ensures
-   the semantics, and should be kept separate
-   from anything but evaluating a given Ast.
-   we don't want to rename the bindings the user
-   types in, because that would confuse the
-   writer of the program.
-    */
-char* generate_name(int len)
-{
-  const char symset[]  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const int  symsetlen = 52;
-  char* result = (char*)calloc(len + 1, sizeof(char));
-  int i = 0;
-  while (i < len) {
-    result[i] = symset[rand() % symsetlen];
-    i++;
-  }
-  return result;
-}
-
-void rename_binding_in_body(char* new_name, char* old_name, Ast* term)
-{
-  switch (term->tag)
-  {
-    case N_ID: {
-      /*
-        this could be the node we want to replace
-      */
-      if (strcmp(old_name, term->u.id.s) == 0) {
-        /* we want to rename this node */
-        free(term->u.id.s);
-        term->u.id.s = strdup(new_name);
-      }
-      /* we don't want to rename this node */
-    }
-    case N_ENTITY: {
-      /*
-        if the body of the lambda we are replacing the name for
-        is itself a lambda whose biding matches the name we are
-        looking to replace, we do not replace, because that lambda
-        is introducing that binding for it's own body, and that makes
-        it a separate binding than the one we are looking for.
-        if the binding is not the one that we are looking for, then
-        we need to look for instances of the binding within the
-        body of the lambda.
-       */
-      if (term->u.entity.tag == E_LAMBDA) {
-        if (strcmp(old_name, term->u.entity.u.lambda.arg.id.s) == 0) {}
-        else {
-          rename_binding_in_body(new_name, old_name, term->u.entity.u.lambda.body);
-        }
-      }
-      else if (term->u.entity.tag == E_TYPE) {
-      /* names cannot yet appear in type expressions.
-         there is no way that a name could appear in
-         a type expression that we would need to replace.
-       */
-       return;
-      }
-      else {
-        error_abort("malformed entity tag! aborting");
-      }
-    }
-    case N_CALL: {
-      rename_binding_in_body(new_name, old_name, term->u.call.lhs);
-      rename_binding_in_body(new_name, old_name, term->u.call.rhs);
-    }
-    case N_BIND: {
-      rename_binding_in_body(new_name, old_name, term->u.bind.term);
-    }
-    default: error_abort("malformed Ast node tag! aborting");
-  }
-}
-
-
-void rename_binding(Ast* lambda, Ast* invalid_bindings)
-{
-  char* arg_name = strdup(lambda->u.entity.u.lambda.arg.id.s);
-  char* new_name = NULL;
-  do {
-    if (new_name)
-      free(new_name);
-
-    new_name = generate_name(5);
-  } while (appears_free_in(new_name, invalid_bindings));
-
-  free(lambda->u.entity.u.lambda.arg.id.s);
-  lambda->u.entity.u.lambda.arg.id.s = new_name;
-  rename_binding_in_body(new_name, arg_name, lambda->u.entity.u.lambda.body);
-  free(arg_name);
-}
 
 
 
