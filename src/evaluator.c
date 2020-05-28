@@ -9,11 +9,11 @@
 #include "symboltable.h"
 #include "error.h"
 
-Ast* evaluate_type(Ast* type, symboltable* env);
-Ast* evaluate_lambda(Ast* lambda, symboltable* env);
+//Ast* evaluate_type(Ast* type, symboltable* env);
+//Ast* evaluate_lambda(Ast* lambda, symboltable* env);
 
 Ast* evaluate_id(Ast* id, symboltable* env);
-Ast* evaluate_entity(Ast* val, symboltable* env);
+//Ast* evaluate_entity(Ast* val, symboltable* env);
 Ast* evaluate_call(Ast* call, symboltable* env);
 Ast* evaluate_bind(Ast* bind, symboltable* env);
 
@@ -35,29 +35,24 @@ void rename_binding(Ast* lambda, Ast* value);
 */
 Ast* evaluate(Ast* term, symboltable* env)
 {
+  Ast* tmp  = NULL;
+  Ast* copy = CopyAst(term);
   /* dynamic type dispatch! */
-  switch(term->tag) {
-    case N_ID:     return evaluate_id(term, env);    /* return the bound term. */
-    case N_ENTITY: return evaluate_entity(term, env); /* values are already in beta-normal form */
-    case N_CALL:   return evaluate_call(term, env);  /* return the result of calling the fn. */
-    case N_BIND:   return evaluate_bind(term, env);  /* evaluate the bind and return the value nil. */
-    default: error_abort("malformed ast node tag! aborting", __FILE__, __LINE__);
-  }
-  return NULL;
-}
+  if (copy == NULL)
+    return NULL;
 
-Ast* evaluate_entity(Ast* entity, symboltable* env)
-{
-  /* values are what we use to evaluate
-      they are not themselves evaluated.
-      intuitively;
-      we don't evaluate '3' we evaluate
-      '3' + '4'. we dont evaluate
-      \x=>x we evaluate (\x=>x)nil
-      the former are beta-normal forms,
-      the latter are reducable expressions.
-  */
-  return CopyAst(entity);
+  while (copy->tag != N_ENTITY) {
+    tmp = copy;
+    switch(copy->tag) {
+      case N_ID:     copy = evaluate_id(copy, env); break;    /* return the bound term. */
+      //case N_ENTITY: copy = evaluate_entity(copy, env); /* values are already in beta-normal form */
+      case N_CALL:   copy = evaluate_call(copy, env); break;  /* return the result of calling the fn. */
+      case N_BIND:   copy = evaluate_bind(copy, env); break;  /* evaluate the bind and return the value nil. */
+      default: error_abort("malformed ast node tag! aborting", __FILE__, __LINE__);
+    }
+    DeleteAst(tmp);
+  }
+  return copy;
 }
 
 Ast* evaluate_id(Ast* id, symboltable* env)
@@ -93,6 +88,41 @@ Ast* evaluate_id(Ast* id, symboltable* env)
   return NULL;
 }
 
+Ast* evaluate_bind(Ast* bind_ast, symboltable* env)
+{
+  /*
+                        term -> term'
+                  ---------------------------
+                  id := term -> id := term'
+
+       ENV |- term : type = value, id is-not-in FV(ENV)
+        ----------------------------------------------
+      id := value -> bind (id, (type, value)), ENV) : Nil
+  */
+  if (bind_ast != NULL) {
+    if (lookup(bind_ast->u.bind.id.s, env) != NULL) {
+      printf("cannot evaluate bind; name \"%s\" already bound!", bind_ast->u.bind.id.s);
+      return NULL;
+    }
+
+    Ast* term = evaluate(bind_ast->u.bind.term, env);
+
+    if (term == NULL) {
+      printf("evaluate bound term failed!");
+      return NULL;
+    }
+
+    bind (bind_ast->u.bind.id.s, term, env);
+    DeleteAst(term);
+    return CreateAstEntityTypeNil(NULL);
+
+  }
+  else {
+    error_abort("cannot evaluate NULL bind", __FILE__, __LINE__);
+  }
+  return NULL;
+}
+
 
 Ast* evaluate_call(Ast* call, symboltable* env)
 {
@@ -123,22 +153,19 @@ Ast* evaluate_call(Ast* call, symboltable* env)
       the passed in structure.
     */
     Ast* tmp = NULL;
-    Ast* lhs = CopyAst(call->u.call.lhs);
-    while(lhs->tag != N_ENTITY) {
-      tmp = lhs;
-      lhs = evaluate(lhs, env);
-      DeleteAst(tmp);
+    Ast* lhs = evaluate(call->u.call.lhs, env);
+
+    if (lhs->u.entity.tag != E_LAMBDA) {
+      printf("cannot evaluate a call on a non-lambda term! {%s}", AstToString(lhs));
+      return NULL;
     }
 
-    if (lhs->u.entity.tag != E_LAMBDA)
-      error_abort("cannot call a non-lambda term! aborting", __FILE__, __LINE__);
-
     // evaluate the rhs down to a value.
-    Ast* rhs = CopyAst(call->u.call.rhs);
-    while(rhs->tag != N_ENTITY) {
-      tmp = rhs;
-      rhs = evaluate(rhs, env);
-      DeleteAst(tmp);
+    Ast* rhs = evaluate(call->u.call.rhs, env);
+
+    if (rhs == NULL) {
+      printf ("evaluate rhs failed!");
+      return NULL;
     }
     /* we return a copy in case substitute needs to
        rename a subterm in order to execute the
@@ -162,35 +189,7 @@ Ast* evaluate_call(Ast* call, symboltable* env)
   return NULL;
 }
 
-Ast* evaluate_bind(Ast* bind_ast, symboltable* env)
-{
-  /*
-                        term -> term'
-                  ---------------------------
-                  id := term -> id := term'
 
-       ENV |- term : type = value, id is-not-in FV(ENV)
-        ----------------------------------------------
-      id := value -> bind (id, (type, value)), ENV) : Nil
-  */
-  if (bind_ast != NULL) {
-
-    Ast *term = bind_ast->u.bind.term, *tmp = NULL;
-    while (bind_ast->u.bind.term->tag != N_ENTITY) {
-      tmp = term;
-      term = evaluate(term, env);
-      DeleteAst(tmp);
-    }
-
-    bind (bind_ast->u.bind.id.s, bind_ast->u.bind.term, env);
-    return CreateAstEntityTypeNil(NULL);
-
-  }
-  else {
-    error_abort("cannot evaluate NULL bind", __FILE__, __LINE__);
-  }
-  return NULL;
-}
 
 void substitute(char* name, Ast** term, Ast* value, symboltable* env)
 {
@@ -214,6 +213,7 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
         DeleteAst((*term));
         (*term) = CopyAst(value);
       }
+      break;
     }
 
     case N_ENTITY: {
@@ -221,6 +221,7 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
         /*
           this is where typename substitution will happen.
         */
+        break;
       }
       else if ((*term)->u.entity.tag == E_LAMBDA) {
         /*
@@ -331,7 +332,7 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
                that is minor savings at the cost of breaking
                open the mutually recursive deletion function
                for any module working with the Ast, which is
-               just asking for abuse. this version is slightly
+               just asking for abuse. this version is also slightly
                more resilient to refactoring due to is genericity
                as well. */
             DeleteAst((*term));
@@ -347,11 +348,11 @@ void substitute(char* name, Ast** term, Ast* value, symboltable* env)
           */
           substitute(name, &((*term)->u.entity.u.lambda.body), value, env);
         }
-        break;
       }
       else {
         error_abort("malformed entity tag! aborting", __FILE__, __LINE__);
       }
+      break;
     }
 
     case N_CALL: {

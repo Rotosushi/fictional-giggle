@@ -15,6 +15,6 @@
 
 void error_abort(char *s, const char* file, int line)
 {
-  fprintf(stderr, "f: %s \n l: %d \n %s\n", file, line, s);
+  fprintf(stderr, "[f:%s l:%d]%s\n", file, line, s);
   exit(1);
 }

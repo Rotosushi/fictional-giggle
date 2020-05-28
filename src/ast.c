@@ -231,6 +231,9 @@ Ast* CopyAstBind(Ast* bind);
 
 Ast* CopyAst(Ast* ast)
 {
+  if (ast == NULL)
+    return NULL;
+    
   switch(ast->tag) {
     case N_ID:     return CopyAstId(ast);
     case N_ENTITY: return CopyAstEntity(ast);
@@ -351,7 +354,7 @@ char* AstEntityLambdaToString(Ast* ast)
 {
   char* result = NULL;
   if (ast != NULL) {
-    char *bs = " \\ ", *cln = " : ", *reqarw = " => ";
+    char *bs = "\\ ", *cln = " : ", *reqarw = " => ";
     char* arg_id = ast->u.entity.u.lambda.arg.id.s;
     if   (arg_id == NULL) {
       error_abort("malformed arg id! aborting", __FILE__, __LINE__);
@@ -439,11 +442,11 @@ char* AstCallToString(Ast* ast)
 
     int len = strlen(lhs) + strlen(spc) + 1 + strlen(rhs) + 2;
     result  = (char*)calloc(len, sizeof(char));
-    strcat(result, lhs);
-    strcat(result, spc);
     strcat(result, lprn);
-    strcat(result, rhs);
+    strcat(result, lhs);
     strcat(result, rprn);
+    strcat(result, spc);
+    strcat(result, rhs);
     free(lhs);
     free(rhs);
   }
