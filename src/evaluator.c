@@ -7,6 +7,7 @@
 #include "evaluator.h"
 #include "ast.h"
 #include "symboltable.h"
+#include "typechecker.h"
 #include "error.h"
 
 //Ast* evaluate_type(Ast* type, symboltable* env);
@@ -51,6 +52,8 @@ Ast* evaluate(Ast* term, symboltable* env)
       default: error_abort("malformed ast node tag! aborting", __FILE__, __LINE__);
     }
     DeleteAst(tmp);
+
+    if (!copy) return NULL;
   }
   return copy;
 }
@@ -101,14 +104,14 @@ Ast* evaluate_bind(Ast* bind_ast, symboltable* env)
   */
   if (bind_ast != NULL) {
     if (lookup(bind_ast->u.bind.id.s, env) != NULL) {
-      printf("cannot evaluate bind; name \"%s\" already bound!", bind_ast->u.bind.id.s);
+      printf("cannot evaluate bind; name \"%s\" already bound!\n", bind_ast->u.bind.id.s);
       return NULL;
     }
 
     Ast* term = evaluate(bind_ast->u.bind.term, env);
 
     if (term == NULL) {
-      printf("evaluate bound term failed!");
+      printf("evaluate bound term failed!\n");
       return NULL;
     }
 
@@ -156,15 +159,40 @@ Ast* evaluate_call(Ast* call, symboltable* env)
     Ast* lhs = evaluate(call->u.call.lhs, env);
 
     if (lhs->u.entity.tag != E_LAMBDA) {
-      printf("cannot evaluate a call on a non-lambda term! {%s}", AstToString(lhs));
+      printf("cannot evaluate a call on a non-lambda term! {%s}\n", AstToString(lhs));
       return NULL;
+    }
+
+    if (lhs->u.entity.u.lambda.arg.type->u.entity.u.type.tag == T_POLY) {
+      /*
+        replace the type ast with the type of the lhs,
+        then try to typecheck the resulting lhs.
+        if the lhs typechecks after replacing the polymorphic
+        type variable with some specific type, then the
+        instaciation of the type variable succeded.
+      */
+      Ast* rhs_type = type_of(call->u.call.rhs, env);
+      if (rhs_type == NULL) {
+        printf("cannot evaluate polymorphic call, rhs isn't typeable!\n");
+        return NULL;
+      }
+      DeleteAst(lhs->u.entity.u.lambda.arg.type);
+      lhs->u.entity.u.lambda.arg.type = rhs_type;
+      Ast* lhs_type = type_of(lhs, env);
+      if (lhs_type == NULL) {
+        printf ("cannot evaluate polymorphic call, lhs isn't typeable!\n");
+        DeleteAst(lhs);
+        DeleteAst(rhs_type);
+        return NULL;
+      }
+
     }
 
     // evaluate the rhs down to a value.
     Ast* rhs = evaluate(call->u.call.rhs, env);
 
     if (rhs == NULL) {
-      printf ("evaluate rhs failed!");
+      printf ("evaluate rhs failed!\n");
       return NULL;
     }
     /* we return a copy in case substitute needs to

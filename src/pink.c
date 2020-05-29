@@ -97,7 +97,7 @@ int main(int argc, char** argv)
 	yy_size_t input_buf_size = 512;
 	yyscan_t scanner;
 	yypstate* parser;
-	symboltable env;
+	symboltable* env;
 	Ast* result;
 	int chars_read = 0;
 
@@ -118,7 +118,7 @@ int main(int argc, char** argv)
 	*/
 	yylex_init (&scanner);
 	parser = yypstate_new();
-
+	env = createSymboltable();
 
 	printf("Welcome to Pink v0.0.1!\npress ctrl+d to end a line\npress ctrl+c to end your session\n");
 
@@ -148,15 +148,20 @@ int main(int argc, char** argv)
 			result = parse_buffer(input, input_buf_size, parser, scanner);
 
 			if (result != NULL) {
-				Ast* type = type_of(result, &env);
+				Ast* type = type_of(result, env);
 				if (type != NULL) {
 					Ast* copy = CopyAst(result);
-					copy = evaluate(copy, &env);
-					char* ast_string = AstToString(result);
-					char* type_string = AstToString(type);
-					char* eval_string = AstToString(copy);
-					printf (":type %s\n", type_string);
-					printf ("==>>  %s\n", eval_string);
+					copy = evaluate(copy, env);
+
+					if (!copy) {
+						printf("term not evaluatable!\n");
+					} else {
+						//char* ast_string = AstToString(result);
+						char* type_string = AstToString(type);
+						char* eval_string = AstToString(copy);
+						printf (":type %s\n", type_string);
+						printf ("==>>  %s\n", eval_string);
+					}
 				}
 				else {
 					printf ("term not typable!\n");
@@ -180,6 +185,8 @@ int main(int argc, char** argv)
 	if (scanner != NULL)
 		yylex_destroy  (scanner);
 
+	if (env != NULL)
+		destroySymboltable(env);
 
 	return 0;
 }
@@ -190,7 +197,7 @@ int main(int argc, char** argv)
 				 to the state objects that are already allocated for
 				 the lexer and parser.
 
-  output: the abstrax syntax tree describing the input string.
+  output: the abstax syntax tree describing the input string.
 				  as parsed by the grammar described in parser.y
  */
 Ast* parse_buffer(char* buf, int len, yypstate* parser, yyscan_t scanner)

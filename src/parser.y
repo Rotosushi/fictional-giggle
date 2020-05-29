@@ -111,7 +111,7 @@ type: /* nil | type -> type | ( type ) */
 
 lambda: /* \ name : arg_type => term */
     BSLASH ID COLON type REQARROW term { $$ = CreateAstEntityFn($2, $4, $6, &@$); }
-  //| BSLASH ID REQARROW term            { $$ = CreateAstLambda($2, CreateAstTypeInfer(), $4); }
+  | BSLASH ID REQARROW term            { $$ = CreateAstEntityFn($2, CreateAstEntityTypePoly(), $4, &@$); }
 
 call: /* term term */
   term term { $$ = CreateAstCall($1, $2, &@$); }

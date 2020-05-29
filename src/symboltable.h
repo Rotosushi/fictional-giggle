@@ -13,9 +13,9 @@ typedef struct symboltable {
   symbol* end;
 } symboltable;
 
-
 Ast*    lookup(char* name, symboltable* symtable);
 void    bind  (char* name, Ast* term, symboltable* symtable);
 void  unbind  (char* name, symboltable* symtable);
-void destroySymtable(symboltable* symtable);
+symboltable* createSymboltable();
+void destroySymboltable(symboltable* symtable);
 #endif

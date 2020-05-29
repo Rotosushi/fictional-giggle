@@ -257,6 +257,7 @@ Subtype polymorphism: (pretty sure the literature denotes it with "<:" )
 #include <stdio.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdlib.h>
 
 #include "typechecker.h"
 #include "ast.h"
@@ -287,6 +288,25 @@ Ast* typeofId(Ast* id, symboltable* env);
 Ast* typeofEntity(Ast* entity, symboltable* env);
 Ast* typeofCall(Ast* call, symboltable* env);
 Ast* typeofBind(Ast* bind, symboltable* env);
+
+bool is_polymorphic(Ast* type) {
+  if (type == NULL) return false;
+
+  if (type->tag == N_ENTITY) {
+    if (type->u.entity.tag == E_TYPE) {
+      if (type->u.entity.u.type.tag == T_POLY)
+        return true;
+      else if (type->u.entity.u.type.tag == T_NIL)
+        return false;
+      else if (type->u.entity.u.type.tag == T_LAMBDA) {
+        return is_polymorphic(type->u.entity.u.type.u.rarrow.lhs)
+            || is_polymorphic(type->u.entity.u.type.u.rarrow.rhs);
+      }
+    }
+    return false;
+  }
+  return false;
+}
 
 /*
   typeof will recur equal to the depth of the Ast passed
@@ -329,7 +349,7 @@ Ast* typeofId(Ast* id, symboltable* env)
       return type;
     }
       else {
-        printf("Id is not typeable, Id <%s> not in ENV!\n", name);
+        printf("id \"%s\" not in ENV!\n", name);
         return NULL;
       }
   }
@@ -359,6 +379,9 @@ Ast* typeofEntityType(Ast* type, symboltable* env)
     /* ENV |- nil : Nil */
     if (type->u.entity.u.type.tag == T_NIL) {
       return CreateAstEntityTypeNil(NULL);
+    }
+    if (type->u.entity.u.type.tag == T_POLY) {
+      return CreateAstEntityTypePoly();
     }
     /*
      build up the function type recursively.
@@ -435,6 +458,7 @@ Ast* typeofEntityLambda(Ast* lambda, symboltable* env)
   }
 }
 
+
 Ast* typeofCall(Ast* call, symboltable* env)
 {
   /*
@@ -451,27 +475,63 @@ Ast* typeofCall(Ast* call, symboltable* env)
       Ast* typeB = type_of(term2, env);
 
       if (typeB != NULL) {
-
-        if (typeA->u.entity.u.type.tag == T_LAMBDA) {
-            Ast* type1 = type_of(typeA->u.entity.u.type.u.rarrow.lhs, env);
-            // Ast* type2 = type_of(typeA->u.type.u.rarrow.rhs)
-
-            if (type1 != NULL) {
-
-              if (typesEqual(type1, typeB, env))
-                return typeB;
-              else {
-                printf("term2's type doesn't equal term1's arg type!\n");
-                return NULL;
-              }
-            }
-            else {
-              printf("term1's type1 is not typeabel!\n");
-              return NULL;
-            }
+        if (typeA->u.entity.u.type.tag == T_POLY) {
+          /*
+            given some term whose type is polymorphic, we always
+            want to assume the most general type, if we are typing
+            a function definition and the lhs node has type 'poly'
+            then we must be evaluating a call expression whose
+            lambda value is polymorphic and whose value is typeable.
+            when we evaluate the function, we create a monomorphic
+            version of the function.
+          */
+          free(typeA);
+          return typeB;
         }
+        else if (typeA->u.entity.u.type.tag == T_LAMBDA) {
+            if (is_polymorphic(typeA)) {
+              /*
+                given some polymorphic function application,
+                we simply do not have enough information
+                without instanciating a version of the function
+                with the type substituted in, which we can do,
+                if the call tree has the lhs node as the polymorphic
+                function directly, if the function is specified by
+                name, we would need to be able to evaluate the name
+                to get the body, to be able to then typecheck that.
+                so we simply assume that the call is okay here, and
+                delay typechecking until evaluation.
+                this is late binding, in a sense.
+                late as in, wait until we try to apply the function
+                to typecheck, because the type is variable.
+
+              */
+              free(typeA);
+              return typeB;
+
+            } else {
+                Ast* type1 = type_of(typeA->u.entity.u.type.u.rarrow.lhs, env);
+                // Ast* type2 = type_of(typeA->u.type.u.rarrow.rhs)
+
+                if (type1 != NULL) {
+
+                  if (typesEqual(type1, typeB, env)) {
+                    free(typeA);
+                    return typeB;
+                  }
+                  else {
+                    printf("term2's type \"%s\" doesn't equal term1's arg type \"%s\"!\n", AstToString(typeB), AstToString(typeA));
+                    return NULL;
+                  }
+                }
+                else {
+                  printf("term1 is not typeable!\n");
+                  return NULL;
+                }
+            }
+          }
         else {
-          printf("term1 doesn't have Function Type!\n");
+          printf("term1 doesn't have function type! has type \"%s\"\n", AstToString(typeA));
           return NULL;
         }
       }

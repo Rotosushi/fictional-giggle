@@ -37,6 +37,20 @@ Ast* CreateAstId(char* name, YYLTYPE* llocp)
   return node;
 }
 
+Ast* CreateAstEntityTypePoly()
+{
+  Ast* node                    = (Ast*)malloc(sizeof(Ast));
+  node->tag                    = N_ENTITY;
+  node->u.entity.tag           = E_TYPE;
+  node->u.entity.u.type.tag    = T_POLY;
+  node->u.entity.u.type.u.null = '\0';
+  node->lloc.first_line        = 0;
+  node->lloc.first_column      = 0;
+  node->lloc.last_line         = 0;
+  node->lloc.last_column       = 0;
+  return node;
+}
+
 Ast* CreateAstEntityTypeNil(YYLTYPE* llocp)
 {
   Ast* node                    = (Ast*)malloc(sizeof(Ast));
@@ -233,7 +247,7 @@ Ast* CopyAst(Ast* ast)
 {
   if (ast == NULL)
     return NULL;
-    
+
   switch(ast->tag) {
     case N_ID:     return CopyAstId(ast);
     case N_ENTITY: return CopyAstEntity(ast);
@@ -248,6 +262,7 @@ Ast* CopyAstEntity(Ast* entity)
   switch (entity->u.entity.tag) {
     case E_TYPE: {
       switch(entity->u.entity.u.type.tag) {
+        case T_POLY:   return CreateAstEntityTypePoly();
         case T_NIL:    return CreateAstEntityTypeNil(NULL);
 
         case T_LAMBDA: return CreateAstEntityTypeFn(CopyAstEntity(entity->u.entity.u.type.u.rarrow.lhs), \
@@ -302,6 +317,11 @@ char* AstEntityTypeToString(Ast* ast)
     switch (type->tag) {
       case T_NIL: {
         result = strdup("nil");
+        break;
+      }
+
+      case T_POLY: {
+        result = strdup("poly");
         break;
       }
 
@@ -370,21 +390,36 @@ char* AstEntityLambdaToString(Ast* ast)
       error_abort("malformed body! aborting", __FILE__, __LINE__);
     }
 
-    int len = strlen(bs)       \
-            + strlen(arg_id)   \
-            + strlen(cln)      \
-            + strlen(arg_type) \
-            + strlen(reqarw)   \
-            + strlen(body) + 1;
-    result  = (char*)calloc(len, sizeof(char));
-    strcat(result, bs);
-    strcat(result, arg_id);
-    strcat(result, cln);
-    strcat(result, arg_type);
-    strcat(result, reqarw);
-    strcat(result, body);
+    if (ast->u.entity.u.lambda.arg.type == T_POLY) {
+      int len = strlen(bs)     \
+              + strlen(arg_id) \
+              + strlen(reqarw) \
+              + strlen(body) + 1;
+      result = (char*)calloc(len, sizeof(char));
+      strcat(result, bs);
+      strcat(result, arg_id);
+      strcat(result, reqarw);
+      strcat(result, body);
+    } else {
+      int len = strlen(bs)       \
+              + strlen(arg_id)   \
+              + strlen(cln)      \
+              + strlen(arg_type) \
+              + strlen(reqarw)   \
+              + strlen(body) + 1;
+      result  = (char*)calloc(len, sizeof(char));
+      strcat(result, bs);
+      strcat(result, arg_id);
+      strcat(result, cln);
+      strcat(result, arg_type);
+      strcat(result, reqarw);
+      strcat(result, body);
+
+    }
+    free(arg_id);
     free(arg_type);
     free(body);
+
   }
   return result;
 }

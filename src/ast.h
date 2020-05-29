@@ -49,6 +49,7 @@ typedef enum NodeTag {
 } NodeTag;
 
 typedef enum TypeTag {
+	T_POLY,
 	T_NIL,
 	T_LAMBDA,
 } TypeTag;
@@ -163,6 +164,7 @@ typedef struct Ast {
 
 Ast* CreateAstId(char* name, struct YYLTYPE* llocp);
 Ast* CreateAstEntityTypeNil(struct YYLTYPE* llocp);
+Ast* CreateAstEntityTypePoly();
 Ast* CreateAstEntityTypeFn(Ast* l, Ast* r, struct YYLTYPE* llocp);
 Ast* CreateAstEntityFn(char* name, Ast* type, Ast* body, struct YYLTYPE* llocp);
 Ast* CreateAstCall(Ast* l, Ast* r, struct YYLTYPE* llocp);

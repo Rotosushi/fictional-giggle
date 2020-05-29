@@ -6,13 +6,23 @@
 #include "ast.h"
 #include "error.h"
 
+
+symboltable* createSymboltable()
+{
+  symboltable* symtable = (symboltable*)malloc(sizeof(symboltable));
+  symtable->symbols = NULL;
+  symtable->end = NULL;
+  return symtable;
+}
+
 Ast* lookup(char* name, symboltable* symtable)
 {
   if (name == NULL)
     error_abort("cannot lookup NULL name! aborting", __FILE__, __LINE__);
 
-  if (symtable == NULL)
-    error_abort("cannot lookup name in NULL symbol-table! aborting", __FILE__, __LINE__);
+  if (symtable == NULL) {
+    error_abort("cannot lookup name in NULL symboltable! aborting", __FILE__, __LINE__);
+  }
 
   symbol* sym = symtable->symbols;
   while (sym != NULL)
@@ -32,9 +42,9 @@ void bind(char* name, Ast* term, symboltable* symtable)
   if (term == NULL)
     error_abort("cannot bind a name to a NULL term! aborting", __FILE__, __LINE__);
 
-  if (symtable == NULL)
-    error_abort("cannot bind name in NULL symbol-table! aborting", __FILE__, __LINE__);
-
+  if (symtable == NULL) {
+    error_abort("cannot lookup name in NULL symboltable! aborting", __FILE__, __LINE__);
+  }
   /* the binding list simply maintains the order
       in which the elements are inserted
   */
@@ -48,8 +58,8 @@ void bind(char* name, Ast* term, symboltable* symtable)
     symtable->end     = sym;
   }
   else {
-    symtable->end->next = sym;
-    symtable->end = sym;
+    sym->next = symtable->symbols;
+    symtable->symbols = sym;
   }
 }
 
@@ -58,8 +68,9 @@ void unbind(char* name, symboltable* symtable)
   if (name == NULL)
     error_abort("cannot unbind empty name! aborting", __FILE__, __LINE__);
 
-  if (symtable == NULL)
-    error_abort("cannot unbind name from empty symbol-table! aborting", __FILE__, __LINE__);
+  if (symtable == NULL) {
+    error_abort("cannot lookup name in NULL symboltable! aborting", __FILE__, __LINE__);
+  }
 
   symbol *prv = NULL, *ths = symtable->symbols;
 
@@ -92,6 +103,7 @@ void unbind(char* name, symboltable* symtable)
     }
     prv = ths;
     ths = ths->next;
+    if (!ths) break;
     cmp = strcmp(name, ths->id);
   }
 }
@@ -106,5 +118,6 @@ void destroySymtable(symboltable* symtable)
     DeleteAst(prv->term);
     free(prv);
   }
-  symtable->end = NULL;
+  free(symtable);
+  symtable = NULL;
 }
