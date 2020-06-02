@@ -76,7 +76,7 @@ which is either a function, or nil.
 /*
 
 */
-Ast* evaluate(Ast* term, symboltable* env);
+Ast* evaluate(Ast* term, Symboltable* env);
 
 
 #endif

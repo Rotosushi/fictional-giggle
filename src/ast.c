@@ -18,7 +18,7 @@ int last_column;
 };
 */
 
-Ast* CreateAstId(char* name, YYLTYPE* llocp)
+Ast* CreateAstId(char* name, StrLoc* llocp)
 {
   Ast* node    = (Ast*)malloc(sizeof(Ast));
   node->tag    = N_ID;
@@ -51,7 +51,7 @@ Ast* CreateAstEntityTypePoly()
   return node;
 }
 
-Ast* CreateAstEntityTypeNil(YYLTYPE* llocp)
+Ast* CreateAstEntityTypeNil(StrLoc* llocp)
 {
   Ast* node                    = (Ast*)malloc(sizeof(Ast));
   node->tag                    = N_ENTITY;
@@ -72,7 +72,7 @@ Ast* CreateAstEntityTypeNil(YYLTYPE* llocp)
   return node;
 }
 
-Ast* CreateAstEntityTypeFn(Ast* lhs, Ast* rhs, YYLTYPE* llocp)
+Ast* CreateAstEntityTypeFn(Ast* lhs, Ast* rhs, StrLoc* llocp)
 {
   Ast* node                          = (Ast*)malloc(sizeof(Ast));
   node->tag                          = N_ENTITY;
@@ -96,7 +96,7 @@ Ast* CreateAstEntityTypeFn(Ast* lhs, Ast* rhs, YYLTYPE* llocp)
 
 
 
-Ast* CreateAstEntityFn(char* name, Ast* type, Ast* body, YYLTYPE* llocp)
+Ast* CreateAstEntityFn(char* name, Ast* type, Ast* body, StrLoc* llocp)
 {
   Ast* node                        = (Ast*)malloc(sizeof(Ast));
   node->tag                        = N_ENTITY;
@@ -118,7 +118,7 @@ Ast* CreateAstEntityFn(char* name, Ast* type, Ast* body, YYLTYPE* llocp)
   return node;
 }
 
-Ast* CreateAstCall(Ast* l, Ast* r, YYLTYPE* llocp)
+Ast* CreateAstCall(Ast* l, Ast* r, StrLoc* llocp)
 {
   Ast* node        = (Ast*)malloc(sizeof(Ast));
   node->tag        = N_CALL;
@@ -138,7 +138,7 @@ Ast* CreateAstCall(Ast* l, Ast* r, YYLTYPE* llocp)
   return node;
 }
 
-Ast* CreateAstBind(char* name, Ast* term, YYLTYPE* llocp)
+Ast* CreateAstBind(char* name, Ast* term, StrLoc* llocp)
 {
   Ast* node         = (Ast*)malloc(sizeof(Ast));
   node->tag         = N_BIND;
@@ -273,9 +273,9 @@ Ast* CopyAstEntity(Ast* entity)
     }
     case E_LAMBDA: {
       return CreateAstEntityFn(strdup(entity->u.entity.u.lambda.arg.id.s),       \
-                              CopyAstEntity(entity->u.entity.u.lambda.arg.type), \
-                              CopyAst(entity->u.entity.u.lambda.body),           \
-                              NULL);
+                               CopyAstEntity(entity->u.entity.u.lambda.arg.type), \
+                               CopyAst(entity->u.entity.u.lambda.body),           \
+                               NULL);
     }
     default: error_abort("malformed entity! aborting", __FILE__, __LINE__);
   }
@@ -375,7 +375,7 @@ char* AstEntityLambdaToString(Ast* ast)
   char* result = NULL;
   if (ast != NULL) {
     char *bs = "\\ ", *cln = " : ", *reqarw = " => ";
-    char* arg_id = ast->u.entity.u.lambda.arg.id.s;
+    char* arg_id = strdup(ast->u.entity.u.lambda.arg.id.s);
     if   (arg_id == NULL) {
       error_abort("malformed arg id! aborting", __FILE__, __LINE__);
     }

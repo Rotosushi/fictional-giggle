@@ -35,7 +35,7 @@
  */
 char* get_input(int max_len, int* chars_read, FILE* in_stream);
 
-Ast* parse_buffer(char* buf, int len, yypstate* parser, yyscan_t scanner);
+Ast* parse_buffer(char* buf, int len, Parser* parser, yyscan_t scanner);
 
 
 /*
@@ -73,6 +73,11 @@ walk algorithm takes as a param a fn ptr to
 the action to call, this action fn takes a void*
 which we use to pass the node being acted on currently,
 and then the action can do it's work.
+which action being called is dependant on the type of
+the node being looked at, and the node is passed
+by refrence because that is the cheapest for the
+memory footprint of the function, and passing tree
+or list structures by-value has bitten me too many times.
 within the body of the action code includes a
 typecast from the void* to the Ast* type,
 and then it can do work with the Ast node.
@@ -96,8 +101,8 @@ int main(int argc, char** argv)
 	char * input = NULL;
 	yy_size_t input_buf_size = 512;
 	yyscan_t scanner;
-	yypstate* parser;
-	symboltable* env;
+	Parser* parser;
+	Symboltable* env;
 	Ast* result;
 	int chars_read = 0;
 
@@ -117,7 +122,7 @@ int main(int argc, char** argv)
 	     lexing and parsing.
 	*/
 	yylex_init (&scanner);
-	parser = yypstate_new();
+	parser = createParser();
 	env = createSymboltable();
 
 	printf("Welcome to Pink v0.0.1!\npress ctrl+d to end a line\npress ctrl+c to end your session\n");
@@ -180,10 +185,10 @@ int main(int argc, char** argv)
 
 
 	if (parser != NULL)
-		yypstate_delete(parser);
+		destroyParser(parser);
 
 	if (scanner != NULL)
-		yylex_destroy  (scanner);
+		yylex_destroy(scanner);
 
 	if (env != NULL)
 		destroySymboltable(env);
@@ -200,12 +205,10 @@ int main(int argc, char** argv)
   output: the abstax syntax tree describing the input string.
 				  as parsed by the grammar described in parser.y
  */
-Ast* parse_buffer(char* buf, int len, yypstate* parser, yyscan_t scanner)
+Ast* parse_buffer(char* buf, int len, Parser* parser, yyscan_t scanner)
 {
-	int parser_status, token;
-	Ast* result   = NULL;
-	YYSTYPE* lval = (YYSTYPE*)malloc(sizeof(YYSTYPE));
-	YYLTYPE* lloc = (YYLTYPE*)malloc(sizeof(YYLTYPE));
+	Ast* result = NULL;
+	StrLoc* lloc = (StrLoc*)malloc(sizeof(StrLoc));
 
 	YY_BUFFER_STATE scanner_buffer_handle = yy_scan_buffer(buf, len, scanner);
 	if (scanner_buffer_handle == NULL) {
@@ -214,33 +217,11 @@ Ast* parse_buffer(char* buf, int len, yypstate* parser, yyscan_t scanner)
 	}
 	yy_switch_to_buffer(scanner_buffer_handle, scanner);
 
-	while(1) {
-			token = yylex(lval, lloc, scanner);
-			parser_status = yypush_parse(parser, token, lval, lloc, &result, scanner);
-
-			if (parser_status == 0) {
-				break;
-			}
-			else if (parser_status == 1) {
-				fprintf(stderr, "\nParser failed due to invalid input\n");
-				break;
-			}
-			else if (parser_status == 2) {
-				fprintf(stderr, "\nParser failed due to exhausted memory\n");
-				break;
-			}
-			else if (parser_status == YYPUSH_MORE) {
-				continue;
-			}
-			else {
-				error_abort("\nunknown parser status, aborting\n", __FILE__, __LINE__);
-			}
-	}
+	result = parse(parser, scanner, lloc);
 
 	if (scanner_buffer_handle != NULL)
 		yy_delete_buffer(scanner_buffer_handle, scanner);
 
-	free(lval);
 	free(lloc);
 
 	return result;

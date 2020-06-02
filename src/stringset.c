@@ -4,11 +4,6 @@
 
 #include "stringset.h"
 
-typedef struct Elem {
-  char* str;
-  struct Elem* next;
-} Elem;
-
 StringSet* createStringSet()
 {
   StringSet* res = (StringSet*)malloc(sizeof(StringSet));

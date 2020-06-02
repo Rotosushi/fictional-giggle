@@ -8,14 +8,14 @@ typedef struct symbol {
   struct symbol* next;
 } symbol;
 
-typedef struct symboltable {
+typedef struct Symboltable {
   symbol* symbols;
   symbol* end;
-} symboltable;
+} Symboltable;
 
-Ast*    lookup(char* name, symboltable* symtable);
-void    bind  (char* name, Ast* term, symboltable* symtable);
-void  unbind  (char* name, symboltable* symtable);
-symboltable* createSymboltable();
-void destroySymboltable(symboltable* symtable);
+Ast*    lookup(char* name, Symboltable* symtable);
+void    bind  (char* name, Ast* term, Symboltable* symtable);
+void  unbind  (char* name, Symboltable* symtable);
+Symboltable* createSymboltable();
+void destroySymboltable(Symboltable* symtable);
 #endif

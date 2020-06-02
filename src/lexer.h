@@ -27,30 +27,6 @@
 
 /* %endif */
 
-#ifdef yyget_lval
-#define yyget_lval_ALREADY_DEFINED
-#else
-#define yyget_lval yyget_lval
-#endif
-
-#ifdef yyset_lval
-#define yyset_lval_ALREADY_DEFINED
-#else
-#define yyset_lval yyset_lval
-#endif
-
-#ifdef yyget_lloc
-#define yyget_lloc_ALREADY_DEFINED
-#else
-#define yyget_lloc yyget_lloc
-#endif
-
-#ifdef yyset_lloc
-#define yyset_lloc_ALREADY_DEFINED
-#else
-#define yyset_lloc yyset_lloc
-#endif
-
 /* %if-c-only */
 
 /* %endif */
@@ -384,15 +360,6 @@ int yyget_column  ( yyscan_t yyscanner );
 void yyset_column ( int _column_no , yyscan_t yyscanner );
 
 /* %if-bison-bridge */
-
-YYSTYPE * yyget_lval ( yyscan_t yyscanner );
-
-void yyset_lval ( YYSTYPE * yylval_param , yyscan_t yyscanner );
-
-       YYLTYPE *yyget_lloc ( yyscan_t yyscanner );
-    
-        void yyset_lloc ( YYLTYPE * yylloc_param , yyscan_t yyscanner );
-    
 /* %endif */
 
 /* Macros after this point can all be overridden by user definitions in
@@ -457,11 +424,9 @@ static int yy_flex_strlen ( const char * , yyscan_t yyscanner);
 #define YY_DECL_IS_OURS 1
 /* %if-c-only Standard (non-C++) definition */
 
-extern int yylex \
-               (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , yyscan_t yyscanner);
+extern int yylex (yyscan_t yyscanner);
 
-#define YY_DECL int yylex \
-               (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , yyscan_t yyscanner)
+#define YY_DECL int yylex (yyscan_t yyscanner)
 /* %endif */
 /* %if-c++-only C++ definition */
 /* %endif */
@@ -636,9 +601,9 @@ extern int yylex \
 #undef yyTABLES_NAME
 #endif
 
-#line 68 "lexer.l"
+#line 70 "lexer.l"
 
 
-#line 643 "lexer.h"
+#line 608 "lexer.h"
 #undef yyIN_HEADER
 #endif /* yyHEADER_H */

@@ -1,8 +1,13 @@
 Bugs:
 
-z := \y:nil->nil=>\x:nil=>y x
-does not parse!
-
 
 Heisenbugs:
   sometimes evaluation of a call segmentation faults????
+  this seemed to be caused by missing break statements
+  in some-but-not-all switch statements causing some
+  paths to process Ast nodes twice, and the second
+  process generally segfaults because it assumes the
+  wrong union member type. However this was not consistent
+  because it depends on the exact break that was missing.
+  sometimes the flow would drop into the default case
+  which has always been a call of error_abort.

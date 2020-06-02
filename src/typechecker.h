@@ -7,7 +7,7 @@
 #include "symboltable.h"
 #include "ast.h"
 
-Ast* type_of(Ast* term, symboltable* env);
-bool typesEqual(Ast* t1, Ast* t2, symboltable* env);
+Ast* type_of(Ast* term, Symboltable* env);
+bool typesEqual(Ast* t1, Ast* t2, Symboltable* env);
 
 #endif

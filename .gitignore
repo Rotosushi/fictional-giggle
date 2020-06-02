@@ -6,8 +6,7 @@
 # the files that pink ignores
 src/lexer.h
 src/lexer.c
-src/parser.h
-src/parser.c
+src/parser.y
 
 
 # User-specific files

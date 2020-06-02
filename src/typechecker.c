@@ -281,13 +281,13 @@ Subtype polymorphism: (pretty sure the literature denotes it with "<:" )
 
 
 
-Ast* typeofEntityType(Ast* type, symboltable* env);
-Ast* typeofEntityLambda(Ast* lambda, symboltable* env);
+Ast* typeofEntityType(Ast* type, Symboltable* env);
+Ast* typeofEntityLambda(Ast* lambda, Symboltable* env);
 
-Ast* typeofId(Ast* id, symboltable* env);
-Ast* typeofEntity(Ast* entity, symboltable* env);
-Ast* typeofCall(Ast* call, symboltable* env);
-Ast* typeofBind(Ast* bind, symboltable* env);
+Ast* typeofId(Ast* id, Symboltable* env);
+Ast* typeofEntity(Ast* entity, Symboltable* env);
+Ast* typeofCall(Ast* call, Symboltable* env);
+Ast* typeofBind(Ast* bind, Symboltable* env);
 
 bool is_polymorphic(Ast* type) {
   if (type == NULL) return false;
@@ -315,7 +315,7 @@ bool is_polymorphic(Ast* type) {
   it's subterms, until we reach the base case
   which is either nil or some type -> type;
 */
-Ast* type_of(Ast* term, symboltable* env)
+Ast* type_of(Ast* term, Symboltable* env)
 {
   if (term != NULL) {
       switch(term->tag) {
@@ -333,7 +333,7 @@ Ast* type_of(Ast* term, symboltable* env)
 }
 
 
-Ast* typeofId(Ast* id, symboltable* env)
+Ast* typeofId(Ast* id, Symboltable* env)
 {
   /*
         id is-in FV(ENV)
@@ -359,7 +359,7 @@ Ast* typeofId(Ast* id, symboltable* env)
   }
 }
 
-Ast* typeofEntity(Ast* type, symboltable* env)
+Ast* typeofEntity(Ast* type, Symboltable* env)
 {
   if (type != NULL) {
     switch (type->u.entity.tag) {
@@ -373,7 +373,7 @@ Ast* typeofEntity(Ast* type, symboltable* env)
 }
 
 
-Ast* typeofEntityType(Ast* type, symboltable* env)
+Ast* typeofEntityType(Ast* type, Symboltable* env)
 {
   if (type != NULL) {
     /* ENV |- nil : Nil */
@@ -418,7 +418,7 @@ Ast* typeofEntityType(Ast* type, symboltable* env)
   return NULL;
 }
 
-Ast* typeofEntityLambda(Ast* lambda, symboltable* env)
+Ast* typeofEntityLambda(Ast* lambda, Symboltable* env)
 {
   /*
         ENV |- id : type1, term : type2
@@ -459,7 +459,7 @@ Ast* typeofEntityLambda(Ast* lambda, symboltable* env)
 }
 
 
-Ast* typeofCall(Ast* call, symboltable* env)
+Ast* typeofCall(Ast* call, Symboltable* env)
 {
   /*
   ENV |- term1 : type1 -> type2, term2 : type1
@@ -551,7 +551,7 @@ Ast* typeofCall(Ast* call, symboltable* env)
   }
 }
 
-Ast* typeofBind(Ast* bind, symboltable* env)
+Ast* typeofBind(Ast* bind, Symboltable* env)
 {
   /*
         ENV |- term2 : type2
@@ -586,7 +586,7 @@ Ast* typeofBind(Ast* bind, symboltable* env)
   this is essentially the inductive definition
   of equal types.
 */
-bool typesEqual(Ast* t1, Ast* t2, symboltable* env)
+bool typesEqual(Ast* t1, Ast* t2, Symboltable* env)
 {
   if (t1 != NULL && t2 != NULL) {
     if  (t1->tag != N_ENTITY         \

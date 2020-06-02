@@ -2,7 +2,10 @@
 #define STRINGSET_H
 #include <stdbool.h>
 
-struct Elem;
+typedef struct Elem {
+  char* str;
+  struct Elem* next;
+} Elem;
 
 typedef struct StringSet {
   Elem* root;

@@ -10,16 +10,19 @@
 #include "typechecker.h"
 #include "error.h"
 
-//Ast* evaluate_type(Ast* type, symboltable* env);
-//Ast* evaluate_lambda(Ast* lambda, symboltable* env);
 
-Ast* evaluate_id(Ast* id, symboltable* env);
-//Ast* evaluate_entity(Ast* val, symboltable* env);
-Ast* evaluate_call(Ast* call, symboltable* env);
-Ast* evaluate_bind(Ast* bind, symboltable* env);
+bool traced = true;
+
+//Ast* evaluate_type(Ast* type, Symboltable* env);
+//Ast* evaluate_lambda(Ast* lambda, Symboltable* env);
+
+Ast* evaluate_id(Ast* id, Symboltable* env);
+//Ast* evaluate_entity(Ast* val, Symboltable* env);
+Ast* evaluate_call(Ast* call, Symboltable* env);
+Ast* evaluate_bind(Ast* bind, Symboltable* env);
 
 // interesting to note that this is the only place where the Ast is trimmed.
-void substitute(char* name, Ast** term, Ast* value, symboltable* env);
+void substitute(char* name, Ast** term, Ast* value, Symboltable* env);
 bool appears_free_in(char* name, Ast* term);
 void rename_binding(Ast* lambda, Ast* value);
 
@@ -34,7 +37,7 @@ void rename_binding(Ast* lambda, Ast* value);
   and deallocating intermediate results, and subsequently
   returning the final result tree.
 */
-Ast* evaluate(Ast* term, symboltable* env)
+Ast* evaluate(Ast* term, Symboltable* env)
 {
   Ast* tmp  = NULL;
   Ast* copy = CopyAst(term);
@@ -43,6 +46,13 @@ Ast* evaluate(Ast* term, symboltable* env)
     return NULL;
 
   while (copy->tag != N_ENTITY) {
+
+    if (traced) {
+      char* s = AstToString(copy);
+      printf("evaluating term: \"%s\"\n", s);
+      free(s);
+    }
+
     tmp = copy;
     switch(copy->tag) {
       case N_ID:     copy = evaluate_id(copy, env); break;    /* return the bound term. */
@@ -58,7 +68,7 @@ Ast* evaluate(Ast* term, symboltable* env)
   return copy;
 }
 
-Ast* evaluate_id(Ast* id, symboltable* env)
+Ast* evaluate_id(Ast* id, Symboltable* env)
 {
   /*
    in order to evalute an id,
@@ -74,8 +84,19 @@ Ast* evaluate_id(Ast* id, symboltable* env)
        id -> value
   */
   if (id != NULL) {
+    if (traced) {
+      char* s = AstToString(id);
+      printf("evaluating id: \"%s\"\n", s);
+      free(s);
+    }
+
     Ast* term = lookup(id->u.id.s, env);
     if (term != NULL) {
+      if (traced) {
+        char* s = AstToString(term);
+        printf("id evaluated to: \"%s\"\n", s);
+        free(s);
+      }
       return term;
     }
     else {
@@ -91,7 +112,7 @@ Ast* evaluate_id(Ast* id, symboltable* env)
   return NULL;
 }
 
-Ast* evaluate_bind(Ast* bind_ast, symboltable* env)
+Ast* evaluate_bind(Ast* bind_ast, Symboltable* env)
 {
   /*
                         term -> term'
@@ -103,6 +124,13 @@ Ast* evaluate_bind(Ast* bind_ast, symboltable* env)
       id := value -> bind (id, (type, value)), ENV) : Nil
   */
   if (bind_ast != NULL) {
+
+    if (traced) {
+      char* s = AstToString(bind_ast);
+      printf("evaluating bind: \"%s\"\n", s);
+      free(s);
+    }
+
     if (lookup(bind_ast->u.bind.id.s, env) != NULL) {
       printf("cannot evaluate bind; name \"%s\" already bound!\n", bind_ast->u.bind.id.s);
       return NULL;
@@ -116,6 +144,13 @@ Ast* evaluate_bind(Ast* bind_ast, symboltable* env)
     }
 
     bind (bind_ast->u.bind.id.s, term, env);
+
+    if (traced) {
+      char* s2 = AstToString(term);
+      printf("bound: \"%s\" to: \"%s\"\n", bind_ast->u.bind.id.s, s2);
+      free(s2);
+    }
+
     DeleteAst(term);
     return CreateAstEntityTypeNil(NULL);
 
@@ -127,7 +162,7 @@ Ast* evaluate_bind(Ast* bind_ast, symboltable* env)
 }
 
 
-Ast* evaluate_call(Ast* call, symboltable* env)
+Ast* evaluate_call(Ast* call, Symboltable* env)
 {
   /*
   in order to evaluate a call expression, we want to
@@ -146,6 +181,11 @@ Ast* evaluate_call(Ast* call, symboltable* env)
       (\ id : type = term) (value2) -> [id -> value2]term
   */
   if (call != NULL) {
+    if (traced) {
+      char* s = AstToString(call);
+      printf("evaluating call: \"%s\"\n", s);
+      free(s);
+    }
     /*
       Ast* lhs = (*call)->u.call.lhs;
       Ast* rhs = (*call)->u.call.rhs;
@@ -185,7 +225,7 @@ Ast* evaluate_call(Ast* call, symboltable* env)
         DeleteAst(rhs_type);
         return NULL;
       }
-
+      free(lhs_type);
     }
 
     // evaluate the rhs down to a value.
@@ -193,6 +233,8 @@ Ast* evaluate_call(Ast* call, symboltable* env)
 
     if (rhs == NULL) {
       printf ("evaluate rhs failed!\n");
+      DeleteAst(lhs);
+      DeleteAst(rhs);
       return NULL;
     }
     /* we return a copy in case substitute needs to
@@ -201,6 +243,18 @@ Ast* evaluate_call(Ast* call, symboltable* env)
        original term.
     */
     tmp = CopyAst(lhs->u.entity.u.lambda.body);
+
+    if (traced) {
+      char* s1 = AstToString(tmp);
+      char* s2 = AstToString(rhs);
+      printf("substituting \"%s\" for \"%s\" within \"%s\"\n", \
+            lhs->u.entity.u.lambda.arg.id.s, \
+            s2, \
+            s1);
+      free(s1);
+      free(s2);
+    }
+
     substitute(lhs->u.entity.u.lambda.arg.id.s, \
                &tmp,                   \
                rhs,                    \
@@ -219,7 +273,7 @@ Ast* evaluate_call(Ast* call, symboltable* env)
 
 
 
-void substitute(char* name, Ast** term, Ast* value, symboltable* env)
+void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
 {
   if (name == NULL || term == NULL || *term == NULL || value == NULL)
     return;

@@ -7,21 +7,21 @@
 #include "error.h"
 
 
-symboltable* createSymboltable()
+Symboltable* createSymboltable()
 {
-  symboltable* symtable = (symboltable*)malloc(sizeof(symboltable));
+  Symboltable* symtable = (Symboltable*)malloc(sizeof(Symboltable));
   symtable->symbols = NULL;
   symtable->end = NULL;
   return symtable;
 }
 
-Ast* lookup(char* name, symboltable* symtable)
+Ast* lookup(char* name, Symboltable* symtable)
 {
   if (name == NULL)
     error_abort("cannot lookup NULL name! aborting", __FILE__, __LINE__);
 
   if (symtable == NULL) {
-    error_abort("cannot lookup name in NULL symboltable! aborting", __FILE__, __LINE__);
+    error_abort("cannot lookup name in NULL Symboltable! aborting", __FILE__, __LINE__);
   }
 
   symbol* sym = symtable->symbols;
@@ -34,7 +34,7 @@ Ast* lookup(char* name, symboltable* symtable)
   return NULL;
 }
 
-void bind(char* name, Ast* term, symboltable* symtable)
+void bind(char* name, Ast* term, Symboltable* symtable)
 {
   if (name == NULL)
     error_abort("cannot bind NULL name! aborting", __FILE__, __LINE__);
@@ -43,7 +43,7 @@ void bind(char* name, Ast* term, symboltable* symtable)
     error_abort("cannot bind a name to a NULL term! aborting", __FILE__, __LINE__);
 
   if (symtable == NULL) {
-    error_abort("cannot lookup name in NULL symboltable! aborting", __FILE__, __LINE__);
+    error_abort("cannot lookup name in NULL Symboltable! aborting", __FILE__, __LINE__);
   }
   /* the binding list simply maintains the order
       in which the elements are inserted
@@ -63,13 +63,13 @@ void bind(char* name, Ast* term, symboltable* symtable)
   }
 }
 
-void unbind(char* name, symboltable* symtable)
+void unbind(char* name, Symboltable* symtable)
 {
   if (name == NULL)
     error_abort("cannot unbind empty name! aborting", __FILE__, __LINE__);
 
   if (symtable == NULL) {
-    error_abort("cannot lookup name in NULL symboltable! aborting", __FILE__, __LINE__);
+    error_abort("cannot lookup name in NULL Symboltable! aborting", __FILE__, __LINE__);
   }
 
   symbol *prv = NULL, *ths = symtable->symbols;
@@ -108,7 +108,7 @@ void unbind(char* name, symboltable* symtable)
   }
 }
 
-void destroySymtable(symboltable* symtable)
+void destroySymtable(Symboltable* symtable)
 {
   symbol *prv = NULL, *ths = symtable->symbols;
   while (ths != NULL) {

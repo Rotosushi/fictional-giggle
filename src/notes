@@ -12,6 +12,35 @@ Just enough to say what is interesting
   -> loop/iterate/recur
 
 
+okay, how do we add numbers to this system?
+because we also want to add infix expressions
+and the straightforward grammar (at least imo)
+
+term:
+    id
+  | int
+  | nil
+  | nil_type
+  | int_type
+  | lambda
+  | call
+  | binop
+  | unop
+  | '(' term ')'
+
+produces over ten reduce/reduce errors, which are nasty,
+which makes me think that we have two choices,
+add more symbols in a structured way such that
+we can remove the reduce/reduce errors.
+which is a lot of work that i don't understand that well.
+because it's working with bison. OR, i can rewrite the parser
+by hand, get back to current functionality, and then
+extend that parser (which would be a packrat parser i think.
+taking a few pages from the early-version hand rolled parser.)
+
+
+
+
  gdb -tui <program-name>
 
  opens gdb with a scrollable view of your program.

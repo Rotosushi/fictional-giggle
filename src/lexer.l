@@ -16,13 +16,15 @@
 %{
 #include "parser.h" // for YYSTYPE, YYLTYPE, and token definitions
 
-void update_location(YYLTYPE* lloc, char* txt);
+void update_location(StrLoc* lloc, char* txt);
 #define YY_USER_ACTION update_location(yylloc, yytext);
 %}
 
 %option reentrant
+/*
 %option bison-bridge
 %option bison-locations
+*/
   /*
   these three options change the lexers signature to:
 	int yylex (YYSTYPE* lval, YYLTYPE* llocp, yyscan_t scanner);
@@ -67,7 +69,7 @@ DIGIT   [[:digit:]]
 %%
 
 
-void update_location(YYLTYPE* lloc, char* txt)
+void update_location(StrLoc* lloc, char* txt)
 {
   lloc->first_line = lloc->last_line;
   lloc->first_column = lloc->last_column;

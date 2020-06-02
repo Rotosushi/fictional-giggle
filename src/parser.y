@@ -59,12 +59,6 @@ typedef void* yyscan_t;
 */
 /* bison decls */
 
-/*
-%union {
-  Ast*  ast;
-  char* str;
-}
-*/
 %define api.value.type union
 
 %nterm <Ast*> term name entity lambda call bind type parenterm
@@ -87,13 +81,14 @@ input:
 
 term:
     name      { $$ = $1; }
-  | entity    { $$ = $1; }
   | call      { $$ = $1; }
+  | entity    { $$ = $1; }
   | bind      { $$ = $1; }
   | parenterm { $$ = $1; }
 /*  | subterm { $$ = $1; }
   this is what I would want to make the
-  explicit scope construct.
+  explicit scope construct. but with the calculus
+  being what it is, parens do this job to some extent.
 */
 
 name: /* [a-zA-Z][a-zA-Z0-9_-]+ */
