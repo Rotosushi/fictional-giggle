@@ -5,8 +5,11 @@
 #include "ast.h"
 
 struct StrLoc;
+struct Scanner;
 
 typedef enum Token {
+  MORE,
+  ERR,
   END,
   NIL,
   ID,
@@ -30,10 +33,13 @@ typedef struct Parser {
   int idx;
   int mkstsz;
   int bufsz;
+  union {
+    char* ID;
+  } yylval;
 } Parser;
 
 Parser* createParser();
 void destroyParser(Parser* p);
-Ast* parse(Parser* p, yyscan_t scanner, struct StrLoc* loc);
+Ast* parse(Parser* p, struct Scanner* scanner, struct StrLoc* llocp);
 
 #endif

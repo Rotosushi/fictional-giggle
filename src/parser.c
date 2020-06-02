@@ -6,6 +6,15 @@
 #include "parser.h"
 
 /*
+FILE* yyin;
+FILE* yyout;
+char* yytext;
+int   yyleng;
+int   yylineno;
+int   yy_flex_debug;
+StrLoc* llocp;
+*/
+/*
 term:
       id
     | nil
@@ -65,7 +74,7 @@ int     mark(Parser* p)
     p->mkstsz += 1;
     p->markstack = (int*)realloc(p->markstack, sizeof(int) * p->mkstsz);
   }
-  p->markstack[p->mkstsz] = p->idx;
+  p->markstack[p->mkstsz-1] = p->idx;
 
   return p->idx;
 }
@@ -83,8 +92,10 @@ void release(Parser* p)
   if (p->markstack == NULL) {
     return;
   } else {
+    int mark = p->markstack[p->mkstsz-1];
     p->mkstsz -= 1;
     p->markstack = (int*)realloc(p->markstack, sizeof(int) * p->mkstsz);
+    p->idx = mark;
   }
 }
 
@@ -117,7 +128,7 @@ bool speculating(Parser* p)
   return p->mkstsz > 0;
 }
 
-void getTokens(Parser* p, yyscan_t s, int i)
+void getTokens(Parser* p, Scanner* s, StrLoc* loc, int i)
 {
   /*
     add (i) tokens to the buffer of tokens
@@ -129,13 +140,13 @@ void getTokens(Parser* p, yyscan_t s, int i)
     p->texbuf = (char**)realloc(p->texbuf, p->bufsz + n);
     p->locbuf = (StrLoc*)realloc(p->locbuf, p->bufsz + n);
     for (int i = 0; i < n; ++i) {
-      Token t = yylex(s);
+      Token t = yylex(p, s);
     }
   }
 
 }
 
-void next(Parser* p, yyscan_t s)
+void next(Parser* p, Scanner* s, StrLoc* loc)
 {
   p->idx += 1;
 
@@ -153,9 +164,14 @@ void next(Parser* p, yyscan_t s)
   getTokens(p, s, 1);
 }
 
-Ast* parse_term(Parser* parser, yyscan_t scanner, StrLoc* loc);
+bool speculate(Parser* parser, Scanner* scanner, StrLoc* llocp, Token token)
+{
+  if (token == curtok(parser))
+}
 
-Ast* parse(Parser* parser, yyscan_t scanner, StrLoc* loc)
+Ast* parse_term(Parser* parser, Scanner* scanner, StrLoc* loc);
+
+Ast* parse(Parser* parser, Scanner* scanner, StrLoc* loc)
 {
   Ast* result = NULL;
 
@@ -164,14 +180,14 @@ Ast* parse(Parser* parser, yyscan_t scanner, StrLoc* loc)
   return result;
 }
 
-Ast* parse_constant(Parser* parser, yyscan_t scanner, StrLoc* loc);
-Ast* parse_lambda(Parser* parser, yyscan_t scanner, StrLoc* loc);
-Ast* parse_id(Parser* parser, yyscan_t scanner, StrLoc* loc);
-Ast* parse_call(Parser* parser, yyscan_t scanner, StrLoc* loc);
-Ast* parse_bind(Parser* parser, yyscan_t scanner, StrLoc* loc);
-Ast* parse_parens(Parser* parser, yyscan_t scanner, StrLoc* loc);
+Ast* parse_constant(Parser* parser, Scanner* scanner, StrLoc* loc);
+Ast* parse_lambda(Parser* parser, Scanner* scanner, StrLoc* loc);
+Ast* parse_id(Parser* parser, Scanner* scanner, StrLoc* loc);
+Ast* parse_call(Parser* parser, Scanner* scanner, StrLoc* loc);
+Ast* parse_bind(Parser* parser, Scanner* scanner, StrLoc* loc);
+Ast* parse_parens(Parser* parser, Scanner* scanner, StrLoc* loc);
 
-Ast* parse_term(Parser* parser, yyscan_t scanner, StrLoc* loc)
+Ast* parse_term(Parser* parser, Scanner* scanner, StrLoc* loc)
 {
 
 

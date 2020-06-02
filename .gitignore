@@ -4,8 +4,7 @@
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
 # the files that pink ignores
-src/lexer.h
-src/lexer.c
+src/lexer.l
 src/parser.y
 
 

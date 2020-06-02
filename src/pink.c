@@ -28,15 +28,6 @@
 #include "evaluator.h"
 #include "error.h"
 
-/*
-	if we are operating in an interactive capacity,
-	I think get_input is a viable candidate for
-	yywrap...
- */
-char* get_input(int max_len, int* chars_read, FILE* in_stream);
-
-Ast* parse_buffer(char* buf, int len, Parser* parser, yyscan_t scanner);
-
 
 /*
 the overall structure of this program is
@@ -98,16 +89,11 @@ can be done by walking in an iterative style.
 
 int main(int argc, char** argv)
 {
-	char * input = NULL;
-	yy_size_t input_buf_size = 512;
-	yyscan_t scanner;
+	Scanner* scanner;
 	Parser* parser;
 	Symboltable* env;
+	StrLoc lloc;
 	Ast* result;
-	int chars_read = 0;
-
-	// enable/disable parser trace printing
-	//yydebug = 1;
 
 	/* in order to support reentrancy
 	     the parser and lexer internal state
@@ -121,7 +107,7 @@ int main(int argc, char** argv)
 	     this also vastly simplifies adding multithreaded
 	     lexing and parsing.
 	*/
-	yylex_init (&scanner);
+	scanner = createScanner(stdin);
 	parser = createParser();
 	env = createSymboltable();
 
@@ -147,10 +133,8 @@ int main(int argc, char** argv)
 		  the full input string, then we can
 			underscore the text of the erroneous token.
 		*/
-		input = get_input(input_buf_size, &chars_read, stdin);
 
-		if (input != NULL) {
-			result = parse_buffer(input, input_buf_size, parser, scanner);
+			result = parse(parser, scanner, &lloc);
 
 			if (result != NULL) {
 				Ast* type = type_of(result, env);
@@ -166,7 +150,9 @@ int main(int argc, char** argv)
 						char* eval_string = AstToString(copy);
 						printf (":type %s\n", type_string);
 						printf ("==>>  %s\n", eval_string);
+						DeleteAst(copy);
 					}
+					DeleteAst(type);
 				}
 				else {
 					printf ("term not typable!\n");
@@ -174,13 +160,7 @@ int main(int argc, char** argv)
 				DeleteAst(result);
 			}
 
-			if (input != NULL)
-				free (input);
-		}
-		else {
-			perror("getline ");
-			exit(1);
-		}
+
 	} /* !while(1) */
 
 
@@ -188,69 +168,10 @@ int main(int argc, char** argv)
 		destroyParser(parser);
 
 	if (scanner != NULL)
-		yylex_destroy(scanner);
+		destroyScanner(scanner);
 
 	if (env != NULL)
 		destroySymboltable(env);
 
 	return 0;
-}
-
-/*
-	input: a double-null-terminated string containing the
-				 text to be parsed, the strings length, and pointers
-				 to the state objects that are already allocated for
-				 the lexer and parser.
-
-  output: the abstax syntax tree describing the input string.
-				  as parsed by the grammar described in parser.y
- */
-Ast* parse_buffer(char* buf, int len, Parser* parser, yyscan_t scanner)
-{
-	Ast* result = NULL;
-	StrLoc* lloc = (StrLoc*)malloc(sizeof(StrLoc));
-
-	YY_BUFFER_STATE scanner_buffer_handle = yy_scan_buffer(buf, len, scanner);
-	if (scanner_buffer_handle == NULL) {
-		fprintf(stderr, "yy_scan_buffer failed!");
-		exit(1);
-	}
-	yy_switch_to_buffer(scanner_buffer_handle, scanner);
-
-	result = parse(parser, scanner, lloc);
-
-	if (scanner_buffer_handle != NULL)
-		yy_delete_buffer(scanner_buffer_handle, scanner);
-
-	free(lloc);
-
-	return result;
-}
-
-
-char* get_input(int max_len, int* chars_read, FILE* in_stream)
-{
-	int num_chars;
-	/* we add two here to garuntee that the resulting
-		 buffer is always formatted in the way that flex
-		 wants for the call to yyscan_buffer, namely
-		 to have the input buffer be double-null-terminated.
-		 even if the resulting call to getline fills the input
-		 buffer completely. if the buffer given to
-		 yyscan_buffer is not formatted in this way, then
-		 the function fails.
-	*/
-	char* input = (char*)calloc(max_len + 2, sizeof(char));
-
-	printf(":> ");
-	num_chars = getline(&input, (size_t*)&max_len, stdin);
-
-	if (num_chars < 0) {
-		free(input);
-		*chars_read = 0;
-		return NULL;
-	} else {
-		*chars_read = num_chars;
-		return input;
-	}
 }

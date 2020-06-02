@@ -16,11 +16,14 @@
 %{
 #include "parser.h" // for YYSTYPE, YYLTYPE, and token definitions
 
-void update_location(StrLoc* lloc, char* txt);
-#define YY_USER_ACTION update_location(yylloc, yytext);
+struct StrLoc;
+
+void update_location(StrLoc* llocp, char* txt);
+#define YY_USER_ACTION update_location(llocp, yytext);
 %}
 
 %option reentrant
+/*%option extra-type="struct StrLoc*"*/
 /*
 %option bison-bridge
 %option bison-locations
@@ -36,7 +39,7 @@ void update_location(StrLoc* lloc, char* txt);
 
 %option outfile="lexer.c"
 %option header-file="lexer.h"
-%option warn noyywrap
+%option warn
 %option debug
 
 SPACE   [[:space:]]
