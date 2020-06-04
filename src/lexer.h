@@ -17,7 +17,7 @@ struct StrLoc;
 	cursor is used to gather slots into single tokens.
 	token is the begining of the current token being processed.
 	yyaccept, yych, and state are used internally by re2c for
-	keeping track of it's state.
+	keeping track of it's state to allow for reentrancy.
 
 */
 typedef struct Scanner {
@@ -36,8 +36,9 @@ typedef struct Scanner {
 struct StrLoc;
 
 Scanner* createScanner(FILE* in);
-void destroyScanner(Scanner* scanner);
-int fill(Scanner* scanner);
-int yylex(struct Parser* parser, Scanner* scanner, struct StrLoc* llocp);
+void     destroyScanner(Scanner* scanner);
+int      yyfill(Scanner* scanner);
+char*    yytext(Scanner* scanner);
+int      yylex(struct Parser* parser, Scanner* scanner, struct StrLoc* llocp);
 
 #endif

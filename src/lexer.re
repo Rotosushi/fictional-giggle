@@ -36,7 +36,7 @@ void destroyScanner(Scanner* scanner)
   free(scanner);
 }
 
-int fill(Scanner* scanner)
+int yyfill(Scanner* scanner)
 {
   /*
     buf [c0, c1, c2, .., ctoken-1, ctoken, .., cend-1, cend, .., buf+SCANNER_BUF_SZ]
@@ -91,6 +91,12 @@ int fill(Scanner* scanner)
 
   return charsRead;
 }
+
+char* yytext(Scanner* scanner)
+{
+    return strndup(scanner->token, scanner->cursor - scanner->token);
+}
+
 
 void update_location(StrLoc* llocp, char* token, int length)
 {
@@ -150,11 +156,7 @@ loop:
       ")"        { update_location(llocp, scanner->token, scanner->cursor - scanner->token); return RPAREN; }
       "{"        { update_location(llocp, scanner->token, scanner->cursor - scanner->token); return LBRACE; }
       "}"        { update_location(llocp, scanner->token, scanner->cursor - scanner->token); return RBRACE; }
-      identifier {
-                   update_location(llocp, scanner->token, scanner->cursor - scanner->token);
-                   parser->yylval.ID = strndup(scanner->token, scanner->cursor - scanner->token);
-                   return ID;
-                 }
+      identifier { update_location(llocp, scanner->token, scanner->cursor - scanner->token); return ID; }
   */
 }
 
