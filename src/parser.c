@@ -119,7 +119,7 @@ bool speculating(Parser* p)
   return p->mkstsz > 0;
 }
 
-void getTokens(Parser* p, Scanner* s, StrLoc* loc, int i)
+void fillTokens(Parser* p, Scanner* s, StrLoc* loc, int i)
 {
   /*
     add (i) tokens to the buffer of tokens
@@ -167,7 +167,7 @@ void getTokens(Parser* p, Scanner* s, StrLoc* loc, int i)
 
 }
 
-void next(Parser* p, Scanner* s, StrLoc* loc)
+void nexttok(Parser* p, Scanner* s, StrLoc* loc)
 {
   p->idx += 1;
 
@@ -182,16 +182,88 @@ void next(Parser* p, Scanner* s, StrLoc* loc)
     free(p->locbuf);
   }
 
-  getTokens(p, s, 1);
+  fillTokens(p, s, 1);
 }
 
 bool speculate(Parser* parser, Scanner* scanner, StrLoc* llocp, Token token)
 {
   if (token == curtok(parser)) {
-    next(parser, scanner, llocp);
+    nexttok(parser, scanner, llocp);
     return true;
   } else
     return false;
+}
+
+bool predicts_unop(Token t)
+{
+  switch(t) {
+    /*
+    case MINUS: return true
+    */
+    default: return false;
+  }
+}
+
+bool predicts_binop(Token t)
+{
+  switch(t) {
+    case COLONEQUALS: case RARROW:
+      return true;
+
+    default: return false;
+  }
+}
+
+bool predicts_entity(Token t)
+{
+  switch (t) {
+    case NIL: case NIL_TYPE: case ID:
+    case LPAREN: case BSLASH:
+    {
+      return true;
+    }
+
+    default:
+    {
+      return false;
+    }
+  }
+}
+
+bool predicts_constant(Token t)
+{
+  switch(t) {
+    case NIL: case NIL_TYPE:
+    {
+      return true;
+    }
+    default:
+    {
+      return false;
+    }
+  }
+}
+
+bool predicts_primary(Token t)
+{
+  /*
+  primary   := entity
+             | unop-expr
+             | parens
+             | call
+  */
+  switch (t) {
+    case NIL: case NIL_TYPE: case ID:
+    case LPAREN: case BSLASH:
+    {
+      return true;
+    }
+
+    default:
+    {
+      return false;
+    }
+  }
 }
 
 Ast* parse_term(Parser* p, Scanner* s, StrLoc* l);
@@ -211,66 +283,365 @@ Ast* parse(Parser* parser, Scanner* scanner, StrLoc* loc)
   return result;
 }
 
+/*
+constant := nil
+          | Nil
+
+lambda := \ id (: type)? => term
+
+entity := id
+        | constant
+        | lambda
+
+unop-expr := unop term
+
+parens    := '(' term ')'
+
+call      := term term
+
+primary   := entity
+           | unop-expr
+           | parens
+           | call
+
+binop-expr := term binop term
+
+term := primary
+      | binop-expr
+
+
+    a + b c - d
+    -->> (+ a (- (b c) d))
+
+    b c d e * f g h i
+    -->> (* (b d c e) (f g h i))
+
+    a b + c d * d e - f g
+    -->> (* (+ (a b) (c d)) (- (d e) (f g)))
+
+    (a binop b) (c binop d binop e)
+    -->>(binop a b) (binop c d e)
+*/
+
+
 Ast* parse_constant(Parser* p, Scanner* s, StrLoc* l);
 Ast* parse_lambda(Parser* p, Scanner* s, StrLoc* l);
-Ast* parse_id(Parser* p, Scanner* s, StrLoc* l);
-Ast* parse_call(Parser* p, Scanner* s, StrLoc* l);
-Ast* parse_bind(Parser* p, Scanner* s, StrLoc* l);
+Ast* parse_entity(Parser* p, Scanner* s, StrLoc* l);
+Ast* parse_call(Parser* p, Scanner* s, StrLoc* l, Ast* lhs, StrLoc* lhsloc);
+Ast* parse_infix_expr(Parser* p, Scanner* s, StrLoc* l, Ast* lhs, StrLoc* lhsloc);
+Ast* parse_unop(Parser* p, Scanner* s, StrLoc* l);
 Ast* parse_parens(Parser* p, Scanner* s, StrLoc* l);
+Ast* parse_primary(Parser* p, Scanner* s, StrLoc* l);
 
 Ast* parse_term(Parser* p, Scanner* s, StrLoc* l)
 {
   /*
-  term :=
-          nil
-        | Nil
-        | id
-        | \ id (: type)? => term
-        | term term
-        | term binop term
-        | unop term
-        | '(' term ')'
+      constant := nil
+                | Nil
 
-        entity     -> id, nil, Nil, (\ id (: type)? => term)
+      lambda := \ id (: type)? => term
 
-        call       -> term term
+      entity := id
+              | constant
+              | lambda
 
-        binop-expr -> term binop term
+      unop-expr := unop term
 
-        unop-expr  -> unop term
+      parens    := '(' term ')'
 
-        parens     -> '(' term ')'
+      call      := term term
 
+      primary   := entity
+                 | unop-expr
+                 | parens
+                 | primary primary
+
+      binop-expr := term binop term
+
+      term := primary
+            | binop-expr
+            // | module
+            // | abstract-type
   */
-  Ast* result = NULL;
+
+  Ast* term = NULL;
   Token ct = curtok(p);
-  if (ct == NIL || ct == NIL_TYPE) {
-    result = parse_constant(p, s, l);
+  StrLoc* termloc = curloc(p);
+  if (predicts_primary(ct)) {
+    term = parse_primary(p, s, l);
   }
-  else if (ct == ID) {
-    result = parse_id(p, s, l);
+
+  /*
+    if we have a valid term parsed then we
+    still need to try and parse possible
+    binop or call expressions, if the token after the
+    valid term is a binop, then we need to parse
+    an operator precedence expression, if the term predicts
+    another primary expression then we need to parse a call expr.
+
+     the two most primitive operators in the language are:
+     bind (:=) is a binop taking an ID term and any other term
+     which creates an environmental binding between that ID and term.
+
+     the type constructor (->) can be described in terms of
+     a right-assoc binop operating on Type entities.
+
+     (in the future we will also have the sequence symbol (;)
+      which is a binop of very low precedence
+      which simply evaluates it's arguments
+      and discards the result of the lhs.)
+
+      if we parsed a term then result will be
+      non-null, since result is always initialized
+      to NULL the only way for it to become non-null
+      is by the flow of control having validly parsed
+      some tokens into a Ast Node.
+      if all of those parsed statements
+      failed, that is conveyed by the
+      result ptr being NULL.
+      hence, if result is non-null
+      then it must point to a valid term,
+      now, any term can be followed by a binop, provided a term of the correct
+      type appears on the other side. but, given we are simply
+      parsing we accept any well-formed term on either side
+      of any valid operator regardless of type.
+  */
+  if (term != NULL) {
+
+    ct = curtok(p);
+    if (predicts_binop(ct)) {
+      term = parse_affix_expr(p, s, l, term, termloc);
+    }
+    else if (predicts_primary(ct)) {
+      term = parse_call(p, s, l, term, termloc);
+    } else {
+      // a term by itself
+    }
+  }
+  else {
+    // error: malformed term.
+  }
+
+  return result;
+}
+
+Ast* parse_constant(Parser* p, Scanner* s, StrLoc* l)
+{
+  /*
+  constant := nil
+            | Nil
+  */
+  Token ct = curtok(p);
+  Ast* constant = NULL;
+
+  if (ct == NIL) {
+    constant = CreateAstEntityNil(curloc(p));
+  }
+  else if (ct == NIL_TYPE) {
+    constant = CreateAstEntityTypeNil(curloc(p));
+  } else {
+    // error: not a valid constant term
+  }
+
+  // eat the constant token
+  nexttok(p, s, l);
+
+  return constant;
+}
+
+Ast* parse_lambda(Parser* p, Scanner* s, StrLoc* l)
+{
+  /*
+  lambda := \ id (: type)? => term
+  */
+  Token ct = curtok(p);
+  Ast* type = NULL, *body = NULL, *lambda = NULL;
+  StrLoc* begin_loc = NULL, *end_loc = NULL;
+  StrLoc lambda_loc;
+  char* arg_name = NULL;
+
+  if (ct == BSLASH) {
+    begin_loc = curloc(p);
+
+    nexttok(p, s, l); // eat '\\'
+    ct = curtok(p);
+
+    if (ct == ID) {
+      arg_name = curtext(p); // save the text associated with the ID token
+
+      nexttok(p, s, l); // eat ID
+      ct = curtok(p);
+
+      if (ct == COLON) {
+        nexttok(p, s, l); // eat ':'
+                                    // the colon predicts a type expression,
+        type = parse_term(p, s, l); // so we parse it here.
+      }
+
+      if (ct == REQARROW) {
+        nexttok(p, s, l); // eat '=>' which predicts the body of the function.
+
+        if (ct == LBRACE) { // an explicit scope can be denoted with enclosing '{''}'
+          nexttok(p, s, l);
+
+          body = parse_term(p, s, l);
+
+          if (ct == RBRACE) {
+            nexttok(p, s, l);
+          } else {
+            // error: missing rbrace after term
+          }
+        } else {
+          body = parse_term(p, s, l);
+        }
+
+        end_loc = curloc(p);
+
+        lambda_loc.first_line   = begin_loc->first_line;
+        lambda_loc.first_column = begin_loc->first_column;
+        lambda_loc.last_line    = end_loc->first_line;
+        lambda_loc.last_column  = end_loc->first_column;
+
+        lambda = CreateAstEntityFn(strdup(arg_name), type, body, &lambda_loc);
+      } else {
+        // error: expecting an REQARROW before the body of the lambda
+      }
+    }
+  } else {
+    // error: only BSLASH predicts a lambda
+  }
+
+  return lambda;
+}
+
+Ast* parse_entity(Parser* p, Scanner* s, StrLoc* l)
+{
+  /*
+  entity := id
+          | constant
+          | lambda
+  */
+  Token ct = curtok(p);
+  Ast* entity = NULL;
+
+  if (ct == ID) {
+    entity = CreateAstId(strdup(curtext(p)));
+    nexttok(p, s, l); // eat ID
+  }
+  else if (predicts_constant(ct)) {
+    entity = parse_constant(p, s, l);
   }
   else if (ct == BSLASH) {
-    result = parse_lambda(p, s, l);
+    entity = parse_lambda(p, s, l);
+  }
+  else {
+    // error: malformed entity
+  }
+
+  return result;
+}
+
+Ast* parse_call(Parser* p, Scanner* s, StrLoc* l, Ast* lhs)
+{
+  Ast* rhs = NULL, *result == NULL;
+  rhs = parse_term(p, s, l);
+
+  if (rhs) {
+    result = createAstCall(lhs, rhs);
+  } else {
+    ; // error: malformed rhs.
+  }
+
+  return result;
+}
+
+Ast* parse_affix_expr(Parser* p, Scanner* s, StrLoc* l, Ast* lhs, int minPrecdnce)
+{
+  /*
+  parse_expression_1(lhs, min_precedence)
+  lookahead := peek next token
+  while lookahead is a binary operator whose precedence is >= min_precedence
+        op := lookahead
+        advance to next token
+        rhs := parse_primary ()
+        lookahead := peek next token
+        while lookahead is a binary operator whose precedence is greater
+                 than op's, or a right-associative operator
+                 whose precedence is equal to op's
+            rhs := parse_expression_1 (rhs, lookahead's precedence)
+            lookahead := peek next token
+        lhs := the result of applying op with operands lhs and rhs
+    return lhs
+  */
+  Token ct = curtok(p);
+  while
+}
+
+Ast* parse_binop(Parser* p, Scanner* s, StrLoc* l, Ast* first_lhs)
+{
+    return parse_affix_expr(p, s, l, first_lhs, 0);
+}
+
+Ast* parse_unop(Parser* p, Scanner* s, StrLoc* l)
+{
+  /*
+  unop-expr := unop term
+  */
+  Token ct = curtok(p);
+  Ast* result = NULL;
+
+  if (predicts_unop(ct)) {
+    /* nothing predicts_unop */
+  }
+
+  return result;
+}
+
+Ast* parse_parens(Parser* p, Scanner* s, StrLoc* l)
+{
+  /*
+  parens := '(' term ')'
+  */
+  Token ct = curtok(p);
+  Ast* result = NULL;
+  if (ct == LPAREN) {
+    nexttok(p, s, l);
+
+    result = parse_term(p, s, l);
+    ct = curtok(p);
+
+    if (ct == RPAREN) {
+      nexttok(p, s, l);
+    } else {
+      // error: missing rparen after term
+    }
+  } else {
+    // error: missing lparen?
+  }
+  return result;
+}
+
+Ast* parse_primary(Parser* p, Scanner* s, StrLoc* l)
+{
+  /*
+  primary   := entity
+             | unop-expr
+             | parens
+  */
+  Token ct = curtok(p);
+  Ast* result = NULL;
+
+  if (predicts_entity(ct)) {
+    result = parse_entity(p, s, l);
+  }
+  else if (predicts_unop(ct)) {
+    result = parse_unop(p, s, l);
   }
   else if (ct == LPAREN) {
     result = parse_parens(p, s, l);
   }
-
-  ct = curtok(p);
-
-  if (result) {
-    if (is_binop(ct)) {
-      result = parse_binop(p, s, l, result);
-    }
-    else {
-      /*
-        what predicts a call expression?
-        well, an entity is what can be called
-        or passed as argument. as well as a
-        unop or a parenthized term.
-      */
-    }
+  else {
+    // error: malformed primary
   }
 
   return result;
@@ -339,16 +710,6 @@ bool speculate_term(Parser* p, Scanner* s, StrLoc* l)
     // error: not an entity, a unop term or a LPAREN
     result = false;
   }
-
-  /*
-    we either have or have not parsed a single entity,
-    unop term, or parenthesized term. but a few of
-    the expressions are represented by a continuation
-    of terms after the first. the two major cases
-    are calls and binops. both take two terms as
-    arguments. meaning that we must be able to parse
-    to terms before we can consider this term well-formed.
-  */
 
   if (result) {
     if (speculate_binop(p, s, l)) {  // is it an expression?

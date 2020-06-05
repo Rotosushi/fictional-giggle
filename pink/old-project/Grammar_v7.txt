@@ -1,0 +1,83 @@
+
+<program> := (<module-statement>)* EOF
+
+<module-statement>   := <comment>
+					  | <compiler-directive>
+					  | <function-definition>
+					  | <atom-definition>
+					  | <atom-declaration>
+
+<comment> := <line-comment>
+		   | <scope-comment>
+
+<comment-line>  := '#' (_)* EOL
+<comment-scope> := '#{' ((_)* | <comment-scope>)* '#}'
+
+<compiler-directive> := 'root' <identifier> ';'
+					  | 'import' <identifier-list> ';'
+					  | 'export' <identifier-list> ';'
+
+<identifier> := (a-zA-Z)([(- | _)a-zA-Z0-9])*
+
+<identifier-list> := <identifier> (',' <identifier>)*
+
+<operator> := (<common-symbols>)+
+
+<common-symbols> := '+' | '-' | '*' | '/'
+				  | '%' | '!' | '^' | '&'
+				  | '=' | '_' | ':' | '@'
+				  | '.' | '$' | '<' | '>'
+				  | '|' | '\' | '(' | ')'
+				  | '`' | '~' | '{' | '}' 
+				  | '[' | ']'
+
+<function-definition> := 'fn' <identifier> <function-type> <function-body>
+
+<function-type> := <argument-list> '->' (<return-type>)?
+
+<argument-list> := '(' (<arg> (',' <arg>)*)? ')'
+
+<return-type> := <type>
+
+<arg> := <identifier> (':' <type>)?
+
+<function-body> := <scope>
+
+<scope> := '{' (<atom-declaration> | <statement>)* '}'
+
+<atom-definition> := 'type' <identifier> '=' <adt> ';'
+
+<adt>  := <type> 
+		| <adt> ('^' | '+') <adt>
+		| '(' <adt> ')'
+
+<atom-declaration> := 'var' <identifier> ':' <type> ('=' <initializer>)? ';'
+					| 'var' <identifier> ('::' | ':=') <initializer> ';'
+
+<type> := <identifier>
+
+<statement> := 'if' <cond> 'then' <statement> ('else' <statement>)?
+			 | 'while' <cond> <statement> 
+			 | 'return' (<statement>)? ';'
+			 | <scope>
+			 | <expr> ';'
+
+<cond> := '(' (<expr>)? ')'
+
+<expr> := <numeric-literal>
+		| <unop> <expr>
+		| <expr> <binop> <expr>
+		| <expr> (<postop>)+
+	    | '(' <expr> ')'
+
+<unop> := <operator>
+
+<binop> := <operator>
+
+<postop> := <function-call>
+
+<function-call> := '(' (<call-list>)? ')'
+
+<call-list>  := <expr> (',' <expr>)*
+
+<numeric-literal> := [0-9']*(.|[0-9]+)?

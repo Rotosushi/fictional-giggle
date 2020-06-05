@@ -1,0 +1,68 @@
+
+
+lexing & parsing, inferrs from a metatextual structure an
+	equivalent intermediate representation of the source text
+	the user entered.
+
+semantic analysis (and optimizations), assigns meaning to
+	this intermediate representation such that the compiler
+	can create a semantically equivalent structure in
+	the target language. (optimization takes the 
+	intermediate representation and manipulates it in order
+	to make the subsequent program run faster or utilize less
+	memory, with the caveat that the specified semantics
+	are unchanged)
+
+code-generation, the process of creating an equivalent
+	semantics in the target language as specified by some
+	internal representation according to some defined process.
+
+linking, the process of coalesing multiple semantic units into a single 
+		semantic unit.
+
+atoms:
+
+	variables, the smallest unit of computer memory
+	
+	root, begins the definition of an executable
+	
+	libraries, a grouping of definitions to be used
+		later.
+	
+behavior:
+
+	statements, the smallest unit of computation
+
+	functions, define and parametrize groupings
+		of statements.
+
+
+we want to define programs compositionally.
+there are two major ways of thinking about
+code, when we have a process we need to enact,
+or we have some useful bit of semantics which 
+we want to define for later use.
+these ideas correspond to executables and libraries respectively.
+executables have one and only one point of entry, and they
+correspondingly have one and only one point of exit. it is
+along this boundary that the operating system can invoke
+the process or reap it's resources once it returns.
+a library is therefore not invokable by the operating system.
+it is however, used to define programs which are then invoked by 
+the operating system, which then themselves invoke the 
+library functions. this boundary allows programmers to 
+encapsulate individually useful semantics for use accros their
+program, like data-structures or specialty functions or device drivers.
+these can then be included by future programs to define their own 
+semantics atop the library.
+
+
+
+
+
+
+
+
+
+
+

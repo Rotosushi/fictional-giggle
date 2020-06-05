@@ -31,14 +31,20 @@ typedef struct Scanner {
 	FILE* yyin;
 	char  yych;
 	bool  is_stdin;
+	struct {
+		int first_line;
+		int first_column;
+		int last_line;
+		int last_column;
+	} yylloc;
 } Scanner;
 
-struct StrLoc;
 
 Scanner* createScanner(FILE* in);
 void     destroyScanner(Scanner* scanner);
 int      yyfill(Scanner* scanner);
 char*    yytext(Scanner* scanner);
+StrLoc*  yylloc(Scanner* scanner);
 int      yylex(struct Parser* parser, Scanner* scanner, struct StrLoc* llocp);
 
 #endif

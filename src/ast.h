@@ -160,6 +160,7 @@ typedef struct Ast {
 } Ast;
 
 Ast* CreateAstId(char* name, struct StrLoc* llocp);
+Ast* CreateAstEntityNil(struct StrLoc* llocp);
 Ast* CreateAstEntityTypeNil(struct StrLoc* llocp);
 Ast* CreateAstEntityTypePoly();
 Ast* CreateAstEntityTypeFn(Ast* l, Ast* r, struct StrLoc* llocp);

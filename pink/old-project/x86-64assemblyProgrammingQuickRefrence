@@ -1,0 +1,92 @@
+
+This is a quick refrence for programming in x86-64 (or just x64)
+on a linux system, (anything conforming to the refrenced standards)
+I am working on a fairly modern processor (i7-8750H) with a lot of 
+memory, so mileage may vary.
+
+Refrence Material:
+
+NASM (the target assembler)
+	https://www.nasm.us/xdoc/2.14.02/nasmdoc.pdf
+	
+	sample call:
+	
+	nasm -f elf64 <filename>
+
+x86_64 ABI for System V
+	http://refspecs.linuxfoundation.org/elf/x86_64-abi-0.99.pdf
+	
+Linux Syscalls
+	https://filippo.io/linux-syscall-table/
+
+
+x64 function calling convention :
+
+	args are counted left-to-right
+	
+	if it fits in a single general-purpose register
+	(size is 64 bits. type int, short, all ptrs, etc)
+	each arg is passed in the next available register
+	of the sequence:
+	rdi, rsi, rdx, rcx, r8, r9
+	
+	if it fits in the vector registers each is passed through one:
+	(float, double, complex, etc)
+	
+	xmm0 -> xmm7
+	
+	the remaining args, and args which do not fit into a single register
+	are passed via the stack, from right-to-left (meaning the top of
+	the stack is the leftmost arg of the function)
+	
+	so say you had some hypothetical multi-arg function
+	
+	size_t so_many_params(int a, 
+						  char* b, 
+						  float c, 
+						  double d, 
+						  user_struct e,
+						  user_struct* f);
+						  
+	the first two args will be passed in rdi and rsi
+	because both fit inside of a single register by
+	definition. and those are the first two regs in
+	the calling sequence
+	
+	the second two args will be passed in xmm0 and xmm1
+	as they are both floating point arguments
+	
+	the passing convention of structs is dependent on the
+	types of the structs members. 
+	
+		if the struct is ~larger than two words~, ~not just plain old data~,
+		or it's ~fields are bit-packed~ it is passed/returned via the stack.
+		(memory)
+	
+		if the struct fits in two words then it depends, each field can
+		be passed individually as the next two registers from the
+		above calling conventions (rdi -> r9, xmm0 -> xmm7)
+		or passed via the stack if there are not any above registers available.
+	
+	so it depends, but is deducable given the definition of the type.
+	
+	a pointer to some type will always fit in a word so will be passed
+	like an integer. in this case (iff the struct e was passed in memory)
+	we would expect to see f in rdx
+	
+	
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+

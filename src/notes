@@ -39,6 +39,59 @@ extend that parser (which would be a packrat parser i think.
 taking a few pages from the early-version hand rolled parser.)
 
 
+  the strategy when writing a parser is to separate
+  the values from the connective tissue, let the
+  functions which parse values do just and only that,
+  and let the functions which parse the connective
+  tissue do just and only that, then each location becomes
+  the obvious semantic place to construct the abstract syntax
+  nodes that represent the respective value or connection,
+  which when combined with the fact that we aligned
+  the Ast constructors with the structure of the literals
+  and connective tissue they represent, means we can even
+  express the mutually recursive definition relatively naturally.
+  all supported by the abstraction of a typed ptr and record + union of types.
+  which goes to show just how powerful the simple constructs are,
+  and how composable they are. the more complexity a component
+  presents the less composable it is. which to some extent says
+  that the larger a component is, the less composable it is.
+  except size doesn't refer to physical space here, but mental
+  space. a large array is no more complex than a small array,
+  but a red-black tree is always more complex than, and hence,
+  more of a memory and processor footprint, than the array.
+  both of these abstractions are less complex than a SQL interpreter.
+  while all three abstractions support essentially the same abstract action,
+  the storage and retrieval of data, what each brings to the table is
+  a set of constraints-of-existance, and constraints-of-use.
+  (again notice, state and behavior)
+  the constraints-of-existance are those aspects of the abstraction comprising
+  it's physical footprint, how large in space it is, and what types it works with.
+  the constraints-of-use are those aspects of the abstraction comprising
+  it's mental footprint, what it does, what it can be used to do, what constraints
+  does it impose upon input/output?
+
+  each abstraction has it's own set of constraints, which must be considered
+  by itself when working on that abstraction, and must be considered in tandem
+  when working with that abstraction and another abstraction.
+
+
+  notice two things, alignment leads to clearer design,
+    spending time aligning components is what one can
+    consider the task normally named "papering-over"
+    or "fenagling" and the like. when and where two components
+    logic become aligned, is when and where we can encode our logic.
+
+    this leads into the second thing to notice, the alignment
+    of the composition of data with the composition of the
+    algorithm. this becomes the anchor point for our logic just
+    like alignment between abstract components, except.
+    the alignment between data and the algorithms is
+    the alignment of the program as a whole. this flows
+    directly from the observation that programs are always
+    fundamentally composed of two things, state and behavior.
+    if we consider the alignment of the programs algorithms
+    with it's data we will simply consider the program.
+
 
 
  gdb -tui <program-name>

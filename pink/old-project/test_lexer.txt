@@ -1,0 +1,27 @@
++ - * / %
+= == !!=
+: := ::
+*= /= += -= 
+! !! ^ ^^ & &&
+[ ] { } ( )
+<< >> <<= >>=
+< > <= >=
+hello
+for
+while
+if else
+pink
+91
+9.1
+.900
+9.9.9
+%%
+"Hello, World!"
+int float bool true false
+string struct union enum alias
+typecast sizeof u8 u16
+u32 u64 s8 s16 s32 s64
+f32 f64 for
+
+string hello="Hello,"+"World!"
+

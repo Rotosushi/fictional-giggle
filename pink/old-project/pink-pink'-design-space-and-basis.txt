@@ -1,0 +1,286 @@
+
+<programming-language> : an example and axioms
+
+state we will call atoms.
+
+behavior we will call functions.
+
+both (atoms + functions) we will call entities.
+
+entities have three important attributes
+	name
+	value
+	type
+
+the name is how we refer to entities in the syntax of our programs
+
+the value is the encapsulated state of that entity:
+	-> for functions this is the body of the function
+	-> for atoms this is the memory associated with the name
+		hence value implies some meaningful state
+
+the type is the encapsulated behavior of that entity:
+	-> for functions this is the set of inputs mapped to the set of outputs
+		otherwise known as the header of the function. comprising it's argument-list + return-list
+	-> for atoms this is the set of valid operations upon itself 
+		otherwise known as every visible function which takes that type
+		as an argument or returns an object of that type.
+
+the language is said in it's syntax, and the semantics of the language
+is refferring to either the generated code or to the execution of the interpreter.
+	in the sense of "the syntax of the language is what is physically parsed
+	by an compiler/interpreter, the semantics of the program is a description of
+	it's execution". or "what I say" vs. "what it does".
+
+
+we can distinguish entities by two dual pairs of category:
+	primary  <-> composed,
+	concrete <-> abstract
+
+an entity can be either primary, or composed.
+
+	a primary entity is a building block of the language.
+	a primary entity is any entity that cannot be decomposed without
+	having to descend a level of abstraction. (i.e. the programmer doesn't
+	worry about implementing fn '+'(a: int, b: int) -> int, to do so would
+	require assembly, which descends a layer of abstraction and ties that
+	program to a specific hardware. 
+		 
+	the 'system' of the systems language (and system layer)
+	is the conceptual abstract machine that understands and can execute the
+	language. if talking about intepreted code, this analogy makes a lot of
+	sense, with the interpreter playing the role of the abstract machine,
+	and the language is parsed and 'understood' (a.k.a. executed) by the interpreter.
+	whereas with compiled code the analogy falls apart, as the resulting code is
+	not implicitly a system itself, and only has the semantic actions
+	available which it itself makes available. the resulting environment
+	of the interpreter is the interpreter itself, whereas the resulting
+	environment of the compiler is the compiled code. the assumptions of the
+	syntax remain the same for both systems however. (that's kinda the point of
+	interpretation)
+		
+	(it's like, sure big runtimes are nice, what about those of use without the resources?
+	(if you think, "hey i don't care about resources, gimme <the-latest-hypebus>!"
+	then this language will not meet your needs. this is part of the point of the language.)
+	of course the default shouldn't be so small as to be useless; surely there is some sensible middle ground. 
+	if the program doesn't #include it, then it need not be supported by the compiled code.
+
+	note: 
+		all these words may seem to make no sense, if this is the case, try an example:
+		if we assume the hardware provides an actual instance of an integer.
+	which can be added to, subtracted from, and all the other operations valid on an integer
+	then that is well and good. however, if we wanted to use integers on some other 
+	hardware, we would have to learn and use that other hardwares integer. plus the 
+	programs that we wrote would have to be unique to each individual hardware platform.
+	also, it really would be nice if we didn't have to write actual assembly instructions
+	when we write our programs, because that's hard. so to solve these and other problems,
+	when we are talking about an integer in some programming language, we are not talking
+	about any hardware specific notion of an integer, we are talking about the ~idea~ of an integer.
+		 
+	so, since we are talking about the idea of something being an integer, we can provide
+	each hardware platform with the same syntax for dealing with integers (the part that users of the language use)
+	but under the hood describe them with different code. as long as the semantics around the idea of an integer
+	holds true for atoms with that type, the user will be none the wiser. this extends to every entity in the language.
+	the description of enitities in the language is often frought with points of friction between the components.
+	it is up to the programmer of the language to ensure that every concrete entity interoperates with well understood
+	and defined semantics, in addition to it's need to implement all of the required semantics.
+
+
+	a composed entity is an entity that has been constructed out
+	of other entities. primary, or composed.
+
+an entity can be either concrete, or abstract.
+
+	a concrete entity is one that has been written by the language
+		implementer.
+
+	an abstract entity is one that has been written by the user of
+		the language, the programmer.
+
+1: the kernel
+the kernel of a programming language is composed
+	of it's primary concrete entities. it should be
+	the minimum set of primary concrete entities to express
+	all features of the language. there will be plumbing
+	underneath, but that will be handeled by the implementation,
+	in essence, the set of primitives that the user has access to without
+	#include'ing or #require'ing should be sufficient to create
+	any program, and the existance of libraries is to implement
+	new, interesting, almost-universally used, or esoteric
+	syntax and/or semantics.
+
+2: the construction mechanisms
+the construction mechanisms of a programming language are the means
+	by which new entities are created for use in the runtime of the resulting
+	program. (i.e. we describe algorithms in pink using 'while' and 'if' statements,
+	we sequence statements with ';'. 
+	we describe new variables, constants, and globals
+	by declaring them with a name and their type, or type constructor.)
+
+3: the abstraction mechanisms
+the abstraction mechanisms are used to describe new
+	atoms and functions. by which further entities can be constructed.
+	for instance new types can be described using the algebraic type definition
+	mechanism, and we can define new functions by writing their header and body.
+	we define new macros using the macro definition syntax
+
+
+4: the extension mechanisms
+the extension mechanisms are the means by which the syntax or semantics
+of the language can be extended. this is the means by which the programmer
+can add new elements of the language to the language.
+
+
+pink': a language language
+
+the front end syntax has been laid out already, and is at a place that i honestly like.
+it is mostly the same semantically and syntactically to bison/yacc/happy, but with some syntactic changes.
+the abstract syntax tree will be described using algebraic data types, with support
+provided by pink' itself and not a host language, in this way it provides cross-platform support.
+the primitive data-types that pink' understands will come with some convienient way of
+supporting them in the generated lanugage. that is the point of pink''s grammar kernel
+and what i assume will be some libraries
+
+shortly:
+	<lhs-grapheme> { state-entity } := <primary-grapheme> '=' <composite-grapheme> {
+											%% <- state-entity(%0, %2);
+											}
+									 | <other-primary-grapheme> '=' <composite-grapheme> {
+											%% <- state-entity(%0, %2);						
+											}
+
+kernel:
+	a grammar kernel, it's a novel thought. (though not a new one.)
+	
+	In my mind the design of the kernel will flow from user needs, and
+	patterns of design. I have a few assumed entities
+	from identification in other languages. There are going to be a bunch of
+	criteria for the final judgement of what actually will go into the
+	final kernel. but initially I am thinking about which problems
+	most plauge C and C++ code, and also taking inspiration from how they
+	have solved the problem of low-level code. I think the core of C is mostly
+	great. with some key exceptions. 
+	
+	one of those entities vital to the kernel is variables, 
+	a.k.a. named and typed refrences to memory (which naturally points to a few more 
+	ideas for what goes into the kernel), are in every programming language.
+	variables are a fantastic abstraction. they are one of the most used, 
+	most well defined, and are also simple to learn and use. Every student that
+	gets to algebra has some previous learning to call upon to understand what
+	a variable is.
+	
+	another entity which is used to great effect in every language is functions
+	(or, if you like, subroutines). in a vacuum, a program is much different from
+	a subroutine, as a program has a lot more semantics which it has to support
+	compared to a function. but, their nature is identical. they have a beginning,
+	an ending (maybe), and are composed of a series of statements which must be executed
+	in order. as pink's nature is that of a systems programming language, we strive
+	to keep it's abstract machine as closely related to the actual hardware as possible,
+	while simultaneously promising a cross-platform language. the friction between those
+	two goals is how I intend to discover where the boundaries of the language lie.
+	
+	in the end, what this means,
+	is that the abstract machine of our language (pink) must as closely as possible match
+	the execution model of the hardware we run on. (we can even observe this in the wild,
+	look at the design of the LLVM IR, it looks suspiciously similar to assembly!)
+	to get into some of the weeds of this,
+	most harware actually executes very similarly to the model described above. a program
+	in assembly is still composed of a beginning, an ending (maybe), and a series of statements
+	which must be executed in order. we even still have 'typed' operations
+	(arithmetic, logical choice, bitwise), local and global varibles,
+	and I/O. here though, the similarities end. assembly only has one more abstraction, 
+	which is the jump statement/GOTO. The GOTO is powerful, with it we can build 
+	loops, conditional statements, and functions. but it quickly makes programming
+	exceedingly difficult. especially as programs get larger. luckily the programmers
+	of the past have come up with 3 great abstractions which take the place of
+	some of the individual use cases of the GOTO. the while loop, the if-else if-else 
+	conditional, and the functions which we have today. so in order to allow more
+	people to become programmers, to facilitate larger and interoperating programs,
+	and to allow programmers to think at higher levels of abstraction than just
+	what the hardware allows, we only allow programmers to use the concept of 
+	a conditional choice, and not the actual implementation, but in the case of
+	a systems programming language we sometimes need a way to circumnavigate that.
+	as the programmer knows more about their intended program interaction with
+	the hardware than the language itself does. (if we invert this relationship,
+	and assume that the language knows more than the user 
+	(or then they should have to know), the language can offer a higher level of abstraction,
+	from which the language can transform into the correct interaction) 
+	pink will need to support some form of assembly injection. meaning, in some
+	portions of the code, we may need to switch which language we are parsing.
+	something that pink' supports natively. we only need to write a parser for
+	the assembly, and insert it into the language. (question: are assembly languages LL(1)?)
+	a programmer could then #include that semantic unit into their module and start writing
+	native assembly.
+
+	generally the user of pink' kernel want's to build languages with the kernel
+	so im fairly sure it will contain primitive entities for
+	basic types, operations, and functions, in a hardware independant
+	sense. in my mind, it's like a library of modules, each defining
+	some customizable sense of a type-system, a run-time, and I/O.
+	it will also most likely contain standard ways of defining the syntax and semantics behind
+	the most common of programming constructs, like variables, functions, scopes, conditionals, loops,
+	and algebraic-data-types. (these also happen to be in the kernel of pink, but that's part of the point)
+	but will also need to be expressive enough to
+	facilitate the description of complex programming concepts like
+	polymorphism, lambdas, threads, reflection, and as of yet unthought of
+	concepts and structures.
+	
+construction:
+	defining entities in pink'
+	these will be the mechanisms by which language constructs are built.
+	these will at least be: graphemes, productions, S & I-attributes,
+	and functions + variables + new data-types.
+
+
+
+
+
+
+abstraction:
+	defining new kinds of entites in pink' will define new graphemes or
+	functions to be used in defining the desired language.
+
+extension:
+	ironically my initial thought is to make pink' a closed language, but
+	maybe this will be a fruitful area of study.
+
+
+
+pink: a systems language
+
+kernel: 
+	the thinnest layer of semantics possible over the
+	execution schema of the processor, but enough semantics around this
+	execution schema that every feature supported by the language can
+	be described. if a feature/entity is defined by the kernel
+	it -must- exist in the default programming environment. if a feature/entity
+	is not defined by the kernel it -must not- exist in the default programming
+	environment. (the environment that exists with no #require 
+	statements.) the kernel will itself consist of the
+	construction, abstraction, and extension mechanisms.
+
+construction:
+	we construct new variables using the 'var' statement along with specifying
+	the variables type, or implying it's type semantically. this defines the
+	variables name in the current environment (following mostly c-ish scoping rules).
+	and it ensures that that environment defines local-scope storage for that variable.
+	(even dynamic memory has a pointer allocated in the current stack frame.)
+	
+	we construct new functions using the 'fn' statement. this defines the name
+	of the function in the current environment. it also ensures that the function
+	will have storage allocated for it. the function itself will have two major
+	parts, the header and the body. the header of a function is it's qualified
+	type, including it's name, it's argument tuple, and it's return argument.
+	the body of the function consists of the statements forming it, when a function
+	is executed each statement is executed by the abstract machine in order of appearance.
+
+
+	
+abstraction:
+	we construct new types using the 'adt' statement. this defines the name
+	of the type in the current environment. I want to 
+
+
+	
+
+extension:

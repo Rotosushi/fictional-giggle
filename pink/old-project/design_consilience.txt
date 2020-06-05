@@ -1,0 +1,156 @@
+
+so, programming is a brand spanking new engineering and scientific
+discipline, and as such, we don't have as much wisdom of experience that
+other disciplines have. Our hindsight abilities only reach as far back as the
+the 1950's. earlier could be argued, but our modern idea of what
+a programming language is, and could be, is largely rooted in the
+conception of programming defined in this decade. the definition
+that they went with generally, is that a programming language should consist
+of some small understandable set of primitive constructs, which can be
+composed together to create and describe larger and more complex algorithms.
+
+we have some mechanisms which we understand, and we labor to create
+new mechanisms described in terms which we already understand.
+in this way, programming languages mirror real languages, as humans labor 
+to create new meanings and to understand new things 'in terms of' what
+we already understand.
+
+in this way pink aims to be a programming ~language~.
+it aims to be a vehicle for writing what is new and unknown
+	in terms of the old and known.
+
+there is one component of human language that programming languages often
+fail to fully incorporate into their design, and that is that languages
+are a 'living' thing.
+in a human language, meaning is derived from use. if a term is co-opted
+or overridded with some other meaning, the term can have it's definition
+shift beneath it's feet. that is, the syntax now has entirely different
+semantics.
+
+now to reproduce this kind of behavior in a programming language would
+be hell. for the writers, maintainers, and for users of the language.
+nobody could get anything done because meaning itself would be indeterminente.
+
+so, to move forward we agree that one thing has one meaning, 
+and other things have other meanings.
+if we think that one thing should have two meanings, then the meaning must
+be derivable and unique from the context and use.
+
+so then now, how do we approach this issue of 'living'?
+
+if meaning derived from use is not constrained enough to be usable,
+but any meaning we now come up with may be incomplete, or wrong, or
+not make sense when applied in some new way. maybe even in some new
+way, that didn't even exist when it's 'kernel' or understood semantics
+was designed or implemented.
+
+so then what can we do? 
+
+the path that most languages choose, is that of versioning.
+they say, the definition is 100% static. but allow for new versions
+of the definition to be released at later dates. this gives them
+the strictness and the flexibility they need to revise, update, upgrade
+and otherwise change the meaning of things, while avoiding all of the
+issues of the semantics changing beneath everyones feet. they say,
+this means one thing here, under this version, and that is subject to
+change in future versions.
+I see nothing wrong with this approach for the long term, most of
+the issues that I can see with the most senior of our programming
+environments (linux and c/c++,  windows and c/c++/c#, 
+and osx and c/c++/objective-c) is the unwillingness to throw away
+what is bad about their products in the name of maintaining backwards
+compatability. now, maintaining backwards compatability is generally
+a good thing, as it allows users to leverage their existing understanding,
+as well as their already developed tools and methods. but if a tool
+or method proves itself time and time again to be usefull for nothing
+but shooting yourself in the foot in clever ways, then why maintain
+it's existance? overall this would seem to be a net drain on everyones time
+and resources if they still have to solve the problem of how to interoperate
+with every broken feature of the standard just to use the usefull 60%.
+this is one reason why I see space for another language, because to
+capture the usefull 60% is far less work than to recreate its environment
+completely.
+
+so, maybe the backwards compatability should be garunteed only 
+for some well understood, well-maintained, and essential core,
+with the rest then having to meet a litmnus test of practicality and
+understandability. 
+
+then any project is free to implement some hair-brained, esoteric,
+but neat sounding feature in some version, and remove it from future
+versions without breaking backwards compatibility for everyone. if
+you only rely on the well-understood parts of the language, you need
+not worry yourself over every new feature implemented. and, because the
+language is designed with extension in mind, the language should
+help you when you do decide that some new meaning needs to be introduced
+into your existing semantic environment.
+
+(I am sure there are other reasons for breaking backwards compatability,
+but for the sake of the brevity of this document, we leave those as an exercise
+for the reader. mostly its a boon to make things backwards compatible,
+as reinventing the wheel gets tedious quickly.)
+
+now, if you are thinking of this from the same perspective I am, you might be
+wondering, "hey, you made a big point of language's being 'living'
+and then proceeded to explain how something entirely separate from "the
+language is responsible for changing the language", what's up with that?"
+
+well, that is exactly what I mean, the language itself is designed as
+a static thing. version to version all that is changed is the languages
+static definition. well, what about language features which allow you
+to extend a languages static definition directly? (making the definition either
+partially, or fully dynamic)
+
+to the best of my knowledge there is only two languages which truly
+allows you to extend it's understood syntax, and that is LISP and Forth.
+(not the OG definition of LISP of course, but it's descendants)
+this is accomplished in LISP by way of LISP programms being the same
+thing as LISP data. so LISP can operate on itself using the same mechanisms
+by which it operates on data. and given that it operates on data in a
+well-formed way, it can operate on itself in a well-formed way.
+From the glance I took at Forth it seems like it is extensible from the
+sense that it has no way of defining procedures that are not treated
+as extensions to the kernel of semantics.
+
+http://lists.warhead.org.uk/pipermail/iwe/2005-July/000130.html
+
+source code generation is a notoriously difficult problem.
+for reasons like, answering the question of "what do i write next"
+being infinitely variable with the constraints more often than not
+lying outside the specified semantics. being able to excode some form of
+reasoning into a program is always hard to do, it is almost always easier
+to encode a simplification of the actual problem than to encode
+the 'problem-solver' directly.
+
+LISP solves a lot of the difficulty by unifying the syntax with the data being processed. 
+everything is an expression, and all expressions get evaluated,
+and every expression is represented as a whitespace separated list
+this extreme homogeneity (homoiconicity) 
+makes macros easy to express syntactically, you simply say "this is data"
+instead of letting it be assumed to be code.
+
+if we want to speak about syntax, the form we use to specify it in imperitive
+languages is Backus-Naur Form, or one of many dialects of BNF. 
+so it seems most natural for macros to live here semantically. 
+in a sense a macro is allowing programmers to specify
+a new grammar that can be parsed and understood, but they do it 
+entirely in terms of the syntax of the language itself. this is where the
+idea of what pink' is came about, if somehow we unify the idea of how
+we parse the language with the language that is being parsed, we can 
+build up a well formed idea of macros on top of that.
+hence, pink' the language specification language, which looks and
+feels just like pink, a language specified in pink'. so then, to extend
+the semantics of pink, we simply define the new semantics within pink'
+and update the pink compiler accordingly. we could even build the
+extension on top of the dynamic linking mechanism, such that new methods
+could be defined which are loaded into the running compiler at load time.
+then the user can update the static semantics without actually 
+recompiling the compiler each time. the extensions are dynamically linked
+into the executable, and the user of the compiler has full control over
+the extension semantics locally. and without invalidaditing the 
+distributed executable, meaning they can revert to the original semantics
+by telling the compiler not to link against your library.
+
+
+
+

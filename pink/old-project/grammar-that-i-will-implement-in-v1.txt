@@ -1,0 +1,158 @@
+
+$ variables of primitive type
+$ functions taking arguments, returning a list of values
+$ input/output via c++ stdlib
+$ 
+
+<program> := (<module-level-declaration)* EOF
+
+<module-declaration> := <comment>
+					  | <context-statement>
+					  | <function-declaration>
+					  | <variable-declaration>
+
+<comment> := '$' (_)* <EOL>
+
+<context-statement> := 'root' <identifier-list>
+					 | 'import' <identifier-list>
+					 | 'export' <identifier-list>
+
+<identifier-list> := <identifier> *(',' <identifier>)
+
+<function-declaration> := 'fn' <identifier> <function-type> <function-body>
+
+<function-type> := <arg-list> '->' (<type-list>)?
+
+<arg-list> := '(' <arg> *(',' <arg>) ')'
+<type-list>   := '(' <type> *(',' <type>) ')'
+
+<arg> := <identifier> ':' <type>
+
+<function-body> := <scope>
+
+<scope> := '{' *(<variable-declaration> | <statement>) '}'
+
+<variable-declaration> := <identifier> ':' <type> ?('=' <initializer>) ';'
+						| <identifier> ('::' | ':=') <initializer> ';'
+
+<type> := 'int'
+		| 'real'
+		| 'text'
+		| 'bool'
+
+<initializer> := <expression>
+
+<statement> := <if>
+			 | <while>
+			 | <return>
+			 | <scope>
+			 | <expression>
+
+<if>	:= 'if' '(' <expression> ')' <statement> ?('else' <statement> )
+<while> := 'while' '(' <expression> ')' <statement>
+<return> := 'return' <expression>
+
+<expression> := <expr> (',' <expr>)* ';'
+
+$ some complicated, valid expressions that should be 
+$ able to be parsed given this BNF grammar
+$ a, b, c, d = f(g + k, h - J(q), i, j);
+$ a = 0, b = "sometext", c = j + k, g = F() - G(P);
+
+<expr> := <parse-expression>(<primary-expr>, 0)
+
+$ this is a non-standard way of expressing this,
+$ this function implements the grammar of expressions in the language
+$ it is an instance of an operator precedence parser
+<parse-expression>(lhs: _ast*, min_prec: int) := {
+	lad := curtok()
+	while (predict_binop(lad) & precedence(lad) >= min_prec) {
+		op := lad
+		nexttok()
+		rhs := <primary-expr>
+		lad = curtok()
+		while (predict_binop(lad) & precedence(lad) > precedence(op)) {
+			rhs = <parse-expression>(rhs, precedence(lad))
+			lad = curtok();
+		}
+		lhs = create _binop(op, lhs, rhs)
+	}
+	return lhs
+}
+
+$ my attempt at an operator-precedence parser in BNF
+<parse-expression>(lhs : <ast>, min_prec: int) :=
+	<primary-expr> *((<prev-binop> & precedence(<token>) >= min_prec) <primary-expr>
+						*(<binop> & precedence(<token>) > precedence(<prev-binop>) <parse-expression>(<primary-expr>, precedence(<binop>)
+					)
+
+<primary-expr> := <identifier> (<call-list>)? 
+				| '(' <expression> ')'
+				| <unop> <primary-expr>
+				| <literal>
+
+<call-list> := <expression>
+
+$ the regular way of doing operator-precedence in BNF
+$ (lower -> tighter binding)
+<expression> := <expr> ';'
+
+<expr> := <assignment-expr>
+		| <expr> ',' <assignment-expr>
+
+<assignment-expr> := <logical-exuality-expr>
+				   | <unary-expr> <assignment-operator> <assignment-expr>
+
+<logical-equality-expr> := <logical-relation-expr>
+						 | <logical-equality-expr> '==' <logical-relation-expr>
+						 | <logical-equality-expr> '!=' <logical-relation-expr>
+
+<logical-relation-expr> := <logical-or-expr>
+						 | <logical-relation-expr> '<' <logical-or-expr>
+						 | <logical-relation-expr> '>' <logical-or-expr>
+						 | <logical-relation-expr> '<=' <logical-or-expr>
+						 | <logical-relation-expr> '>=' <logical-or-expr>
+
+<logical-or-expr := <logical-xor-expr>
+				  | <logical-or-expr> '|' <logical-xor-expr>
+
+<logical-xor-expr> := <logical-and-expr>
+					| <logical-xor-expr> '^' <logical-and-expr>
+
+<logical-and-expr> := <logical-not-expr>
+					| <logical-and-expr> '&' <bitwise-or-expr>
+
+<bitwise-or-expr>  := <bitwise-xor-expr>
+					| <bitwise-or-expr> '||' <bitwise-xor-expr>
+
+<bitwise-xor-expr> := <bitwise-and-expr>
+					| <bitwise-xor-expr> '^^' <bitwise-end-expr>
+
+<bitwise-and-expr> := <bitwise-not-expr>
+					| <bitwise-and-expr> '&&' <bitwise-shift-expr>
+
+<bitwise-shift-expr> := <arithmetic-additive-expr>
+					  | <bitwise-shift-expr> '<<' <arithmetic-additive-expr>
+					  | <bitwise-shift-expr> '>>' <arithmetic-additive-expr>
+
+<arithmetic-additive-expr> := <arithmetic-multiplicative-expr>
+							| <arithmetic-additive-expr> '+' <arithmetic-multiplicative-expr>
+							| <arithmetic-additive-expr> '-' <arithmetic-multiplicative-expr>
+
+<arithmetic-multiplicative-expr> := <typecast-expr>
+								  | <arithmetic-multiplicative-expr> '*' <postfix-expr>
+								  | <arithmetic-multiplicative-expr> '/' <postfix-expr>
+								  | <arithmetic-multiplicative-expr> '%' <postfix-expr>
+
+<postfix-expr> := <primary-expr>
+				| <postfix-expr> <argument-list>
+
+<primary-expr> := <identifier>
+				| <literal>
+				| <unary-expr>
+				| '(' (<expr>)? ')'
+				| ')'
+				| ';'
+
+<unary-expr> := <unop> <primary-expr>
+

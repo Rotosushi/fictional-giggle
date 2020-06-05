@@ -1,0 +1,153 @@
+
+
+the language that programs are written in will have a fairly
+standard feature list (initially). the unique feature will be its open-ended
+design. that is, the implementation of the language will
+be such that new features and grammatic constructs can be
+added to the language, including the ability to write those
+constructs directly in the language.
+
+this is different from a library, in the sense that a library
+implements project or program specific behavior. whereas things
+that get implemented in the specification will change the 
+base behavior of the compiler itself, by adding or building
+on features. 
+
+(this also means that the language can be built by it's specification,
+	which has implications that I probably can't imagine,
+	having never worked with something like that.
+	in fact i don't believe something like that exists already.
+	which is rare for an idea i have.)
+
+this introduces a spectrum of code to the language, with
+each portion having a different set of assumptions; and a
+sort of trajectory from "*this* was usefull in this one project" to
+"hey *this* can also be applied *here*, maybe i can apply it *elsewhere*"
+to finally, "wow i can't imagine programming without *this* in the
+	language." (im also not saying this to imply that every
+	peice of code will or has to follow that trajectory, it 
+	is merely another categorization we can imagine placing on
+	the code, one which is orthoginal to other categories,
+	because it is entirely reliant on how individual 
+	programmers organize and think about code.
+	a computer language cannot know a-priori which
+	code is going to end up in a library, or which
+	will end up in an executable, the language is merely
+	there to facilitate that tranformation, as an
+	essential component of the program lifecycle.
+
+updating the language that subsequently compiles programs is 
+then as simple as updating a text file (or folder of text files
+or a folder of folder of text files)
+
+we have the kernal of the language
+	then we have abstractions
+
+to be explicit the language will be broken in two.
+
+implementation -> pink prime (pink')
+programmatic   -> pink
+
+the implementation will be a fairly naieve LL(1) parser
+generator in the vein of CDL(1|2) or Bison/Yacc. this language
+will understand how to produce a compiler from a specification
+language. the specification language will be expressive enough
+to build simple programming constructs like functions and
+variables as well as complex programming constructs like polymorphism,
+higher-order functions, lazy evaluation, and algebraic datatypes
+(my instinct is that an attribute grammar like description language, 
+along with the comprehension rules of CDL1/2 
+together will be powerfull enough to express the aforementioned features)
+then this language will be used to specify pink. and other programming languages.
+
+a current question is how to describe the runtime of a language within a language,
+but i plan on answering that after developing pink and pink'. after first writing a plain
+pink implementation. gotta write a runtime before you can imagine 
+exactly what goes into automating the generation of a runtime.
+
+why two languages? well, it is my instinct, that once both are
+in place, a macro facility like in
+lisp will be achievable in the subsequent LL(1) parsable language. given
+that the language can then be extended by both language maintainers,
+and by programmers using the language (hopefully library writers mostly)
+ and being able to rely on a kernel grammar, is the true goal. 
+ what the kernel gives to the language is a path to portability
+ and an automation of the simplest tasks.
+the hope is then that in order to add a new 
+feature, the compiler or the compiler prime would be able to tell you
+every point of friction between this new feature and the existing language,
+explicitly, by the nature of how you add features to the language being a language
+itself.
+
+say you wanted to parse JSON input, instead of writing all the mechanics of the
+parser and underlying boilerplate, you just have to give the specification once
+in a language that the kernel understands,
+and then use any given kernel feature with that resulting entity.
+
+so, if pink' is designed only to parse LL(1) languages in v1, then pink should
+be defined as an LL(1) language from the ground up.
+
+a compiler is traditionally defined by three phases,
+lexing, parsing and semantic-analysis;
+optimization & code-generation;
+linking and output;
+
+if i start from the beginning of the compiler, we first pick up the source text
+in a structured fashion. this intial structure defines semantics as written by
+the programmer. then this text is assigned meaning by way of semantic analysis.
+this is done by walking the initial structure and defining it more fully, inferring
+information and filling in the gaps left by the syntax. then we can optionally
+walk the tree and consolidate information, or modify it in some constrained and
+known way to improve aspects of the semantics in so called optimization passes.
+the compiler can optimize against time or space.
+this is also done by walking the initial structure, but this time we can rely on the information provided
+by semantic analysis to modify it. the next phase is the actual transformation,
+where again we traverse the initial structure, and this time we use it to produce
+equivalent semantics in the target language. the final phase outputs the generated code via 
+some I/O. there are a plethora of complications once you consider dynamic linking and loading, 
+supporting multiple hardware architectures, supporting multiple operating systems, etc.
+
+
+so it seems more like four phases.
+reading the source text into some IR which we can analyze.
+preforming static analysis on some Intermediate Representation,
+preforming optimization on some IR, 
+and then linking the program together,
+
+and you need some loader to get the program into memory,
+and then you need some way of jumping into different programs
+from some reccuring starting point.
+
+so writing an OS just sort of naturally flows from this 
+level of abstraction.
+
+so the kernel of the language flows naturally into the kernel of
+the operating system. the line between language and operating system
+is a thin one, and mainly stems from the difference in the supported syntax.
+
+the so called 'front end' of the language is composed of
+lexing, parsing and semantic analysis. these three components
+seem to be well defined using graphemes, productions, and attributes.
+optimization, code-generation, linking, and output, can then all be described
+by adding functions with local variables, primitive operations, and I/O.
+
+if we look to another modern
+compiler-compiler, LLVM, we see that they drew the boundary around
+their program at the Intermediate Representation (IR).
+meaning, given some IR, LLVM can preform optimization, code-generation,
+and linkage. but producing correct IR is still something left to the
+programmer. the current pink' already sits squarely here conceptually,
+as the go-between from the 'high-level' syntax of pink' (the attribute grammar)
+to the syntax of some IR. IR generation is something we need to do
+either if we implement the back-end of the compiler itself, or if we use LLVM as
+the back-end.
+
+the structure is generally, we create the abstract syntax tree, then
+we walk the tree and preform semantic analysis, we walk the tree again
+and preform optimization, then we walk it again and produce the code,
+then we link all the modules of the program together and combine their
+namespaces.
+
+personally I would like the experience of writing the back end of a compiler
+even if in the end some tool like LLVM ends up being the correct choice,
+as they have done almost all of the legwork for the back end of any compiler.
