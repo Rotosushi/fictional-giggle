@@ -44,7 +44,7 @@ Scanner* createScanner(FILE* in);
 void     destroyScanner(Scanner* scanner);
 int      yyfill(Scanner* scanner);
 char*    yytext(Scanner* scanner);
-StrLoc*  yylloc(Scanner* scanner);
+struct StrLoc*  yylloc(Scanner* scanner);
 int      yylex(struct Parser* parser, Scanner* scanner, struct StrLoc* llocp);
 
 #endif

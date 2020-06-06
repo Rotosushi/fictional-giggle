@@ -13,7 +13,7 @@ typedef struct PrecedenceTable {
 } PrecedenceTable;
 
 PrecedenceTable* CreatePrecedenceTable();
-void DestroyPrecedenceTable(PrecedenceTable* table)
+void DestroyPrecedenceTable(PrecedenceTable* table);
 void InsertOpPrec(PrecedenceTable* table, char* op, int prec);
 void DeleteOpPrec(PrecedenceTable* table, char* op);
 int  LookupOpPrec(PrecedenceTable* table, char* op);

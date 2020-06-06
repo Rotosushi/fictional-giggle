@@ -3,6 +3,7 @@
 
 #include "lexer.h"
 #include "ast.h"
+#include "precedencetable.h"
 
 struct StrLoc;
 struct Scanner;
@@ -34,6 +35,9 @@ typedef struct Parser {
   int idx;
   int mkstsz;
   int bufsz;
+  PrecedenceTable* precTable;
+  StringSet* binopSet;
+  StringSet* unopSet;
 } Parser;
 
 Parser* createParser();

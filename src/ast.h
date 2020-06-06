@@ -39,78 +39,61 @@ typedef struct StrLoc
 */
 
 typedef enum NodeTag {
-	N_ID,
 	N_ENTITY,
 	N_CALL,
-	N_BIND,
+	N_BINOP,
+  N_UNOP,
 } NodeTag;
 
+typedef enum EntityTag {
+  E_ID,
+	E_TYPE,
+  E_LITERAL,
+} EntityTag;
+
 typedef enum TypeTag {
-	T_POLY,
 	T_NIL,
-	T_LAMBDA,
+  T_PROC,
+  T_POLY,
 } TypeTag;
 
-typedef enum EntityTag {
-	E_TYPE,
-	E_LAMBDA,
-} EntityTag;
+typedef enum LiteralTag {
+  L_NIL,
+  L_PROC,
+} LiteralTag;
 
 struct Ast;
 
-/*
-	c's type system's limitations
-	force us to be less typesafe
-	than I would like, in a language
-	with subtype polymorphism,
-	we can describe a Type clearly
-	as a subtype of Ast. then
-	the function type members could be
-	two pointers to Type instead of
-	pointers to Ast, which would allow
-	the same composition of type nodes
-	to describe recursive types as is
-	provided by Ast pointers, but it
-	would disallow assigning a lambda
-	Ast node or a Call Ast Node to a type variable,
-	something which is probably a semantic error
-	on the part of the programmer.
-
-	(
-	though in a pure type system;
-		where types are first class Entitys,
-	  I could imagine some meaning for a
-	  type-described-by-a-lambda,
-		it could be a parametric type constructor.
-	)
-*/
 typedef struct Type {
 	TypeTag tag;
-	union {
-		char null;
-		struct {
-			struct Ast* lhs;
-			struct Ast* rhs;
-		} rarrow;
-	} u;
+  union {
+    char nil;
+    struct {
+      struct Ast* lhs;
+      struct Ast* rhs;
+    } proc;
+  } u;
 } Type;
-
-/* a name simply owns the string which is the name */
-typedef struct Id {
-	char* s;
-} Id;
 
 /* an arg needs to hold a name and it's type */
 typedef struct Arg {
-	Id   id;
+	char*       id;
 	struct Ast* type;
 } Arg;
 
 /* a lambda needs to hold it's argument, and it's body */
-typedef struct Lambda {
+typedef struct Procedure {
 	Arg  arg;
 	struct Ast* body;
-} Lambda;
+} Procedure;
+
+typedef struct Literal {
+  LiteralTag tag;
+  union {
+    char nil;
+    Procedure proc;
+  } u;
+} Literal;
 
 /* the entity struct conveys that this term is a thing,
 	 something which has existance and can be acted upon.
@@ -119,8 +102,9 @@ typedef struct Lambda {
 typedef struct Entity {
 	EntityTag tag;
 	union {
-		Type   type;
-		Lambda lambda;
+    char*     id;
+    Type      type;
+    Literal   literal;
 		/*
 		char*  string_literal
 		int    int_literal
@@ -137,11 +121,17 @@ typedef struct Call {
 	struct Ast* rhs;
 } Call;
 
-/* a bind needs to hold the to-be-bound name and the term that is being bound */
-typedef struct Bind {
-	Id   id;
-	struct Ast* term;
-} Bind;
+/* a binop needs to hold it's op, lhs and rhs*/
+typedef struct Binop {
+  char* op;
+	struct Ast* lhs;
+  struct Ast* rhs;
+} Binop;
+
+typedef struct Unop {
+  char* op;
+  struct Ast* rhs;
+} Unop;
 
 /*
 	the ast needs to provide the uniform type so that we can talk about
@@ -152,13 +142,14 @@ typedef struct Ast {
 	NodeTag tag;
 	struct StrLoc lloc;
 	union {
-		Id     id;
 		Entity entity;
 		Call   call;
-		Bind   bind;
+		Binop  binop;
+    Unop   unop;
 	} u;
 } Ast;
 
+/*
 Ast* CreateAstId(char* name, struct StrLoc* llocp);
 Ast* CreateAstEntityNil(struct StrLoc* llocp);
 Ast* CreateAstEntityTypeNil(struct StrLoc* llocp);
@@ -167,6 +158,16 @@ Ast* CreateAstEntityTypeFn(Ast* l, Ast* r, struct StrLoc* llocp);
 Ast* CreateAstEntityFn(char* name, Ast* type, Ast* body, struct StrLoc* llocp);
 Ast* CreateAstCall(Ast* l, Ast* r, struct StrLoc* llocp);
 Ast* CreateAstBind(char* name, Ast* term, struct StrLoc* llocp);
+*/
+Ast* CreateAstEntityId(char* id, struct StrLoc* llocp);
+Ast* CreateAstEntityTypeNil(struct StrLoc* llocp);
+Ast* CreateAstEntityTypePoly();
+Ast* CreateAstEntityTypeProc(struct Ast* lhs, struct Ast* rhs, struct StrLoc* llocp);
+Ast* CreateAstEntityLiteralNil(struct StrLoc* llocp);
+Ast* CreateAstEntityLiteralProc(char* arg_id, Ast* arg_type, Ast* body, struct StrLoc* llocp);
+Ast* CreateAstCall(Ast* lhs, Ast* rhs, struct StrLoc* llocp);
+Ast* CreateAstBinop(char* op, Ast* lhs, Ast* rhs, struct StrLoc* llocp);
+Ast* CreateAstUnop(char* op, Ast* rhs, struct StrLoc* llocp);
 
 void DeleteAst(Ast* ast);
 

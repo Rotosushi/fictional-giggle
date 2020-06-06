@@ -147,21 +147,21 @@ loop:
       re2c:variable:yych   = scanner->yych;
       re2c:eof = 0;
 
-      [ \t\n\r]  { update_location(&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); goto loop; }
-      *          { update_location(&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return ERR; }
-      $          { update_location(&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return END; }
-      "nil"      { update_location(&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return NIL; }
-      ":"        { update_location(&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return COLON; }
-      ":="       { update_location(&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return COLONEQUALS; }
-      "\\"       { update_location(&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return BSLASH; }
-      "->"       { update_location(&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return RARROW; }
-      "=>"       { update_location(&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return REQARROW; }
-      ";"        { update_location(&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return SEMICOLON; }
-      "("        { update_location(&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return LPAREN; }
-      ")"        { update_location(&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return RPAREN; }
-      "{"        { update_location(&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return LBRACE; }
-      "}"        { update_location(&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return RBRACE; }
-      identifier { update_location(&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return ID; }
+      [ \t\n\r]  { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); goto loop; }
+      *          { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return ERR; }
+      $          { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return END; }
+      "nil"      { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return NIL; }
+      ":"        { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return COLON; }
+      ":="       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return COLONEQUALS; }
+      "\\"       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return BSLASH; }
+      "->"       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return RARROW; }
+      "=>"       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return REQARROW; }
+      ";"        { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return SEMICOLON; }
+      "("        { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return LPAREN; }
+      ")"        { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return RPAREN; }
+      "{"        { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return LBRACE; }
+      "}"        { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return RBRACE; }
+      identifier { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return ID; }
   */
 }
 

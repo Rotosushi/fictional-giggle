@@ -4,9 +4,11 @@
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
 # the files that pink ignores
+src/pink
+src/core
 src/lexer.l
 src/parser.y
-
+src/BottomUpParsingNotes
 
 # User-specific files
 *.rsuser
