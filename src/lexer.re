@@ -135,7 +135,7 @@ void update_location(StrLoc* llocp, char* token, int length)
 
 
 
-int yylex(Parser* parser, Scanner* scanner, struct StrLoc* llocp)
+int yylex(Parser* parser, Scanner* scanner)
 {
   /*!getstate:re2c*/
   scanner->token = scanner->cursor;

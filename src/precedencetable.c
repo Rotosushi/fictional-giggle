@@ -27,7 +27,7 @@ void DestroyPrecedenceTable(PrecedenceTable* table)
   table->len  = 0;
 }
 
-void InsertOpPrec(PrecedenceTable* table, char* op, int prec)
+void InsertOpPrec(PrecedenceTable* table, char* op, int prec, ASSOC associativity)
 {
   OpPrec* cur = table->root, *prv = NULL;
   int cmp     = -1;
@@ -47,9 +47,10 @@ void InsertOpPrec(PrecedenceTable* table, char* op, int prec)
 
   */
   if (cur == NULL) {
-    table->root       = (OpPrec*)malloc(sizeof(OpPrec));
-    table->root->op   = strdup(op);
-    table->root->prec = prec;
+    table->root        = (OpPrec*)malloc(sizeof(OpPrec));
+    table->root->op    = strdup(op);
+    table->root->prec  = prec;
+    table->root->assoc = associativity;
     table->len        += 1;
   }
   // iterate through the list until we find either
@@ -64,6 +65,7 @@ void InsertOpPrec(PrecedenceTable* table, char* op, int prec)
     OpPrec* opPrec = (OpPrec*)malloc(sizeof(OpPrec));
     opPrec->op     = strdup(op);
     opPrec->prec   = prec;
+    opPrec->assoc  = associativity;
     opPrec->next   = cur;
     prv->next      = opPrec;
     table->len     += 1;
@@ -74,6 +76,7 @@ void InsertOpPrec(PrecedenceTable* table, char* op, int prec)
       OpPrec* opPrec = (OpPrec*)malloc(sizeof(OpPrec));
       opPrec->op     = strdup(op);
       opPrec->prec   = prec;
+      opPrec->assoc  = associativity;
       prv->next      = opPrec;
       table->len     += 1;
     }
@@ -104,6 +107,23 @@ int  LookupOpPrec(PrecedenceTable* table, char* op)
     return cur->prec;
   } else {
     return -1;
+  }
+
+}
+
+ASSOC LookupOpAssoc(PrecedenceTable* table, char* op)
+{
+  OpPrec *cur = table->root;
+  int cmp = -1;
+
+  while (cur != NULL && (cmp = strcmp(cur->op, op)) != 0) {
+    cur = cur->next;
+  }
+
+  if (cur) {
+    return cur->assoc;
+  } else {
+    return A_UNDEF;
   }
 
 }

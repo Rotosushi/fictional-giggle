@@ -14,16 +14,16 @@ StringSet* createStringSet()
 
 StringSet* copyStringSet(StringSet* s)
 {
-  StringSet* res = createStringSet()
+  StringSet* res = createStringSet();
   if (s == NULL) return res;
   Elem* elem = s->root;
   while (elem != NULL) {
-    append(elem->str, res);
+    appendStr(elem->str, res);
   }
   return res;
 }
 
-void append(char* s, StringSet* strset)
+void appendStr(char* s, StringSet* strset)
 {
   Elem* elem = (Elem*)malloc(sizeof(Elem));
   elem->str  = strdup(s);
@@ -41,7 +41,7 @@ void append(char* s, StringSet* strset)
   }
 }
 
-void remove(char* s, StringSet* strset)
+void removeStr(char* s, StringSet* strset)
 {
   Elem* prv = NULL, *ths = strset->root;
   int cmp   = strcmp(s, ths->str);
@@ -70,11 +70,11 @@ void remove(char* s, StringSet* strset)
     }
     prv = ths;
     ths = ths->next;
-    cmp = strcmp(name, ths->str);
+    cmp = strcmp(s, ths->str);
   }
 }
 
-StringSet* union (StringSet* s1, StringSet* s2)
+StringSet* unionStrSets (StringSet* s1, StringSet* s2)
 {
   /* the elements of both sets (no repeats) */
   if (s1 == NULL) {
@@ -99,26 +99,26 @@ StringSet* union (StringSet* s1, StringSet* s2)
        so we can just copy the second list */
     else
       while (s2e != NULL)
-        append(s2e->str, sr);
+        appendStr(s2e->str, sr);
   }
   /* the first list has elems, does the second? */
   else if (s2e == NULL)
     /* the first list isn't empty, but the second
        list is, so we copy the first list */
     while (s1e != NULL)
-      append(s1e->str, sr);
+      appendStr(s1e->str, sr);
   /* both lists have elems */
   else {
-    /* append all members of the first list */
+    /* appendStr all members of the first list */
     while (s1e != NULL) {
-      append(s1e->str, sr);
+      appendStr(s1e->str, sr);
       s1e = s1e->next;
     }
 
-    /* append every elem not already a member from the second list */
+    /* appendStr every elem not already a member from the second list */
     while (s2e != NULL) {
       if (!isMember(s2e->str, sr))
-        append(s2e->str, sr);
+        appendStr(s2e->str, sr);
 
       s2e = s2e->next;
     }
@@ -126,7 +126,7 @@ StringSet* union (StringSet* s1, StringSet* s2)
   return sr;
 }
 
-StringSet* intersection (StringSet* s1, StringSet* s2)
+StringSet* intersectionStrSets (StringSet* s1, StringSet* s2)
 {
   /* the elements that are in both lists are in the result */
 
@@ -161,11 +161,11 @@ StringSet* intersection (StringSet* s1, StringSet* s2)
       return createStringSet();
     /* both lists have elems */
     else {
-      /* append all members of the first list
+      /* appendStr all members of the first list
          which are members of the second list */
       while (s1e != NULL) {
         if (isMember(s1e->str, s2))
-          append(s1e->str, sr);
+          appendStr(s1e->str, sr);
 
         s1e = s1e->next;
       }
@@ -174,7 +174,7 @@ StringSet* intersection (StringSet* s1, StringSet* s2)
 
 }
 
-StringSet* complement (StringSet* s1, StringSet* s2)
+StringSet* complementStrSets (StringSet* s1, StringSet* s2)
 {
   /* s1 but remove all elements of s1 that are in s2 */
 
@@ -207,7 +207,7 @@ StringSet* complement (StringSet* s1, StringSet* s2)
     /* the first list isn't empty, but the second
        list is, so the result is the first list */
     while(s1e != NULL) {
-      append(s1e->str, sr);
+      appendStr(s1e->str, sr);
 
       s1e = s1e->next;
     }
@@ -215,11 +215,11 @@ StringSet* complement (StringSet* s1, StringSet* s2)
   /* both lists have elems */
   else {
 
-    /* append all members of the first list
+    /* appendStr all members of the first list
        which are not members of the second list */
     while (s1e != NULL) {
       if (!isMember(s1e->str, s2))
-        append(s1e->str, sr);
+        appendStr(s1e->str, sr);
 
       s1e = s1e->next;
     }
@@ -243,7 +243,7 @@ bool is_member (char* s, StringSet* strset)
       elem = elem->next;
       while (elem != NULL) {
         cmp  = strcmp(s, elem->str);
-        if (cmp = 0) return true;
+        if (cmp == 0) return true;
         elem = elem->next;
       }
   }
@@ -256,7 +256,7 @@ bool is_subset (StringSet* s1, StringSet* s2)
      s1 is a proper subset of s2. */
 }
 
-void destroyStringSet (StringSet* s)
+void DestroyStringSet (StringSet* s)
 {
   Elem *prv = NULL, *ths = s->root;
   while (ths != NULL) {

@@ -6,7 +6,9 @@
 #include "parser.h"
 #include "lexer.h"
 #include "precedencetable.h"
+#include "stringset.h"
 #include "ast.h"
+#include "error.h"
 
 /*
 term:
@@ -27,6 +29,73 @@ void InitializePrecedenceTable(PrecedenceTable* pTable)
 {
   /*
   my previous attempt at the precedence table
+  obviously we want to maintain the same precedence
+  relations between the common math symbols. and also
+  understanding that for many, the c precedence table
+  is de-facto standard for programming languages.
+
+  so, starting from the perspective of emulating mathematics
+  we want to preform basic actions on numbers/entities.
+  3 + 4 * 5 HAS TO parse to (* 5 (+ 3 4))
+  when a programmer wants to preform bitwise operations
+  on numbers, they probably want the bitwise operations to
+  operate on numbers which have already been manipulated
+  to some final value.
+  x || y * z,
+  likewise when we go up a step to the logical connectives,
+  we want to test for truth and falsehood upon values which
+  have been fully operated upon. a + b > c * d.
+
+  the same argument is made when we take another step up to
+  equality comparison.
+  say to the case of
+  a + b > c * d == e - f < g \ h
+
+  we want to test for equality between the largest lhs and right we can
+  group together. because we are assuming the programmer wants to compare
+  between fully evaluated terms, which implies gathering as many operations
+  into the evaluation tree before we insert the comparison operation.
+
+  and, the same argument extends to the programming language specific operators
+  ',', ';', ':=', '[', ']', '(', ')', '{', '}'
+  and the type connectives '->', '+', '|', '&', '!'
+
+  why do I invert the logical symbols and the bitwise symbols?
+  well, for logical consistency, and the fact that logical connectives
+  are more common than bitwise operations, by a wide-margin.
+  (and now, LSHIFT <<, and RSHIFT >>, align with the rest of the
+   bitwise operators OR ||, and &&, and xor ^^, in being two symbol operators.
+  )
+  when we consider equals and not equals, =, ~= resp. one can probably intuit
+  the meaning of the compound symbol ~= just from knowing that = means equal-to
+  and ~ means logical-negation. this also aligns with ~ being the logical not.
+  instead of ! as in c. why is that? well, the operator *, is used to represent
+  type kinds in the theory, and it would be nice to align the language to some
+  theory symbolically. since we are deciding to reapropriate * for types, then
+  it could create confusion to also use it as the indirection unop. so we will
+  pay some homage to ML by taking ! to be the indirection operator. which takes
+  ! away from the logical commectives, because again too much overloading
+  increases the cognitive complexity of the kernel, and so we must select
+  a new symbol for logical-negation.
+  hence, ~ for logical-negation, and ~~ for bitwise negation. notice how
+  this aligns with every bitwise operator, being composed of a repetition
+  of some other operator. when a programmer sees a || instead of a | it should
+  always be able to be read as a bitwise operation. this at least holds for the
+  kernel, obviously if we give programmers the tools to both overload existing
+  operators, and define new operators, they can define new operators which
+  negate the truth of the above statement quite easily. but that is separate
+  from the logical consistency of the kernel.
+
+  (normally in ML ~ is the unop minus to the binop minus -, we just use the
+   fact that unary minus always appears in prefix position and disambiguate
+   by the position instead of symbol the operation to be carried out. meaning
+   both forms of minus are symbolically stated by the - symbol, this is in
+   some sense of the word, overloading the symbol with two meanings, however
+   since the two meanings are entirely disambiguated by the grammar there is no
+   need to consider any special logic to support the two definitions, we can
+   )
+
+
     ptable[T_COMMA] = 1;
   	ptable[T_EQ] = 2;
 
@@ -56,14 +125,15 @@ void InitializePrecedenceTable(PrecedenceTable* pTable)
   	ptable[T_DIV] = 13;
   	ptable[T_MOD] = 13;
   */
-  InsertOpPrec(pTable, ":=", 2);
-  InsertOpPrec(pTable, "->", 3);
+
+  InsertOpPrec(pTable, ":=", 2, A_LEFT);
+  InsertOpPrec(pTable, "->", 3, A_RIGHT);
 }
 
 void InitializeBinops(StringSet* binopSet)
 {
-  append(":=", binopSet);
-  append("->", binopSet);
+  appendStr(":=", binopSet);
+  appendStr("->", binopSet);
 }
 
 void InitializeUnops(StringSet* unopSet)
@@ -84,7 +154,7 @@ Parser* createParser()
   result->pTable = CreatePrecedenceTable();
   InitializePrecedenceTable(result->pTable);
   InitializeBinops(result->binopSet);
-  InitializeUnop(result->unopSet);
+  InitializeUnops(result->unopSet);
   return result;
 }
 
@@ -97,6 +167,8 @@ void destroyParser(Parser* p)
     free(p->texbuf[i]);
   free(p->texbuf);
   DestroyPrecedenceTable(p->pTable);
+  DestroyStringSet(p->binopSet);
+  DestroyStringSet(p->unopSet);
   p->idx = 0;
   p->mkstsz = 0;
   p->bufsz = 0;
@@ -175,7 +247,7 @@ bool speculating(Parser* p)
   return p->mkstsz > 0;
 }
 
-void fillTokens(Parser* p, Scanner* s, StrLoc* loc, int i)
+void fillTokens(Parser* p, Scanner* s, int i)
 {
   /*
     add (i) tokens to the buffer of tokens
@@ -211,19 +283,19 @@ void fillTokens(Parser* p, Scanner* s, StrLoc* loc, int i)
        */
        Token t = ERR;
 
-       while ((t = yylex(p, s, loc)) == MORE) {
+       while ((t = yylex(p, s)) == MORE) {
          yyfill(s);
        }
 
        p->tokbuf[i] = t;
-       p->texbuf[i] = yytext(scanner);
-       p->locbuf[i] = *loc;
+       p->texbuf[i] = yytext(s);
+       p->locbuf[i] = *yylloc(s);
     }
   }
 
 }
 
-void nexttok(Parser* p, Scanner* s, StrLoc* loc)
+void nexttok(Parser* p, Scanner* s)
 {
   p->idx += 1;
 
@@ -238,13 +310,13 @@ void nexttok(Parser* p, Scanner* s, StrLoc* loc)
     free(p->locbuf);
   }
 
-  fillTokens(p, s, l, 1);
+  fillTokens(p, s, 1);
 }
 
-bool speculate(Parser* parser, Scanner* scanner, StrLoc* llocp, Token token)
+bool speculate(Parser* parser, Scanner* scanner, Token token)
 {
   if (token == curtok(parser)) {
-    nexttok(parser, scanner, llocp);
+    nexttok(parser, scanner);
     return true;
   } else
     return false;
@@ -252,13 +324,13 @@ bool speculate(Parser* parser, Scanner* scanner, StrLoc* llocp, Token token)
 
 bool predicts_unop(Parser* p, char* op)
 {
-  if (isMember(op, p->unopTable)) return true;
+  if (isMember(op, p->unopSet)) return true;
   else return false;
 }
 
 bool predicts_binop(Parser* p, char* op)
 {
-  if (isMember(op, p->binopTable)) return true;
+  if (isMember(op, p->binopSet)) return true;
   else return false;
 }
 
@@ -314,19 +386,19 @@ bool predicts_primary(Token t)
   }
 }
 
-Ast* parse_term(Parser* p, Scanner* s, StrLoc* l);
-bool speculate_term(Parser* p, Scanner* s, StrLoc* l);
+Ast* parse_term(Parser* p, Scanner* s);
+bool speculate_term(Parser* p, Scanner* s);
 
-Ast* parse(Parser* parser, Scanner* scanner, StrLoc* loc)
+Ast* parse(Parser* parser, Scanner* scanner)
 {
   Ast* result = NULL;
 
   mark(parser);
-  bool term = speculate_term(parser, scanner, loc);
+  bool term = speculate_term(parser, scanner);
   release(parser);
 
   if (term)
-    result = parse_term(parser, scanner, loc);
+    result = parse_term(parser, scanner);
 
   return result;
 }
@@ -353,12 +425,12 @@ call      := term term
 primary   := entity
            | unop-expr
            | parens
-           | call
 
 binop-expr := term binop term
 
 term := primary
       | binop-expr
+      | call
 
 
     a + b c - d
@@ -371,20 +443,21 @@ term := primary
     -->> (* (+ (a b) (c d)) (- (d e) (f g)))
 
     (a binop b) (c binop d binop e)
-    -->>(binop a b) (binop c d e)
+    -->>(binop a b) (binop c (binop d e))
 */
 
 
-Ast* parse_literal(Parser* p, Scanner* s, StrLoc* l);
-Ast* parse_lambda(Parser* p, Scanner* s, StrLoc* l);
-Ast* parse_entity(Parser* p, Scanner* s, StrLoc* l);
-Ast* parse_call(Parser* p, Scanner* s, StrLoc* l, Ast* lhs, StrLoc* lhsloc);
-Ast* parse_infix_expr(Parser* p, Scanner* s, StrLoc* l, Ast* lhs, StrLoc* lhsloc);
-Ast* parse_unop(Parser* p, Scanner* s, StrLoc* l);
-Ast* parse_parens(Parser* p, Scanner* s, StrLoc* l);
-Ast* parse_primary(Parser* p, Scanner* s, StrLoc* l);
+Ast* parse_literal(Parser* p, Scanner* s);
+Ast* parse_lambda(Parser* p, Scanner* s);
+Ast* parse_entity(Parser* p, Scanner* s);
+Ast* parse_call(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc);
+Ast* parse_binop(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc);
+Ast* parse_infix_expr(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc, int minPrec);
+Ast* parse_unop(Parser* p, Scanner* s);
+Ast* parse_parens(Parser* p, Scanner* s);
+Ast* parse_primary(Parser* p, Scanner* s);
 
-Ast* parse_term(Parser* p, Scanner* s, StrLoc* l)
+Ast* parse_term(Parser* p, Scanner* s)
 {
   /*
       constant := nil
@@ -419,7 +492,7 @@ Ast* parse_term(Parser* p, Scanner* s, StrLoc* l)
   Token ct = curtok(p);
   StrLoc* termlhsloc = curloc(p), *termrhsloc = NULL;
   if (predicts_primary(ct)) {
-    term = parse_primary(p, s, l);
+    term = parse_primary(p, s);
     termrhsloc = curloc(p);
   }
 
@@ -430,9 +503,11 @@ Ast* parse_term(Parser* p, Scanner* s, StrLoc* l)
     valid term is a binop, then we need to parse
     an operator precedence expression, if the term predicts
     another primary expression then we need to parse a call expr.
+    otherwise, there is no valid term after the first one parsed
+    and we can return the term by itself.
 
      the two most primitive operators in the language are:
-     bind (:=) is a binop taking an ID term and any other term
+     bind (:=) is a binop taking an ID entity and any other term
      which creates an environmental binding between that ID and term.
 
      the type constructor (->) can be described in terms of
@@ -442,21 +517,6 @@ Ast* parse_term(Parser* p, Scanner* s, StrLoc* l)
       which is a binop of very low precedence
       which simply evaluates it's arguments
       and discards the result of the lhs.)
-
-      if we parsed a term then result will be
-      non-null, since result is always initialized
-      to NULL the only way for it to become non-null
-      is by the flow of control having validly parsed
-      some tokens into a Ast Node.
-      if all of those parsed statements
-      failed, that is conveyed by the
-      result ptr being NULL.
-      hence, if result is non-null
-      then it must point to a valid term,
-      now, any term can be followed by a binop, provided a term of the correct
-      type appears on the other side. but, given we are simply
-      parsing we accept any well-formed term on either side
-      of any valid operator regardless of type.
   */
   if (term != NULL) {
     StrLoc LhsLoc;
@@ -465,11 +525,12 @@ Ast* parse_term(Parser* p, Scanner* s, StrLoc* l)
     LhsLoc.last_line    = termrhsloc->last_line;
     LhsLoc.last_column  = termrhsloc->last_column;
     ct = curtok(p);
-    if (predicts_binop(ct)) {
-      term = parse_infix_expr(p, s, l, term, &LhsLoc);
+    char* ctxt = curtext(p);
+    if (predicts_binop(p, ctxt)) {
+      term = parse_binop(p, s, term, &LhsLoc);
     }
     else if (predicts_primary(ct)) {
-      term = parse_call(p, s, l, term, &LhsLoc);
+      term = parse_call(p, s, term, &LhsLoc);
     } else {
       // a term by itself
     }
@@ -481,7 +542,7 @@ Ast* parse_term(Parser* p, Scanner* s, StrLoc* l)
   return term;
 }
 
-Ast* parse_literal(Parser* p, Scanner* s, StrLoc* l)
+Ast* parse_literal(Parser* p, Scanner* s)
 {
   /*
   constant := nil
@@ -489,28 +550,29 @@ Ast* parse_literal(Parser* p, Scanner* s, StrLoc* l)
             | lambda
   */
   Token ct = curtok(p);
-  Ast* constant = NULL;
+  Ast* literal = NULL;
 
   if (ct == NIL) {
-    constant = CreateAstEntityLiteralNil(curloc(p));
+    literal = CreateAstEntityLiteralNil(curloc(p));
+    // eat the nil
+    nexttok(p, s);
   }
   else if (ct == NIL_TYPE) {
-    constant = CreateAstEntityTypeNil(curloc(p));
+    literal = CreateAstEntityTypeNil(curloc(p));
+    // eat the Nil
+    nexttok(p, s);
   }
   else if (ct == BSLASH) {
-    entity = parse_lambda(p, s, l);
+    literal = parse_lambda(p, s);
   }
   else {
     // error: not a valid constant term
   }
 
-  // eat the constant token
-  nexttok(p, s, l);
-
-  return constant;
+  return literal;
 }
 
-Ast* parse_lambda(Parser* p, Scanner* s, StrLoc* l)
+Ast* parse_lambda(Parser* p, Scanner* s)
 {
   /*
   lambda := \ id (: type)? => term
@@ -524,38 +586,38 @@ Ast* parse_lambda(Parser* p, Scanner* s, StrLoc* l)
   if (ct == BSLASH) {
     begin_loc = curloc(p);
 
-    nexttok(p, s, l); // eat '\\'
+    nexttok(p, s); // eat '\\'
     ct = curtok(p);
 
     if (ct == ID) {
       arg_name = curtext(p); // save the text associated with the ID token
 
-      nexttok(p, s, l); // eat ID
+      nexttok(p, s); // eat ID
       ct = curtok(p);
 
       if (ct == COLON) {
-        nexttok(p, s, l); // eat ':'
+        nexttok(p, s); // eat ':'
                                     // the colon predicts a type expression,
-        type = parse_term(p, s, l); // so we parse it here.
+        type = parse_term(p, s); // so we parse it here.
       } else {
         type = CreateAstEntityTypePoly();
       }
 
       if (ct == REQARROW) {
-        nexttok(p, s, l); // eat '=>' which predicts the body of the function.
+        nexttok(p, s); // eat '=>' which predicts the body of the function.
 
         if (ct == LBRACE) { // an explicit scope can be denoted with enclosing '{''}'
-          nexttok(p, s, l);
+          nexttok(p, s);
 
-          body = parse_term(p, s, l);
+          body = parse_term(p, s);
 
           if (ct == RBRACE) {
-            nexttok(p, s, l);
+            nexttok(p, s);
           } else {
             // error: missing rbrace after term
           }
         } else {
-          body = parse_term(p, s, l);
+          body = parse_term(p, s);
         }
 
         if (body == NULL) {
@@ -581,12 +643,11 @@ Ast* parse_lambda(Parser* p, Scanner* s, StrLoc* l)
   return lambda;
 }
 
-Ast* parse_entity(Parser* p, Scanner* s, StrLoc* l)
+Ast* parse_entity(Parser* p, Scanner* s)
 {
   /*
   entity := id
-          | constant
-          | lambda
+          | literal
   */
   Token ct = curtok(p);
   Ast* entity = NULL;
@@ -594,23 +655,23 @@ Ast* parse_entity(Parser* p, Scanner* s, StrLoc* l)
 
   if (ct == ID) {
     entity = CreateAstEntityId(strdup(curtext(p)), curloc(p));
-    nexttok(p, s, l); // eat ID
+    nexttok(p, s); // eat ID
   }
   else if (predicts_literal(ct)) {
-    entity = parse_literal(p, s, l);
+    entity = parse_literal(p, s);
   }
 
   else {
     // error: malformed entity
   }
 
-  return result;
+  return entity;
 }
 
-Ast* parse_call(Parser* p, Scanner* s, StrLoc* l, Ast* lhs, StrLoc* lhsloc)
+Ast* parse_call(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc)
 {
-  Ast* rhs = NULL, *result == NULL;
-  rhs = parse_term(p, s, l);
+  Ast* rhs = NULL, *call = NULL;
+  rhs = parse_term(p, s);
   StrLoc* rhsloc = curloc(p);
 
   if (rhs) {
@@ -619,15 +680,15 @@ Ast* parse_call(Parser* p, Scanner* s, StrLoc* l, Ast* lhs, StrLoc* lhsloc)
     callloc.first_column = lhsloc->first_column;
     callloc.last_line    = rhsloc->first_line;
     callloc.last_column  = rhsloc->first_column;
-    result = CreateAstCall(lhs, rhs, &callloc);
+    call = CreateAstCall(lhs, rhs, &callloc);
   } else {
     ; // error: malformed rhs.
   }
 
-  return result;
+  return call;
 }
 
-Ast* parse_affix_expr(Parser* p, Scanner* s, StrLoc* l, Ast* lhs, StrLoc* lhsloc, int minPrecdnce)
+Ast* parse_affix_expr(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc, int minPrecdnce)
 {
   /*
   parse_expression_1(lhs, min_precedence)
@@ -645,35 +706,85 @@ Ast* parse_affix_expr(Parser* p, Scanner* s, StrLoc* l, Ast* lhs, StrLoc* lhsloc
         lhs := the result of applying op with operands lhs and rhs
     return lhs
   */
-  Token optok1 = curtok(p);
-  char* op = curtext(p);
-  int ctPrec = -1; ;
-  while (predicts_binop(optok1) && (ctPrec = LookupOpPrec(p->pTable, op)) >= minPrecdnce) {
-    Token optok2
+
+  // peek at the operator that triggered this call of parse_affix_expr;
+  Token lookahead   = curtok(p);
+  char* loptxt      = curtext(p);
+  int   lopPrec     = -1;
+
+  // collapse all lhs expressions which rotate a new top of the list
+  // into a single lhs.
+  while (predicts_binop(p, loptxt) && (lopPrec = LookupOpPrec(p->pTable, loptxt)) >= minPrecdnce) {
+    Token optok = lookahead; // save the current top op of the tree
+    char* optxt = loptxt;
+
+    nexttok(p, s);
+    StrLoc* llocp = curloc(p);
+    StrLoc rhsloc;
+
+    rhsloc.first_line   = llocp->first_line;
+    rhsloc.first_column = llocp->first_column;
+    // rhs := parse_primary()
+    Ast* rhs   = parse_primary(p, s);
+    llocp = curloc(p);
+    rhsloc.last_line   = llocp->last_line;
+    rhsloc.last_column = llocp->last_column;
+
+    // collapse all rhs expressions which rotate a new top of the list into
+    // a single rhs, (this means operators with strictly higher precedence,
+    // and right associative operators with equal precedence.) in both
+    // of these cases the rhs needs to be parsed as if it was a brand new lhs.
+    // this case it contained in a loop, because it could be that we need to
+    // gather more than one instance of this case into a single tree.
+    lookahead  = curtok(p);
+    loptxt     = curtext(p);
+    while (predicts_binop(p, loptxt) &&  \
+        ((LookupOpPrec(p->pTable, loptxt) > lopPrec) ||
+        ((LookupOpPrec(p->pTable, loptxt) == lopPrec) && (LookupOpAssoc(p->pTable, loptxt) == A_RIGHT))))
+    {
+      rhs = parse_affix_expr(p, s, rhs, &rhsloc, lopPrec);
+      lookahead  = curtok(p);
+      loptxt     = curtext(p);
+    }
+
+    // create a new top node of the tree by attaching the previous
+    // good lhs, and the result of collapsing the rhs into a proper
+    // lhs; to the lhs and rhs of the new top.
+    // in the case that we encountered some number of equal precedence
+    // operations upon entities, we push these operations into the lhs
+    // tree via this call and the while loop.
+    StrLoc binoploc;
+    binoploc.first_line   = lhsloc->first_line;
+    binoploc.first_column = lhsloc->first_column;
+    binoploc.last_line    = rhsloc.last_line;
+    binoploc.last_column  = rhsloc.last_column;
+    lhs = CreateAstBinop(optxt, lhs, rhs, &binoploc);
   }
+  return lhs;
 }
 
-Ast* parse_binop(Parser* p, Scanner* s, StrLoc* l, Ast* first_lhs, StrLoc* lhsloc)
+Ast* parse_binop(Parser* p, Scanner* s, Ast* firstlhs, StrLoc* lhsloc)
 {
-    return parse_affix_expr(p, s, l, first_lhs, lhsloc, 0);
+    return parse_affix_expr(p, s, firstlhs, lhsloc, 0);
 }
 
-Ast* parse_unop(Parser* p, Scanner* s, StrLoc* l)
+Ast* parse_unop(Parser* p, Scanner* s)
 {
   /*
   unop-expr := unop term
   */
   Token ct = curtok(p);
+  char* ctxt = curtext(p);
   Ast* result = NULL;
 
-  if (predicts_unop(ct)) {
+  if (predicts_unop(p, ctxt)) {
     /* nothing predicts_unop */
   }
 
   return result;
 }
 
-Ast* parse_parens(Parser* p, Scanner* s, StrLoc* l)
+Ast* parse_parens(Parser* p, Scanner* s)
 {
   /*
   parens := '(' term ')'
@@ -681,18 +792,12 @@ Ast* parse_parens(Parser* p, Scanner* s, StrLoc* l)
   Token ct = curtok(p);
   Ast* result = NULL;
   if (ct == LPAREN) {
-    nexttok(p, s, l);
-    StrLoc* lhsloc = curloc(p);
+    nexttok(p, s);
 
-    result = parse_term(p, s, l);
+    result = parse_term(p, s);
     ct = curtok(p);
-    StrLoc* rhsloc = curloc(p);
     if (ct == RPAREN) {
-      nexttok(p, s, l);
-      StrLoc termloc;
-      termloc.first_line = lhsloc->first_line;
-      termloc.first_column = lhsloc->first_column;
-
+      nexttok(p, s);
 
     } else {
       // error: missing rparen after term
@@ -703,7 +808,7 @@ Ast* parse_parens(Parser* p, Scanner* s, StrLoc* l)
   return result;
 }
 
-Ast* parse_primary(Parser* p, Scanner* s, StrLoc* l)
+Ast* parse_primary(Parser* p, Scanner* s)
 {
   /*
   primary   := entity
@@ -711,16 +816,17 @@ Ast* parse_primary(Parser* p, Scanner* s, StrLoc* l)
              | parens
   */
   Token ct = curtok(p);
+  char* ctxt = curtext(p);
   Ast* result = NULL;
 
   if (predicts_entity(ct)) {
-    result = parse_entity(p, s, l);
+    result = parse_entity(p, s);
   }
-  else if (predicts_unop(ct)) {
-    result = parse_unop(p, s, l);
+  else if (predicts_unop(p, ctxt)) {
+    result = parse_unop(p, s);
   }
   else if (ct == LPAREN) {
-    result = parse_parens(p, s, l);
+    result = parse_parens(p, s);
   }
   else {
     // error: malformed primary
@@ -729,13 +835,13 @@ Ast* parse_primary(Parser* p, Scanner* s, StrLoc* l)
   return result;
 }
 
-bool speculate_constant(Parser* p, Scanner* s, StrLoc* l);
-bool speculate_lambda(Parser* p, Scanner* s, StrLoc* l);
-bool speculate_entity(Parser* p, Scanner* s, StrLoc* l);
-bool speculate_binop(Parser* p, Scanner* s, StrLoc* l);
-bool speculate_unop(Parser* p, Scanner* s, StrLoc* l);
+bool speculate_constant(Parser* p, Scanner* s);
+bool speculate_lambda(Parser* p, Scanner* s);
+bool speculate_entity(Parser* p, Scanner* s);
+bool speculate_binop(Parser* p, Scanner* s);
+bool speculate_unop(Parser* p, Scanner* s);
 
-bool speculate_term(Parser* p, Scanner* s, StrLoc* l)
+bool speculate_term(Parser* p, Scanner* s)
 {
   /*
   term :=
@@ -762,21 +868,21 @@ bool speculate_term(Parser* p, Scanner* s, StrLoc* l)
 
   bool result = true;
   // it = the token sequence being parsed
-  if (speculate_entity(p, s, l)) {   // is it an entity?
+  if (speculate_entity(p, s)) {   // is it an entity?
 
   }
 
-  else if (speculate_unop(p, s, l)) {  // is it a unop expression?
-    if (speculate_term(p, s, l));
+  else if (speculate_unop(p, s)) {  // is it a unop expression?
+    if (speculate_term(p, s));
     else {
       /* error: term after the unop is malformed */
       result = false;
     }
   }
 
-  else if (speculate(p, s, l, LPAREN)) {
-    if (speculate_term(p, s, l)) {
-      if (speculate(p, s, l, RPAREN));
+  else if (speculate(p, s, LPAREN)) {
+    if (speculate_term(p, s)) {
+      if (speculate(p, s, RPAREN));
       else {
         /*  error: no postfix RPAREN after a well formed term */
         result = false;
@@ -794,14 +900,14 @@ bool speculate_term(Parser* p, Scanner* s, StrLoc* l)
   }
 
   if (result) {
-    if (speculate_binop(p, s, l)) {  // is it an expression?
-      if (speculate_term(p, s, l))); // is the rhs parsable?
+    if (speculate_binop(p, s)) {  // is it an expression?
+      if (speculate_term(p, s)); // is the rhs parsable?
       else {
         /* error: rhs of binop expr is malformed */
         result = false;
       }
     }
-    else if (speculate_term(p, s, l)) { // is it a call?
+    else if (speculate_term(p, s)) { // is it a call?
         /*
           try and parse any number of terms in sequence
 
@@ -821,33 +927,33 @@ bool speculate_term(Parser* p, Scanner* s, StrLoc* l)
   return result;
 }
 
-bool speculate_constant(Parser* p, Scanner* s, StrLoc* l)
+bool speculate_constant(Parser* p, Scanner* s)
 {
   bool result = true;
-  if      (speculate(p, s, l, NIL));
-  else if (speculate(p, s, l, NIL_TYPE));
+  if      (speculate(p, s, NIL));
+  else if (speculate(p, s, NIL_TYPE));
   else result = false;
   return result;
 }
 
 
-bool speculate_lambda(Parser* p, Scanner* s, StrLoc* l)
+bool speculate_lambda(Parser* p, Scanner* s)
 {
   bool result = true;
-  if (speculate(p, s, l, BSLASH)) {
-    if (speculate(p, s, l, ID)) {
-      if (speculate(p, s, l, COLON)) {
-        if (speculate_term(p, s, l));
+  if (speculate(p, s, BSLASH)) {
+    if (speculate(p, s, ID)) {
+      if (speculate(p, s, COLON)) {
+        if (speculate_term(p, s));
         else {
           // error: type annotation not well formed
           result = false;
         }
       }
 
-      if (speculate(p, s, l, REQARROW)) {
-        if (speculate(p, s, l, LBRACE)) {
-          if (speculate_term(p, s, l)) {
-            if (speculate(p, s, l, RBRACE));
+      if (speculate(p, s, REQARROW)) {
+        if (speculate(p, s, LBRACE)) {
+          if (speculate_term(p, s)) {
+            if (speculate(p, s, RBRACE));
             else
               // error: no trailing RBRACE
               result = false;
@@ -856,7 +962,7 @@ bool speculate_lambda(Parser* p, Scanner* s, StrLoc* l)
             // error: no well formed term after the LBRACE
             result = false;
         }
-        else if (speculate_term(p, s, l)) ;
+        else if (speculate_term(p, s));
         else {
           // error: lambda body not well formed
           result = false;
@@ -877,25 +983,25 @@ bool speculate_lambda(Parser* p, Scanner* s, StrLoc* l)
   return result;
 }
 
-bool speculate_entity(Parser* p, Scanner* s, StrLoc* l)
+bool speculate_entity(Parser* p, Scanner* s)
 {
   bool result = true;
-  if      (speculate_constant(p, s, l));
-  else if (speculate_lambda(p, s, l));
+  if      (speculate_constant(p, s));
+  else if (speculate_lambda(p, s));
   else result = false;
   return result;
 }
 
-bool speculate_binop(Parser* p, Scanner* s, StrLoc* l)
+bool speculate_binop(Parser* p, Scanner* s)
 {
   bool result = true;
-  if      (speculate(p, s, l, COLONEQUALS));
-  else if (speculate(p, s, l, RARROW));
+  if      (speculate(p, s, COLONEQUALS));
+  else if (speculate(p, s, RARROW));
   else result = false;
   return result;
 }
 
-bool speculate_unop(Parser* p, Scanner* s, StrLoc* l)
+bool speculate_unop(Parser* p, Scanner* s)
 {
   bool result = true;
   result = false;

@@ -23,7 +23,7 @@ Ast* CreateAstEntityId(char* name, StrLoc* llocp)
   Ast* node          = (Ast*)malloc(sizeof(Ast));
   node->tag          = N_ENTITY;
   node->u.entity.tag = E_ID;
-  node->u.entity.id  = name;
+  node->u.entity.u.id  = name;
   if (llocp != NULL) {
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
@@ -97,11 +97,11 @@ Ast* CreateAstEntityTypeProc(struct Ast* lhs, struct Ast* rhs, struct StrLoc* ll
 
 Ast* CreateAstEntityLiteralNil(StrLoc* llocp)
 {
-  Ast* node                          = (Ast*)malloc(sizeof(Ast));
-  node->tag                          = N_ENTITY;
-  node->u.entity.tag                 = E_LITERAL;
-  node->u.entity.u.literal.tag       = L_NIL;
-  node->u.entity.u.literal.u.epsilon = '\0';
+  Ast* node                      = (Ast*)malloc(sizeof(Ast));
+  node->tag                      = N_ENTITY;
+  node->u.entity.tag             = E_LITERAL;
+  node->u.entity.u.literal.tag   = L_NIL;
+  node->u.entity.u.literal.u.nil = '\0';
   if (llocp != NULL) {
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
@@ -121,7 +121,7 @@ Ast* CreateAstEntityLiteralProc(char* name, Ast* type, Ast* body, StrLoc* llocp)
   Ast* node                                = (Ast*)malloc(sizeof(Ast));
   node->tag                                = N_ENTITY;
   node->u.entity.tag                       = E_LITERAL;
-  node->u.entity.u.literal.tag             = L_PROC:
+  node->u.entity.u.literal.tag             = L_PROC;
   node->u.entity.u.literal.u.proc.arg.id   = name;
   node->u.entity.u.literal.u.proc.arg.type = type;
   node->u.entity.u.literal.u.proc.body     = body;
@@ -230,7 +230,7 @@ void DeleteAst(Ast* ast)
 void DeleteAstEntityType(Ast* type)
 {
   if (type != NULL) {
-    Type* t = &(type->u.type);
+    Type* t = &(type->u.entity.u.type);
     switch(t->tag) {
       case T_PROC:
         DeleteAst(t->u.proc.lhs);
@@ -252,7 +252,7 @@ void DeleteAstEntityType(Ast* type)
 void DeleteAstEntityLiteral(Ast* literal)
 {
   if (literal != NULL) {
-    Literal* l = &(literal->u.literal);
+    Literal* l = &(literal->u.entity.u.literal);
     switch(l->tag) {
       case L_PROC:
         if (l->u.proc.arg.id)
@@ -334,7 +334,7 @@ Ast* CopyAst(Ast* ast)
   switch(ast->tag) {
     case N_ENTITY: return CopyAstEntity(ast);
     case N_CALL:   return CopyAstCall(ast);
-    case N_BINOP:  return CopyAstBind(ast);
+    case N_BINOP:  return CopyAstBinop(ast);
     case N_UNOP:   return CopyAstUnop(ast);
     default: error_abort ("malformed ast! aborting", __FILE__, __LINE__);
   }
@@ -354,7 +354,8 @@ Ast* CopyAstEntityType(Ast* type)
           break;
         case T_PROC:
           return CreateAstEntityTypeProc(CopyAst(t->u.proc.lhs), \
-                                         CopyAst(t->u.proc.rhs));
+                                         CopyAst(t->u.proc.rhs), \
+                                         NULL);
           break;
         default:
           error_abort("malformed type tag! aborting", __FILE__, __LINE__);
@@ -373,7 +374,8 @@ Ast* CopyAstEntityLiteral(Ast* literal)
       case L_PROC:
         return CreateAstEntityLiteralProc(strdup(l->u.proc.arg.id), \
                                          CopyAst(l->u.proc.arg.type), \
-                                         CopyAst(l->u.proc.body));
+                                         CopyAst(l->u.proc.body),
+                                         NULL);
       default:
         error_abort("malformed literal tag! aborting", __FILE__, __LINE__);
     }
@@ -403,7 +405,7 @@ Ast* CopyAstEntity(Ast* entity)
 Ast* CopyAstCall(Ast* call)
 {
   if (call != NULL) {
-    return CreateAstCall(CopyAst(call->u.call.lhs), CopyAst(call->u.call.rhs));
+    return CreateAstCall(CopyAst(call->u.call.lhs), CopyAst(call->u.call.rhs), NULL);
   }
 }
 
@@ -412,15 +414,17 @@ Ast* CopyAstBinop(Ast* binop)
   if (binop != NULL) {
     return CreateAstBinop(strdup(binop->u.binop.op),   \
                           CopyAst(binop->u.binop.lhs), \
-                          CopyAst(binop->u.binop.rhs));
+                          CopyAst(binop->u.binop.rhs), \
+                          NULL);
   }
 }
 
 Ast* CopyAstUnop(Ast* unop)
 {
   if (unop != NULL) {
-    return CreateAstUnop(strdup(unop->u.unop.op), \
-                         CopyAst(unop->u.unop.rhs));
+    return CreateAstUnop(strdup(unop->u.unop.op),   \
+                         CopyAst(unop->u.unop.rhs), \
+                         NULL);
   }
 }
 
@@ -506,22 +510,25 @@ char* AstEntityLiteralToString(Ast* ast)
         break;
       case L_PROC: {
         char *bs = "\\ ", *cln = " : ", *reqarw = " => ";
-        char* arg_id = strdup(ast->u.entity.u.lambda.arg.id.s);
+        char* arg_id = strdup(ast->u.entity.u.literal.u.proc.arg.id);
         if   (arg_id == NULL) {
           error_abort("malformed arg id! aborting", __FILE__, __LINE__);
         }
 
-        char* arg_type = AstToString(ast->u.entity.u.lambda.arg.type);
+        char* arg_type = AstToString(ast->u.entity.u.literal.u.proc.arg.type);
         if   (arg_type == NULL) {
           error_abort("malformed arg type! aborting", __FILE__, __LINE__);
         }
 
-        char* body = AstToString(ast->u.entity.u.lambda.body);
+        char* body = AstToString(ast->u.entity.u.literal.u.proc.body);
         if   (body == NULL) {
           error_abort("malformed body! aborting", __FILE__, __LINE__);
         }
 
-        if (ast->u.entity.u.lambda.arg.type == T_POLY) {
+        // this is a smelly line, and could very well segfault.
+        // but only if the tree itself is malformed, which should
+        // only happen if a bug invalidates the state of the tree.
+        if (ast->u.entity.u.literal.u.proc.arg.type->u.entity.u.type.tag == T_POLY) {
           int len = strlen(bs)     \
                   + strlen(arg_id) \
                   + strlen(reqarw) \
@@ -621,7 +628,7 @@ char* AstBinopToString(Ast* ast)
       error_abort("malformed binop lhs! aborting", __FILE__, __LINE__);
     }
 
-    char* rhs = AstToString(ast->u.bind.term);
+    char* rhs = AstToString(ast->u.binop.rhs);
     if (rhs == NULL) {
       error_abort("malformed binop rhs! aborting", __FILE__, __LINE__);
     }

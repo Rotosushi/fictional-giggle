@@ -4,6 +4,7 @@
 #include "lexer.h"
 #include "ast.h"
 #include "precedencetable.h"
+#include "stringset.h"
 
 struct StrLoc;
 struct Scanner;
@@ -35,13 +36,13 @@ typedef struct Parser {
   int idx;
   int mkstsz;
   int bufsz;
-  PrecedenceTable* precTable;
+  PrecedenceTable* pTable;
   StringSet* binopSet;
   StringSet* unopSet;
 } Parser;
 
 Parser* createParser();
 void    destroyParser(Parser* p);
-Ast*    parse(Parser* p, struct Scanner* scanner, struct StrLoc* llocp);
+Ast*    parse(Parser* p, struct Scanner* scanner);
 
 #endif

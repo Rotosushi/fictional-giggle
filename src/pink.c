@@ -134,7 +134,7 @@ int main(int argc, char** argv)
 			underscore the text of the erroneous token.
 		*/
 
-			result = parse(parser, scanner, &lloc);
+			result = parse(parser, scanner);
 
 			if (result != NULL) {
 				Ast* type = type_of(result, env);
