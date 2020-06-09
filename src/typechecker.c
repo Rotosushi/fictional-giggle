@@ -24,7 +24,7 @@ the type of polymorphic functions when we get there.
 type equivalence:
 	when can we say that two types are equivalent?
   for v0.0.1
-    if type1 == nil && type2 == nil
+    if type1 == Nil && type2 == Nil
     then they-are-equivalent
     else we need to recursively check that
          the function types are equal.
@@ -40,7 +40,7 @@ type compatibility:
     smaller part of the syntax tree, then reducing
     these judgements while walking out of the tree.
     essentially
-      in-order-traverse(ast, typecheck);
+      in-order-traverse(ast, typechecker);
 
 type inference:
   	how do we deduce the type of an expression?
@@ -115,6 +115,22 @@ type equivalence:
 	to 'inherit' the semantics of the old type. to say that
 	another way, the new type name would be semantically valid
 	in any place where the old type name would be semantically valid.
+  since the type is being used as an alias, we shouldn't consider it
+  casting, because both types are equivalent. it's more like
+  removing a layer of abstraction to get to the base type.
+  but then, what about the degenerate recursive case?
+  type a = int
+  type b = a
+  type c = b
+  ...etc
+  is 'b' an alias of 'a' or of int?
+  is 'c' an alias of 'b' or of 'a' or of int?
+
+  if it is a chain of aliases, the correct solution
+  at first feels to me like we somehow remove all
+  sense of aliasing an alias, and we only ever alias
+  the base type. even in the degenerate case.
+
 
 
 type compatibility:
@@ -256,6 +272,7 @@ Subtype polymorphism: (some literature denotes it with "<:" )
 
 
 */
+#include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -358,6 +375,26 @@ Ast* typeofId(Ast* id, Symboltable* env)
   }
 }
 
+bool primitive_binop(char* op) {
+  if (strcmp(op, "->") == 0) return true;
+  else return false;
+}
+
+Ast* typeofPrimitiveBinop(Ast* binop, Symboltable* env)
+{
+  /*
+  -> sort of has the type * -> *' -> (* -> *')
+
+  + has the type Int -> Int -> Int
+    and the type Real -> Real -> Real
+    and the type Text -> Text -> Text
+
+  */
+  if (strcmp(binop->u.binop.op, "->") == 0) {
+
+  }
+}
+
 Ast* typeofBinop(Ast* binop, Symboltable* env)
 {
   /*
@@ -370,10 +407,15 @@ Ast* typeofBinop(Ast* binop, Symboltable* env)
         -->> (-> T1 (-> T2 T3))
   */
   if (binop != NULL) {
-
-  } else {
-    return NULL;
+    Ast *T1 = NULL, *Ti = NULL, *T2 = NULL, *T3 = NULL;
+    Ast *LT = NULL, *RT = NULL;
+    LT = type_of (binop->u.binop.lhs, env);
+    RT = type_of (binop->u.binop.rhs, env);
+    if (primitive_binop(binop->op)) {
+      Ti = typeofPrimitiveBinop(binop, env);
+    }
   }
+  return NULL;
 }
 
 Ast* typeofUnop(Ast* unop, Symboltable* env)
@@ -418,7 +460,7 @@ Ast* typeofEntityType(Ast* type, Symboltable* env)
     }
     /*
      build up the function type recursively.
-      ENV |- :T1, |- :T2
+      ENV |- :T1, :T2
       ------------------
       ENV |- T1 -> T2
     */

@@ -257,15 +257,155 @@ taking a few pages from the early-version hand rolled parser.)
   also interpret those semantics to evaluate them or to
   produce a program with those semantics in some other language.
 
+--------------------------------------------------------------------------------
+
+  my previous attempt at the precedence table
+  obviously we want to maintain the same precedence
+  relations between the common math symbols. and also
+  understanding that for many, the c precedence table
+  is de-facto standard for programming languages.
+
+  so, starting from the perspective of emulating mathematics
+  we want to preform basic actions on numbers/entities.
+  3 + 4 * 5 HAS TO parse to (* 5 (+ 3 4))
+  when a programmer wants to preform bitwise operations
+  on numbers, they probably want the bitwise operations to
+  operate on numbers which have already been manipulated
+  to some final value.
+  x || y * z,
+  likewise when we go up a step to the logical connectives,
+  we want to test for truth and falsehood upon values which
+  have been fully operated upon. a + b > c * d.
+
+  the same argument is made when we take another step up to
+  equality comparison.
+  say to the case of
+  a + b > c * d == e - f < g \ h
+
+  we want to test for equality between the largest lhs and right we can
+  group together. because we are assuming the programmer wants to compare
+  between fully evaluated terms, which implies gathering as many operations
+  into the evaluation tree before we insert the comparison operation.
+
+  and, the same argument extends to the programming language specific operators
+  ',', ';', ':=', '[', ']', '(', ')', '{', '}'
+  and the type connectives '->', '+', '|', '&', '!'
+
+  why do I invert the logical symbols and the bitwise symbols?
+  well, for logical consistency, and the fact that logical connectives
+  are more common than bitwise operations, by a wide-margin.
+  (and now, LSHIFT <<, and RSHIFT >>, align with the rest of the
+   bitwise operators OR ||, and &&, and xor ^^, in being two symbol operators.
+  )
+  when we consider equals and not equals, =, ~= resp. one can probably intuit
+  the meaning of the compound symbol ~= just from knowing that = means equal-to
+  and ~ means logical-negation. this also aligns with ~ being the logical not.
+  instead of ! as in c. why is that? well, the operator *, is used to represent
+  type kinds in the theory, and it would be nice to align the language to some
+  theory symbolically. since we are deciding to reapropriate * for types, then
+  it could create confusion to also use it as the indirection unop. so we will
+  pay some homage to ML by taking ! to be the indirection operator. which takes
+  ! away from the logical commectives, because again too much overloading
+  increases the cognitive complexity of the kernel, and so we must select
+  a new symbol for logical-negation.
+  hence, ~ for logical-negation, and ~~ for bitwise negation. notice how
+  this aligns with every bitwise operator, being composed of a repetition
+  of some other operator. when a programmer sees a || instead of a | it should
+  always be able to be read as a bitwise operation. this at least holds for the
+  kernel, obviously if we give programmers the tools to both overload existing
+  operators, and define new operators, they can define new operators which
+  negate the truth of the above statement quite easily. but that is separate
+  from the logical consistency of the kernel.
+
+  (normally in ML ~ is the unop minus to the binop minus -, we just use the
+   fact that unary minus always appears in prefix position and disambiguate
+   by the position instead of symbol the operation to be carried out. meaning
+   both forms of minus are symbolically stated by the - symbol, this is in
+   some sense of the word, overloading the symbol with two meanings, however
+   since the two meanings are entirely disambiguated by the grammar there is no
+   need to consider any special logic to support the two definitions, we can
+   )
 
 
-how does operator overloading interact with
-template/parametric-polymorphic functions
-in the case of concrete vs abstract entities?
+    ptable[T_COMMA] = 1;
+    ptable[T_EQ] = 2;
 
-to begin in answering that question:
-https://www.researchgate.net/publication/221252351_A_Calculus_for_Overloaded_Functions_with_Subtyping
+    ptable[T_EQUALS] = 3;
+    ptable[T_NOT_EQUALS] = 3;
 
+    ptable[T_LESS] = 4;
+    ptable[T_GREATER] = 4;
+    ptable[T_LESS_EQUALS] = 4;
+    ptable[T_GREATER_EQUALS] = 4;
+
+    ptable[T_OR] = 5;
+    ptable[T_XOR] = 6;
+    ptable[T_AND] = 7;
+
+    ptable[T_BIT_OR] = 8;
+    ptable[T_BIT_XOR] = 9;
+    ptable[T_BIT_AND] = 10;
+
+    ptable[T_BIT_LSHIFT] = 11;
+    ptable[T_BIT_RSHIFT] = 11;
+
+    ptable[T_ADD] = 12;
+    ptable[T_SUB] = 12;
+
+    ptable[T_MULT] = 13;
+    ptable[T_DIV] = 13;
+    ptable[T_MOD] = 13;
+
+--------------------------------------------------------------------------------
+
+each procedure is represented by a defining instance,
+   and zero or more alternate instances.
+   every implicit instance is created when the procedure is polymorphic
+   and the user executes the procedure while providing an explicit type.
+   each explicit occurance is denoted by a definition of the same name.
+   notice how the explicit binding mechanism forbids the creation of
+   a lambda literal with the same name as another lambda literal.
+   this implies that each lambda literal must be represented by a unique
+   overload set. the only way the programmer can syntactically request
+   an expansion of an anonymous procedure set is by implicit creation,
+   that is, only polymorphic lambda literals will ever be represented by
+   more than one sequence of execution. and that is if the user writes
+   a sequence of execution which calls the same polymorphic lambda object
+   passing in different types.
+
+   what about closures?
+   z := (\x => \y => x + y) 3
+
+   z = \y => 3 + y
+
+   (notice, \x => \y => x + y could have members of type
+    Int, Real, and String/Text. but the returned function
+    \y => 3 + y, y only works on values of type Int.
+    the fact that the arguments type is polymorphic is
+    enough to say, we could theoretically imagine a valid
+    type for this expression, so trust that when a value is
+    provided it will typecheck. and that is enough to build
+    up types, as long as we accept that polymorphic types
+    can be given any type as an argument, and we only accept
+    or reject the resulting definition based on wether or not
+    the new definition still typechecks. if we imagine the
+    polymorphic type being built up recursively, then it must
+    be instanciated by an acceptable type each time.
+
+  )
+
+
+   the function set that represents the returned
+   procedure literal is unique to that procedure literal,
+   that is, the set that is returned
+   is responsible for storing the closed over values for later
+   execution.
+   any named intermediate step can be associated
+   by some set of functions in which each member can be associated
+   with it's own sequence of instructions sitting in memory somewhere.
+   any closed over values can be stored in the same way any value-explicit
+   local name would be stored.
+--------------------------------------------------------------------------------
 
 question:
   what tasks in particular force the c language programmer to
@@ -403,15 +543,7 @@ another task is driver development
         because if we can, that can help to insulate
         programmers code from driver code.
 
-
-
-
-
-
-
-
-
-
+--------------------------------------------------------------------------------
 
 notes about parsing with bison:
 

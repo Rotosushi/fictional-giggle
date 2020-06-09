@@ -141,9 +141,10 @@ Ast* CreateAstEntityLiteralProc(char* name, Ast* type, Ast* body, StrLoc* llocp)
   node->tag                                = N_ENTITY;
   node->u.entity.tag                       = E_LITERAL;
   node->u.entity.u.literal.tag             = L_PROC;
-  node->u.entity.u.literal.u.proc.arg.id   = name;
-  node->u.entity.u.literal.u.proc.arg.type = type;
-  node->u.entity.u.literal.u.proc.body     = body;
+  node->u.entity.u.literal.u.proc.def.arg.id   = name;
+  node->u.entity.u.literal.u.proc.def.arg.type = type;
+  node->u.entity.u.literal.u.proc.def.body     = body;
+  node->u.entity.u.literal.u.proc.set          = NULL;
   if (llocp != NULL) {
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
@@ -277,16 +278,31 @@ void DeleteAstEntityType(Ast* type)
   }
 }
 
+void DeleteProcSet(ProcInst* root)
+{
+  ProcInst *cur = root, *prv = NULL;
+  while(cur != NULL) {
+    prv = cur;
+    cur = cur->next;
+    if (prv->proc.arg.id)
+      free(prv->proc.arg.id);
+    DeleteAst(prv->proc.arg.type);
+    DeleteAst(prv->proc.body);
+    free(prv);
+  }
+}
+
 void DeleteAstEntityLiteral(Ast* literal)
 {
   if (literal != NULL) {
     Literal* l = &(literal->u.entity.u.literal);
     switch(l->tag) {
       case L_PROC:
-        if (l->u.proc.arg.id)
-          free(l->u.proc.arg.id);
-        DeleteAst(l->u.proc.arg.type);
-        DeleteAst(l->u.proc.body);
+        if (l->u.proc.def.arg.id)
+          free(l->u.proc.def.arg.id);
+        DeleteAst(l->u.proc.def.arg.type);
+        DeleteAst(l->u.proc.def.body);
+        DeleteProcSet(l->u.proc.set);
       case L_NIL:
         free(literal);
         break;
@@ -380,6 +396,7 @@ Ast* CopyAstId(Ast* id)
   if (id != NULL) {
     return CreateAstId(strdup(id->u.id), NULL);
   }
+  return NULL;
 }
 
 Ast* CopyAstBind(Ast* bind)
@@ -389,6 +406,7 @@ Ast* CopyAstBind(Ast* bind)
                          CopyAst(bind->u.bind.term), \
                          NULL);
   }
+  return NULL;
 }
 
 Ast* CopyAstEntityType(Ast* type)
@@ -412,6 +430,35 @@ Ast* CopyAstEntityType(Ast* type)
           error_abort("malformed type tag! aborting", __FILE__, __LINE__);
       }
     }
+    return NULL;
+}
+
+ProcInst* CopyProcSet(ProcInst* root)
+{
+  ProcInst *cur = root, **new;
+  while (cur != NULL) {
+    *new = (ProcInst*)malloc(sizeof(ProcInst));
+    (*new)->proc.arg.id   = strdup(cur->proc.arg.id);
+    (*new)->proc.arg.type = CopyAst(cur->proc.arg.type);
+    (*new)->proc.body     = CopyAst(cur->proc.body);
+    cur = cur->next;
+    new = &((*new)->next);
+  }
+  return *new;
+}
+
+Ast* CopyAstEntityLiteralProcSet(Ast* proc)
+{
+  Ast* r = NULL;
+  if (proc != NULL) {
+    Lambda* lambda = &proc->u.entity.u.literal.u.proc.def;
+    char* arg_id  = strdup(lambda->arg.id);
+    Ast* arg_type = CopyAst(lambda->arg.type);
+    Ast* body     = CopyAst(lambda->body);
+    r = CreateAstEntityLiteralProc(arg_id, arg_type, body, NULL);
+    r->u.entity.u.literal.u.proc.set = CopyProcSet(proc->u.entity.u.literal.u.proc.set);
+  }
+  return r;
 }
 
 Ast* CopyAstEntityLiteral(Ast* literal)
@@ -423,14 +470,12 @@ Ast* CopyAstEntityLiteral(Ast* literal)
         return CreateAstEntityLiteralNil(NULL);
         break;
       case L_PROC:
-        return CreateAstEntityLiteralProc(strdup(l->u.proc.arg.id), \
-                                         CopyAst(l->u.proc.arg.type), \
-                                         CopyAst(l->u.proc.body),
-                                         NULL);
+        return CopyAstEntityLiteralProcSet(literal);
       default:
         error_abort("malformed literal tag! aborting", __FILE__, __LINE__);
     }
   }
+  return NULL;
 }
 
 Ast* CopyAstEntity(Ast* entity)
@@ -448,6 +493,7 @@ Ast* CopyAstEntity(Ast* entity)
         error_abort("malformed entity tag! aborting", __FILE__, __LINE__);
     }
   }
+  return NULL;
 }
 
 Ast* CopyAstCall(Ast* call)
@@ -455,6 +501,7 @@ Ast* CopyAstCall(Ast* call)
   if (call != NULL) {
     return CreateAstCall(CopyAst(call->u.call.lhs), CopyAst(call->u.call.rhs), NULL);
   }
+  return NULL;
 }
 
 Ast* CopyAstBinop(Ast* binop)
@@ -465,6 +512,7 @@ Ast* CopyAstBinop(Ast* binop)
                           CopyAst(binop->u.binop.rhs), \
                           NULL);
   }
+  return NULL;
 }
 
 Ast* CopyAstUnop(Ast* unop)
@@ -474,6 +522,7 @@ Ast* CopyAstUnop(Ast* unop)
                          CopyAst(unop->u.unop.rhs), \
                          NULL);
   }
+  return NULL;
 }
 
 
@@ -558,17 +607,17 @@ char* AstEntityLiteralToString(Ast* ast)
         break;
       case L_PROC: {
         char *bs = "\\ ", *cln = " : ", *reqarw = " => ";
-        char* arg_id = strdup(ast->u.entity.u.literal.u.proc.arg.id);
+        char* arg_id = strdup(ast->u.entity.u.literal.u.proc.def.arg.id);
         if   (arg_id == NULL) {
           error_abort("malformed arg id! aborting", __FILE__, __LINE__);
         }
 
-        char* arg_type = AstToString(ast->u.entity.u.literal.u.proc.arg.type);
+        char* arg_type = AstToString(ast->u.entity.u.literal.u.proc.def.arg.type);
         if   (arg_type == NULL) {
           error_abort("malformed arg type! aborting", __FILE__, __LINE__);
         }
 
-        char* body = AstToString(ast->u.entity.u.literal.u.proc.body);
+        char* body = AstToString(ast->u.entity.u.literal.u.proc.def.body);
         if   (body == NULL) {
           error_abort("malformed body! aborting", __FILE__, __LINE__);
         }
@@ -576,7 +625,7 @@ char* AstEntityLiteralToString(Ast* ast)
         // this is a smelly line, and could very well segfault.
         // but only if the tree itself is malformed, which should
         // only happen if a bug invalidates the state of the tree.
-        if (ast->u.entity.u.literal.u.proc.arg.type->u.entity.u.type.tag == T_POLY) {
+        if (ast->u.entity.u.literal.u.proc.def.arg.type->u.entity.u.type.tag == T_POLY) {
           int len = strlen(bs)     \
                   + strlen(arg_id) \
                   + strlen(reqarw) \

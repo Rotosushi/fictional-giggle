@@ -83,16 +83,28 @@ typedef struct Arg {
 } Arg;
 
 /* a procedure literal needs to hold it's argument, and it's body */
-typedef struct Procedure {
+typedef struct Lambda {
 	Arg  arg;
 	struct Ast* body;
-} Procedure;
+} Lambda;
+
+/* a linked list node for the set of literals */
+typedef struct ProcInst {
+  Lambda proc;
+  struct ProcInst* next;
+} ProcInst;
+
+typedef struct ProcSet {
+  Lambda def;
+  ProcInst* set;
+} ProcSet;
+
 
 typedef struct Literal {
   LiteralTag tag;
   union {
     char nil;
-    Procedure proc;
+    ProcSet proc;
   } u;
 } Literal;
 
@@ -105,12 +117,6 @@ typedef struct Entity {
 	union {
     Type      type;
     Literal   literal;
-		/*
-		char*  string_literal
-		int    int_literal
-		double real_literal
-		...
-		*/
 	} u;
 } Entity;
 

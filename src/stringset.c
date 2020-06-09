@@ -10,6 +10,7 @@ StringSet* createStringSet()
   res->root = NULL;
   res->end  = NULL;
   res->len  = 0;
+  return res;
 }
 
 StringSet* copyStringSet(StringSet* s)
@@ -254,6 +255,7 @@ bool is_subset (StringSet* s1, StringSet* s2)
 {
   /* if every element of s1 can be found in s1
      s1 is a proper subset of s2. */
+     return false;
 }
 
 void DestroyStringSet (StringSet* s)

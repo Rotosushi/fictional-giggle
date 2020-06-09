@@ -808,7 +808,10 @@ bool speculate_term(Parser* p, Scanner* s)
 
   bool result = true;
   // it = the token sequence being parsed
-  if (speculate_entity(p, s)) {   // is it an entity?
+  if (speculate(p, s, ID)) {
+    
+  }
+  else if (speculate_entity(p, s)) {   // is it an entity?
 
   }
 
@@ -935,8 +938,7 @@ bool speculate_entity(Parser* p, Scanner* s)
 bool speculate_binop(Parser* p, Scanner* s)
 {
   bool result = true;
-  if      (speculate(p, s, COLONEQUALS));
-  else if (speculate(p, s, RARROW));
+  if (speculate(p, s, RARROW));
   else result = false;
   return result;
 }
