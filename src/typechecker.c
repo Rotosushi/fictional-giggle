@@ -161,6 +161,8 @@ I especially don't like implicit type conversion because it
 obfuscates the real workhorse of generic interfaces; polymorphism.
 It also has the potential to silently destroy information if the
 compiler is slightly too liberal in it's application of coercion.
+(most compilers limit the process to any type reachable in one step
+ for this exact reason.)
 explicit casting is an entirely different story exactly because
 the user is asking for the coercion to happen. which means that
 it is:
@@ -196,7 +198,7 @@ Ad-Hoc Polymorphism:
     by allowing the user to provide their own
     member of this set, with the types instanced to some
     particular type, which is then picked by the compiler
-    when the program makes a call providing the particular
+    when the program makes a call providing that particular
     type.
     this is essentially providing an implementation
     of one of the functions denoted by the interface.
@@ -211,22 +213,24 @@ Parametric polymorphism: (what c++ calls templates)
     formally we allow the type of the parameter to range
     over types and then become specialized for some particular type
     when called with that type.
-  	in this case to body of a polymorphic function only relies on
+  	in such a case where the body of a polymorphic function only relies on
   	a certain aspect of any given type, so any type which has that
   	aspect can be correctly passed through the polymorphic parameter.
   	this kind of polymorphism is generally implemented at compile time.
   	where the polymorphic definition acts as a template for function
   	definitions, and a static definition for the function can be defined
-  	for every type that is used with that function.
+  	for every type that is used with that function, each call location
+    providing such a type can be correctly tied to the implementation
+    of the function for said type by the compiler at each call location.
 
-Subtype polymorphism: (pretty sure the literature denotes it with "<:" )
+Subtype polymorphism: (some literature denotes it with "<:" )
   	whereby the code works with values of some base/root type, and new
   	types can be defined which extend the semantics of the original type.
   	the subtypes provide the same interface and interface semantics as
     the root/base type so a function which only relies on the semantics
     provided by the root/base can accept as an argument any subytype of
     the root/base type.
-  	can consistently rely on that/those aspects of the type.
+  	and can consistently rely on that/those aspects of the type.
 
 
     these three taken together, (or two if we define ad-hoc polymorphism
@@ -234,9 +238,7 @@ Subtype polymorphism: (pretty sure the literature denotes it with "<:" )
     make for a very expressive and typesafe language.
     the other goodies that i would like to bring in is
     parametric type definitions and with that polymorphic
-    type definitions, though i think the literature hinted
-    that those can be defined in terms of polymorphism as well!
-    that is parametrized sum and product type constructors.
+    type definitions.
 
 
 
@@ -282,12 +284,14 @@ Subtype polymorphism: (pretty sure the literature denotes it with "<:" )
 
 
 Ast* typeofEntityType(Ast* type, Symboltable* env);
-Ast* typeofEntityLambda(Ast* lambda, Symboltable* env);
-
-Ast* typeofId(Ast* id, Symboltable* env);
+Ast* typeofEntityProcedure(Ast* proc, Symboltable* env);
+Ast* typeofEntityLiteral(Ast* literal, Symboltable* env);
 Ast* typeofEntity(Ast* entity, Symboltable* env);
+Ast* typeofId(Ast* id, Symboltable* env);
 Ast* typeofCall(Ast* call, Symboltable* env);
 Ast* typeofBind(Ast* bind, Symboltable* env);
+Ast* typeofBinop(Ast* binop, Symboltable* env);
+Ast* typeofUnop(Ast* unop, Symboltable* env);
 
 bool is_polymorphic(Ast* type) {
   if (type == NULL) return false;
@@ -298,9 +302,9 @@ bool is_polymorphic(Ast* type) {
         return true;
       else if (type->u.entity.u.type.tag == T_NIL)
         return false;
-      else if (type->u.entity.u.type.tag == T_LAMBDA) {
-        return is_polymorphic(type->u.entity.u.type.u.rarrow.lhs)
-            || is_polymorphic(type->u.entity.u.type.u.rarrow.rhs);
+      else if (type->u.entity.u.type.tag == T_PROC) {
+        return is_polymorphic(type->u.entity.u.type.u.proc.lhs)
+            || is_polymorphic(type->u.entity.u.type.u.proc.rhs);
       }
     }
     return false;
@@ -323,6 +327,8 @@ Ast* type_of(Ast* term, Symboltable* env)
         case N_ENTITY: return typeofEntity(term, env);
         case N_CALL:   return typeofCall(term, env);
         case N_BIND:   return typeofBind(term, env);
+        case N_BINOP:  return typeofBinop(term, env);
+        case N_UNOP:   return typeofUnop(term, env);
         default:  error_abort("malformed Ast node! aborting", __FILE__, __LINE__);
       }
   }
@@ -332,39 +338,66 @@ Ast* type_of(Ast* term, Symboltable* env)
   }
 }
 
-
 Ast* typeofId(Ast* id, Symboltable* env)
 {
   /*
         id is-in FV(ENV)
       ------------------
-    ENV |- id : type = value
+    ENV |- id : type = value : type
   */
-  if (id != NULL) {
-    char* name = id->u.id.s;
-    Ast* term = lookup(name, env);
-    if (term != NULL) {
-      Ast* type = type_of(term, env);
-      DeleteAst(term);
-      return type;
-    }
-      else {
-        printf("id \"%s\" not in ENV!\n", name);
-        return NULL;
-      }
+  char* name = id->u.id;
+  Ast* term = lookup(name, env);
+  if (term != NULL) {
+    Ast* type = type_of(term, env);
+    DeleteAst(term);
+    return type;
   }
   else {
-    printf("Id NULL!");
+    printf("id \"%s\" not in ENV!\n", name);
     return NULL;
   }
 }
 
-Ast* typeofEntity(Ast* type, Symboltable* env)
+Ast* typeofBinop(Ast* binop, Symboltable* env)
 {
-  if (type != NULL) {
-    switch (type->u.entity.tag) {
-      case E_TYPE:   return typeofEntityType(type, env);
-      case E_LAMBDA: return typeofEntityLambda(type, env);
+  /*
+      ENV |- fn (op) : T1 -> T2 -> T3, lhs : T1, rhs : T2
+      ------------------------------------
+              ENV |- lhs op rhs : T3
+
+      recall:
+        T1 -> T2 -> T3
+        -->> (-> T1 (-> T2 T3))
+  */
+  if (binop != NULL) {
+
+  } else {
+    return NULL;
+  }
+}
+
+Ast* typeofUnop(Ast* unop, Symboltable* env)
+{
+  /*
+      ENV |- fn (op) : T1 -> T2, term : T1
+      ------------------------------------
+              ENV |- op term : T2
+  */
+  if (unop != NULL) {
+    return NULL; // there are no unops yet.
+  }
+  else {
+    printf("unop NULL.");
+    return NULL;
+  }
+}
+
+Ast* typeofEntity(Ast* entity, Symboltable* env)
+{
+  if (entity != NULL) {
+    switch (entity->u.entity.tag) {
+      case E_TYPE:    return typeofEntityType(entity, env);
+      case E_LITERAL: return typeofEntityLiteral(entity, env);
       default:
         error_abort("malformed entity tag! aborting", __FILE__, __LINE__);
     }
@@ -389,12 +422,12 @@ Ast* typeofEntityType(Ast* type, Symboltable* env)
       ------------------
       ENV |- T1 -> T2
     */
-     else if (type->u.entity.u.type.tag == T_LAMBDA) {
-      Ast* t1 = typeofEntity(type->u.entity.u.type.u.rarrow.lhs, env);
+     else if (type->u.entity.u.type.tag == T_PROC) {
+      Ast* t1 = typeofEntity(type->u.entity.u.type.u.proc.lhs, env);
       if (t1 != NULL) {
-        Ast* t2 = typeofEntity(type->u.entity.u.type.u.rarrow.rhs, env);
+        Ast* t2 = typeofEntity(type->u.entity.u.type.u.proc.rhs, env);
         if (t2 != NULL) {
-          return CreateAstEntityTypeFn(t1, t2, NULL);
+          return CreateAstEntityTypeProc(t1, t2, NULL);
         }
         else {
           printf("function type type2 NULL\n!");
@@ -418,7 +451,7 @@ Ast* typeofEntityType(Ast* type, Symboltable* env)
   return NULL;
 }
 
-Ast* typeofEntityLambda(Ast* lambda, Symboltable* env)
+Ast* typeofEntityProcedure(Ast* lambda, Symboltable* env)
 {
   /*
         ENV |- id : type1, term : type2
@@ -426,7 +459,7 @@ Ast* typeofEntityLambda(Ast* lambda, Symboltable* env)
     ENV |- \ id : type1 => term : type1 -> type2
   */
   if (lambda != NULL) {
-    Ast* type1 = type_of(lambda->u.entity.u.lambda.arg.type, env);
+    Ast* type1 = type_of(lambda->u.entity.u.literal.u.proc.arg.type, env);
     if (type1 != NULL) {
       /*
         question:
@@ -437,11 +470,11 @@ Ast* typeofEntityLambda(Ast* lambda, Symboltable* env)
           inject the parameter into the environment while
           we typecheck the body
       */
-      bind(lambda->u.entity.u.lambda.arg.id.s, lambda->u.entity.u.lambda.arg.type, env);
-      Ast* type2 = type_of(lambda->u.entity.u.lambda.body, env);
-      unbind(lambda->u.entity.u.lambda.arg.id.s, env);
+      bind(lambda->u.entity.u.literal.u.proc.arg.id, lambda->u.entity.u.literal.u.proc.arg.type, env);
+      Ast* type2 = type_of(lambda->u.entity.u.literal.u.proc.body, env);
+      unbind(lambda->u.entity.u.literal.u.proc.arg.id, env);
       if (type2 != NULL)
-        return CreateAstEntityTypeFn(type1, type2, NULL);
+        return CreateAstEntityTypeProc(type1, type2, NULL);
         else {
           printf("lambda body not typeable!\n");
           return NULL;
@@ -488,7 +521,7 @@ Ast* typeofCall(Ast* call, Symboltable* env)
           free(typeA);
           return typeB;
         }
-        else if (typeA->u.entity.u.type.tag == T_LAMBDA) {
+        else if (typeA->u.entity.u.type.tag == T_PROC) {
             if (is_polymorphic(typeA)) {
               /*
                 given some polymorphic function application,
@@ -510,7 +543,7 @@ Ast* typeofCall(Ast* call, Symboltable* env)
               return typeB;
 
             } else {
-                Ast* type1 = type_of(typeA->u.entity.u.type.u.rarrow.lhs, env);
+                Ast* type1 = type_of(typeA->u.entity.u.type.u.proc.lhs, env);
                 // Ast* type2 = type_of(typeA->u.type.u.rarrow.rhs)
 
                 if (type1 != NULL) {
@@ -596,9 +629,9 @@ bool typesEqual(Ast* t1, Ast* t2, Symboltable* env)
       error_abort("non-type ast cannot compare to type ast! aborting", __FILE__, __LINE__);
     if (t1->u.entity.u.type.tag == T_NIL && t2->u.entity.u.type.tag == T_NIL)
       return true;
-    else if (t1->u.entity.u.type.tag == T_LAMBDA && t2->u.entity.u.type.tag == T_LAMBDA)
-      return typesEqual(t1->u.entity.u.type.u.rarrow.lhs, t2->u.entity.u.type.u.rarrow.lhs, env) \
-          && typesEqual(t1->u.entity.u.type.u.rarrow.rhs, t2->u.entity.u.type.u.rarrow.rhs, env);
+    else if (t1->u.entity.u.type.tag == T_PROC && t2->u.entity.u.type.tag == T_PROC)
+      return typesEqual(t1->u.entity.u.type.u.proc.lhs, t2->u.entity.u.type.u.proc.lhs, env) \
+          && typesEqual(t1->u.entity.u.type.u.proc.rhs, t2->u.entity.u.type.u.proc.rhs, env);
     else
       return false;
   }

@@ -39,14 +39,15 @@ typedef struct StrLoc
 */
 
 typedef enum NodeTag {
+  N_ID,
 	N_ENTITY,
 	N_CALL,
+  N_BIND,
 	N_BINOP,
   N_UNOP,
 } NodeTag;
 
 typedef enum EntityTag {
-  E_ID,
 	E_TYPE,
   E_LITERAL,
 } EntityTag;
@@ -81,7 +82,7 @@ typedef struct Arg {
 	struct Ast* type;
 } Arg;
 
-/* a lambda needs to hold it's argument, and it's body */
+/* a procedure literal needs to hold it's argument, and it's body */
 typedef struct Procedure {
 	Arg  arg;
 	struct Ast* body;
@@ -102,7 +103,6 @@ typedef struct Literal {
 typedef struct Entity {
 	EntityTag tag;
 	union {
-    char*     id;
     Type      type;
     Literal   literal;
 		/*
@@ -120,6 +120,11 @@ typedef struct Call {
 	struct Ast* lhs;
 	struct Ast* rhs;
 } Call;
+
+typedef struct Bind {
+  char*       id;
+  struct Ast* term;
+} Bind;
 
 /* a binop needs to hold it's op, lhs and rhs*/
 typedef struct Binop {
@@ -142,29 +147,25 @@ typedef struct Ast {
 	NodeTag tag;
 	struct StrLoc lloc;
 	union {
+    char*  id;
 		Entity entity;
 		Call   call;
+    Bind   bind;
 		Binop  binop;
     Unop   unop;
 	} u;
 } Ast;
 
-/*
-Ast* CreateAstId(char* name, struct StrLoc* llocp);
-Ast* CreateAstEntityNil(struct StrLoc* llocp);
-Ast* CreateAstEntityTypeNil(struct StrLoc* llocp);
-Ast* CreateAstEntityTypePoly();
-Ast* CreateAstEntityTypeFn(Ast* l, Ast* r, struct StrLoc* llocp);
-Ast* CreateAstEntityFn(char* name, Ast* type, Ast* body, struct StrLoc* llocp);
-Ast* CreateAstCall(Ast* l, Ast* r, struct StrLoc* llocp);
-Ast* CreateAstBind(char* name, Ast* term, struct StrLoc* llocp);
-*/
-Ast* CreateAstEntityId(char* id, struct StrLoc* llocp);
+
+
+
 Ast* CreateAstEntityTypeNil(struct StrLoc* llocp);
 Ast* CreateAstEntityTypePoly();
 Ast* CreateAstEntityTypeProc(struct Ast* lhs, struct Ast* rhs, struct StrLoc* llocp);
 Ast* CreateAstEntityLiteralNil(struct StrLoc* llocp);
 Ast* CreateAstEntityLiteralProc(char* arg_id, Ast* arg_type, Ast* body, struct StrLoc* llocp);
+Ast* CreateAstId(char* id, struct StrLoc* llocp);
+Ast* CreateAstBind(char* id, Ast* term, struct StrLoc* llocp);
 Ast* CreateAstCall(Ast* lhs, Ast* rhs, struct StrLoc* llocp);
 Ast* CreateAstBinop(char* op, Ast* lhs, Ast* rhs, struct StrLoc* llocp);
 Ast* CreateAstUnop(char* op, Ast* rhs, struct StrLoc* llocp);

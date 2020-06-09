@@ -59,6 +59,8 @@ Ast* evaluate(Ast* term, Symboltable* env)
       //case N_ENTITY: copy = evaluate_entity(copy, env); /* values are already in beta-normal form */
       case N_CALL:   copy = evaluate_call(copy, env); break;  /* return the result of calling the fn. */
       case N_BIND:   copy = evaluate_bind(copy, env); break;  /* evaluate the bind and return the value nil. */
+      case N_BINOP:  copy = evaluate_binop(copy, env); break;
+      case N_UNOP:   copy = evaluate_unop(copy, env); break;
       default: error_abort("malformed ast node tag! aborting", __FILE__, __LINE__);
     }
     DeleteAst(tmp);

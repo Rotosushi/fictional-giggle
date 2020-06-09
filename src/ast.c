@@ -18,12 +18,31 @@ int last_column;
 };
 */
 
-Ast* CreateAstEntityId(char* name, StrLoc* llocp)
+Ast* CreateAstId(char* name, StrLoc* llocp)
 {
-  Ast* node          = (Ast*)malloc(sizeof(Ast));
-  node->tag          = N_ENTITY;
-  node->u.entity.tag = E_ID;
-  node->u.entity.u.id  = name;
+  Ast* node  = (Ast*)malloc(sizeof(Ast));
+  node->tag  = N_ID;
+  node->u.id = name;
+  if (llocp != NULL) {
+    node->lloc.first_line   = llocp->first_line;
+    node->lloc.first_column = llocp->first_column;
+    node->lloc.last_line    = llocp->last_line;
+    node->lloc.last_column  = llocp->last_column;
+  } else {
+    node->lloc.first_line   = 0;
+    node->lloc.first_column = 0;
+    node->lloc.last_line    = 0;
+    node->lloc.last_column  = 0;
+  }
+  return node;
+}
+
+Ast* CreateAstBind(char* id, Ast* term, StrLoc* llocp)
+{
+  Ast* node         = (Ast*)malloc(sizeof(Ast));
+  node->tag         = N_BIND;
+  node->u.bind.id   = id;
+  node->u.bind.term = term;
   if (llocp != NULL) {
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
@@ -202,18 +221,27 @@ Ast* CreateAstUnop(char* op, Ast* rhs, StrLoc* llocp)
 
 void DeleteAstEntity(Ast* entity);
 void DeleteAstCall(Ast* call);
+void DeleteAstBind(Ast* bind);
 void DeleteAstBinop(Ast* binop);
 void DeleteAstUnop(Ast* unop);
+void DeleteAstBind(Ast* bind);
 
 void DeleteAst(Ast* ast)
 {
   if (ast != NULL) {
     switch (ast->tag) {
+      case N_ID:
+        free(ast->u.id);
+        free(ast);
+        break;
       case N_ENTITY:
         DeleteAstEntity(ast);
         break;
       case N_CALL:
         DeleteAstCall(ast);
+        break;
+      case N_BIND:
+        DeleteAstBind(ast);
         break;
       case N_BINOP:
         DeleteAstBinop(ast);
@@ -273,12 +301,6 @@ void DeleteAstEntity(Ast* entity)
   if (entity != NULL) {
     Entity* e = &(entity->u.entity);
     switch(e->tag) {
-      case E_ID:
-        if (e->u.id)
-          free(e->u.id);
-        free(entity);
-        break;
-      case E_TYPE:
         DeleteAstEntityType(entity);
         break;
       case E_LITERAL:
@@ -296,6 +318,15 @@ void DeleteAstCall(Ast* call)
     DeleteAst(call->u.call.lhs);
     DeleteAst(call->u.call.rhs);
     free(call);
+  }
+}
+
+void DeleteAstBind(Ast* bind)
+{
+  if (bind != NULL) {
+    free(bind->u.bind.id);
+    DeleteAst(bind->u.bind.term);
+    free(bind);
   }
 }
 
@@ -321,6 +352,8 @@ void DeleteAstUnop(Ast* unop)
 }
 
 
+Ast* CopyAstId(Ast* id);
+Ast* CopyAstBind(Ast* bind);
 Ast* CopyAstEntity(Ast* entity);
 Ast* CopyAstCall(Ast* call);
 Ast* CopyAstBinop(Ast* binop);
@@ -332,11 +365,29 @@ Ast* CopyAst(Ast* ast)
     return NULL;
 
   switch(ast->tag) {
+    case N_ID:     return CopyAstId(ast);
     case N_ENTITY: return CopyAstEntity(ast);
     case N_CALL:   return CopyAstCall(ast);
+    case N_BIND:   return CopyAstBind(ast);
     case N_BINOP:  return CopyAstBinop(ast);
     case N_UNOP:   return CopyAstUnop(ast);
     default: error_abort ("malformed ast! aborting", __FILE__, __LINE__);
+  }
+}
+
+Ast* CopyAstId(Ast* id)
+{
+  if (id != NULL) {
+    return CreateAstId(strdup(id->u.id), NULL);
+  }
+}
+
+Ast* CopyAstBind(Ast* bind)
+{
+  if (bind != NULL) {
+    return CreateAstBind(strdup(bind->u.bind.id),    \
+                         CopyAst(bind->u.bind.term), \
+                         NULL);
   }
 }
 
@@ -387,9 +438,6 @@ Ast* CopyAstEntity(Ast* entity)
   if (entity != NULL) {
     Entity* e = &(entity->u.entity);
     switch(e->tag) {
-      case E_ID:
-        return CreateAstEntityId(strdup(e->u.id), NULL);
-        break;
       case E_TYPE:
         return CopyAstEntityType(entity);
         break;
@@ -568,10 +616,6 @@ char* AstEntityToString(Ast* ast)
   char* result = NULL;
   if (ast != NULL) {
     switch (ast->u.entity.tag) {
-      case E_ID: {
-        result = strdup(ast->u.entity.u.id);
-        break;
-      }
       case E_TYPE: {
         result = AstEntityTypeToString(ast);
         break;
@@ -664,17 +708,50 @@ char* AstUnopToString(Ast* ast)
   return result;
 }
 
+char* AstIdToString(Ast* ast)
+{
+  char* result = NULL;
+  if (ast != NULL) {
+    result = strdup(ast->u.id);
+  }
+  return result;
+}
+
+char* AstBindToString(Ast* ast)
+{
+  char* result = NULL;
+  if (ast != NULL) {
+    char* clneq = " := ";
+    char* id = ast->u.bind.id;
+    char* term = AstToString(ast->u.bind.term);
+    int len = strlen(id) + strlen(clneq) + strlen(term) + 1;
+    result = (char*)calloc(len, sizeof(char));
+    strcat(result, id);
+    strcat(result, clneq);
+    strcat(result, term);
+  }
+  return result;
+}
+
 char* AstToString(Ast* ast)
 {
   char* result = NULL;
   if (ast != NULL) {
     switch (ast->tag) {
+      case N_ID: {
+        result = AstIdToString(ast);
+        break;
+      }
       case N_ENTITY: {
         result = AstEntityToString(ast);
         break;
       }
       case N_CALL: {
         result = AstCallToString(ast);
+        break;
+      }
+      case N_BIND: {
+        result = AstBindToString(ast);
         break;
       }
       case N_BINOP: {

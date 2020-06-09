@@ -5,6 +5,7 @@
 
 #include "parser.h"
 #include "lexer.h"
+#include "pink_kernel.h"
 #include "precedencetable.h"
 #include "stringset.h"
 #include "ast.h"
@@ -25,121 +26,6 @@ term:
     //| unop
 */
 
-void InitializePrecedenceTable(PrecedenceTable* pTable)
-{
-  /*
-  my previous attempt at the precedence table
-  obviously we want to maintain the same precedence
-  relations between the common math symbols. and also
-  understanding that for many, the c precedence table
-  is de-facto standard for programming languages.
-
-  so, starting from the perspective of emulating mathematics
-  we want to preform basic actions on numbers/entities.
-  3 + 4 * 5 HAS TO parse to (* 5 (+ 3 4))
-  when a programmer wants to preform bitwise operations
-  on numbers, they probably want the bitwise operations to
-  operate on numbers which have already been manipulated
-  to some final value.
-  x || y * z,
-  likewise when we go up a step to the logical connectives,
-  we want to test for truth and falsehood upon values which
-  have been fully operated upon. a + b > c * d.
-
-  the same argument is made when we take another step up to
-  equality comparison.
-  say to the case of
-  a + b > c * d == e - f < g \ h
-
-  we want to test for equality between the largest lhs and right we can
-  group together. because we are assuming the programmer wants to compare
-  between fully evaluated terms, which implies gathering as many operations
-  into the evaluation tree before we insert the comparison operation.
-
-  and, the same argument extends to the programming language specific operators
-  ',', ';', ':=', '[', ']', '(', ')', '{', '}'
-  and the type connectives '->', '+', '|', '&', '!'
-
-  why do I invert the logical symbols and the bitwise symbols?
-  well, for logical consistency, and the fact that logical connectives
-  are more common than bitwise operations, by a wide-margin.
-  (and now, LSHIFT <<, and RSHIFT >>, align with the rest of the
-   bitwise operators OR ||, and &&, and xor ^^, in being two symbol operators.
-  )
-  when we consider equals and not equals, =, ~= resp. one can probably intuit
-  the meaning of the compound symbol ~= just from knowing that = means equal-to
-  and ~ means logical-negation. this also aligns with ~ being the logical not.
-  instead of ! as in c. why is that? well, the operator *, is used to represent
-  type kinds in the theory, and it would be nice to align the language to some
-  theory symbolically. since we are deciding to reapropriate * for types, then
-  it could create confusion to also use it as the indirection unop. so we will
-  pay some homage to ML by taking ! to be the indirection operator. which takes
-  ! away from the logical commectives, because again too much overloading
-  increases the cognitive complexity of the kernel, and so we must select
-  a new symbol for logical-negation.
-  hence, ~ for logical-negation, and ~~ for bitwise negation. notice how
-  this aligns with every bitwise operator, being composed of a repetition
-  of some other operator. when a programmer sees a || instead of a | it should
-  always be able to be read as a bitwise operation. this at least holds for the
-  kernel, obviously if we give programmers the tools to both overload existing
-  operators, and define new operators, they can define new operators which
-  negate the truth of the above statement quite easily. but that is separate
-  from the logical consistency of the kernel.
-
-  (normally in ML ~ is the unop minus to the binop minus -, we just use the
-   fact that unary minus always appears in prefix position and disambiguate
-   by the position instead of symbol the operation to be carried out. meaning
-   both forms of minus are symbolically stated by the - symbol, this is in
-   some sense of the word, overloading the symbol with two meanings, however
-   since the two meanings are entirely disambiguated by the grammar there is no
-   need to consider any special logic to support the two definitions, we can
-   )
-
-
-    ptable[T_COMMA] = 1;
-  	ptable[T_EQ] = 2;
-
-  	ptable[T_EQUALS] = 3;
-  	ptable[T_NOT_EQUALS] = 3;
-
-  	ptable[T_LESS] = 4;
-  	ptable[T_GREATER] = 4;
-  	ptable[T_LESS_EQUALS] = 4;
-  	ptable[T_GREATER_EQUALS] = 4;
-
-  	ptable[T_OR] = 5;
-  	ptable[T_XOR] = 6;
-  	ptable[T_AND] = 7;
-
-  	ptable[T_BIT_OR] = 8;
-  	ptable[T_BIT_XOR] = 9;
-  	ptable[T_BIT_AND] = 10;
-
-  	ptable[T_BIT_LSHIFT] = 11;
-  	ptable[T_BIT_RSHIFT] = 11;
-
-  	ptable[T_ADD] = 12;
-  	ptable[T_SUB] = 12;
-
-  	ptable[T_MULT] = 13;
-  	ptable[T_DIV] = 13;
-  	ptable[T_MOD] = 13;
-  */
-
-  InsertOpPrec(pTable, ":=", 2, A_LEFT);
-  InsertOpPrec(pTable, "->", 3, A_RIGHT);
-}
-
-void InitializeBinops(StringSet* binopSet)
-{
-  appendStr(":=", binopSet);
-  appendStr("->", binopSet);
-}
-
-void InitializeUnops(StringSet* unopSet)
-{
-
-}
 
 Parser* createParser()
 {
@@ -337,7 +223,7 @@ bool predicts_binop(Parser* p, char* op)
 bool predicts_entity(Token t)
 {
   switch (t) {
-    case NIL: case NIL_TYPE: case ID:
+    case NIL: case NIL_TYPE:
     case LPAREN: case BSLASH:
     {
       return true;
@@ -350,10 +236,20 @@ bool predicts_entity(Token t)
   }
 }
 
+bool predicts_type(Token t)
+{
+  switch(t) {
+    case NIL_TYPE: case LPAREN:
+      return true;
+    default:
+      return false;
+  }
+}
+
 bool predicts_literal(Token t)
 {
   switch(t) {
-    case NIL: case NIL_TYPE: case BSLASH:
+    case NIL: case BSLASH:
     {
       return true;
     }
@@ -367,10 +263,10 @@ bool predicts_literal(Token t)
 bool predicts_primary(Token t)
 {
   /*
-  primary   := entity
+  primary   := id
+             | entity
              | unop-expr
              | parens
-             | call
   */
   switch (t) {
     case NIL: case NIL_TYPE: case ID:
@@ -413,6 +309,7 @@ type := Nil
       | type '->' type
 
 entity := id
+        | id := term
         | literal
         | type
 
@@ -449,6 +346,7 @@ term := primary
 
 Ast* parse_literal(Parser* p, Scanner* s);
 Ast* parse_lambda(Parser* p, Scanner* s);
+Ast* parse_type(Parser* p, Scanner* s);
 Ast* parse_entity(Parser* p, Scanner* s);
 Ast* parse_call(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc);
 Ast* parse_binop(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc);
@@ -461,24 +359,27 @@ Ast* parse_term(Parser* p, Scanner* s)
 {
   /*
       constant := nil
-                | Nil
+                | lambda
 
       lambda := \ id (: type)? => term
 
+      type   := Nil
+              | type '->' type
+
       entity := id
               | constant
-              | lambda
+              | type
 
       unop-expr := unop term
 
       parens    := '(' term ')'
 
-      call      := term term
+      call      := primary primary
 
       primary   := entity
                  | unop-expr
                  | parens
-                 | primary primary
+                 | call
 
       binop-expr := term binop term
 
@@ -542,11 +443,28 @@ Ast* parse_term(Parser* p, Scanner* s)
   return term;
 }
 
+Ast* parse_type(Parser* p, Scanner* s)
+{
+  /*
+  type := Nil
+  */
+  Token ct  = curtok(p);
+  Ast* type = NULL;
+  StrLoc* lhsloc = NULL;
+
+  if (ct == NIL_TYPE) {
+    lhsloc = curloc(p);
+    type = CreateAstEntityTypeNil(lhsloc);
+    nexttok(p, s);
+  }
+
+  return type;
+}
+
 Ast* parse_literal(Parser* p, Scanner* s)
 {
   /*
-  constant := nil
-            | Nil
+  literal := nil
             | lambda
   */
   Token ct = curtok(p);
@@ -555,11 +473,6 @@ Ast* parse_literal(Parser* p, Scanner* s)
   if (ct == NIL) {
     literal = CreateAstEntityLiteralNil(curloc(p));
     // eat the nil
-    nexttok(p, s);
-  }
-  else if (ct == NIL_TYPE) {
-    literal = CreateAstEntityTypeNil(curloc(p));
-    // eat the Nil
     nexttok(p, s);
   }
   else if (ct == BSLASH) {
@@ -646,18 +559,17 @@ Ast* parse_lambda(Parser* p, Scanner* s)
 Ast* parse_entity(Parser* p, Scanner* s)
 {
   /*
-  entity := id
+  entity := type
           | literal
   */
   Token ct = curtok(p);
   Ast* entity = NULL;
 
 
-  if (ct == ID) {
-    entity = CreateAstEntityId(strdup(curtext(p)), curloc(p));
-    nexttok(p, s); // eat ID
+  if (predicts_type(ct)) {
+    entity = parse_type(p, s);
   }
-  else if (predicts_literal(ct)) {
+  if (predicts_literal(ct)) {
     entity = parse_literal(p, s);
   }
 
@@ -811,7 +723,9 @@ Ast* parse_parens(Parser* p, Scanner* s)
 Ast* parse_primary(Parser* p, Scanner* s)
 {
   /*
-  primary   := entity
+  primary   := id
+             | id := term
+             | entity
              | unop-expr
              | parens
   */
@@ -819,6 +733,32 @@ Ast* parse_primary(Parser* p, Scanner* s)
   char* ctxt = curtext(p);
   Ast* result = NULL;
 
+  if (ct == ID) {
+    char*   id = curtext(p);
+    StrLoc* idloc = curloc(p);
+    StrLoc* rhsloc = NULL;
+    StrLoc  bindloc;
+    Ast*    term = NULL;
+
+    nexttok(p, s); // eat ID
+    ct = curtok(p);
+    ctxt = curtext(p);
+    if (ct == COLONEQUALS) {
+      nexttok(p, s); // eat :=
+      term = parse_term(p, s);
+      rhsloc = curloc(p);
+      bindloc.first_line   = idloc->first_line;
+      bindloc.first_column = idloc->first_column;
+      bindloc.last_line    = rhsloc->last_line;
+      bindloc.last_column  = rhsloc->last_column;
+    }
+
+    if (term) {
+      result = CreateAstBind(id, term, &bindloc);
+    } else {
+      result = CreateAstId(id, idloc);
+    }
+  }
   if (predicts_entity(ct)) {
     result = parse_entity(p, s);
   }

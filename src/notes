@@ -51,15 +51,19 @@ taking a few pages from the early-version hand rolled parser.)
   and connective tissue they represent, means we can even
   express the mutually recursive definition relatively naturally.
   all supported by the abstraction of a typed ptr and record + union of types.
+
+
   which goes to show just how powerful the simple constructs are,
   and how composable they are. the more complexity a component
   presents the less composable it is. which to some extent says
   that the larger a component is, the less composable it is.
-  except size doesn't refer to physical space here, but mental
+  except size doesn't refer to physical space here, but complexity and mental
   space. a large array is no more complex than a small array,
-  but a red-black tree is always more complex than, and hence,
+  but a red-black tree is always more complex than and array, and hence,
   more of a memory and processor footprint, than the array.
   both of these abstractions are less complex than a SQL interpreter.
+  and use less overhead in memory and processing.
+  (notice how this again lines up with state and behavior.)
   while all three abstractions support essentially the same abstract action,
   the storage and retrieval of data, what each brings to the table is
   a set of constraints-of-existance, and constraints-of-use.
@@ -68,11 +72,33 @@ taking a few pages from the early-version hand rolled parser.)
   it's physical footprint, how large in space it is, and what types it works with.
   the constraints-of-use are those aspects of the abstraction comprising
   it's mental footprint, what it does, what it can be used to do, what constraints
-  does it impose upon input/output?
+  does it impose upon input/output? what constraints does it impose that cannot be
+  expressed in the literal text of the program? what constraints can be?
 
   each abstraction has it's own set of constraints, which must be considered
   by itself when working on that abstraction, and must be considered in tandem
-  when working with that abstraction and another abstraction.
+  when working with that abstraction and another abstraction. the more
+  abstractions which are interoperating the more of an overhead working
+  with that interoperation is. if we observe that complexity arises in some
+  location, we as programmers can work to reduce that complexity. there are
+  many ways we can approach the problem of "removing complexity", one of the
+  simplest is the straight removal of components, however one of the constraints
+  we generally impose upon abstractions is that they provide the same behavior
+  given the same input. and removing components can make it difficult or impossible
+  to maintain the same semantics. so, instead of
+  removing components wholesale, we can observe what behavior, if any, the
+  components provide that can be provided by some unifying abstraction.
+  this reduces the complexity of the portions of each component which
+  had to reimplement portions of the unifying-abstraction, and instead each
+  component can use the abstraction.
+  if we instead observe that two or more
+  components behavior can be subsumed by another abstraction, we can replace
+  the components by some replacement abstraction which maintains the same semantics,
+  this removes complexity in the sense that the complexity of the replacement
+  abstraction is less overall than the complexity of the interoperation
+  of the replaced components. (we can trivially observe that we don't
+  benefit if the replacement abstraction is more complex than the interoperation
+  of components.)
 
 
   notice two things, alignment leads to clearer design,
@@ -80,6 +106,15 @@ taking a few pages from the early-version hand rolled parser.)
     consider the task normally named "papering-over"
     or "fenagling" and the like. when and where two components
     logic become aligned, is when and where we can encode our logic.
+    in some sense, this is the only process that happens in programming.
+
+    we simply align between four points,
+      state, behavior, goals, and constraints.
+      what we have (in the previously written behavior and state sense.),
+      what we can do (in the beta-reducible sense),
+      what we want to do (in the what is the purpose of the project sense),
+      what we can never do (in the beta-reducible sense, and the project purpose,
+                           ethics, and consumer-market sense).
 
     this leads into the second thing to notice, the alignment
     of the composition of data with the composition of the
@@ -115,7 +150,7 @@ taking a few pages from the early-version hand rolled parser.)
   some subset of the full set of possible errors.
   the really nice thing about static analysis however is
   the properties that it shares with mathematics in general,
-  namely, it is deterministic and replicable. (depending of course
+  namely, it is deterministic. (depending of course
   on the specific typesystem, this is words about some idea of a
   typesystem, not specific typesystems, or about judgements which
   are undecidable.)
