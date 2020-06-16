@@ -11,6 +11,88 @@ Just enough to say what is interesting
   -> make it do another thing
   -> loop/iterate/recur
 
+--------------------------------------------------------------------------------
+the binding does not match,
+ however we need to aware of one more case,
+ if a free variable in the body of the value
+ we are substituting for happens to match the binding
+ of the lambda, an unintentional binding will occur.
+
+ (think through what happens when we call the function
+  'lookup' on a free variable which occurs in the value
+  being substituted into the body of a lambda, after
+  execution of the substitution whose name matches the
+  lambdas binding name;
+  when lookup tries to resolve the name, it will encounter
+  the definition of the argument binding before
+  it will encounter the binding that existed at the
+  time of {value}'s creation. hence, the unintentional
+  binding.)
+
+  the generally accepted solutions to this problem are
+  -renaming the argument of the lambda before substitution.
+     such that no binding will occur. (what we go with)
+  -making it so the evaluation of terms doesn't depend
+   on names. this can be achieved in two ways
+     -De Bruijn notation (which changes the names to numbers
+       and maintains the separation point which denotes the current
+       outer scope, below which no renaming need occur, (which is a
+       consequence of the reversed numbering (zero is the most recent binding)
+       , making the largest known value the oldest created binding.))
+     -Combinator Calculus. which replaces names with some number of
+       basic primitive functions. (there are a lot of different
+       iterations of this idea, SKI, BCSKI, iota, etc)
+
+ because of the simplicity of implementation
+ we will choose to rename the binding of
+ the lamdba abstraction throughout it's body before
+ we substitute for the value.
+
+ this has two downsides pointed out by some literature
+ -it can be hard to reason about correctness formally
+ -it relies on string manipulation, which is less efficient
+   than the integer manipulation that De Bruijn notation
+   relies upon.
+
+ we don't need to reason formally about the correctness
+ of Pink, if we can test it's correctness, and play with the
+ system, in fact mostly just to play with the system.
+
+ string manipulation is something that I am willing to
+ spend cycles on. especially early on in the languages lifetime.
+ especially when we aren't building large programs,
+
+ I can see an argument for conversion to a DeBruijn manipulation
+ of terms for a more final form of the interpreter.
+ along with linearizing the tree traversal algorithm,
+ and separating the walking from the actions. as that would
+ have an impact on every module of the code that can be written
+ as an operation upon the tree.
+ Which is a large portion of this program.
+
+
+ how do we know if the name bound to the lambda occurs free
+ in {value}? well,
+ a possible solution would be to gather the free
+ variables present in (value) into a list and search that list
+ for the argument name. this is in fact the solution that imo
+ most straghtforwardly flows from the formal definition of substitution
+ and renaming.
+ however, this would require at least
+ as much work as searching the tree directly
+ to build the list of free variables, plus
+ the work required to then search the list.
+ (not to mention all of the allocation and deallocation
+ of the list itself.) (there is no such thing as a zero
+ cost abstraction. though i can believe a low-cost abstraction.
+ think arrays vs linked-lists when accounting for an actual physical
+ cacheing architecture.)
+ it is more efficient to directly search the subtree
+ for free variables of the conficting name. but this
+ becomes another place where the algorithm is tied intimately
+ to the structure of the Ast.
+
+--------------------------------------------------------------------------------
 
 okay, how do we add numbers to this system?
 because we also want to add infix expressions

@@ -284,10 +284,10 @@ void DeleteProcSet(ProcInst* root)
   while(cur != NULL) {
     prv = cur;
     cur = cur->next;
-    if (prv->proc.arg.id)
-      free(prv->proc.arg.id);
-    DeleteAst(prv->proc.arg.type);
-    DeleteAst(prv->proc.body);
+    if (prv->def.arg.id)
+      free(prv->def.arg.id);
+    DeleteAst(prv->def.arg.type);
+    DeleteAst(prv->def.body);
     free(prv);
   }
 }
@@ -438,9 +438,9 @@ ProcInst* CopyProcSet(ProcInst* root)
   ProcInst *cur = root, **new;
   while (cur != NULL) {
     *new = (ProcInst*)malloc(sizeof(ProcInst));
-    (*new)->proc.arg.id   = strdup(cur->proc.arg.id);
-    (*new)->proc.arg.type = CopyAst(cur->proc.arg.type);
-    (*new)->proc.body     = CopyAst(cur->proc.body);
+    (*new)->def.arg.id   = strdup(cur->def.arg.id);
+    (*new)->def.arg.type = CopyAst(cur->def.arg.type);
+    (*new)->def.body     = CopyAst(cur->def.body);
     cur = cur->next;
     new = &((*new)->next);
   }

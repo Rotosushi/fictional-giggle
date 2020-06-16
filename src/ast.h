@@ -2,6 +2,8 @@
 #ifndef AST_H
 #define AST_H
 
+#include <stdbool.h>
+
 /*
 	this is the definition of the location tracking
 	structure used by the parser and Ast to store the
@@ -90,13 +92,14 @@ typedef struct Lambda {
 
 /* a linked list node for the set of literals */
 typedef struct ProcInst {
-  Lambda proc;
+  Lambda def;
   struct ProcInst* next;
 } ProcInst;
 
 typedef struct ProcSet {
   Lambda def;
   ProcInst* set;
+  bool polymorphic;
 } ProcSet;
 
 

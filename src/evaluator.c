@@ -20,6 +20,8 @@ Ast* evaluate_id(Ast* id, Symboltable* env);
 //Ast* evaluate_entity(Ast* val, Symboltable* env);
 Ast* evaluate_call(Ast* call, Symboltable* env);
 Ast* evaluate_bind(Ast* bind, Symboltable* env);
+Ast* evaluate_binop(Ast* binop, Symboltable* env);
+Ast* evaluate_unop(Ast* unop, Symboltable* env);
 
 // interesting to note that this is the only place where the Ast is trimmed.
 void substitute(char* name, Ast** term, Ast* value, Symboltable* env);
@@ -92,7 +94,7 @@ Ast* evaluate_id(Ast* id, Symboltable* env)
       free(s);
     }
 
-    Ast* term = lookup(id->u.id.s, env);
+    Ast* term = lookup(id->u.id, env);
     if (term != NULL) {
       if (traced) {
         char* s = AstToString(term);
@@ -133,8 +135,8 @@ Ast* evaluate_bind(Ast* bind_ast, Symboltable* env)
       free(s);
     }
 
-    if (lookup(bind_ast->u.bind.id.s, env) != NULL) {
-      printf("cannot evaluate bind; name \"%s\" already bound!\n", bind_ast->u.bind.id.s);
+    if (lookup(bind_ast->u.bind.id, env) != NULL) {
+      printf("cannot evaluate bind; name \"%s\" already bound!\n", bind_ast->u.bind.id);
       return NULL;
     }
 
@@ -145,11 +147,11 @@ Ast* evaluate_bind(Ast* bind_ast, Symboltable* env)
       return NULL;
     }
 
-    bind (bind_ast->u.bind.id.s, term, env);
+    bind (bind_ast->u.bind.id, term, env);
 
     if (traced) {
       char* s2 = AstToString(term);
-      printf("bound: \"%s\" to: \"%s\"\n", bind_ast->u.bind.id.s, s2);
+      printf("bound: \"%s\" to: \"%s\"\n", bind_ast->u.bind.id, s2);
       free(s2);
     }
 
@@ -163,6 +165,127 @@ Ast* evaluate_bind(Ast* bind_ast, Symboltable* env)
   return NULL;
 }
 
+
+Ast* HasInstance(ProcSet* set, Ast* type, Symboltable* env)
+{
+
+  /*
+    either returns the procedure associated with the passed argument type.
+    or returns NULL if there is no procedure associated with the argument type
+    or if the procedure is polymorphic, we construct a monomorphic version
+    and then typecheck that, we insert one copy of the monomorphic procedure
+    into the ProcSet and return another copy as the result instance.
+
+
+  */
+  ProcInst* cur = set->set;
+  if (set->polymorphic == true) {
+    /*
+      if the Set represents a polymorphic procedure
+      then the defining occurance does not contain
+      a typecheckable version of the procedure, (the typehecking
+      algorithm deliberately does not typecheck the unbound
+      version of the procedure, because it is not typeable.
+      we cannot determine a type for precisely the same reason
+      the unannotated version of system F cannot determine a type,
+      the polymorphic procedure is by it's essence non-deterministic.)
+      so we can only search the set of procedures which are instances
+      or specializations of the polymorphic version,
+      with the type bound to some given type, which is unique to the set.
+      if we do not find the instance with a matching
+      type, then we are free to construct a monomorphic instance
+      with the given type. if the resulting instance typechecks
+      then it's a valid instance.
+      if the resulting instance fails to typecheck then
+      we have no choice but to report an error.
+      just like if we encounter a misuse of a monomorphic type in
+      a monomorphic procedure. we have encountered the misuse
+      of a monomorphic type within a polymorphic procedure.
+    */
+    while (cur != NULL) {
+      if (typesEqual(cur->def.arg.type, type, env)) {
+        return CreateAstEntityLiteralProc(strdup(cur->def.arg.id),    \
+                                          CopyAst(cur->def.arg.type), \
+                                          CopyAst(cur->def.body), NULL);
+      }
+
+      cur = cur->next;
+    }
+
+    // if we are here there wasn't already a valid monomorphic instance.
+    ProcInst* inst     = (ProcInst*)malloc(sizeof(ProcInst));
+    inst->next         = NULL;
+    inst->def.arg.id   = strdup(set->def.arg.id);
+    inst->def.arg.type = CopyAst(type);
+    inst->def.body     = CopyAst(set->def.body);
+    /*
+    now we typecheck the new instance, which according to the
+    procedure above, we already have type1, it is type.
+    type2 is what we will use to tell if this is a valid instance.
+    we need to temporarily bind the argument to the new type in the
+    environment just long enough to make the judgment.
+    then, if we constructed some valid type2,
+    the body of the procedure is typeable if the argument has the
+    passed type.
+    */
+    bind(inst->def.arg.id, inst->def.arg.type, env);
+    Ast* T = type_of(inst->def.body, env);
+    unbind(inst->def.arg.id, env);
+
+    if (T != NULL) {
+      /*
+      insert the new instance into the set of procedures.
+      return an evaluatable copy of the instance.
+      */
+      inst->next = set->set;
+      set->set   = inst;
+      return CreateAstEntityLiteralProc(strdup(inst->def.arg.id),    \
+                                        CopyAst(inst->def.arg.type), \
+                                        CopyAst(inst->def.body), NULL);
+    }
+    else {
+      printf("polymorphic procedure not typeable with actual type [%s]", AstToString(type));
+      free     (inst->def.arg.id);
+      DeleteAst(inst->def.arg.type);
+      DeleteAst(inst->def.body);
+      free     (inst);
+      return NULL;
+    }
+  }
+  else {
+    /*
+      if the procedure is not polymorphic, then we cannot instanciate
+      any new versions, and the actual argument type must appear as the
+      formal argument type, or as the formal argument type of one of the overload set.
+      otherwise this expression is not semantically meaningful.
+    */
+    if (typesEqual(set->def.arg.type, type, env)) {
+      /*
+        the defining occurance of the procedure
+        has the matching type.
+      */
+      return CreateAstEntityLiteralProc(strdup(set->def.arg.id),    \
+                                        CopyAst(set->def.arg.type), \
+                                        CopyAst(set->def.body), NULL);
+    }
+    else while (cur != NULL) {
+      // search the list of definitions and return a copy of the matching
+      // one.
+      if (typesEqual(cur->def.arg.type, type, env)) {
+        return CreateAstEntityLiteralProc(strdup(cur->def.arg.id),    \
+                                          CopyAst(cur->def.arg.type), \
+                                          CopyAst(cur->def.body), NULL);
+      }
+
+      cur = cur->next;
+    }
+
+    // if we get here, there wasn't any valid procedure to call
+    // given the type, so we report an error.
+    printf("Passed type [%s] doesn't match any valid formal type", AstToString(type));
+    return NULL;
+  }
+}
 
 Ast* evaluate_call(Ast* call, Symboltable* env)
 {
@@ -200,34 +323,9 @@ Ast* evaluate_call(Ast* call, Symboltable* env)
     Ast* tmp = NULL;
     Ast* lhs = evaluate(call->u.call.lhs, env);
 
-    if (lhs->u.entity.tag != E_LAMBDA) {
+    if (lhs->u.entity.tag != E_LITERAL || lhs->u.entity.u.literal.tag != L_PROC) {
       printf("cannot evaluate a call on a non-lambda term! {%s}\n", AstToString(lhs));
       return NULL;
-    }
-
-    if (lhs->u.entity.u.lambda.arg.type->u.entity.u.type.tag == T_POLY) {
-      /*
-        replace the type ast with the type of the lhs,
-        then try to typecheck the resulting lhs.
-        if the lhs typechecks after replacing the polymorphic
-        type variable with some specific type, then the
-        instaciation of the type variable succeded.
-      */
-      Ast* rhs_type = type_of(call->u.call.rhs, env);
-      if (rhs_type == NULL) {
-        printf("cannot evaluate polymorphic call, rhs isn't typeable!\n");
-        return NULL;
-      }
-      DeleteAst(lhs->u.entity.u.lambda.arg.type);
-      lhs->u.entity.u.lambda.arg.type = rhs_type;
-      Ast* lhs_type = type_of(lhs, env);
-      if (lhs_type == NULL) {
-        printf ("cannot evaluate polymorphic call, lhs isn't typeable!\n");
-        DeleteAst(lhs);
-        DeleteAst(rhs_type);
-        return NULL;
-      }
-      free(lhs_type);
     }
 
     // evaluate the rhs down to a value.
@@ -239,35 +337,43 @@ Ast* evaluate_call(Ast* call, Symboltable* env)
       DeleteAst(rhs);
       return NULL;
     }
-    /* we return a copy in case substitute needs to
-       rename a subterm in order to execute the
-       substitution, in order to avoid modifying the
-       original term.
-    */
-    tmp = CopyAst(lhs->u.entity.u.lambda.body);
 
-    if (traced) {
-      char* s1 = AstToString(tmp);
-      char* s2 = AstToString(rhs);
-      printf("substituting \"%s\" for \"%s\" within \"%s\"\n", \
-            lhs->u.entity.u.lambda.arg.id.s, \
-            s2, \
-            s1);
-      free(s1);
-      free(s2);
+    Ast* rhs_type = type_of(rhs, env);
+    Ast* proc = HasInstance(&(lhs->u.entity.u.literal.u.proc), rhs_type, env);
+    DeleteAst(rhs_type);
+
+    if (proc != NULL) {
+      if (traced) {
+        char* s1 = AstToString(proc->u.entity.u.literal.u.proc.def.body);
+        char* s2 = AstToString(rhs);
+        printf("substituting \"%s\" for \"%s\" within \"%s\"\n", \
+              proc->u.entity.u.literal.u.proc.def.arg.id,        \
+              s2,                                                \
+              s1);
+        free(s1);
+        free(s2);
+      }
+
+      tmp = CopyAst(proc->u.entity.u.literal.u.proc.def.body);
+
+      substitute(proc->u.entity.u.literal.u.proc.def.arg.id,  \
+                 &(tmp),                                      \
+                 rhs,                                         \
+                 env);
+      DeleteAst(lhs);
+      DeleteAst(rhs);
+      DeleteAst(proc);
+      return tmp;
     }
-
-    substitute(lhs->u.entity.u.lambda.arg.id.s, \
-               &tmp,                   \
-               rhs,                    \
-               env);
-    DeleteAst(lhs);
-    DeleteAst(rhs);
-    return tmp;
-
+    else {
+      DeleteAst(lhs);
+      DeleteAst(rhs);
+      DeleteAst(proc);
+      error_abort("no instance found for passed type! aborting", __FILE__, __LINE__);
+    }
   }
   else {
-    error_abort("canot evaluate NULL call! aborting", __FILE__, __LINE__);
+    error_abort("cannot evaluate NULL call! aborting", __FILE__, __LINE__);
   }
 
   return NULL;
@@ -281,6 +387,8 @@ void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
     return;
   /* substitute {name} for {value} within {term} */
   switch((*term)->tag) {
+    // TODO: we need to rewrite this switch to match the current AST structure,
+    // as well as the switch statements in appears_free_in and rename_binding_in_body
     case N_ID: {
       /*
       {term} is a node containing the name we are looking for
@@ -293,7 +401,7 @@ void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
       we can quite literally delete the old data and attatch
       a copy of the value.
       */
-      if (strcmp(name, (*term)->u.id.s) == 0) {
+      if (strcmp(name, (*term)->u.id) == 0) {
         DeleteAst((*term));
         (*term) = CopyAst(value);
       }
@@ -304,10 +412,11 @@ void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
       if ((*term)->u.entity.tag == E_TYPE) {
         /*
           this is where typename substitution will happen.
+          when we get there.
         */
         break;
       }
-      else if ((*term)->u.entity.tag == E_LAMBDA) {
+      else if ((*term)->u.entity.tag == E_LITERAL && (*term)->u.entity.u.literal.tag == L_PROC) {
         /*
         [id -> value2](\ id : type = term)  := (\ id : type = term)
         [id -> value2](\ id' : type = term) :=
@@ -319,7 +428,7 @@ void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
           it would be nice if we could simply pass the substitution
           operation into the body of the lambda, but there are two
           contravening cases. the argument of the lambda matches
-          the name we are replacing for, or the argument of the lambda
+          the name we are replacing for, or the argument to the lambda
           matches a free variable in the value we substituting.
 
           if the binding created by the lambda is the same
@@ -328,85 +437,19 @@ void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
           as the name we are looking for is already bound within
           the abstraction, and substitution would introduce an unintentional
           binding.
+
+          if we are substituting against a ProcSet, polymorphic or not,
+          when the name matches we can bail.
         */
-        if (strcmp(name, (*term)->u.entity.u.lambda.arg.id.s) == 0) {
+        if (strcmp(name, (*term)->u.entity.u.literal.u.proc.def.arg.id) == 0) {
           return;
         }
         else {
           /*
-           the binding does not match,
-            however we need to aware of one more case,
-            if a free variable in the body of the value
-            we are substituting for happens to match the binding
-            of the lambda, an unintentional binding will occur.
-            (think through what happens when we call the function
-             'lookup' on a free variable which occurs in the value
-             being substituted into the body of a lambda, after
-             execution of the substitution whose name matches the
-             lambdas binding name;
-             when lookup tries to resolve the name, it will encounter
-             the definition of the argument binding before
-             it will encounter the binding that existed at the
-             time of {value}'s creation. hence, the unintentional
-             binding.
-             the generally accepted solutions to this problem are
-             -renaming the argument of the lambda before substitution.
-                such that no binding will occur.
-             -making it so the evaluation of terms doesn't depend
-              on the typed names. this can be achieved in two ways
-                -De Bruijn notation
-                -Combinator Calculus.
-
-            because of the simplicity of implementation
-            we will choose to rename the binding of
-            the lamdba abstraction throughout it's body before
-            we substitute for the value.
-
-            this has two downsides pointed out by some literature
-            -it can be hard to reason about correctness formally
-            -it relies on string manipulation, which is less efficient
-              than the integer manipulation that De Bruijn notation
-              relies upon.
-
-            we don't need to reason formally about the correctness
-            of Pink, if we can test it's correctness.
-
-            string manipulation is something that I am willing to
-            spend cycles on. especially early on in the languages lifetime.
-
-            I can see an argument for conversion to a DeBruijn manipulation
-            of terms for a more final form of the interpreter.
-            along with linearizing (i mean moving from using a naturally
-            recursive style, to a tail-recursive style) the tree traversal algorithm,
-            and separating the walking from the actions. as that would
-            have an impact on every module of the code that can be written
-            as an operation upon the tree. Which is a large portion of this program.
-
-
-
-
-
-            how do we know if the name bound to the lambda occurs free
-            in {value}? well,
-            a possible solution would be to gather the free
-            variables present in (value) into a list and search that list
-            for the argument name. this is in fact the solution that imo
-            most straghtforwardly flows from the formal definition of substitution
-            and renaming.
-            however, this would require at least
-            as much work as searching the tree directly
-            to build the list of free variables, plus
-            the work required to then search the list.
-            (not to mention all of the allocation and deallocation
-            of the list itself.)
-            it is more efficient to directly search the subtree
-            for free variables of the conficting name. but this
-            becomes another place where the algorithm is tied intimately
-            to the structure of the Ast.
 
           */
 
-          if (appears_free_in((*term)->u.entity.u.lambda.arg.id.s, value)) {
+          if (appears_free_in((*term)->u.entity.u.literal.proc.def.arg.id, value)) {
             Ast* lambda = CopyAst(*term);
             rename_binding(lambda, value);
             /* theoretically we can avoid a function call and
@@ -418,7 +461,22 @@ void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
                for any module working with the Ast, which is
                just asking for abuse. this version is also slightly
                more resilient to refactoring due to is genericity
-               as well. */
+               as well.
+
+               6/16/2020
+                looking at this old comment gave me ideas,
+                the compiler as an optimization can do the
+                sort of thing as above given any mutual recursion
+                and type dispatch. given a tagged union and
+                an overload set of procedures one for each
+                instance in said tagged union, as a tree action
+                algorithm looks parametrically (like evaluate for instance),
+                we could imagine snooping at what the actual values
+                are within actual types and replacing calls to the
+                dispatcher with direct calls of the set instances,
+                iff some algorithm can be deduced
+                statically of course.
+               */
             DeleteAst((*term));
             (*term) = lambda;
           }
@@ -430,7 +488,7 @@ void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
           and the substitution operation is free to modify deeper in the
           tree.
           */
-          substitute(name, &((*term)->u.entity.u.lambda.body), value, env);
+          substitute(name, &((*term)->u.entity.u.literal.u.proc.def.body), value, env);
         }
       }
       else {
@@ -468,6 +526,17 @@ void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
         so it shouldn't happen right?
       */
       substitute(name, &((*term)->u.bind.term), value, env);
+      break;
+    }
+
+    case N_BINOP: {
+      substitute(name, &((*term)->u.binop.lhs), value, env);
+      substitute(name, &((*term)->u.binop.rhs), value, env);
+      break;
+    }
+
+    case N_UNOP: {
+      substitute(name, &((*term)->u.unop.rhs), value, env);
       break;
     }
   }
@@ -527,6 +596,14 @@ bool appears_free_in(char* name, Ast* term)
        // bug before this point, we assume.
        return appears_free_in(name, term->u.bind.term);
      }
+     case N_BINOP: {
+       return appears_free_in(name, term->u.binop.lhs) \
+          ||  appears_free_in(name, term->u.binop.rhs);
+     }
+
+     case N_UNOP: {
+       return appears_free_in(name, term->u.unop.rhs);
+     }
      default: error_abort("malformed Ast node tag! aborting", __FILE__, __LINE__);
  }
 }
@@ -565,6 +642,7 @@ void rename_binding_in_body(char* new_name, char* old_name, Ast* term)
        free(term->u.id.s);
        term->u.id.s = strdup(new_name);
      }
+     break;
      /* we don't want to rename this node */
    }
    case N_ENTITY: {
@@ -578,10 +656,11 @@ void rename_binding_in_body(char* new_name, char* old_name, Ast* term)
        we need to look for instances of the binding within the
        body of the lambda.
       */
-     if (term->u.entity.tag == E_LAMBDA) {
+     if (term->u.entity.tag == E_LITERAL && term->u.entity.u.literal.tag == L_PROC) {
        if (strcmp(old_name, term->u.entity.u.lambda.arg.id.s) == 0) {}
        else {
          rename_binding_in_body(new_name, old_name, term->u.entity.u.lambda.body);
+         break;
        }
      }
      else if (term->u.entity.tag == E_TYPE) {
@@ -598,10 +677,22 @@ void rename_binding_in_body(char* new_name, char* old_name, Ast* term)
    case N_CALL: {
      rename_binding_in_body(new_name, old_name, term->u.call.lhs);
      rename_binding_in_body(new_name, old_name, term->u.call.rhs);
+     break;
    }
    case N_BIND: {
      rename_binding_in_body(new_name, old_name, term->u.bind.term);
+     break;
    }
+   case N_BINOP: {
+     rename_binding_in_body(new_name, old_name, term->u.binop.lhs);
+     rename_binding_in_body(new_name, old_name, term->u.binop.rhs);
+     break;
+   }
+   case N_UNOP: {
+     rename_binding_in_body(new_name, old_name, term->u.unop.rhs);
+     break;
+   }
+
    default: error_abort("malformed Ast node tag! aborting", __FILE__, __LINE__);
  }
 }
