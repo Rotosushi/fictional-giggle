@@ -151,6 +151,7 @@ loop:
       *          { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return ERR; }
       $          { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return END; }
       "nil"      { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return NIL; }
+      "Nil"      { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return NIL_TYPE; }
       ":"        { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return COLON; }
       ":="       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return COLONEQUALS; }
       "\\"       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return BSLASH; }

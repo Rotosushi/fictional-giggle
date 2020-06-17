@@ -228,7 +228,7 @@ StringSet* complementStrSets (StringSet* s1, StringSet* s2)
   return sr;
 }
 
-bool is_member (char* s, StringSet* strset)
+bool isMember (char* s, StringSet* strset)
 {
   if (strset == NULL)
     return false;

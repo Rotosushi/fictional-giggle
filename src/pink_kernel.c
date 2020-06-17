@@ -3,6 +3,7 @@
 #include "pink_kernel.h"
 #include "ast.h"
 #include "symboltable.h"
+#include "stringset.h"
 
 void InitEnvWithKernel (Symboltable* env)
 {
@@ -25,7 +26,10 @@ void InitEnvWithKernel (Symboltable* env)
     instead of a primary construct. is that they deal directly
     with information relevant to the grammar and execution
     (but, purely combinatorial languages like SKI, point out
-     that the names are really only truly needed by the grammar.)
+     that the names are really only truly needed by the grammar.
+    they are very useful for humans however.)
+    again, not an intractible problem, it's just not a problem
+    that needs to be solved right now.
   */
 
    /*
@@ -39,27 +43,23 @@ void InitEnvWithKernel (Symboltable* env)
    we wanted.
    which would give the operator '->' the type
    T1 -> T2 -> T3
+   or equivalently
+   T1 -> T2 -> (T1 -> T2)?
 
    this makes sense given the straightforward type
    of any given binop, which is also T1 -> T2 -> T3
    */
-   
+
 }
 
 void InitializePrecedenceTable(PrecedenceTable* pTable)
 {
-  /*
-    -> operates on type entities
-
-
-
-  */
   InsertOpPrec(pTable, "->", 5, A_RIGHT);
 }
 
 void InitializeBinops(StringSet* binopSet)
 {
-  appendStr(binopSet, "->");
+  appendStr("->", binopSet);
 }
 
 void InitializeUnops(StringSet* unopSet)

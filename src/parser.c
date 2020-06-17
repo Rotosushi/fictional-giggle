@@ -29,15 +29,17 @@ term:
 
 Parser* createParser()
 {
-  Parser* result = (Parser*)malloc(sizeof(Parser));
+  Parser* result    = (Parser*)malloc(sizeof(Parser));
   result->markstack = NULL;
-  result->tokbuf = NULL;
-  result->texbuf = NULL;
-  result->locbuf = NULL;
-  result->idx = 0;
-  result->mkstsz = 0;
-  result->bufsz = 0;
-  result->pTable = CreatePrecedenceTable();
+  result->tokbuf    = NULL;
+  result->texbuf    = NULL;
+  result->locbuf    = NULL;
+  result->idx       = 0;
+  result->mkstsz    = 0;
+  result->bufsz     = 0;
+  result->pTable    = CreatePrecedenceTable();
+  result->binopSet  = createStringSet();
+  result->unopSet   = createStringSet();
   InitializePrecedenceTable(result->pTable);
   InitializeBinops(result->binopSet);
   InitializeUnops(result->unopSet);
@@ -142,10 +144,11 @@ void fillTokens(Parser* p, Scanner* s, int i)
   if (p->idx + i > p->bufsz) {       // do we need more tokens than we have?
     int n = (p->idx + i) - p->bufsz; // how many more do we need exactly?
     // add (n) more slots to each buffer.
-    p->tokbuf = (Token*)realloc(p->tokbuf, p->bufsz + n);
-    p->texbuf = (char**)realloc(p->texbuf, p->bufsz + n);
-    p->locbuf = (StrLoc*)realloc(p->locbuf, p->bufsz + n);
-    for (int i = 0; i < n; ++i) {
+    p->tokbuf = (Token*)realloc(p->tokbuf,  sizeof(Token*) * p->bufsz + n);
+    p->texbuf = (char**)realloc(p->texbuf,  sizeof(char**) * p->bufsz + n);
+    p->locbuf = (StrLoc*)realloc(p->locbuf, sizeof(StrLoc*) * p->bufsz + n);
+
+    for (int j = 0; j < n; ++j) {
        /*
           grab an actual new token from the input FILE
 
@@ -169,13 +172,17 @@ void fillTokens(Parser* p, Scanner* s, int i)
        */
        Token t = ERR;
 
-       while ((t = yylex(p, s)) == MORE) {
-         yyfill(s);
-       }
+       do {
+         t = yylex(p, s);
 
-       p->tokbuf[i] = t;
-       p->texbuf[i] = yytext(s);
-       p->locbuf[i] = *yylloc(s);
+         if (t == MORE) {
+           yyfill(s);
+         }
+     } while (t == MORE);
+
+       p->tokbuf[j] = t;
+       p->texbuf[j] = yytext(s);
+       p->locbuf[j] = *yylloc(s);
     }
   }
 
@@ -289,6 +296,8 @@ Ast* parse(Parser* parser, Scanner* scanner)
 {
   Ast* result = NULL;
 
+  fillTokens(parser, scanner, 1);
+
   mark(parser);
   bool term = speculate_term(parser, scanner);
   release(parser);
@@ -300,18 +309,34 @@ Ast* parse(Parser* parser, Scanner* scanner)
 }
 
 /*
-literal := nil
+term := primary
+      | binop-expr
+      | call
+
+primary   := entity
+           | unop-expr
+           | parens
+
+entity := id
+       | id := term
+       | literal
+       | type
+
+id := identifier
+where:
+  alpha      = [a-zA-Z];
+  digit      = [0-9];
+  alnum      = [alpha|digit];
+  hyphenId   = [-]?[alnum_]+;
+  identifier = [alpha_][hyphenId]*;
+
+literal := "nil"
          | lambda
 
 lambda := \ id (: type)? => term
 
-type := Nil
+type := "Nil"
       | type '->' type
-
-entity := id
-        | id := term
-        | literal
-        | type
 
 unop-expr := unop term
 
@@ -319,15 +344,9 @@ parens    := '(' term ')'
 
 call      := term term
 
-primary   := entity
-           | unop-expr
-           | parens
-
 binop-expr := term binop term
 
-term := primary
-      | binop-expr
-      | call
+
 
 
     a + b c - d
@@ -374,17 +393,17 @@ Ast* parse_term(Parser* p, Scanner* s)
 
       parens    := '(' term ')'
 
-      call      := primary primary
+      call      := term term
 
       primary   := entity
                  | unop-expr
                  | parens
-                 | call
 
       binop-expr := term binop term
 
       term := primary
             | binop-expr
+            | call
             // | module
             // | abstract-type
   */
@@ -510,7 +529,7 @@ Ast* parse_lambda(Parser* p, Scanner* s)
 
       if (ct == COLON) {
         nexttok(p, s); // eat ':'
-                                    // the colon predicts a type expression,
+                                 // the colon predicts a type expression,
         type = parse_term(p, s); // so we parse it here.
       } else {
         type = CreateAstEntityTypePoly();
@@ -582,6 +601,7 @@ Ast* parse_entity(Parser* p, Scanner* s)
 
 Ast* parse_call(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc)
 {
+  // a b c -->> a (b c)
   Ast* rhs = NULL, *call = NULL;
   rhs = parse_term(p, s);
   StrLoc* rhsloc = curloc(p);
@@ -646,12 +666,19 @@ Ast* parse_affix_expr(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc, int minPr
     // a single rhs, (this means operators with strictly higher precedence,
     // and right associative operators with equal precedence.) in both
     // of these cases the rhs needs to be parsed as if it was a brand new lhs.
-    // this case it contained in a loop, because it could be that we need to
-    // gather more than one instance of this case into a single tree.
+    /*
+       op
+    lhs  rhs
+
+        op
+    lhs     op
+        lhs'   rhs
+
+    */
     lookahead  = curtok(p);
     loptxt     = curtext(p);
     while (predicts_binop(p, loptxt) &&  \
-        ((LookupOpPrec(p->pTable, loptxt) > lopPrec) ||
+        ((LookupOpPrec(p->pTable, loptxt) > lopPrec) || \
         ((LookupOpPrec(p->pTable, loptxt) == lopPrec) && (LookupOpAssoc(p->pTable, loptxt) == A_RIGHT))))
     {
       rhs = parse_affix_expr(p, s, rhs, &rhsloc, lopPrec);
@@ -659,12 +686,19 @@ Ast* parse_affix_expr(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc, int minPr
       loptxt     = curtext(p);
     }
 
-    // create a new top node of the tree by attaching the previous
-    // good lhs, and the result of collapsing the rhs into a proper
-    // lhs; to the lhs and rhs of the new top.
+    // create a new node of the tree by attaching the previous
+    // good lhs and the result of collapsing the rhs.
     // in the case that we encountered some number of equal precedence
-    // operations upon entities, we push these operations into the lhs
+    // operations upon entities, we push each operation into the lhs
     // tree via this call and the while loop.
+    /*
+       op
+    lhs  rhs
+
+        op
+     op    rhs'
+  lhs  rhs
+    */
     StrLoc binoploc;
     binoploc.first_line   = lhsloc->first_line;
     binoploc.first_column = lhsloc->first_column;
@@ -809,7 +843,7 @@ bool speculate_term(Parser* p, Scanner* s)
   bool result = true;
   // it = the token sequence being parsed
   if (speculate(p, s, ID)) {
-    
+
   }
   else if (speculate_entity(p, s)) {   // is it an entity?
 
@@ -864,7 +898,8 @@ bool speculate_term(Parser* p, Scanner* s)
           call speculate_term above.
         */
     }
-    else ;  // it's an entity by itself.
+    else { // it's an entity by itself.
+    }
   }
 
   return result;

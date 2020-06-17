@@ -11,12 +11,26 @@ Just enough to say what is interesting
   -> make it do another thing
   -> loop/iterate/recur
 
+
+
+
+
+
+
+
+basis/thesis of something being judged true or false
+basis: what makes it true?
+thesis: what becomes true if we can assume that the something is true?
+
+then we need some way of constructing arbitrary sequences of valid terms,
+  (the construction of which must give more components in
+   the construction of still further terms.)
+then we need some way of judging the basis/thesis of these sequences
+such that we can validly construct a proof from some starting point
+to a fixed goal "something being judged true or false."
+
 --------------------------------------------------------------------------------
-the binding does not match,
- however we need to aware of one more case,
- if a free variable in the body of the value
- we are substituting for happens to match the binding
- of the lambda, an unintentional binding will occur.
+
 
  (think through what happens when we call the function
   'lookup' on a free variable which occurs in the value

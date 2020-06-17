@@ -10,7 +10,6 @@
 #include "typechecker.h"
 #include "error.h"
 
-
 bool traced = true;
 
 //Ast* evaluate_type(Ast* type, Symboltable* env);
@@ -23,7 +22,6 @@ Ast* evaluate_bind(Ast* bind, Symboltable* env);
 Ast* evaluate_binop(Ast* binop, Symboltable* env);
 Ast* evaluate_unop(Ast* unop, Symboltable* env);
 
-// interesting to note that this is the only place where the Ast is trimmed.
 void substitute(char* name, Ast** term, Ast* value, Symboltable* env);
 bool appears_free_in(char* name, Ast* term);
 void rename_binding(Ast* lambda, Ast* value);
@@ -38,6 +36,19 @@ void rename_binding(Ast* lambda, Ast* value);
   it's own memory during evaluation, allocating
   and deallocating intermediate results, and subsequently
   returning the final result tree.
+
+  additionally, I think that, because of the while loop
+  within evaluate this would be considered a big-step
+  semantics?
+  though,
+  i think the formal versions state small-step semantics.
+  because we consider each replacement step.
+
+  but if we derive evaluate literally from the small step
+  semantics, then the looping needs to occur in the caller
+  to evaluate to ensure that we have actually evaluated enough.
+
+
 */
 Ast* evaluate(Ast* term, Symboltable* env)
 {
@@ -51,7 +62,7 @@ Ast* evaluate(Ast* term, Symboltable* env)
 
     if (traced) {
       char* s = AstToString(copy);
-      printf("evaluating term: \"%s\"\n", s);
+      printf("evaluating term: [%s]\n", s);
       free(s);
     }
 
@@ -67,7 +78,6 @@ Ast* evaluate(Ast* term, Symboltable* env)
     }
     DeleteAst(tmp);
 
-    if (!copy) return NULL;
   }
   return copy;
 }
@@ -90,7 +100,7 @@ Ast* evaluate_id(Ast* id, Symboltable* env)
   if (id != NULL) {
     if (traced) {
       char* s = AstToString(id);
-      printf("evaluating id: \"%s\"\n", s);
+      printf("evaluating id: [%s]\n", s);
       free(s);
     }
 
@@ -98,7 +108,7 @@ Ast* evaluate_id(Ast* id, Symboltable* env)
     if (term != NULL) {
       if (traced) {
         char* s = AstToString(term);
-        printf("id evaluated to: \"%s\"\n", s);
+        printf("id evaluated to: [%s]\n", s);
         free(s);
       }
       return term;
@@ -131,12 +141,12 @@ Ast* evaluate_bind(Ast* bind_ast, Symboltable* env)
 
     if (traced) {
       char* s = AstToString(bind_ast);
-      printf("evaluating bind: \"%s\"\n", s);
+      printf("evaluating bind: [%s]\n", s);
       free(s);
     }
 
     if (lookup(bind_ast->u.bind.id, env) != NULL) {
-      printf("cannot evaluate bind; name \"%s\" already bound!\n", bind_ast->u.bind.id);
+      printf("cannot evaluate bind; name [%s] already bound!\n", bind_ast->u.bind.id);
       return NULL;
     }
 
@@ -151,7 +161,7 @@ Ast* evaluate_bind(Ast* bind_ast, Symboltable* env)
 
     if (traced) {
       char* s2 = AstToString(term);
-      printf("bound: \"%s\" to: \"%s\"\n", bind_ast->u.bind.id, s2);
+      printf("bound: [%s] to: [%s]\n", bind_ast->u.bind.id, s2);
       free(s2);
     }
 
@@ -165,127 +175,146 @@ Ast* evaluate_bind(Ast* bind_ast, Symboltable* env)
   return NULL;
 }
 
-
-Ast* HasInstance(ProcSet* set, Ast* type, Symboltable* env)
+Ast* evaluate_binop(Ast* binop, Symboltable* env)
 {
-
   /*
-    either returns the procedure associated with the passed argument type.
-    or returns NULL if there is no procedure associated with the argument type
-    or if the procedure is polymorphic, we construct a monomorphic version
-    and then typecheck that, we insert one copy of the monomorphic procedure
-    into the ProcSet and return another copy as the result instance.
+      lhs -> lhs'
+  ----------------------
+lhs op rhs -> lhs' op rhs
+
+      rhs -> rhs'
+  ---------------------
+lhs op rhs -> lhs op rhs'
+
+
+lhs-value op rhs-value -> ((op) lhs-value) rhs-value -> result
 
 
   */
-  ProcInst* cur = set->set;
-  if (set->polymorphic == true) {
+  if (binop != NULL) {
     /*
-      if the Set represents a polymorphic procedure
-      then the defining occurance does not contain
-      a typecheckable version of the procedure, (the typehecking
-      algorithm deliberately does not typecheck the unbound
-      version of the procedure, because it is not typeable.
-      we cannot determine a type for precisely the same reason
-      the unannotated version of system F cannot determine a type,
-      the polymorphic procedure is by it's essence non-deterministic.)
-      so we can only search the set of procedures which are instances
-      or specializations of the polymorphic version,
-      with the type bound to some given type, which is unique to the set.
-      if we do not find the instance with a matching
-      type, then we are free to construct a monomorphic instance
-      with the given type. if the resulting instance typechecks
-      then it's a valid instance.
-      if the resulting instance fails to typecheck then
-      we have no choice but to report an error.
-      just like if we encounter a misuse of a monomorphic type in
-      a monomorphic procedure. we have encountered the misuse
-      of a monomorphic type within a polymorphic procedure.
+    we need to solve the problems of
+    a) more binary operators, like, a lot more before this is done.
+        so many it's probably worth it's own file.
+    b) user defined operators, and overloading operators.
     */
-    while (cur != NULL) {
-      if (typesEqual(cur->def.arg.type, type, env)) {
-        return CreateAstEntityLiteralProc(strdup(cur->def.arg.id),    \
-                                          CopyAst(cur->def.arg.type), \
-                                          CopyAst(cur->def.body), NULL);
+    if (strcmp(binop->u.binop.op, "->") == 0) {
+
+      Ast* lhs = evaluate(binop->u.binop.lhs, env);
+
+      if (lhs == NULL) {
+        printf("evaluate lhs failed.\n");
+        return NULL;
       }
 
-      cur = cur->next;
-    }
+      // lhs must be an entity for evaluate to have returned it.
+      // but is it the right kind of entity for the binop?
+      // in this case both args need to be a type entity.
+      if (lhs->u.entity.tag != E_TYPE) {
+        printf("\"->\" operator only valid on type entities. lhs not a type\n");
+        DeleteAst(lhs);
+        return NULL;
+      }
 
-    // if we are here there wasn't already a valid monomorphic instance.
-    ProcInst* inst     = (ProcInst*)malloc(sizeof(ProcInst));
-    inst->next         = NULL;
-    inst->def.arg.id   = strdup(set->def.arg.id);
-    inst->def.arg.type = CopyAst(type);
-    inst->def.body     = CopyAst(set->def.body);
-    /*
-    now we typecheck the new instance, which according to the
-    procedure above, we already have type1, it is type.
-    type2 is what we will use to tell if this is a valid instance.
-    we need to temporarily bind the argument to the new type in the
-    environment just long enough to make the judgment.
-    then, if we constructed some valid type2,
-    the body of the procedure is typeable if the argument has the
-    passed type.
-    */
-    bind(inst->def.arg.id, inst->def.arg.type, env);
-    Ast* T = type_of(inst->def.body, env);
-    unbind(inst->def.arg.id, env);
+      Ast* rhs = evaluate(binop->u.binop.rhs, env);
 
-    if (T != NULL) {
+      if (rhs == NULL) {
+        printf("evaluate rhs failed.\n");
+        DeleteAst(lhs);
+        return NULL;
+      }
+
+      if (rhs->u.entity.tag != E_TYPE) {
+        printf("\"->\" operator only valid on type entities. rhs not a type\n");
+        DeleteAst(lhs);
+        DeleteAst(rhs);
+        return NULL;
+      }
+
       /*
-      insert the new instance into the set of procedures.
-      return an evaluatable copy of the instance.
+      the general form of a binary operators
+      expression tree, as if it were
+      procedure application.
+             call
+         call    rhs
+      op    lhs
+
+      then, evaluation of a binary operator can proceed thusly:
+        - search environment for the operator (if it isn't a primitive op)
+          and then check that the type of the lhs and rhs are correct.
+          do we need to check the types tho? didn't the typechecker do that?
+        - mechanically transform each binop into a call tree
+          as above and return the result of evaluating that
+          tree.
+        - this transformation will bottom-out at the set of
+          primitve operations understood by the language.
+          adding two numbers, concatenating two strings, etc.
+          (at least in the interpretation sense.
+          compiling a binary operation will presumably
+          produce the series of instructions needed to
+          perform the operation, upon the literal values or
+          memory locations.)
+
+      one can notice that there is an assumed step of computation
+      that may be useful. one can imagine that we half apply some
+      binary operation, such that we now only need to supply
+      a single value to recieve a result.
+      like (3+), (42-) (56*), (/4), (4/), etc...
+      this could be naturally supported by the above interpretation
+      if we were careful in adding support for parsing and
+      saving the notion of half a binary operation.
+      these would presumably be parsed as unops in the pre or postfix
+      positions.
+      (binops are always postfix. binops could presumably also be
+       a pair of symbols, then we could acheive something like
+        c's [] array derefrence operator.
+       and we can define it for arrays (taking a number),
+       tuples (taking a number), and a hash-table (taking a string))
+
+      overloading can proceed identically to overloading
+      formal function definitions, all that is really required
+      is modifying the lexer/parser/and the gang to accept strings
+      of special characters as operator identifiers, and thusly
+      defining new binops and unops.
+
+      in this particular case we are constructing
+      a type entity as the result.
       */
-      inst->next = set->set;
-      set->set   = inst;
-      return CreateAstEntityLiteralProc(strdup(inst->def.arg.id),    \
-                                        CopyAst(inst->def.arg.type), \
-                                        CopyAst(inst->def.body), NULL);
+      return CreateAstEntityTypeProc(lhs, rhs, NULL);
     }
     else {
-      printf("polymorphic procedure not typeable with actual type [%s]", AstToString(type));
-      free     (inst->def.arg.id);
-      DeleteAst(inst->def.arg.type);
-      DeleteAst(inst->def.body);
-      free     (inst);
+      printf("unknown binop [%s]\n", binop->u.binop.op);
       return NULL;
     }
   }
   else {
-    /*
-      if the procedure is not polymorphic, then we cannot instanciate
-      any new versions, and the actual argument type must appear as the
-      formal argument type, or as the formal argument type of one of the overload set.
-      otherwise this expression is not semantically meaningful.
-    */
-    if (typesEqual(set->def.arg.type, type, env)) {
-      /*
-        the defining occurance of the procedure
-        has the matching type.
-      */
-      return CreateAstEntityLiteralProc(strdup(set->def.arg.id),    \
-                                        CopyAst(set->def.arg.type), \
-                                        CopyAst(set->def.body), NULL);
-    }
-    else while (cur != NULL) {
-      // search the list of definitions and return a copy of the matching
-      // one.
-      if (typesEqual(cur->def.arg.type, type, env)) {
-        return CreateAstEntityLiteralProc(strdup(cur->def.arg.id),    \
-                                          CopyAst(cur->def.arg.type), \
-                                          CopyAst(cur->def.body), NULL);
-      }
+    error_abort("cannot evaluate NULL binop\n", __FILE__, __LINE__);
+  }
+  return NULL;
+}
 
-      cur = cur->next;
-    }
+Ast* evaluate_unop(Ast* unop, Symboltable* env)
+{
+  /*
+  rhs -> rhs'
+---------------------
+op rhs -> op rhs'
 
-    // if we get here, there wasn't any valid procedure to call
-    // given the type, so we report an error.
-    printf("Passed type [%s] doesn't match any valid formal type", AstToString(type));
+
+op rhs-value -> (op) rhs-value -> result
+
+  we don't have any unops in the language yet.
+  */
+  if (unop != NULL) {
+    printf("unknown unop [%s]\n", unop->u.unop.op);
     return NULL;
   }
+  else {
+    error_abort("cannot evaluate NULL unop", __FILE__, __LINE__);
+  }
+  return NULL;
 }
+
 
 Ast* evaluate_call(Ast* call, Symboltable* env)
 {
@@ -308,7 +337,7 @@ Ast* evaluate_call(Ast* call, Symboltable* env)
   if (call != NULL) {
     if (traced) {
       char* s = AstToString(call);
-      printf("evaluating call: \"%s\"\n", s);
+      printf("evaluating call: [%s]\n", s);
       free(s);
     }
     /*
@@ -317,14 +346,17 @@ Ast* evaluate_call(Ast* call, Symboltable* env)
     */
     /*
       evaluate the lhs down to a lambda value
-      ensuring that we only ever manipulate copies of
-      the passed in structure.
     */
     Ast* tmp = NULL;
     Ast* lhs = evaluate(call->u.call.lhs, env);
 
+    if (lhs == NULL) {
+      printf ("evaluate lhs failed.\n");
+      return NULL;
+    }
+
     if (lhs->u.entity.tag != E_LITERAL || lhs->u.entity.u.literal.tag != L_PROC) {
-      printf("cannot evaluate a call on a non-lambda term! {%s}\n", AstToString(lhs));
+      printf("cannot evaluate a call on a non-lambda term! [%s]\n", AstToString(lhs));
       return NULL;
     }
 
@@ -334,7 +366,6 @@ Ast* evaluate_call(Ast* call, Symboltable* env)
     if (rhs == NULL) {
       printf ("evaluate rhs failed!\n");
       DeleteAst(lhs);
-      DeleteAst(rhs);
       return NULL;
     }
 
@@ -346,7 +377,7 @@ Ast* evaluate_call(Ast* call, Symboltable* env)
       if (traced) {
         char* s1 = AstToString(proc->u.entity.u.literal.u.proc.def.body);
         char* s2 = AstToString(rhs);
-        printf("substituting \"%s\" for \"%s\" within \"%s\"\n", \
+        printf("substituting [%s] for [%s] within [%s]\n", \
               proc->u.entity.u.literal.u.proc.def.arg.id,        \
               s2,                                                \
               s1);
@@ -378,6 +409,8 @@ Ast* evaluate_call(Ast* call, Symboltable* env)
 
   return NULL;
 }
+
+
 
 
 
@@ -446,10 +479,15 @@ void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
         }
         else {
           /*
-
+          the binding does not match, so we can almost substitute,
+           however we need to aware of one more case,
+           if a free variable in the body of the value
+           we are substituting for happens to match the binding
+           of the lambda, an unintentional binding between the
+           two will occur.
           */
 
-          if (appears_free_in((*term)->u.entity.u.literal.proc.def.arg.id, value)) {
+          if (appears_free_in((*term)->u.entity.u.literal.u.proc.def.arg.id, value)) {
             Ast* lambda = CopyAst(*term);
             rename_binding(lambda, value);
             /* theoretically we can avoid a function call and
@@ -459,7 +497,7 @@ void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
                that is minor savings at the cost of breaking
                open the mutually recursive deletion function
                for any module working with the Ast, which is
-               just asking for abuse. this version is also slightly
+               just asking for abuse/misuse. this version is also slightly
                more resilient to refactoring due to is genericity
                as well.
 
@@ -486,7 +524,8 @@ void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
           to simply apply substitution to the body of the lambda
           that is occupying term. the term itself remains what it was before
           and the substitution operation is free to modify deeper in the
-          tree.
+          tree or this node ptr directly, depending on the content of the
+          tree this ptr points to.
           */
           substitute(name, &((*term)->u.entity.u.literal.u.proc.def.body), value, env);
         }
@@ -523,12 +562,18 @@ void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
         that's how we are in an operation where we
         are replacing a name for some term, the name
         appears bound in some lambda above this term.
-        so it shouldn't happen right?
+        so it shouldn't happen right? yes, if the
+        typechecker works, we can be assured that this statement
+        never goes wrong.
       */
       substitute(name, &((*term)->u.bind.term), value, env);
       break;
     }
 
+    /*
+    the binop/unop symbols are never what we are
+    substituting for. so we can simply pass to the subterms.
+    */
     case N_BINOP: {
       substitute(name, &((*term)->u.binop.lhs), value, env);
       substitute(name, &((*term)->u.binop.rhs), value, env);
@@ -550,7 +595,7 @@ bool appears_free_in(char* name, Ast* term)
 
      case N_ID: {
        // name might appear in ID, better check.
-       if (strcmp(name, term->u.id.s) == 0) {
+       if (strcmp(name, term->u.id) == 0) {
          return true;
        } else {
          return false;
@@ -562,19 +607,13 @@ bool appears_free_in(char* name, Ast* term)
            // names cannot appear in types, yet...
            return false;
          }
-         else if (term->u.entity.tag == E_LAMBDA) {
-         if (strcmp(name, term->u.entity.u.lambda.arg.id.s) == 0) {
-           // the name is bound by the lambda so
-           // if the name appears in the body of the
-           // lambda it will be associated with the
-           // parameter binding.
-           // i.e. the name appears bound in term, not free.
+         else if (term->u.entity.tag == E_LITERAL && term->u.entity.u.literal.tag == L_PROC) {
+         if (strcmp(name, term->u.entity.u.literal.u.proc.def.arg.id) == 0) {
+           // the name appears bound in term, not free.
            return false;
          }
          else {
-           // search the body of the lambda for instances of
-           // the name.
-           return (appears_free_in(name, term->u.entity.u.lambda.body));
+           return (appears_free_in(name, term->u.entity.u.literal.u.proc.def.body));
          }
        }
        else {
@@ -637,10 +676,10 @@ void rename_binding_in_body(char* new_name, char* old_name, Ast* term)
      /*
        this could be the node we want to replace
      */
-     if (strcmp(old_name, term->u.id.s) == 0) {
+     if (strcmp(old_name, term->u.id) == 0) {
        /* we want to rename this node */
-       free(term->u.id.s);
-       term->u.id.s = strdup(new_name);
+       free(term->u.id);
+       term->u.id = strdup(new_name);
      }
      break;
      /* we don't want to rename this node */
@@ -657,9 +696,9 @@ void rename_binding_in_body(char* new_name, char* old_name, Ast* term)
        body of the lambda.
       */
      if (term->u.entity.tag == E_LITERAL && term->u.entity.u.literal.tag == L_PROC) {
-       if (strcmp(old_name, term->u.entity.u.lambda.arg.id.s) == 0) {}
+       if (strcmp(old_name, term->u.entity.u.literal.u.proc.def.arg.id) == 0) {}
        else {
-         rename_binding_in_body(new_name, old_name, term->u.entity.u.lambda.body);
+         rename_binding_in_body(new_name, old_name, term->u.entity.u.literal.u.proc.def.body);
          break;
        }
      }
@@ -700,7 +739,7 @@ void rename_binding_in_body(char* new_name, char* old_name, Ast* term)
 
 void rename_binding(Ast* lambda, Ast* invalid_bindings)
 {
- char* arg_name = strdup(lambda->u.entity.u.lambda.arg.id.s);
+ char* arg_name = strdup(lambda->u.entity.u.literal.u.proc.def.arg.id);
  char* new_name = NULL;
  do {
    if (new_name)
@@ -709,9 +748,9 @@ void rename_binding(Ast* lambda, Ast* invalid_bindings)
    new_name = generate_name(5);
  } while (appears_free_in(new_name, invalid_bindings));
 
- free(lambda->u.entity.u.lambda.arg.id.s);
- lambda->u.entity.u.lambda.arg.id.s = new_name;
- rename_binding_in_body(new_name, arg_name, lambda->u.entity.u.lambda.body);
+ free(lambda->u.entity.u.literal.u.proc.def.arg.id);
+ lambda->u.entity.u.literal.u.proc.def.arg.id = new_name;
+ rename_binding_in_body(new_name, arg_name, lambda->u.entity.u.literal.u.proc.def.body);
  free(arg_name);
 }
 

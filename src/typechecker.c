@@ -398,7 +398,7 @@ Subtype polymorphism: (some literature denotes it with "<:" )
 
 
 Ast* typeofEntityType(Ast* type, Symboltable* env);
-Ast* typeofEntityProcedure(Ast* proc, Symboltable* env);
+Ast* typeofEntityLiteralProcedure(Ast* lambda, Symboltable* env);
 Ast* typeofEntityLiteral(Ast* literal, Symboltable* env);
 Ast* typeofEntity(Ast* entity, Symboltable* env);
 Ast* typeofId(Ast* id, Symboltable* env);
@@ -655,7 +655,22 @@ Ast* typeofEntityType(Ast* type, Symboltable* env)
   return NULL;
 }
 
-Ast* typeofEntityProcedure(Ast* lambda, Symboltable* env)
+Ast* typeofEntityLiteral(Ast* literal, Symboltable* env)
+{
+  if (literal != NULL) {
+    if (literal->u.entity.u.literal.tag == L_NIL) {
+      return CreateAstEntityLiteralNil(NULL);
+    }
+    else if (literal->u.entity.u.literal.tag == L_PROC) {
+      return typeofEntityLiteralProcedure(literal, env);
+    }
+    else
+      error_abort("malformed literal tag! aborting", __FILE__, __LINE__);
+  }
+  return NULL;
+}
+
+Ast* typeofEntityLiteralProcedure(Ast* lambda, Symboltable* env)
 {
   /*
         ENV |- id : type1, term : type2

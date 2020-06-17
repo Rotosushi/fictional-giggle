@@ -52,36 +52,36 @@ void InsertOpPrec(PrecedenceTable* table, char* op, int prec, ASSOC associativit
     table->root->prec  = prec;
     table->root->assoc = associativity;
     table->len        += 1;
-  }
-  // iterate through the list until we find either
-  // A: an element which is "larger" than the passed operator. (in the strcmp sense)
-  // B: we find the end of the list.
-  else while (cur != NULL && (cmp = strcmp(cur->op, op)) > 0) {
-    prv = cur;
-    cur = cur->next;
-  }
-
-  if (cur) {
-    OpPrec* opPrec = (OpPrec*)malloc(sizeof(OpPrec));
-    opPrec->op     = strdup(op);
-    opPrec->prec   = prec;
-    opPrec->assoc  = associativity;
-    opPrec->next   = cur;
-    prv->next      = opPrec;
-    table->len     += 1;
   } else {
-    if (cmp == 0) {
-      return; // the op already has a prec.
-    } else {
+    // iterate through the list until we find either
+    // A: an element which is "larger" than the passed operator. (in the strcmp sense)
+    // B: we find the end of the list.
+    while (cur != NULL && (cmp = strcmp(cur->op, op)) > 0) {
+      prv = cur;
+      cur = cur->next;
+    }
+
+    if (cur) {
       OpPrec* opPrec = (OpPrec*)malloc(sizeof(OpPrec));
       opPrec->op     = strdup(op);
       opPrec->prec   = prec;
       opPrec->assoc  = associativity;
+      opPrec->next   = cur;
       prv->next      = opPrec;
       table->len     += 1;
+    } else {
+      if (cmp == 0) {
+        return; // the op already has a prec.
+      } else {
+        OpPrec* opPrec = (OpPrec*)malloc(sizeof(OpPrec));
+        opPrec->op     = strdup(op);
+        opPrec->prec   = prec;
+        opPrec->assoc  = associativity;
+        prv->next      = opPrec;
+        table->len     += 1;
+      }
     }
   }
-
 }
 
 void DeleteOpPrec(PrecedenceTable* table, char* op)
