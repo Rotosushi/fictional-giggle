@@ -25,6 +25,7 @@ typedef struct Scanner {
   char* end;
   char* cursor;
 	char* marker;
+	char* mrkctx;
   char* token;
 	unsigned int yyaccept;
 	int state;

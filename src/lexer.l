@@ -51,6 +51,7 @@ DIGIT   [[:digit:]]
 {SPACE}+  /* eat whitespace */
 
 "nil" { return NIL; }
+"Nil" { return NIL_TYPE; }
 ":"   { return COLON; }
 ":="  { return COLONEQUALS; }
 "\\"  { return BSLASH; }

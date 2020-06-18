@@ -232,50 +232,7 @@ lhs-value op rhs-value -> ((op) lhs-value) rhs-value -> result
       }
 
       /*
-      the general form of a binary operators
-      expression tree, as if it were
-      procedure application.
-             call
-         call    rhs
-      op    lhs
 
-      then, evaluation of a binary operator can proceed thusly:
-        - search environment for the operator (if it isn't a primitive op)
-          and then check that the type of the lhs and rhs are correct.
-          do we need to check the types tho? didn't the typechecker do that?
-        - mechanically transform each binop into a call tree
-          as above and return the result of evaluating that
-          tree.
-        - this transformation will bottom-out at the set of
-          primitve operations understood by the language.
-          adding two numbers, concatenating two strings, etc.
-          (at least in the interpretation sense.
-          compiling a binary operation will presumably
-          produce the series of instructions needed to
-          perform the operation, upon the literal values or
-          memory locations.)
-
-      one can notice that there is an assumed step of computation
-      that may be useful. one can imagine that we half apply some
-      binary operation, such that we now only need to supply
-      a single value to recieve a result.
-      like (3+), (42-) (56*), (/4), (4/), etc...
-      this could be naturally supported by the above interpretation
-      if we were careful in adding support for parsing and
-      saving the notion of half a binary operation.
-      these would presumably be parsed as unops in the pre or postfix
-      positions.
-      (binops are always postfix. binops could presumably also be
-       a pair of symbols, then we could acheive something like
-        c's [] array derefrence operator.
-       and we can define it for arrays (taking a number),
-       tuples (taking a number), and a hash-table (taking a string))
-
-      overloading can proceed identically to overloading
-      formal function definitions, all that is really required
-      is modifying the lexer/parser/and the gang to accept strings
-      of special characters as operator identifiers, and thusly
-      defining new binops and unops.
 
       in this particular case we are constructing
       a type entity as the result.

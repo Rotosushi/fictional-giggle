@@ -143,47 +143,37 @@ void fillTokens(Parser* p, Scanner* s, int i)
   */
   if (p->idx + i > p->bufsz) {       // do we need more tokens than we have?
     int n = (p->idx + i) - p->bufsz; // how many more do we need exactly?
+    //char* tkbf = NULL *txbf = NULL, *lcbf = NULL;
     // add (n) more slots to each buffer.
+
     p->tokbuf = (Token*)realloc(p->tokbuf,  sizeof(Token*) * p->bufsz + n);
     p->texbuf = (char**)realloc(p->texbuf,  sizeof(char**) * p->bufsz + n);
     p->locbuf = (StrLoc*)realloc(p->locbuf, sizeof(StrLoc*) * p->bufsz + n);
 
+/*
+    if (p->tokbuf != NULL && p->txbuf != NULL && p->lcbf) {
+      tkbf = (Token*)malloc(sizeof(Token*) * (p->bufsz + n));
+      txbf = (char**)malloc(sizeof(char**) * (p->bufsz + n));
+      lcbf = (StrLoc*)malloc(sizeof(StrLoc*) * (p->bufsz + n));
+
+
+
+    }
+*/
     for (int j = 0; j < n; ++j) {
        /*
           grab an actual new token from the input FILE
-
-          if the lexer is out of input, but hasn't
-          yet seen the EOF, then it returns MORE,
-          the only thing we need to do in this case
-          is call fill on the scanner, which gets
-          more input from it's FILE ptr and buffers
-          it. why specifically request 'push' semantics
-          from re2c? well, 'fill' is a great semantic
-          unit to handle needing more input from the
-          FILE to look for more declarations
-          in order to support out of order declarations.
-          obvously this is the other half of that process,
-          and allowing the typechecker to fail with the
-          known case of an undeclared ident used, and then
-          retypechecking the statement at some point after
-          we process more declarations (hopefully after
-          seeing the declaration of the unknwon name)
-          is the first half of that process.
        */
        Token t = ERR;
 
-       do {
-         t = yylex(p, s);
+       t = yylex(p, s);
 
-         if (t == MORE) {
-           yyfill(s);
-         }
-     } while (t == MORE);
-
-       p->tokbuf[j] = t;
-       p->texbuf[j] = yytext(s);
-       p->locbuf[j] = *yylloc(s);
+       p->tokbuf[p->bufsz + j] = t;
+       p->texbuf[p->bufsz + j] = yytext(s);
+       p->locbuf[p->bufsz + j] = *yylloc(s);
     }
+
+    p->bufsz += n;
   }
 
 }
@@ -204,15 +194,6 @@ void nexttok(Parser* p, Scanner* s)
   }
 
   fillTokens(p, s, 1);
-}
-
-bool speculate(Parser* parser, Scanner* scanner, Token token)
-{
-  if (token == curtok(parser)) {
-    nexttok(parser, scanner);
-    return true;
-  } else
-    return false;
 }
 
 bool predicts_unop(Parser* p, char* op)
@@ -289,6 +270,17 @@ bool predicts_primary(Token t)
   }
 }
 
+bool predicts_end(Token t)
+{
+  switch(t) {
+    case RPAREN: case END:
+    case RBRACE: case REQARROW:
+      return true;
+    default:
+      return false;
+  }
+}
+
 Ast* parse_term(Parser* p, Scanner* s);
 bool speculate_term(Parser* p, Scanner* s);
 
@@ -298,12 +290,12 @@ Ast* parse(Parser* parser, Scanner* scanner)
 
   fillTokens(parser, scanner, 1);
 
-  mark(parser);
-  bool term = speculate_term(parser, scanner);
-  release(parser);
+  //mark(parser);
+  //bool term = speculate_term(parser, scanner);
+  //release(parser);
 
-  if (term)
-    result = parse_term(parser, scanner);
+
+  result = parse_term(parser, scanner);
 
   return result;
 }
@@ -416,6 +408,10 @@ Ast* parse_term(Parser* p, Scanner* s)
     termrhsloc = curloc(p);
   }
 
+  if (predicts_end(ct)) {
+    return term;
+  }
+
   /*
     if we have a valid term parsed then we
     still need to try and parse possible
@@ -452,6 +448,7 @@ Ast* parse_term(Parser* p, Scanner* s)
     else if (predicts_primary(ct)) {
       term = parse_call(p, s, term, &LhsLoc);
     } else {
+      return term;
       // a term by itself
     }
   }
@@ -809,6 +806,15 @@ Ast* parse_primary(Parser* p, Scanner* s)
   return result;
 }
 
+bool speculate(Parser* parser, Scanner* scanner, Token token)
+{
+  if (token == curtok(parser)) {
+    nexttok(parser, scanner);
+    return true;
+  } else
+    return false;
+}
+
 bool speculate_constant(Parser* p, Scanner* s);
 bool speculate_lambda(Parser* p, Scanner* s);
 bool speculate_entity(Parser* p, Scanner* s);
@@ -899,6 +905,8 @@ bool speculate_term(Parser* p, Scanner* s)
         */
     }
     else { // it's an entity by itself.
+      if (predicts_end(curtok(p)))
+        return result;
     }
   }
 

@@ -39,7 +39,7 @@ void destroyScanner(Scanner* scanner)
 int yyfill(Scanner* scanner)
 {
   /*
-    buf [c0, c1, c2, .., ctoken-1, ctoken, .., cend-1, cend, .., buf+SCANNER_BUF_SZ]
+    buf->[c0, c1, c2, .., ctoken-1, ctoken, .., cend-1, cend, .., cbuf+SCANNER_BUF_SZ]
 
     ->token points to the character just past the last token processed.
     (in other words, at the beginning of the next token to process.)
@@ -48,15 +48,15 @@ int yyfill(Scanner* scanner)
     being occupied by processed characters in the array.
     (its the 'processed' text.)
 
-    available is the slots available in the buffer to fill
+    available is the slots in the buffer left which can be fill
     with more characters. it is the total slots in the array available
     minus the slots taken up by the unprocessed slots sitting
     between the end of the last token (->token) and the end of
-    the buffered input (->end)
+    the buffered input (->end) (the 'unprocessed' characters as it were)
 
     so the goal of this function is to shift the unprocessed
     input left in the buffer to the bottom of the array, and
-    fill the available space with more input from the in FILE.
+    fill the available space with more input from the input FILE.
   */
   size_t charsRead = 0;
   size_t processed = scanner->token - scanner->buf;
@@ -119,32 +119,80 @@ void update_location(StrLoc* llocp, char* token, int length)
     }
 }
 
-#define YYGETSTATE()  scanner->state
-#define YYSETSTATE(s) scanner->state = s
-#define YYMARKER      scanner->marker
-#define yyaccept      scanner->yyaccept
-#define YYFILL()      return MORE
+
+
+/*
+typedef struct Scanner {
+	char  buf[SCANNER_BUF_SZ + 1];
+    char* end;
+    char* cursor;
+	char* marker;
+    char* token;
+	unsigned int yyaccept;
+	int state;
+	FILE* yyin;
+	char  yych;
+	bool  is_stdin;
+	struct {
+		int first_line;
+		int first_column;
+		int last_line;
+		int last_column;
+	} yylloc;
+} Scanner;
+
+    needs of re2c:
+
+    yych holds current input character.
+    YYCTYPE is the type of yych
+
+    YYCURSOR is of type YYCTYPE*, and is used to search for matches
+
+    YYLIMIT is of type YYCTYPE*, and is used to delimit the end of the buffer.
+
+    YYMARKER is of type YYCTYPE* and is used to backup the cursor after a successful
+                match, in certain circumstances.
+
+
+#define  YYPEEK ()         *YYCURSOR
+#define  YYSKIP ()         ++YYCURSOR
+#define  YYBACKUP ()       YYMARKER = YYCURSOR
+#define  YYBACKUPCTX ()    YYCTXMARKER = YYCURSOR
+#define  YYRESTORE ()      YYCURSOR = YYMARKER
+#define  YYRESTORECTX ()   YYCURSOR = YYCTXMARKER
+#define  YYRESTORERAG (t)  YYCURSOR = t
+#define  YYLESSTHAN (n)    YYLIMIT - YYCURSOR < n
+#define  YYSTAGP (t)       t = YYCURSOR
+#define  YYSTAGPD (t)      t = YYCURSOR - 1
+#define  YYSTAGN (t)       t = NULL
+
+
+*/
+
 /*!re2c
     alpha      = [a-zA-Z];
     digit      = [0-9];
     alnum      = [alpha|digit];
     hyphenId   = [-]?[alnum_]+;
     identifier = [alpha_][hyphenId]*;
-
 */
 
-
+#define YYPEEK()       *scanner->cursor
+#define YYSKIP()       ++(scanner->cursor)
+#define YYBACKUP()     scanner->marker = scanner->cursor
+#define YYRESTORE()    scanner->cursor = scanner->marker
+#define YYBACKUPCTX()  scanner->mrkctx = scanner->cursor
+#define YYRESTORECTX() scanner->cursor = scanner->mrkctx
+#define YYLESSTHAN(n)  (scanner->end - scanner->cursor) < n
 
 int yylex(Parser* parser, Scanner* scanner)
 {
-  /*!getstate:re2c*/
+
   scanner->token = scanner->cursor;
 loop:
   /*!re2c
+      re2c:yyfill:enable = 0;
       re2c:define:YYCTYPE  = char;
-      re2c:define:YYCURSOR = scanner->cursor;
-      re2c:define:YYLIMIT  = scanner->end;
-      re2c:variable:yych   = scanner->yych;
       re2c:eof = 0;
 
       [ \t\n\r]  { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); goto loop; }

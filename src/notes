@@ -31,7 +31,63 @@ to a fixed goal "something being judged true or false."
 
 --------------------------------------------------------------------------------
 
+the general form of a binary operators
+expression tree, as if it were
+procedure application.
+       call
+   call    rhs
+op    lhs
 
+then, evaluation of a binary operator can proceed thusly:
+  - search environment for the operator (if it isn't a primitive op)
+    and then check that the type of the lhs and rhs are correct.
+    do we need to check the types tho? didn't the typechecker do that?
+  - mechanically transform each binop into a call tree
+    as above and return the result of evaluating that
+    tree.
+  - this transformation will bottom-out at the set of
+    primitve operations understood by the language.
+    adding two numbers, concatenating two strings, etc.
+    (at least in the interpretation sense.
+    compiling a binary operation will presumably
+    produce the series of instructions needed to
+    perform the operation, upon the literal values or
+    memory locations.)
+
+one can notice that there is an assumed step of computation
+that may be useful. (if one notices that it takes two applications
+to execute the binary operation.)
+one can imagine that we half apply some
+binary operation, such that we now only need to supply
+a single value to recieve a result.
+like (3+), (42-) (56*), (/4), (4/), etc...
+this could be naturally supported by the above interpretation
+if we were careful in adding support for parsing and
+saving the notion of half a binary operation.
+these would presumably be parsed as unops in the pre or postfix
+positions.
+(binops are always postfix. binops could presumably also be
+ a pair of symbols, then we could acheive something like
+  c's [] array derefrence operator.
+ and we can define it for arrays (taking a number),
+ tuples (taking a number), and a hash-table (taking a string))
+I am unsure if this is a good feature or not for pink, but it is a feature
+that is coherent semantically and syntactically.
+
+overloading can proceed identically to overloading
+formal function definitions, all that is really required
+is modifying the lexer/parser/and the gang to accept strings
+of special characters (&*^%$#@!~`'><=+-) as operator identifiers, and thusly
+defining new binops and unops.
+
+I also really love the idea of directly supporting Unicode
+and having special forms tied to neat Unicode chars, like having
+the literal greek lambda (λ) symbol be the anonymous procedure predicate
+for the parser. being able to call a summing function uppercase Sigma (Σ)
+This conflicts with most peoples keyboards however. (but again, this is
+a play language.)
+
+--------------------------------------------------------------------------------
  (think through what happens when we call the function
   'lookup' on a free variable which occurs in the value
   being substituted into the body of a lambda, after
