@@ -6,6 +6,7 @@
 
 #include "lexer.h"
 #include "parser.h"
+#include "error.h"
 
 
 Scanner* createScanner(FILE* in)
@@ -34,6 +35,18 @@ Scanner* createScanner(FILE* in)
 void destroyScanner(Scanner* scanner)
 {
   free(scanner);
+}
+
+void yysetbuffer(Scanner* scnr, char* text, int len)
+{
+    if (len > SCANNER_BUF_SZ)
+        error_abort("cannot buffer input text, aborting", __FILE__, __LINE__);
+
+    memset (scnr->buf, 0, SCANNER_BUF_SZ);
+    memcpy (scnr->buf, text, len);
+
+    scnr->cursor = scnr->marker = scnr->mrkctx = scnr->token = scnr->buf;
+    scnr->end = scnr->buf + len + 1;
 }
 
 int yyfill(Scanner* scanner)

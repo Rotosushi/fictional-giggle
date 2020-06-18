@@ -43,6 +43,7 @@ typedef struct Scanner {
 
 Scanner* createScanner(FILE* in);
 void     destroyScanner(Scanner* scanner);
+void     yysetbuffer(Scanner* scanner, char* text, int len);
 int      yyfill(Scanner* scanner);
 char*    yytext(Scanner* scanner);
 struct StrLoc*  yylloc(Scanner* scanner);

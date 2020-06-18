@@ -37,6 +37,7 @@ Parser* createParser()
   result->idx       = 0;
   result->mkstsz    = 0;
   result->bufsz     = 0;
+  result->end       = false;
   result->pTable    = CreatePrecedenceTable();
   result->binopSet  = createStringSet();
   result->unopSet   = createStringSet();
@@ -287,6 +288,7 @@ bool speculate_term(Parser* p, Scanner* s);
 Ast* parse(Parser* parser, Scanner* scanner)
 {
   Ast* result = NULL;
+  parser->end = false;
 
   fillTokens(parser, scanner, 1);
 
@@ -408,8 +410,20 @@ Ast* parse_term(Parser* p, Scanner* s)
     termrhsloc = curloc(p);
   }
 
-  if (predicts_end(ct)) {
-    return term;
+  switch (ct) {
+    // in this case we are at the end-of-input, so we signal that.
+    case END:
+      p->end = true;
+    // we then want to fall through, because the behavior of every
+    // case is identical modulo needing to set a flag when it's the
+    // end of input. in each of the following cases we want to leave
+    // the token for the calling function to consume.
+    case RPAREN:
+    case RBRACE:
+    case REQARROW:
+      return term;
+    // we avoid doing anything given any other token.
+    default:;
   }
 
   /*

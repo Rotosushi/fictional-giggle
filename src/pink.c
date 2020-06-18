@@ -92,8 +92,11 @@ int main(int argc, char** argv)
 	Scanner* scanner;
 	Parser* parser;
 	Symboltable* env;
-	StrLoc lloc;
 	Ast* result;
+	char* input = NULL;
+	int   charsRead = 0;
+	size_t   maxChars  = SCANNER_BUF_SZ;
+	StrLoc lloc;
 
 	/* in order to support reentrancy
 	     the parser and lexer internal state
@@ -134,6 +137,10 @@ int main(int argc, char** argv)
 			underscore the text of the erroneous token.
 		*/
 
+			charsRead = getline(&input, &maxChars, stdin);
+
+			yysetbuffer(scanner, input, charsRead);
+
 			result = parse(parser, scanner);
 
 			if (result != NULL) {
@@ -158,6 +165,8 @@ int main(int argc, char** argv)
 					printf ("term not typable!\n");
 				}
 				DeleteAst(result);
+			} else {
+				printf ("input not parsable\n");
 			}
 
 

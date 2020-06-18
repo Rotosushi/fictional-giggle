@@ -1,6 +1,8 @@
 #ifndef PARSER_H
 #define PARSER_H
 
+#include <stdbool.h>
+
 #include "lexer.h"
 #include "ast.h"
 #include "precedencetable.h"
@@ -39,10 +41,12 @@ typedef struct Parser {
   PrecedenceTable* pTable;
   StringSet* binopSet;
   StringSet* unopSet;
+  bool end;
 } Parser;
 
 Parser* createParser();
 void    destroyParser(Parser* p);
 Ast*    parse(Parser* p, struct Scanner* scanner);
+bool    end_of_input(Parser* p);
 
 #endif
