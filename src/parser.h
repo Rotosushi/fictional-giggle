@@ -36,8 +36,8 @@ typedef struct Parser {
   char**   texbuf;
   StrLoc*  locbuf;
   int idx;
-  int mkstsz;
   int bufsz;
+  int mkstsz;
   PrecedenceTable* pTable;
   StringSet* binopSet;
   StringSet* unopSet;

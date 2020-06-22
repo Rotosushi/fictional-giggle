@@ -20,16 +20,14 @@ void InitEnvWithKernel (Symboltable* env)
     do we return the type of the bound term or just T_ID?
     so much of the usefullness of binding comes directly
     from the fact that we assume replacement.
-    this doesn't seem like an intractable problem, it just
-    muddies the clarity of the design. so, ultimately that
+    so, ultimately that
     is why binds are being considered a grammar construct
-    instead of a primary construct. is that they deal directly
+    instead of something composite. they deal directly
     with information relevant to the grammar and execution
-    (but, purely combinatorial languages like SKI, point out
+    (but, purely combinatorial languages like SKI point out
      that the names are really only truly needed by the grammar.
+     and execution and turing-completeness are independant to names.
     they are very useful for humans however.)
-    again, not an intractible problem, it's just not a problem
-    that needs to be solved right now.
   */
 
    /*
