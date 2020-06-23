@@ -317,6 +317,7 @@ void DeleteAstEntity(Ast* entity)
   if (entity != NULL) {
     Entity* e = &(entity->u.entity);
     switch(e->tag) {
+      case E_TYPE:
         DeleteAstEntityType(entity);
         break;
       case E_LITERAL:

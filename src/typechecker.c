@@ -659,7 +659,7 @@ Ast* typeofEntityLiteral(Ast* literal, Symboltable* env)
 {
   if (literal != NULL) {
     if (literal->u.entity.u.literal.tag == L_NIL) {
-      return CreateAstEntityLiteralNil(NULL);
+      return CreateAstEntityTypeNil(NULL);
     }
     else if (literal->u.entity.u.literal.tag == L_PROC) {
       return typeofEntityLiteralProcedure(literal, env);

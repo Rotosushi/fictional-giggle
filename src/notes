@@ -29,6 +29,70 @@ then we need some way of judging the basis/thesis of these sequences
 such that we can validly construct a proof from some starting point
 to a fixed goal "something being judged true or false."
 
+-------------------------------------------------------------------------------
+
+a term is either:
+a variable
+a literal
+an application
+an affix expression
+where
+a literal can be a function literal,
+  or the literal value nil. (this is also
+  where we find numeric literals, character and
+  string literals, and so on.)
+an application is any valid variable/literal
+  next to another valid variable/literal
+and an expression is composed of and valid
+variable/literal, followed by a known binop,
+followed by another valid variable/literal.
+we can distinguish between an application
+and a binop only after parsing the first valid
+term. however, since application is always higher
+precedence than operation we choose to always parse terms
+into an application sequence starting from when parse_primary
+is called to the point in the tokens in which we recognize
+a binop, or an end-of-term token, such as RPAREN,
+or REQARROW, or END. then, when that call to parse_primary
+returns it can be collected into a call expression by the
+caller. which is only ever because parse_primary itself called
+parse_primary, specifically because it predicted another
+primary term after it parsed a primary term. this recursion
+needs to bottom out when we see a binop or another end-of-term token
+
+if primary terms subsume recognizing function application,
+recognizing literals, and recognizing variables.
+then we can describe binary operations
+in terms of a primary term followed by a binop,
+followed by another primary term.
+this also allows  call expressions to be built
+up recursively by way of predict_primary vs. predict_end.
+if we predict another primary term then we construct a
+call node from the previously parsed term, and the node
+created when we parse the predicted primary expression.
+if we predict the end of the expression then the result
+term is what was already parsed and we can simply return.
+whatever 'end' token we saw will be handled by some caller.
+as an example:
+if we imagine parsing some call expression of length (n)
+t0 t1 t2 ... tn
+t0 is parsed by parse_primary, then the function
+predicts another primary so we prepare to construct the
+first call node by calling parse_primary again to construct
+the rhs of the node. then we parse t1, and again,
+predict another primary term, so we prepare to construct
+the second call node by calling parse_primary again,
+and so on until we parse tn, and predict the end of the expression.
+then we place tn-1 and tn into the lhs and rhs of the bottom-most
+call node and return the call node to the node above,
+and then that call node has it's rhs ready, and so on until we build
+up the entire tree.
+
+then, each of the literals can be parsed by their own function
+and it is simply a matter of directing the creation of the correct
+entity node, and connecting these entities together by means of
+the connective tissue nodes, operations and applications.
+
 --------------------------------------------------------------------------------
 
 the general form of a binary operators

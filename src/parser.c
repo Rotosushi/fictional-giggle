@@ -16,13 +16,13 @@ term:
       id
     | nil
     | Nil
-    | lambda
+    | '\' id (':' term)? => term
     | term term
     | id := term
-    | '(' term ')'
+    | unop term
     | term binop term
-    //| int
-    //| nil_type
+    | '(' term ')'
+    //| int_literal
     //| int_type
     //| binop
     //| unop
@@ -54,7 +54,7 @@ void destroyParser(Parser* p)
   free(p->markstack);
   free(p->tokbuf);
   free(p->locbuf);
-  for (int i = 1; i < p->bufsz; ++i)
+  for (int i = 0; i < p->bufsz; ++i)
     free(p->texbuf[i]);
   free(p->texbuf);
   DestroyPrecedenceTable(p->pTable);
@@ -64,6 +64,33 @@ void destroyParser(Parser* p)
   p->mkstsz = 0;
   p->bufsz = 0;
   free(p);
+}
+
+void resetParser(Parser* p)
+{
+  if (p->markstack != NULL) {
+    free(p->markstack);
+    p->markstack = NULL;
+  }
+  if (p->tokbuf != NULL) {
+    free(p->tokbuf);
+    p->tokbuf = NULL;
+  }
+  if (p->locbuf != NULL) {
+    free(p->locbuf);
+    p->locbuf = NULL;
+  }
+  if (p->texbuf != NULL) {
+    for (int i = 1; i < p->bufsz; ++i)
+      free(p->texbuf[i]);
+    free(p->texbuf);
+    p->texbuf = NULL;
+  }
+
+  p->idx = 0;
+  p->mkstsz = 0;
+  p->bufsz = 0;
+  p->end = false;
 }
 
 
@@ -149,7 +176,7 @@ void fillTokens(Parser* p, Scanner* s, int i)
     //char* tkbf = NULL *txbf = NULL, *lcbf = NULL;
     // add (n) more slots to each buffer.
 
-    p->tokbuf = (Token*)realloc(p->tokbuf,  sizeof(Token*) * p->bufsz + n);
+    p->tokbuf = (Token*)realloc(p->tokbuf,  sizeof(Token) * p->bufsz + n);
     p->texbuf = (char**)realloc(p->texbuf,  sizeof(char**) * p->bufsz + n);
     p->locbuf = (StrLoc*)realloc(p->locbuf, sizeof(StrLoc*) * p->bufsz + n);
 
@@ -183,23 +210,16 @@ void nexttok(Parser* p, Scanner* s)
   p->idx += 1;
 
   /*
-    it is safe to reset the token buffer
+    it is safe to reset the parser
     if we have parsed all available tokens
     and the parser is not speculating.
     otherwise we may still need to pick up
     tokens from the lexer to build up a full
-    expression.
+    expression. or we may be speculating and
+    need to reparse the tokbuf.
   */
   if (p->idx == p->bufsz && !speculating(p)) {
-    for (int i = 0; i < p->bufsz; i++) {
-      free(p->texbuf[i]);
-    }
-
-    free(p->tokbuf);
-    free(p->texbuf);
-    free(p->locbuf);
-    p->bufsz = 0;
-    p->idx = 0;
+    resetParser(p);
   }
 
   fillTokens(p, s, 1);
@@ -211,50 +231,29 @@ bool predicts_unop(Parser* p, char* op)
   else return false;
 }
 
+/*
+  observant readers will note that binops
+  are always dealt with using string comparison
+  and not token comparison. this is because
+  declaring new operators is something I consider
+  essential to the language. This feature completes
+  the cycle when we are considering the programmers
+  ability to fold away logic. we can already define
+  new functions, and abstract over our own expressions.
+  but what if we want to declare new 'units of work.'
+  and build expressions up over those new units?
+  well, the basic unit of work is the operator.
+  hence, operator declarations. and then naturally
+  operator overloading, for when the unit of work
+  is something that can be valid for more than one type.
+  and again, we can hide redeclarations from the programmer
+  via polymorphic declarations. (which are again more akin
+  to c++ templates than HM parametric polymorphism)
+*/
 bool predicts_binop(Parser* p, char* op)
 {
   if (isMember(op, p->binopSet)) return true;
   else return false;
-}
-
-bool predicts_entity(Token t)
-{
-  switch (t) {
-    case NIL: case NIL_TYPE:
-    case BSLASH:
-    {
-      return true;
-    }
-
-    default:
-    {
-      return false;
-    }
-  }
-}
-
-bool predicts_type(Token t)
-{
-  switch(t) {
-    case NIL_TYPE: case LPAREN:
-      return true;
-    default:
-      return false;
-  }
-}
-
-bool predicts_literal(Token t)
-{
-  switch(t) {
-    case NIL: case BSLASH:
-    {
-      return true;
-    }
-    default:
-    {
-      return false;
-    }
-  }
 }
 
 bool predicts_primary(Token t)
@@ -296,10 +295,17 @@ bool speculate_term(Parser* p, Scanner* s);
 Ast* parse(Parser* parser, Scanner* scanner)
 {
   Ast* result = NULL;
-  parser->end = false;
+
+  resetParser(parser);
 
   fillTokens(parser, scanner, 1);
 
+  // by way of thinking about it, speculation
+  // has been factored out of the parser.
+  // but i don't feel like taking down
+  // the infrastructure simply because
+  // I intend on extending this grammar
+  // further and it may be useful then.
   //mark(parser);
   //bool term = speculate_term(parser, scanner);
   //release(parser);
@@ -327,7 +333,12 @@ Ast* parse(Parser* parser, Scanner* scanner)
     unit of abstraction is the function.
     operations are the basic unit of work.
     expressions and function application are the
-    basic units of composition.
+    basic units of composition. by restricting
+    definitions to be decidable at compile time
+    i think we can avoid introducing runtime typing,
+    or runtime function definitions, simply to keep
+    the semantics of the language as close to C
+    as we reasonably want to get.
     types and the type system is what maintains
     the alignment between what expressions can validly
     be stated by the grammar and what expressions can be
@@ -347,111 +358,26 @@ Ast* parse(Parser* parser, Scanner* scanner)
 */
 
 
-Ast* parse_literal(Parser* p, Scanner* s);
+
 Ast* parse_lambda(Parser* p, Scanner* s);
-Ast* parse_type(Parser* p, Scanner* s);
-Ast* parse_entity(Parser* p, Scanner* s);
-Ast* parse_call(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc);
 Ast* parse_binop(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc);
 Ast* parse_infix_expr(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc, int minPrec);
-Ast* parse_unop(Parser* p, Scanner* s);
-Ast* parse_parens(Parser* p, Scanner* s);
 Ast* parse_primary(Parser* p, Scanner* s);
 
 Ast* parse_term(Parser* p, Scanner* s)
 {
   Ast* term      = NULL;
-  Token ct       = curtok(p);
+  Token ctok     = curtok(p);
+  char* ctxt     = curtxt(p);
   StrLoc* lhsloc = curloc(p);
-/*
-  a term is either:
-  a variable
-  a literal
-  an application
-  an affix expression
-  where
-  a literal can be a function literal,
-    or the literal value nil. (this is also
-    where we find numeric literals, character and
-    string literals, and so on.)
-  an application is any valid variable/literal
-    next to another valid variable/literal
-  and an expression is composed of and valid
-  variable/literal, followed by a known binop,
-  followed by another valid variable/literal.
-  we can distinguish between an application
-  and a binop only after parsing the first valid
-  term. however, since application is always higher
-  precedence than operation we choose to always parse terms
-  into an application sequence starting from when parse_primary
-  is called to the point in the tokens in which we recognize
-  a binop, or an end-of-term token, such as RPAREN,
-  or REQARROW, or END. then, when that call to parse_primary
-  returns it can be collected into a call expression by the
-  caller. which is only ever because parse_primary itself called
-  parse_primary, specifically because it predicted another
-  primary term after it parsed a primary term. this recursion
-  needs to bottom out when we see a binop or another end-of-term token
 
-  if primary terms subsume recognizing function application,
-  recognizing literals, and recognizing variables.
-  then we can describe binary operations
-  in terms of a primary term followed by a binop,
-  followed by another primary term.
-  this also allows  call expressions to be built
-  up recursively by way of predict_primary vs. predict_end.
-  if we predict another primary term then we construct a
-  call node from the previously parsed term, and the node
-  created when we parse the predicted primary expression.
-  if we predict the end of the expression then the result
-  term is what was already parsed and we can simply return.
-  whatever 'end' token we saw will be handled by some caller.
-  as an example:
-  if we imagine parsing some call expression of length (n)
-  t0 t1 t2 ... tn
-  t0 is parsed by parse_primary, then the function
-  predicts another primary so we prepare to construct the
-  first call node by calling parse_primary again to construct
-  the rhs of the node. then we parse t1, and again,
-  predict another primary term, so we prepare to construct
-  the second call node by calling parse_primary again,
-  and so on until we parse tn, and predict the end of the expression.
-  then we place tn-1 and tn into the lhs and rhs of the bottom-most
-  call node and return the call node to the node above,
-  and then that call node has it's rhs ready, and so on until we build
-  up the entire tree.
-
-  then, each of the literals can be parsed by their own function
-  and it is simply a matter of directing the creation of the correct
-  entity node, and connecting these entities together by means of
-  the connective tissue nodes, operations and applications.
-*/
-
-  if (predicts_primary(ct)) {
+  if (predicts_primary(ctok)) {
     term = parse_primary(p, s);
   }
 
-  // when we get here, we have either parsed
-  // a primary entity, or not.
-  // if we have then term will point to the
-  // AST node describing the term.
-  // from this point curtok could be anything
-  // if it is a binop, then we know we need to
-  // construct some affix expression.
-  // if it is anything else, we can do nothing
-  // because we do not want to consume tokens
-  // needlessly. the calling context should
-  // take care of the end of an expression.
-  // and if we could have seen another primary
-  // term, that should have been parsed
-  // already into a call expression. so the
-  // only tokens that could appear after
-  // a validly parsed primary term are
-  // END, REQARROW, and RPAREN.
-
   if (term != NULL) {
-    ct = curtok(p);
-    if (predicts_binop(ct)) {
+    ctok = curtok(p);
+    if (predicts_binop(p, ctxt)) {
       term = parse_binop(p, s, term, lhsloc);
     }
   }
@@ -462,6 +388,15 @@ Ast* parse_term(Parser* p, Scanner* s)
 Ast* parse_primary(Parser* p, Scanner* s)
 {
   /*
+  this function assumes the responsiblity
+  of consuming single token primary terms.
+
+  multiple token primary terms are consumed
+  by their parsing function.
+
+  this separation ensures we only eat tokens
+  once we know what their use will be.
+
   ct must be one of:
     NIL, NIL_TYPE, ID, LPAREN, BSLASH
   by definition of predicts_primary
@@ -472,254 +407,100 @@ Ast* parse_primary(Parser* p, Scanner* s)
   StrLoc* cloc = curloc(p);
   switch(ctok) {
     case ID: {
+      char* id = strdup(ctxt);
+      nexttok(p, s); // eat ID
 
+      if (ctok == COLONEQUALS) { // this is a bind term
+        nexttok(p, s); // eat ':='
+
+        Ast* bound_term  = parse_term(p, s);
+        StrLoc* rightloc = curloc(p);
+        StrLoc bindloc;
+        bindloc.first_line   = cloc->first_line;
+        bindloc.first_column = cloc->first_column;
+        bindloc.last_line    = rightloc->last_line;
+        bindloc.last_column  = rightloc->last_column;
+        if (bound_term != NULL) {
+          term = CreateAstBind(id, bound_term, &bindloc);
+        } else {
+          // error: couldn't parse bound term
+        }
+
+      } else { // this is just an ID by itself.
+        term = CreateAstId(id, cloc);
+      }
       break;
     }
 
     case NIL: {
-
+      term = CreateAstEntityLiteralNil(cloc);
+      nexttok(p, s); // eat 'nil'
       break;
     }
 
     case NIL_TYPE: {
-
+      term = CreateAstEntityTypeNil(cloc);
+      nexttok(p, s); // eat 'Nil'
       break;
     }
 
     case BSLASH: {
-
+      term = parse_lambda(p, s);
       break;
     }
 
     case LPAREN: {
+      nexttok(p, s); // eat '('
 
+      term = parse_term(p, s);
+      ctok = curtok(p);
+      if (ctok == RPAREN) {
+        nexttok(p, s);
+
+      } else {
+        // error: missing rparen after term
+      }
+      break;
+    }
+    default: {
+      // error: unknown token.
       break;
     }
   }
 
   if (term != NULL) {
     ctok = curtok(p);
-    ctxt = curtxt(p);
-    cloc = curloc(p);
     if (predicts_primary(ctok)) {
-      // construct a call node
+      /*
+        recursively fold any number of
+        lexically adjacent primary terms
+        into a call tree.
+        ensuring that:
+        a b c d -->> a (b (c d))
+      */
+      Ast* rhs = parse_primary(p, s);
+      StrLoc* prvloc = cloc;
+      StrLoc call_loc;
+      cloc = curloc(p);
+
+      call_loc.first_line   = prvloc->first_line;
+      call_loc.first_column = prvloc->first_column;
+      call_loc.last_line    = cloc->last_line;
+      call_loc.last_column  = cloc->last_column;
+
+      term = CreateAstCall(term, rhs, &call_loc);
     }
     // else we can just return the term we parsed
+    // a single term by itself is a valid parse.
+    // this is both the base case of recursion for
+    // call expressions, and the regular case of
+    // the code simply being a single term. in
+    // both situations we simply want to silently
+    // return whatever we parsed.
   } else {
     printf("primary term failed to parse.");
   }
   return term;
-}
-
-/*
-Ast* parse_term(Parser* p, Scanner* s)
-{
-*/
-  /*
-      constant := nil
-                | lambda
-
-      lambda := \ id (: type)? => term
-
-      type   := Nil
-              | type '->' type
-
-      entity := id
-              | constant
-              | type
-
-      unop-expr := unop term
-
-      parens    := '(' term ')'
-
-      call      := term term
-
-      primary   := entity
-                 | unop-expr
-                 | parens
-
-      binop-expr := term binop term
-
-      term := primary
-            | binop-expr
-            | call
-            // | module
-            // | abstract-type
-  */
-
-
-/*
-
-  Ast* term = NULL;
-  Token ct = curtok(p);
-  StrLoc* termlhsloc = curloc(p), *termrhsloc = NULL;
-  */
-  /*
-    if parse_term was called, we expect to find at least
-    one primary expression in the series of tokens after.
-    all valid expressions in the language are some form of
-    operation upon entites. so we expect expressions to be
-    composed of names or literal entities with the
-    connective tissue of operations linking entities into
-    full expressions.
-
-    the head of any expression is called a primary expression.
-    predicts_primary is the set of known tokens that can precede some
-    valid expression. any literal value, any id, any unary operation
-    or a parenthesis validly predicts a primary expression.
-  */
-  /*
-  if (predicts_primary(ct)) {
-    term = parse_primary(p, s);
-    termrhsloc = curloc(p);
-  }
-*/
-  /*
-    if we have a valid term parsed then we
-    still need to try and parse possible
-    binop, call terms, or this could be the end
-    of the expression.
-    if the token after the
-    valid term is a binop, that then predicts an infix expression
-    and we need to parse an operator precedence expression,
-    if the term predicts
-    another primary term then we need to parse a call expr.
-    because two primary terms sitting lexically adjacent is
-    what constitutes a function application.
-    if, immediately after some primary expression we encounter
-    something predicting the end of an expression we can
-    simply return what we have parsed, and leave the token for
-    the calling context to handle. in the case of END the calling
-    context should be, eventually, the root caller. in the case of
-    RPAREN, RBRACE, and REQARROW the calling context expects to
-    consume each of these tokens.
-  */
-  /*
-  if (term != NULL) {
-    switch (ct) {
-      case END:
-        p->end = true;
-        return term;
-      // in each of the cases we want to leave
-      // the token for the calling function to consume.
-      case RPAREN:
-      case RBRACE:
-      case REQARROW:
-        return term;
-      // we avoid doing anything given any other token.
-      default:;
-    }
-
-
-    StrLoc LhsLoc;
-    LhsLoc.first_line   = termlhsloc->first_line;
-    LhsLoc.first_column = termlhsloc->first_column;
-    LhsLoc.last_line    = termrhsloc->last_line;
-    LhsLoc.last_column  = termrhsloc->last_column;
-    ct = curtok(p);
-    char* ctxt = curtxt(p);
-    */
-    /*
-      in my previous implementation, it was always obvious
-      that unless term has some clear prefix token, the
-      parser needed to assume that the user was entering some
-      affix expression. this has changed with the new
-      syntax of the language, we now have two base conditions
-      to choose from which constitute a continuing expression;
-      affix expressions and applications. this is untenable
-      until I realized that both base conditions range over
-      disjoint sets of tokens, and the first primary term
-      is always parsed before we can see the binop token,
-      and when we are looking for a binop, and we see a call
-      expression we can silently gather the full call term
-      into a single expression.
-
-      thinking about this some more, this seems wrong,
-      if we imagine the call graph of the parser while it
-      tracks along the term
-      a b + c d * e f - g h
-      -->> (+ (a b) (- (* (c d) (e f)) (g h))
-
-      we gather the first call expression into the first primary term
-      by way of parse_call, when parse_call calls parse_term to
-      construct it's rhs after picking up 'b' into the first rhs
-      we instead encounter the binop, which calls parse affix expression
-      passing in the last primary which was b, this incorrectly
-      associates b with the affix expression rather than the call
-      expression, because this parser always greedily assumes
-      more terms from this statrting point. instead of wanting
-      to consume more tokens in both cases, I want to make application
-      bind tighter than anything, and thereby make any application
-      be parsed as a single term for any binop expression to operate
-      on, the other way around doesn't really work in a sensible way.
-      instead the first and last terms of an application would by default
-      bind to the binop expressions before and after the call term.
-      ex:
-        a b + c d
-      -->> (a ((+ b c) d))
-      which again, is not what I want the expression to parse as.
-      properly parsed a b + c d should be
-      (+ (a b) (c d))
-    */
-    /*
-    if (predicts_binop(p, ctxt)) {
-      term = parse_binop(p, s, term, &LhsLoc);
-    }
-    else if (predicts_primary(ct)) {
-      term = parse_call(p, s, term, &LhsLoc);
-    } else {
-      return term;
-      // a term by itself
-    }
-  }
-  else {
-    // error: malformed term.
-  }
-
-  return term;
-}
-*/
-
-Ast* parse_type(Parser* p, Scanner* s)
-{
-  /*
-  type := Nil
-  */
-  Token ct  = curtok(p);
-  Ast* type = NULL;
-  StrLoc* lhsloc = NULL;
-
-  if (ct == NIL_TYPE) {
-    lhsloc = curloc(p);
-    type = CreateAstEntityTypeNil(lhsloc);
-    nexttok(p, s);
-  }
-
-  return type;
-}
-
-Ast* parse_literal(Parser* p, Scanner* s)
-{
-  /*
-  literal := nil
-            | lambda
-  */
-  Token ct = curtok(p);
-  Ast* literal = NULL;
-
-  if (ct == NIL) {
-    literal = CreateAstEntityLiteralNil(curloc(p));
-    // eat the nil
-    nexttok(p, s);
-  }
-  else if (ct == BSLASH) {
-    literal = parse_lambda(p, s);
-  }
-  else {
-    // error: not a valid constant term
-  }
-
-  return literal;
 }
 
 Ast* parse_lambda(Parser* p, Scanner* s)
@@ -736,7 +517,7 @@ Ast* parse_lambda(Parser* p, Scanner* s)
   if (ct == BSLASH) {
     begin_loc = curloc(p);
 
-    nexttok(p, s); // eat '\\'
+    nexttok(p, s); // eat '\'
     ct = curtok(p);
 
     if (ct == ID) {
@@ -788,101 +569,58 @@ Ast* parse_lambda(Parser* p, Scanner* s)
     }
   } else {
     // error: only BSLASH predicts a lambda
+    // the only time we call this function is
+    // when we have already predicted a BSLASH tho...
   }
 
   return lambda;
 }
 
-Ast* parse_entity(Parser* p, Scanner* s)
-{
-  /*
-  entity := type
-          | literal
-  */
-  Token ct = curtok(p);
-  Ast* entity = NULL;
-
-
-  if (predicts_type(ct)) {
-    entity = parse_type(p, s);
-  }
-  if (predicts_literal(ct)) {
-    entity = parse_literal(p, s);
-  }
-
-  else {
-    // error: malformed entity
-  }
-
-  return entity;
-}
-
-Ast* parse_call(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc)
-{
-
-  // a b c -->> a (b c)
-  // a b c d e f g h -->> (a (b (c (d (e (f (g h)))))))
-  Ast* rhs = NULL, *call = NULL;
-  rhs = parse_term(p, s);
-  StrLoc* rhsloc = curloc(p);
-
-  if (rhs) {
-    StrLoc callloc;
-    callloc.first_line   = lhsloc->first_line;
-    callloc.first_column = lhsloc->first_column;
-    callloc.last_line    = rhsloc->first_line;
-    callloc.last_column  = rhsloc->first_column;
-    call = CreateAstCall(lhs, rhs, &callloc);
-  } else {
-    ; // error: malformed rhs.
-  }
-
-  return call;
-}
-
 Ast* parse_affix_expr(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc, int minPrecdnce)
 {
   /*
+  this is an implementation of an operator precedence parser.
+  the pseudocode for which:
+
   parse_expression_1(lhs, min_precedence)
-  lookahead := peek next token
-  while lookahead is a binary operator whose precedence is >= min_precedence
-        op := lookahead
-        advance to next token
-        rhs := parse_primary ()
-        lookahead := peek next token
-        while lookahead is a binary operator whose precedence is greater
-                 than op's, or a right-associative operator
-                 whose precedence is equal to op's
-            rhs := parse_expression_1 (rhs, lookahead's precedence)
-            lookahead := peek next token
-        lhs := the result of applying op with operands lhs and rhs
-    return lhs
+    lookahead := peek next token
+    while lookahead is a binary operator whose precedence is >= min_precedence
+          op := lookahead
+          advance to next token
+          rhs := parse_primary ()
+          lookahead := peek next token
+          while lookahead is a binary operator whose precedence is greater
+                   than op's, or a right-associative operator
+                   whose precedence is equal to op's
+              rhs := parse_expression_1 (rhs, lookahead's precedence)
+              lookahead := peek next token
+          lhs := the result of applying op with operands lhs and rhs
+      return lhs
+
+
   */
+  // loptok, loptxt, lopPrec -->> (l)ookahead (op)erator ...
+  Token loptok  = curtok(p);
+  char* loptxt  = curtxt(p);
+  int   lopPrec = -1;
 
-  // peek at the operator that triggered this call of parse_affix_expr;
-  Token lookahead   = curtok(p);
-  char* loptxt      = curtxt(p);
-  int   lopPrec     = -1;
-
-  // collapse all lhs expressions which rotate a new top of the list
-  // into a single lhs.
   while (predicts_binop(p, loptxt) && (lopPrec = LookupOpPrec(p->pTable, loptxt)) >= minPrecdnce) {
-    Token optok = lookahead; // save the current top op of the tree
+    Token optok = loptok;
     char* optxt = loptxt;
 
-    nexttok(p, s);
+    nexttok(p, s); // eat the previous op
     StrLoc* llocp = curloc(p);
     StrLoc rhsloc;
 
     rhsloc.first_line   = llocp->first_line;
     rhsloc.first_column = llocp->first_column;
     // rhs := parse_primary()
-    Ast* rhs   = parse_primary(p, s);
+    Ast* rhs = parse_primary(p, s); // parse the primary term
     llocp = curloc(p);
     rhsloc.last_line   = llocp->last_line;
     rhsloc.last_column = llocp->last_column;
 
-    // collapse all rhs expressions which rotate a new top of the list into
+    // collapse all rhs expressions which rotate a new top of the tree into
     // a single rhs, (this means operators with strictly higher precedence,
     // and right associative operators with equal precedence.) in both
     // of these cases the rhs needs to be parsed as if it was a brand new lhs.
@@ -892,17 +630,17 @@ Ast* parse_affix_expr(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc, int minPr
 
         op
     lhs     op
-        lhs'   rhs
+         rhs   rhs'
 
     */
-    lookahead  = curtok(p);
-    loptxt     = curtxt(p);
-    while (predicts_binop(p, loptxt) &&  \
-        ((LookupOpPrec(p->pTable, loptxt) > lopPrec) || \
+    loptok = curtok(p);
+    loptxt = curtxt(p);
+    while (predicts_binop(p, loptxt) && ( \
+        (LookupOpPrec(p->pTable, loptxt) > lopPrec) || \
         ((LookupOpPrec(p->pTable, loptxt) == lopPrec) && (LookupOpAssoc(p->pTable, loptxt) == A_RIGHT))))
     {
       rhs = parse_affix_expr(p, s, rhs, &rhsloc, lopPrec);
-      lookahead  = curtok(p);
+      loptok  = curtok(p);
       loptxt     = curtxt(p);
     }
 
@@ -926,121 +664,57 @@ Ast* parse_affix_expr(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc, int minPr
     binoploc.last_column  = rhsloc.last_column;
     lhs = CreateAstBinop(optxt, lhs, rhs, &binoploc);
   }
+
+  /*
+    this algorithm parses as many tokens as it can until it
+    is forced to construct the deepest tree node, deepest being,
+    starting from the left of the expression, the first highest
+    precedence operator in the equation, and that rhs primary term.
+    it essentially
+    walks the tokens, using function calls as an implicit stack to
+    store the intermediate data and then works it's way upwards
+    always being as greedy as it can so the resulting tree enforces
+    the right ordering according to precedence.
+    (parentheses have
+    the highest precedence in the sense that they always count
+    as a single primary term, so they, in reality, completely subvert
+    this algorithm. subvert in the sense that parentheses don't have
+    an explicit 'precedence', they are simply parsed as their own term.)
+  */
+
   return lhs;
 }
 
 Ast* parse_binop(Parser* p, Scanner* s, Ast* firstlhs, StrLoc* lhsloc)
 {
+  /*
+  observant readers may note that in the original implementation
+  of parse_binop(), due to classes, parse_binop had
+  no arguments, and instead called parse_primary itself in a similar
+  call to the "real" parse_binop expression.
+  i.e.
+  Ast* parse_binop() {
+    return _parse_binop(parse_primary(), 0);
+  }
+  we may also note how that call to parse_primary didn't 'dissappear',
+  it was in fact factored out into the callers code.
+  in this way we can predict between call expressions and
+  binop expressions in an LL manner. because the common
+  problem; "we can't know which is which without first
+  parsing a term." is solved by the fact that the first
+  term of both is identical (any primary term),
+   and the tokens which predict
+  one or the other after the first term are disjoint.
+  (primary terms vs binop terms)
+  additionally, call expressions are parsed in their
+  own function taking advantage of the uniformity
+  of terms present in a call expression. meaning that
+  complex expressions comprising both calls, binary operators
+  and no parenthesis will be parsed such that all calls
+  happen before any binary operation, and from there we
+  rely on operator precedence.
+  */
     return parse_affix_expr(p, s, firstlhs, lhsloc, 0);
-}
-
-Ast* parse_unop(Parser* p, Scanner* s)
-{
-  /*
-  unop-expr := unop term
-  */
-  Token ct = curtok(p);
-  char* ctxt = curtxt(p);
-  Ast* result = NULL;
-
-  if (predicts_unop(p, ctxt)) {
-    /* nothing predicts_unop */
-  }
-
-  return result;
-}
-
-Ast* parse_parens(Parser* p, Scanner* s)
-{
-  /*
-  parens := '(' term ')'
-  */
-  Token ct = curtok(p);
-  Ast* result = NULL;
-  if (ct == LPAREN) {
-    nexttok(p, s);
-
-    result = parse_term(p, s);
-    ct = curtok(p);
-    if (ct == RPAREN) {
-      nexttok(p, s);
-
-    } else {
-      // error: missing rparen after term
-    }
-  } else {
-    // error: missing lparen?
-  }
-  return result;
-}
-
-Ast* parse_primary(Parser* p, Scanner* s)
-{
-  /*
-  primary   := id
-             | id := term
-             | entity
-             | unop-expr
-             | parens
-             | primary primary
-  */
-  Token ct = curtok(p);
-  char* ctxt = curtxt(p);
-  Ast* result = NULL;
-
-  if (ct == ID) {
-    char*   id = curtxt(p);
-    StrLoc* idloc = curloc(p);
-    StrLoc* rhsloc = NULL;
-    StrLoc  bindloc;
-    Ast*    term = NULL;
-    bool is_bind = false;
-
-    nexttok(p, s); // eat ID
-    ct = curtok(p);
-    ctxt = curtxt(p);
-    if (ct == COLONEQUALS) {
-      is_bind = true;
-      nexttok(p, s); // eat :=
-      term = parse_term(p, s);
-      rhsloc = curloc(p);
-      bindloc.first_line   = idloc->first_line;
-      bindloc.first_column = idloc->first_column;
-      bindloc.last_line    = rhsloc->last_line;
-      bindloc.last_column  = rhsloc->last_column;
-    }
-
-    if (is_bind) {
-      result = CreateAstBind(id, term, &bindloc);
-    } else {
-      result = CreateAstId(id, idloc);
-    }
-  }
-  if (predicts_entity(ct)) {
-    result = parse_entity(p, s);
-  }
-  else if (predicts_unop(p, ctxt)) {
-    result = parse_unop(p, s);
-  }
-  else if (ct == LPAREN) {
-    result = parse_parens(p, s);
-  }
-  else {
-    // error: malformed primary
-  }
-
-  if (result != NULL) {
-    ct = curtok(p);
-    if (predicts_primary(ct)) {
-      Ast* rhs = parse_primary(p, s);
-    } else if (predicts_end(ct)) {
-      ;
-    } else {
-      // error: malformed primary
-    }
-  }
-
-  return result;
 }
 
 bool speculate(Parser* parser, Scanner* scanner, Token token)
