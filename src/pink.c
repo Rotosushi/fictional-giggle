@@ -135,9 +135,18 @@ int main(int argc, char** argv)
 			the location of the erroneous token and
 		  the full input string, then we can
 			underscore the text of the erroneous token.
+			since we use buffered scanning we have the
+			string associated with the input tokens directly
+			available within the scanner structure.
 		*/
 
 			charsRead = getline(&input, &maxChars, stdin);
+
+			if (charsRead == -1) {
+				if (feof(stdin) != 0) {
+					break;
+				}
+			}
 
 			yysetbuffer(scanner, input, charsRead);
 

@@ -178,18 +178,11 @@ void fillTokens(Parser* p, Scanner* s, int i)
 
     p->tokbuf = (Token*)realloc(p->tokbuf,  sizeof(Token) * (p->bufsz + n));
     p->texbuf = (char**)realloc(p->texbuf,  sizeof(char**) * (p->bufsz + n));
-    p->locbuf = (StrLoc*)realloc(p->locbuf, sizeof(StrLoc*) * (p->bufsz + n));
+    p->locbuf = (StrLoc*)realloc(p->locbuf, sizeof(StrLoc) * (p->bufsz + n));
 
-/*
-    if (p->tokbuf != NULL && p->txbuf != NULL && p->lcbf) {
-      tkbf = (Token*)malloc(sizeof(Token*) * (p->bufsz + n));
-      txbf = (char**)malloc(sizeof(char**) * (p->bufsz + n));
-      lcbf = (StrLoc*)malloc(sizeof(StrLoc*) * (p->bufsz + n));
-    }
-*/
     for (int j = 0; j < n; ++j) {
        /*
-          grab an actual new token from the input FILE
+          grab an actual new token from the internal buffer
        */
        Token t = ERR;
 
@@ -239,9 +232,10 @@ bool predicts_unop(Parser* p, char* op)
   essential to the language. This feature completes
   the cycle when we are considering the programmers
   ability to fold away logic. we can already define
-  new functions, and abstract over our own expressions.
+  new functions, and thusly abstract over our own expressions.
   but what if we want to declare new 'units of work.'
-  and build expressions up over those new units?
+  and build expressions up over those new units? (to
+  further abstract over.)
   well, the basic unit of work is the operator.
   hence, operator declarations. and then naturally
   operator overloading, for when the unit of work
@@ -333,11 +327,12 @@ Ast* parse(Parser* parser, Scanner* scanner)
     operations are the basic unit of work.
     expressions and function application are the
     basic units of composition. by restricting
-    definitions to be decidable at compile time
-    i think we can avoid introducing runtime typing,
-    or runtime function definitions, simply to keep
-    the semantics of the language as close to C
-    as we reasonably want to get.
+    definitions to be known/computable at compile time
+    we can factor as much out of the runtime of the simplest
+    program as is reasonable. "only pay for what you use."
+    again because this language
+    is built to specify programs from the base materia.
+
     types and the type system is what maintains
     the alignment between what expressions can validly
     be stated by the grammar and what expressions can be
@@ -365,23 +360,54 @@ Ast* parse_primary(Parser* p, Scanner* s);
 
 Ast* parse_term(Parser* p, Scanner* s)
 {
-  Ast* term      = NULL;
-  Token ctok     = curtok(p);
-  char* ctxt     = curtxt(p);
+  Ast*       lhs = NULL, *rhs = NULL;
+  Token     ctok = curtok(p);
+  char*     ctxt = curtxt(p);
+  StrLoc* rhsloc = NULL;
   StrLoc* lhsloc = curloc(p);
 
   if (predicts_primary(ctok)) {
-    term = parse_primary(p, s);
+    lhs = parse_primary(p, s);
   }
 
-  if (term != NULL) {
+  if (lhs != NULL) {
     ctok = curtok(p);
-    if (predicts_binop(p, ctxt)) {
-      term = parse_binop(p, s, term, lhsloc);
+    ctxt = curtxt(p);
+    if (predicts_primary(ctok)) {
+      /*
+        fold any number of
+        lexically adjacent primary terms
+        into a call tree.
+        ensuring that:
+        a b c d ... -->> ((a b) c) d ...
+      */
+      do {
+        rhsloc = curloc(p);
+        rhs = parse_primary(p, s);
+        StrLoc call_loc;
+
+
+        call_loc.first_line   = lhsloc->first_line;
+        call_loc.first_column = lhsloc->first_column;
+        call_loc.last_line    = rhsloc->last_line;
+        call_loc.last_column  = rhsloc->last_column;
+
+        lhs = CreateAstCall(lhs, rhs, &call_loc);
+      } while (predicts_primary(ctok));
+    }
+    else if (predicts_binop(p, ctxt)) {
+      lhs = parse_binop(p, s, lhs, lhsloc);
+    }
+    else if (predicts_end(ctok)) {
+
     }
   }
 
-  return term;
+  if (ctok == ERR) {
+
+  }
+
+  return lhs;
 }
 
 Ast* parse_primary(Parser* p, Scanner* s)
@@ -391,12 +417,22 @@ Ast* parse_primary(Parser* p, Scanner* s)
   of consuming single token primary terms.
 
   multiple token primary terms are consumed
-  by their parsing function.
+  by their parsing function. but this function
+  selects which primary term to parse based on
+  it's prefix token. this needs to be the case
+  for every primary term. to say that again
+  in other words: all primary terms must be LL(1)
+  distinguishable.
 
   this separation ensures we only eat tokens
   once we know what their use will be.
 
-  ct must be one of:
+  and it lets the connective tissue be defined
+  in terms of primary terms, and full expressions
+  be recursively parsed/defined simply by calling
+  parse_term again.
+
+  ctok must be one of:
     NIL, NIL_TYPE, ID, LPAREN, BSLASH
   by definition of predicts_primary
   */
@@ -422,6 +458,7 @@ Ast* parse_primary(Parser* p, Scanner* s)
         if (bound_term != NULL) {
           term = CreateAstBind(id, bound_term, &bindloc);
         } else {
+          printf("couldn't parse bound term.");
           // error: couldn't parse bound term
         }
 
@@ -457,48 +494,18 @@ Ast* parse_primary(Parser* p, Scanner* s)
         nexttok(p, s);
 
       } else {
+        printf("expecting rparen after term.\n");
         // error: missing rparen after term
       }
       break;
     }
     default: {
+      printf("unexpected token.\n");
       // error: unknown token.
       break;
     }
   }
 
-  if (term != NULL) {
-    ctok = curtok(p);
-    if (predicts_primary(ctok)) {
-      /*
-        recursively fold any number of
-        lexically adjacent primary terms
-        into a call tree.
-        ensuring that:
-        a b c d -->> a (b (c d))
-      */
-      Ast* rhs = parse_primary(p, s);
-      StrLoc* prvloc = cloc;
-      StrLoc call_loc;
-      cloc = curloc(p);
-
-      call_loc.first_line   = prvloc->first_line;
-      call_loc.first_column = prvloc->first_column;
-      call_loc.last_line    = cloc->last_line;
-      call_loc.last_column  = cloc->last_column;
-
-      term = CreateAstCall(term, rhs, &call_loc);
-    }
-    // else we can just return the term we parsed
-    // a single term by itself is a valid parse.
-    // this is both the base case of recursion for
-    // call expressions, and the regular case of
-    // the code simply being a single term. in
-    // both situations we simply want to silently
-    // return whatever we parsed.
-  } else {
-    printf("primary term failed to parse.\n");
-  }
   return term;
 }
 
@@ -638,9 +645,9 @@ Ast* parse_affix_expr(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc, int minPr
         (LookupOpPrec(p->pTable, loptxt) > lopPrec) || \
         ((LookupOpPrec(p->pTable, loptxt) == lopPrec) && (LookupOpAssoc(p->pTable, loptxt) == A_RIGHT))))
     {
-      rhs = parse_affix_expr(p, s, rhs, &rhsloc, lopPrec);
-      loptok  = curtok(p);
-      loptxt     = curtxt(p);
+      rhs    = parse_affix_expr(p, s, rhs, &rhsloc, lopPrec);
+      loptok = curtok(p);
+      loptxt = curtxt(p);
     }
 
     // create a new node of the tree by attaching the previous
@@ -673,7 +680,10 @@ Ast* parse_affix_expr(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc, int minPr
     walks the tokens, using function calls as an implicit stack to
     store the intermediate data and then works it's way upwards
     always being as greedy as it can so the resulting tree enforces
-    the right ordering according to precedence.
+    the right ordering according to precedence. greedy meaning when it walks
+    out one level of the tree, the next step is to see if we need to walk
+    deeper, then, only when we can no longer walk deeper can we safely
+    construct the binop node.
     (parentheses have
     the highest precedence in the sense that they always count
     as a single primary term, so they, in reality, completely subvert
@@ -705,13 +715,6 @@ Ast* parse_binop(Parser* p, Scanner* s, Ast* firstlhs, StrLoc* lhsloc)
    and the tokens which predict
   one or the other after the first term are disjoint.
   (primary terms vs binop terms)
-  additionally, call expressions are parsed in their
-  own function taking advantage of the uniformity
-  of terms present in a call expression. meaning that
-  complex expressions comprising both calls, binary operators
-  and no parenthesis will be parsed such that all calls
-  happen before any binary operation, and from there we
-  rely on operator precedence.
   */
     return parse_affix_expr(p, s, firstlhs, lhsloc, 0);
 }
@@ -726,6 +729,7 @@ bool speculate(Parser* parser, Scanner* scanner, Token token)
 }
 
 bool speculate_lambda(Parser* p, Scanner* s);
+bool speculate_primary(Parser* p, Scanner* s);
 
 bool speculate_term(Parser* p, Scanner* s)
 {
@@ -752,8 +756,57 @@ bool speculate_term(Parser* p, Scanner* s)
 
   */
 
-  bool result = true;
+  /*
+  i think some of these recursive calls can be
+  replaced by:
+    1) a wrapping while (1) loop
+    and then:
+    2) a continue;
+  because the speculation doesn't need to track the
+  intermediate data so closely to construct the AST.
+  then, on a error or success we can use a break;
+  however in order to track
+  an arbitrary number of nested parentheses
+  we may still need the recursion in that case.
+  because the stack-like nature of a recursive
+  function naturally stores all of it's intermediate
+  results, which gives us nested parenthesized expressions
+  'for free' as it were.
+  this is the same case for speculate_lambda, which itself
+  needs to contain one or two terms. and the bind expression,
+  and later, ifs, whiles and ;s.
+  (i am sure this is the case for the speculation functions,
+   as they don't need to build any data-structures. the other
+   parser functions require more consideration.)
+  */
 
+  bool result = true;
+  if (predicts_primary(curtok(p))) {
+    result = speculate_primary(p, s);
+  }
+
+  if (result) {
+    if (predicts_primary(curtok(p))) {
+      do {
+        result = speculate_primary(p, s);
+        if (!result) break;
+      } while (predicts_primary(curtok(p)));
+    }
+    else if (predicts_binop(p, curtxt(p)))) {
+      do {
+        nexttok(p, s); // eat the binop token
+        result = speculate_primary(p, s);
+        if (!result) break;
+      } while (predicts_binop(p, curtxt(p)));
+    }
+  }
+
+  return result;
+}
+
+bool speculate_primary(Parser* p, Scanner* s)
+{
+  bool result = true;
   if (speculate(p, s, NIL));
   else if (speculate(p, s, NIL_TYPE));
   else if (speculate(p, s, ID)) {
@@ -761,33 +814,7 @@ bool speculate_term(Parser* p, Scanner* s)
       result = speculate_term(p, s);
     }
   }
-  else if (speculate(p, s, LPAREN)) {
-    if (speculate_term(p, s)) {
-      if (speculate(p, s, RPAREN));
-      else result = false;
-    }
-    else result = false;
-  }
   else if (speculate_lambda(p, s));
-  else result = false;
-
-  if (result) {
-    Token ctok = curtok(p);
-    char* ctxt = curtxt(p);
-
-    if (predicts_primary(ctok)) {
-      result = speculate_term(p, s);
-    }
-    else if (predicts_binop(p, ctxt)) {
-      /*
-      a binary expression, modulo precedence,
-      is essentially:
-       primary-term (binop primary-term)*
-      */
-      nexttok(p, s); // eat binop
-      result = speculate_term(p, s); // parse the rhs term of the binop
-    }
-  }
 
   return result;
 }

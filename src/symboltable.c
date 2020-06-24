@@ -108,7 +108,7 @@ void unbind(char* name, Symboltable* symtable)
   }
 }
 
-void destroySymtable(Symboltable* symtable)
+void destroySymboltable(Symboltable* symtable)
 {
   symbol *prv = NULL, *ths = symtable->symbols;
   while (ths != NULL) {

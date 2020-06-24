@@ -203,19 +203,18 @@ int yylex(Parser* parser, Scanner* scanner)
   scanner->token = scanner->cursor;
 loop:
   /*!re2c
-      re2c:yyfill:enable = 0;
       re2c:define:YYCTYPE  = char;
-      re2c:eof = 0;
+      re2c:sentinel = -1;
+      re2c:yyfill:enable = 0;
 
       [ \t\n\r]  { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); goto loop; }
       *          { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return ERR; }
-      $          { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return END; }
       "nil"      { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return NIL; }
       "Nil"      { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return NIL_TYPE; }
       ":"        { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return COLON; }
       ":="       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return COLONEQUALS; }
       "\\"       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return BSLASH; }
-      "->"       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return RARROW; }
+      "->"       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return BINOP; }
       "=>"       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return REQARROW; }
       ";"        { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return SEMICOLON; }
       "("        { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return LPAREN; }
