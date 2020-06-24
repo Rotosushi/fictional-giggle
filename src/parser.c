@@ -176,9 +176,9 @@ void fillTokens(Parser* p, Scanner* s, int i)
     //char* tkbf = NULL *txbf = NULL, *lcbf = NULL;
     // add (n) more slots to each buffer.
 
-    p->tokbuf = (Token*)realloc(p->tokbuf,  sizeof(Token) * p->bufsz + n);
-    p->texbuf = (char**)realloc(p->texbuf,  sizeof(char**) * p->bufsz + n);
-    p->locbuf = (StrLoc*)realloc(p->locbuf, sizeof(StrLoc*) * p->bufsz + n);
+    p->tokbuf = (Token*)realloc(p->tokbuf,  sizeof(Token) * (p->bufsz + n));
+    p->texbuf = (char**)realloc(p->texbuf,  sizeof(char**) * (p->bufsz + n));
+    p->locbuf = (StrLoc*)realloc(p->locbuf, sizeof(StrLoc*) * (p->bufsz + n));
 
 /*
     if (p->tokbuf != NULL && p->txbuf != NULL && p->lcbf) {
@@ -295,22 +295,21 @@ bool speculate_term(Parser* p, Scanner* s);
 Ast* parse(Parser* parser, Scanner* scanner)
 {
   Ast* result = NULL;
+  bool good_term = false;
 
   resetParser(parser);
 
   fillTokens(parser, scanner, 1);
 
-  // by way of thinking about it, speculation
-  // has been factored out of the parser.
-  // but i don't feel like taking down
-  // the infrastructure simply because
-  // I intend on extending this grammar
-  // further and it may be useful then.
-  //mark(parser);
-  //bool term = speculate_term(parser, scanner);
-  //release(parser);
+  mark(parser);
+  good_term = speculate_term(parser, scanner);
+  release(parser);
 
-  result = parse_term(parser, scanner);
+  if (good_term)
+    result = parse_term(parser, scanner);
+  else {
+    printf("bad term.\n");
+  }
 
   return result;
 }
@@ -498,7 +497,7 @@ Ast* parse_primary(Parser* p, Scanner* s)
     // both situations we simply want to silently
     // return whatever we parsed.
   } else {
-    printf("primary term failed to parse.");
+    printf("primary term failed to parse.\n");
   }
   return term;
 }
@@ -726,11 +725,7 @@ bool speculate(Parser* parser, Scanner* scanner, Token token)
     return false;
 }
 
-bool speculate_constant(Parser* p, Scanner* s);
 bool speculate_lambda(Parser* p, Scanner* s);
-bool speculate_entity(Parser* p, Scanner* s);
-bool speculate_binop(Parser* p, Scanner* s);
-bool speculate_unop(Parser* p, Scanner* s);
 
 bool speculate_term(Parser* p, Scanner* s)
 {
@@ -758,81 +753,44 @@ bool speculate_term(Parser* p, Scanner* s)
   */
 
   bool result = true;
-  // it = the token sequence being parsed
-  if (speculate(p, s, ID)) {
 
-  }
-  else if (speculate_entity(p, s)) {   // is it an entity?
-
-  }
-
-  else if (speculate_unop(p, s)) {  // is it a unop expression?
-    if (speculate_term(p, s));
-    else {
-      /* error: term after the unop is malformed */
-      result = false;
+  if (speculate(p, s, NIL));
+  else if (speculate(p, s, NIL_TYPE));
+  else if (speculate(p, s, ID)) {
+    if (speculate(p, s, COLONEQUALS)) {
+      result = speculate_term(p, s);
     }
   }
-
   else if (speculate(p, s, LPAREN)) {
     if (speculate_term(p, s)) {
       if (speculate(p, s, RPAREN));
-      else {
-        /*  error: no postfix RPAREN after a well formed term */
-        result = false;
-      }
+      else result = false;
     }
-    else {
-      /* error: the parenthized term is malformed */
-      result = false;
-    }
+    else result = false;
   }
-
-  else {
-    // error: not an entity, a unop term or a LPAREN
-    result = false;
-  }
+  else if (speculate_lambda(p, s));
+  else result = false;
 
   if (result) {
-    if (speculate_binop(p, s)) {  // is it an expression?
-      if (speculate_term(p, s)); // is the rhs parsable?
-      else {
-        /* error: rhs of binop expr is malformed */
-        result = false;
-      }
-    }
-    else if (speculate_term(p, s)) { // is it a call?
-        /*
-          try and parse any number of terms in sequence
+    Token ctok = curtok(p);
+    char* ctxt = curtxt(p);
 
-          pretty sure that the recursion here takes care of
-          the 'any number' part of the above statement
-
-          does this recur forever?
-          it would if we didn't check for the well-formedness
-          of the term above. then the terminating condition of
-          END, RPAREN, RBRACE, wouldn't terminate and we would always
-          call speculate_term above.
-        */
+    if (predicts_primary(ctok)) {
+      result = speculate_term(p, s);
     }
-    else { // it's an entity by itself.
-      if (predicts_end(curtok(p)))
-        return result;
+    else if (predicts_binop(p, ctxt)) {
+      /*
+      a binary expression, modulo precedence,
+      is essentially:
+       primary-term (binop primary-term)*
+      */
+      nexttok(p, s); // eat binop
+      result = speculate_term(p, s); // parse the rhs term of the binop
     }
   }
 
   return result;
 }
-
-bool speculate_constant(Parser* p, Scanner* s)
-{
-  bool result = true;
-  if      (speculate(p, s, NIL));
-  else if (speculate(p, s, NIL_TYPE));
-  else result = false;
-  return result;
-}
-
 
 bool speculate_lambda(Parser* p, Scanner* s)
 {
@@ -848,22 +806,7 @@ bool speculate_lambda(Parser* p, Scanner* s)
       }
 
       if (speculate(p, s, REQARROW)) {
-        if (speculate(p, s, LBRACE)) {
-          if (speculate_term(p, s)) {
-            if (speculate(p, s, RBRACE));
-            else
-              // error: no trailing RBRACE
-              result = false;
-          }
-          else
-            // error: no well formed term after the LBRACE
-            result = false;
-        }
-        else if (speculate_term(p, s));
-        else {
-          // error: lambda body not well formed
-          result = false;
-        }
+        result = speculate_term(p, s);
       }
       else {
         // error: expected '=>' after ID or type annotation.
@@ -879,32 +822,6 @@ bool speculate_lambda(Parser* p, Scanner* s)
   }
   return result;
 }
-
-bool speculate_entity(Parser* p, Scanner* s)
-{
-  bool result = true;
-  if      (speculate_constant(p, s));
-  else if (speculate_lambda(p, s));
-  else result = false;
-  return result;
-}
-
-bool speculate_binop(Parser* p, Scanner* s)
-{
-  bool result = true;
-  if (speculate(p, s, RARROW));
-  else result = false;
-  return result;
-}
-
-bool speculate_unop(Parser* p, Scanner* s)
-{
-  bool result = true;
-  result = false;
-  return result;
-}
-
-
 
 
 

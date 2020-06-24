@@ -11,3 +11,6 @@ clean:
 
 debug: pink
 	gdb -tui pink
+
+grind: pink
+	valgrind -v --leak-check=full --show-leak-kinds=all --track-origins=yes ./pink

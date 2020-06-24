@@ -234,19 +234,25 @@ bool isMember (char* s, StringSet* strset)
     return false;
   if (strset->root == NULL)
     return false;
+  if (s == NULL)
+    return false;
 
   Elem* elem = strset->root;
-  int cmp = strcmp(s, elem->str);
-  if (cmp == 0) {
-    return true;
-  }
-  else {
-      elem = elem->next;
-      while (elem != NULL) {
-        cmp  = strcmp(s, elem->str);
-        if (cmp == 0) return true;
+  if (elem->str != NULL) {
+    int cmp = strcmp(s, elem->str);
+    if (cmp == 0) {
+      return true;
+    }
+    else {
         elem = elem->next;
-      }
+        while (elem != NULL) {
+          if (elem->str != NULL) {
+            cmp  = strcmp(s, elem->str);
+            if (cmp == 0) return true;
+            elem = elem->next;
+          }
+        }
+    }
   }
   return false;
 }
