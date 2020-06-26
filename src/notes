@@ -11,11 +11,377 @@ Just enough to say what is interesting
   -> make it do another thing
   -> loop/iterate/recur
 
+--------------------------------------------------------------------------------
+
+how is it that we mean to support first class functions in a
+procedural way? I'm like 99% sure that we don't want to give
+life to the idea that we want to construct functions at runtime.
+we want all function applications to be definable at compile-time.
+then we can compile & link them, and bam, a program.
+
+first, i suppose i should say what i mean when i say procedural programming,
+I mean to imply the exact middle of the total intersection of
+functional and imperitive programming. allowing cohabitiation and collaboration
+rather than confrontation and convolution.
+
+so, again how is it that we mean to support first class functions
+modulo the ability to define new functions at runtime? I think
+some form of defunctionalization would work as a compilation technique.
+whereby we decompose all higher order functions into first order functions,
+by introducing an implicit "apply" function, which disambiguates by closure type
+which first-order version of the higher-order function to call.
+
+example:
+
+fn app (f, x)
+{
+ f x
+}
+
+fn main (x, y)
+{
+  (app (\z => x + z) 1);
+  (app (\z => y * z) 2);
+}
+
+possible implementation:
 
 
 
+fn app (f, x, closure)
+{
+  f closure x
+}
+
+fn main (x, y)
+{
+  app (\z => x + z) 1 (x := x);
+  app (\z => y * z) 2 (y := y);
+}
+
+we can solve the downwards funarg problem fairly straightforwardly
+by allocating the closure statically in the enclosing stack frame
+and passing it inwards. however, this is the simplest case.
+we will get to the harder version of this.
 
 
+this means introducing a constructor for an object representing the
+free variables present in the function at time of definition, and associating
+those free variables with a closure-like object which injects the free bindings
+into each call site.
+
+notice how our own conception of what a polymorphic function even is,
+aligns with this concept of defunctionalization.
+instead of having a single polymorphic instance, we have a set of monomorphic
+functions.
+in a similar way, every time a higher order function is applied it can
+be semantically supported by a call to a first order function with it's free
+variables bound to whatever they had been bound to at the lexical definition
+point of the closure (this is what it means to be statically lexically scoped.)
+if we were to make a set of each of these functions we would have the set which
+describes that particular closure.
+if we were to make a set of every application of some particular polymorphic
+function, we would arrive at Pinks definition of said polymorphic function.
+
+so, how about we use that hinge to define a calculus?
+
+example with higher order function usage:
+
+fn aux (f)
+{
+  f 1 + f 10
+}
+
+fn main (x, y, b)
+{
+  (aux (\z => x + z)) * (aux (\z => if b then y + z else y - z))
+}
+
+first-order defunctionalized version:
+
+datatype Lam = LAM1 of Int
+             | LAM2 of Int * Bool
+
+fn aux-apply (LAM1 x, z)
+{
+  x + z
+}
+
+fn aux-apply (LAM2 (y, b) z)
+{
+  if b then y + z else y - z
+}
+
+fn aux (f)
+{
+  aux-apply f 1 + aux-apply f 10
+}
+
+fn main (x, y, b)
+{
+// each particular application is instead an application plus
+// some particular closure, this closure is then used by the
+// dispatcher to call some particular instance of the closed
+// over function and to pass information into the function.
+  aux LAM1 x * aux LAM2 (y, b)
+}
+
+each time the aux function is applied the compiler needs to keep track
+of the free variables present within the application site.
+in the first case, only the variable x appears
+free in the higher order function passed to aux, therefore that particular
+application site can be associated with a particular constructor for the auxilliary
+function taking in that free variable as an argument, and preforming the
+lambda body.
+in the second site, both y and b appear free in the higher order function
+passed to aux. therefore that call site needs to be associated with a separate
+constructor which takes in a pair of arguments and passes those to the associated
+apply function. then, in the body of the aux function itself, in order to
+execute the application, we can preform type dispatch over the constructors
+to select the correct first-order implementation.
+
+if, instead of doing actual defunctionalization, we could implement
+closures, we could instead of defining a constructor-per-application,
+we could define an environment containing the bindings and associate
+that environment with each application. then while executing the higher-order
+procedure body we can lookup the free variables in this 'closure'
+environment. we still need to implement a monomorphic version for
+each type the higher order function is called with (unless it's monomorphic)
+and we may need to dispatch based on type in the general use case. with
+an optimization being calling the correctly typed instance directly.
+(with each particular call site being associated with some particular
+closure environment.) but, this saves us from constructing each application
+site uniquely. (in the defunctionalized sense.) insted we can have one function
+body which operates upon values of some type. and closes over values in it's
+defining environment. each call site can receive a pointer to the environment
+containing the bindings for the free variables occuring in the body of the lambda.
+
+when we consider compiling such a closure,
+we could pass the closure environment as a hidden
+arument via a tuple, and then the sequence of instructions to access those
+names are implemented with tuple lookup.
+then this tuple can live in the stack or in the heap depending
+upon the use case. we may still run into problems because the types contained
+within the tuple change which series of instructions will validly retrieve
+data from it. so this still seems to require a separate implementation
+per tuple.
+
+the question then becomes, what about a polymorphic function which closes over
+some terms? well, since we define polymorphic instances as per-application, and
+we define closure values as per-application, it seems to imply they are already
+in alignment, so it may simply make sense to say that the closure
+is associated with some application site, and then polymorphic procedures
+which apply functions simply pass the closure they receive into the higher
+order function and that function is able to utilize those bindings.
+the function doing the application can be defined indempotent of which particular
+function it is applying so long as the arguments align.
+so do we have a type dispatcher per closure? or a closure dispatch on every
+member of a polymorphic set? I think by normal coding styles no. these
+would seem to me to be degenerate cases.
+
+ this implies that the closure could be passed in as an extra parameter
+to the polymorphic function and thusly the higher-order function.
+the shape of the closure is dependent upon which particular
+higher order function is being passed, meaning we can define the closure in the
+environment that the higher order function is defined in then pass that closure
+as an argument to the polymorphic function and then when the
+polymorphic function attempts to execute it can simply pass whatever closure
+argument we receive into the higher order function. meaning the stream of
+instructions
+
+-------------------------
+
+we want any function which applies a higher-order function to be able to do it
+without knowledge of which particular closure values or particular instance
+of the higher-order function we are calling. (we want the two switch statements
+to be able to live in separate memory locations. such that we can call one from
+the other and visa-versa. rather than being forced into describing nested
+switch statements. because that gets degenerately large fast.)
+
+this allows the sequence of instructions which describe the function to be
+identical no matter which particular instance of the higher-order
+function is being called. this should isolate the dispatching logic to one
+location, the dispatcher which exists per-function.
+if we consider a lone formal function definition:
+
+fn basic (x, y)
+{
+  x + y
+}
+
+we can imagine a sequence of instructions which implements this function for
+every type that + can be validly applied to. (either we add two cells of memory
+typed Int, or Real. or we call the function which is named + but matches
+the actual types of x and y. for instance, a string concatenation procedure, that
+allocates new memory of size length(x) + length(y)
+and fills it with the string pointed to by x, and then y thusly returning
+the concatenation of both strings.)
+
+this monomorphic definition not only has no free variables,
+and thusly no closure, but it's dispatch function, conceptually,
+is over a set with a single member, the monomorphic definition.
+meaning we can always factor out the call to any dispatch function as
+an optimization.
+
+so, any monomorphic function can be dispatched over by only comparing against
+the formal argument list. and because this function contains zero free
+variables. we can guarantee that any caller only ever has
+to provide an argument list matching the formal parameters, and no closure.
+
+Subsequently, since a polymorphic function is
+represented as a set of it's valid monomorphic instances.
+the physical parameter list of an actual callable implementation
+is exactly those arguments which appear in it's formal argument list
+with monomorphic types bound in place. we choose to delay the selection
+of any particular polymorphic variable until such time as the programmer
+request that we do so via an application of the polymorphic function.
+since, by definition, the argument to a function is well-typed, we can
+be assured that we will be trying to instantiate the polymorphic function
+to some well-formed type, and since we require that the subsequent body
+be type able, the resulting monomorphic instance of the polymorphic function
+must itself be well-formed.
+(this is proof of preservation and progress if i am not mistaken?)
+
+when we see some call site of a polymorphic
+function, while interpreting we can walk the set of formal argument lists and
+then actually call the function body associated with that parameter list,
+the closure then, is another data-structure entirely, which keeps track of
+closed over values, thusly, the two features don't intersect logically.
+
+the downwards funarg problem is the same for a polymorphic functions
+as it is for monomorphic functions. the body of generated instances of
+polymorphic functions are by definition identical, except for which types
+they operate upon. interpreting can get by with evaluating a copy where
+the type tags have been modified, but compilation seems to require that each
+call site of some polymorphic function literally call a separate version
+of the function from an application site
+
+fn simple (x)
+{
+  y + x
+}
+
+in this case any caller has to provide the same closure value. whatever y is
+bound too at the time of definition. in this case, any time we want to call
+this function, it is always associated with the same y. only in the case
+of an overloaded definition with a different set of free variables would we
+need to provide a different closure.
+
+fn aux (i, f)
+{
+  f i
+}
+
+fn main (i : Int, js : List Int)
+{
+  fn walk (nil)     => nil;
+  fn walk (j :: js) => aux i (\x => x + j) :: walk js;
+
+  walk js
+}
+
+in this case, seemingly we need to construct an arbitrary number of
+possible implementations, one for each number appearing as 'j'.
+which could be explosively huge. however to support the semantics
+we only need to change which particular value
+appears as bound in the environment each time we execute the body.
+which is once per recursive call. meaning that if we allocate some
+local space for the closure, we could simply assign the value in the closure to
+the value of j (from the list) each time we recur.
+
+or perhaps we would need to preform an allocation and a deallocation
+each time to be fully generic, thusly constructing and destructing the proper
+closures before each call.
+perhaps in certain cases we can allocate the closure as a local variable
+and pass the address to be written, and in other cases we are forced to allocate the
+closure dynamically, however since we always *use* a ptr-to-the-data,
+the implementation can be blind to where the closed over values are located.
+ (we don't pass-by-value
+in one case and by-reference in the other, we simply always pass by reference.)
+then when we notice that some particular closure value is bound to a new value
+of the same type each time (as is the case during looping and recursion.) we can
+support the different binding during each call by assigning the cell representing
+that closure value (whether local or dynamic) to the value of the cell containing
+the new value. (in this case we would be taking about the cell which was pattern
+matched into j from the current node of the list being processed, and the cell
+of memory (which can probably be stored locally) representing the closure
+value 'j'.) this requires the types be copy-constructable, in OO-speak.
+
+
+essentially, the dispatcher for
+a given function needs to dispatch on two aspects of the function. which
+arguments, and which closed-over values are required. and both of these
+facts can be deduced from the call expression.
+
+(in the compiled case, we need to generate an executable monomorphic
+version of the higher order function,
+and then arrange to call a particular higher order
+instance passing in the correct closure values.))
+
+
+fn aux (f)
+{
+  f 1 + f 10
+}
+
+fn main (x, y, b)
+{
+  (aux (\z => x + z)) * (aux (\z => if b then y + z else y - z))
+}
+
+possible closure-like implementation:
+
+fn aux (f, closure)
+{
+  f closure 1 + f closure 10
+}
+
+fn main (x, y, b)
+{
+// this isn't meant to be valid syntax,
+// it is meant to convey which/when/where bindings are constructed
+  aux (\z => x + z) (x := x) * aux (\z => if b then y + z else y - z) (y := y; b := b)
+}
+
+the last confounding case is the upwards-funarg problem, or
+what the heck does it mean to return/store a function as a value?
+well, our implementation could say "return a closure." which
+lets a future caller of the returned value call that function
+providing the correct closed over values. however, this implies the
+existance of garbage collection? how does it? well lets think it through.
+if we consider the returning case, lets say:
+
+fn partial-add (x)
+{
+  \y => y + x
+}
+
+
+fn main ()
+{
+  x := partial-add(7)
+}
+
+it is my assumption that whenever the program
+attempts to execute 'x' providing some value,
+the storage representing 'x' in local memory will
+contain a ptr to the implementation of x, and additionally the
+closure values. then when we try to interpret 'x'
+we will interpret it's implementation given that
+we inject each binding in the closure into the execution
+environment for the execution of the function.
+in order to compile this program, we would need to
+emit the instructions for addition to rely on the parameters
+to find the value of y, and through the additional layer of
+indirection to the closure, x.
+
+the closure that x points to is usually allocated in the heap.
+but what if we define the closure to store the closed over
+values directly?
+
+
+
+--------------------------------------------------------------------------------
 
 
 basis/thesis of something being judged true or false

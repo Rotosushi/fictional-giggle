@@ -186,7 +186,7 @@ typedef struct Scanner {
     alpha      = [a-zA-Z];
     digit      = [0-9];
     alnum      = [alpha|digit];
-    identifier = [a-zA-Z][a-zA-Z0-9]*;
+    identifier = [-a-zA-Z_][-a-zA-Z0-9_]*;
 */
 
 #define YYPEEK()       *scanner->cursor
