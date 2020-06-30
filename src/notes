@@ -11,27 +11,222 @@ Just enough to say what is interesting
   -> make it do another thing
   -> loop/iterate/recur
 
+-------------------------------------------------------------------------------
+
+a + b c - d
+-->> (+ a (- (b c) d))
+
+b c d e * f g h i
+-->> (* (b d c e) (f g h i))
+
+a b + c d * e f - g h
+-->> (+ (a b) (- (* (c d) (e f)) (g h))
+
+these few expressions are what really
+is the driving force behind what the language
+is to me. if we consider the expressive power
+of infix expressions plus function application.
+we have arrived at some percentage of the
+expressive power of both imperitive and functional languages.
+this core is extended with subtyping, polymorphism,
+modules/abstract types, concurrency, and more. but
+the basic materia of a program are it's variables,
+primitive operations, the ability to compose operations into expressions,
+and functions, which abstract over those expressions.
+if we give programmers the ability to describe a new
+binary operators. we are in essence allowing
+extension of the language. in exactly the same
+way that defining a function is extending the language.
+then, you ask why have both? because sometimes the infix
+syntax is highly convenient, and application is a required
+primitive. (infix expressions are also secretly 'just' applications)
+it is already known that the basic unit of abstraction is the function.
+(that is why we defined functions in the first place)
+operations are then essentially the basic unit of work.
+the set of primitive operations that a programmer has
+access to is (sort-of) the entirety of the set of things that
+they can to. anything that we want done that isn't one
+of the primitive operations needs to be defined by the
+programmer. it needs to be composed.
+(which primitives are available has a
+ profound effect on the shape of programs
+ written in the language.)
+(i say sort of, because the api surrounding operating
+system primitives rides the defining line here)
+expressions and function application are the
+basic units of composition. by restricting
+definitions to be known/computable at compile time
+we can factor as much out of the runtime of the simplest
+program as is reasonable. "only pay for what you use."
+again because this language
+is built to specify programs from the base materia.
+we want to severely restrict the size and scope of
+the kernel of the language. we want to give just enough
+tools to say things in the best way we know how,
+and then we build everything out of that.
+it essentially defines the sandbox and the toolbox all in one.
+now, we don't want to make a turing tar-pit.
+so, we will have some standard library.
+when something is a kernel feature vs a library one is a question
+that still needs answering.
+
+
+types and the type system is what maintains
+the alignment between what expressions can validly
+be stated by the grammar and what expressions can be
+validly expressed by the runtime.
+
+a + b c - d
+-->> (+ a (- (b c) d))
+
+b c d e * f g h i
+-->> (* (b d c e) (f g h i))
+
+a b + c d * e f - g h
+-->> (+ (a b) (- (* (c d) (e f)) (g h))
+
+(a binop b) (c binop d binop e)
+-->>(binop a b) (binop c (binop d e))
+
+
 --------------------------------------------------------------------------------
 
 how is it that we mean to support first class functions in a
 procedural way? I'm like 99% sure that we don't want to give
-life to the idea that we want to construct functions at runtime.
+life to the idea of constructing functions at runtime.
 we want all function applications to be definable at compile-time.
-then we can compile & link them, and bam, a program.
+then we can compile & link them, and bam, a program. this is
+in my mind what it means to be C-like as opposed to functional
+or object oriented, instead of having a lot of implicitly available
+syntax (which adds to the size of a compiled program), Pink will
+have a small but extensible core, to which a programmer can request
+the addition of semantics. so, eventually there may be semantics
+supporting some particular abstraction, but it would come by way
+of being defined in the language itself, as opposed to being a part
+of the language definition itself.
 
 first, i suppose i should say what i mean when i say procedural programming,
 I mean to imply the exact middle of the total intersection of
-functional and imperitive programming. allowing cohabitiation and collaboration
+functional and imperative programming. allowing cohabitiation and collaboration
 rather than confrontation and convolution.
 
 so, again how is it that we mean to support first class functions
 modulo the ability to define new functions at runtime? I think
 some form of defunctionalization would work as a compilation technique.
-whereby we decompose all higher order functions into first order functions,
-by introducing an implicit "apply" function, which disambiguates by closure type
-which first-order version of the higher-order function to call.
+formally this works by decomposing all higher order functions
+into first order functions by introducing an implicit "apply" function
+which collates all lambdas applied by a particular call site,
+and then when the higher-order
+function attempts to call it's procedure argument,
+that can be supported by a call to the apply function
+passing in the lambda closure. the apply function uses the
+closure to select the correct first order definition to call,
+and the closure is constructed by the defining scope of the lambda
+to be (copies of pure variables, or later a reference) variables local
+to the lambdas scope that are not a part of it's formal arguments,
+(it's 'free' variables.)
 
-example:
+this can be handled in assembly by constructing a tuple of the
+closed over values and passing that tuple as the immediate next argument
+to the lambda, as an implicit argument, then in the actual body, the
+closure bindings are accessed through said argument. this tuple can be
+allocated on the stack or the heap depending on the usage of said lambda.
+the lambda for the downwards-funarg-problem can be stack allocated.
+the tuple in the upwards-funarg-problem needs to be heap allocated.
+
+what if instead of dispatching over a set of definitions
+we pass a record  containing a function ptr, and the closure.
+and the definition of the lambda expects the closure as an argument.
+then, all some application needs to do, is call the function ptr,
+passing in the closure followed by the actual arguments. the
+'dispatch' can then be handled by the fact that a different
+function ptr can be passed in via the first argument.
+and any lambda being applied within a polymorphic function
+already needs to maintain well-formedness by definition, so if
+we are talking about some well formed application, every lambda
+that can validly be passed as the argument, by definition, has
+the same shaped formal argument list. (the polymorphic type
+is plainly bound to some monomorphic type within some instance,
+but for the application site to have passed the typechecker,
+the lambda being passed in as an argument must be well-formed
+when called by the polymorphic function, meaning whatever
+monomorphic type the polymorphic function is bound to, must be valid
+for within the lambda as well.
+
+
+
+
+defunctionalization example:
+
+example with higher order function usage:
+
+fn aux (f)
+{
+  f 1 + f 10
+}
+
+fn main (x, y, b)
+{
+  (aux (\z => x + z)) * (aux (\z => if b then y + z else y - z))
+}
+
+first-order defunctionalized version:
+
+datatype Lam = LAM1 of Int
+             | LAM2 of Int * Bool
+
+fn aux-apply (LAM1 x, z)
+{
+  x + z
+}
+
+fn aux-apply (LAM2 (y, b) z)
+{
+  if b then y + z else y - z
+}
+
+fn aux (f)
+{
+  aux-apply f 1 + aux-apply f 10
+}
+
+fn main (x, y, b)
+{
+  aux LAM1 x * aux LAM2 (y, b)
+// each higher-order application is instead an application plus
+// some particular closure, this closure is then used by the
+// dispatcher to call some particular instance of the closed
+// over function and to pass information into the function.
+
+// I think this could also be supported if we consider the
+// lambda ast object as a record with two fields, the definition, and
+// a reference to the closure (tuple-of-captured-free-variables).
+// then, in the interpreter, the higher-order function can
+// simply apply the lambda as it would any other procedure,
+// with the closed-over-values being 'passed' as an implicit first argument,
+// then when those names are referenced the lookup function would know to
+// search the closure? that would make sense if it was a record instead of
+// a tuple. then we can compare free variable names to the closures
+// named fields. if this is actually the interpreter do we have the
+// ability to run into this issue? (not finding a binding when executing the
+// body of a lambda within the execution environment of the higher-order
+// function? the name must have existed within the defining lexical
+// occurrence, and that same environment is the one in which every
+// higher-order function is evaluated.)
+// in the compiled sense, the instructions constituting the definition
+// will be pointed to by the first field, and the closure by the second field.
+// the function call would be carried out by calling the address contained
+// in the first field, passing the second field as an implicit first
+// argument, a reference. then each instance of a free name could be
+// referenced via the closure, (read data via address-to-closure-plus-offset)
+// and setting up the rest of the arguments according
+// to the formal argument list, in whatever way I decide to do that.
+//  (probably the c calling convention tbh.)
+}
+
+------------------------------------------------
+
+with closure as an argument
 
 fn app (f, x)
 {
@@ -85,46 +280,7 @@ function, we would arrive at Pinks definition of said polymorphic function.
 
 so, how about we use that hinge to define a calculus?
 
-example with higher order function usage:
 
-fn aux (f)
-{
-  f 1 + f 10
-}
-
-fn main (x, y, b)
-{
-  (aux (\z => x + z)) * (aux (\z => if b then y + z else y - z))
-}
-
-first-order defunctionalized version:
-
-datatype Lam = LAM1 of Int
-             | LAM2 of Int * Bool
-
-fn aux-apply (LAM1 x, z)
-{
-  x + z
-}
-
-fn aux-apply (LAM2 (y, b) z)
-{
-  if b then y + z else y - z
-}
-
-fn aux (f)
-{
-  aux-apply f 1 + aux-apply f 10
-}
-
-fn main (x, y, b)
-{
-// each particular application is instead an application plus
-// some particular closure, this closure is then used by the
-// dispatcher to call some particular instance of the closed
-// over function and to pass information into the function.
-  aux LAM1 x * aux LAM2 (y, b)
-}
 
 each time the aux function is applied the compiler needs to keep track
 of the free variables present within the application site.

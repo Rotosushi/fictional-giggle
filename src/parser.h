@@ -14,6 +14,7 @@ struct Scanner;
 typedef enum Token {
   ERR,
   END,
+  NEWLN,
   MORE,
   BINOP,
   UNOP,
@@ -34,7 +35,7 @@ typedef enum Token {
 typedef struct Parser {
   int*     markstack;
   Token*   tokbuf;
-  char**   texbuf;
+  char**   txtbuf;
   StrLoc*  locbuf;
   int idx;
   int bufsz;
@@ -49,5 +50,7 @@ Parser* createParser();
 void    destroyParser(Parser* p);
 Ast*    parse(Parser* p, struct Scanner* scanner);
 bool    end_of_input(Parser* p);
+void    printParsedTokens(Parser* p);
+char*   tokenToString(Token t);
 
 #endif

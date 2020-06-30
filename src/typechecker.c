@@ -711,7 +711,7 @@ Ast* typeofEntityLiteralProcedure(Ast* lambda, Symboltable* env)
 }
 
 
-Ast* HasInstance(ProcSet* set, Ast* type, Symboltable* env)
+Ast* HasInstance(Ast* proc, Ast* type, Symboltable* env)
 {
 
   /*
@@ -723,8 +723,11 @@ Ast* HasInstance(ProcSet* set, Ast* type, Symboltable* env)
 
 
   */
+  ProcSet* set = &(proc->u.entity.u.literal.u.proc);
   ProcInst* cur = set->set;
-  if (set->polymorphic == true) {
+  Ast* proc_type = type_of(proc, env);
+  if (is_polymorphic(proc_type)) {
+    DeleteAst(proc_type);
     /*
       if the Set represents a polymorphic procedure
       then the defining occurance does not contain
@@ -789,7 +792,7 @@ Ast* HasInstance(ProcSet* set, Ast* type, Symboltable* env)
                                         CopyAst(inst->def.body), NULL);
     }
     else {
-      printf("polymorphic procedure not typeable with actual type [%s]", AstToString(type));
+      printf("polymorphic procedure not typeable with actual type [%s]\n", AstToString(type));
       free     (inst->def.arg.id);
       DeleteAst(inst->def.arg.type);
       DeleteAst(inst->def.body);
@@ -798,6 +801,7 @@ Ast* HasInstance(ProcSet* set, Ast* type, Symboltable* env)
     }
   }
   else {
+    DeleteAst(proc_type);
     /*
       if the procedure is not polymorphic, then we cannot instanciate
       any new versions, and the actual argument type must appear as the
@@ -827,7 +831,7 @@ Ast* HasInstance(ProcSet* set, Ast* type, Symboltable* env)
 
     // if we get here, there wasn't any valid procedure to call
     // given the type, so we report an error.
-    printf("Passed type [%s] doesn't match any valid formal type", AstToString(type));
+    printf("Passed type [%s] doesn't match any valid formal type\n", AstToString(type));
     return NULL;
   }
 }
@@ -911,11 +915,11 @@ Ast* typeofCall(Ast* call, Symboltable* env)
                 it is only when provided with some type that we can judge
                 if that type is valid within the body of a term.
               */
-              if (term1->u.entity.u.literal.u.proc.polymorphic == true) {
+              if (is_polymorphic(typeA)) {
                 DeleteAst(typeA);
                 return typeB;
               } else {
-                Ast* Inst = HasInstance(&(term1->u.entity.u.literal.u.proc), typeB, env);
+                Ast* Inst = HasInstance(term1, typeB, env);
 
                 if (Inst == NULL) {
                   /*

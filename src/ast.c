@@ -434,18 +434,27 @@ Ast* CopyAstEntityType(Ast* type)
     return NULL;
 }
 
-ProcInst* CopyProcSet(ProcInst* root)
+ProcInst* CopyProcSet(ProcInst* copy)
 {
-  ProcInst *cur = root, **new;
-  while (cur != NULL) {
-    *new = (ProcInst*)malloc(sizeof(ProcInst));
-    (*new)->def.arg.id   = strdup(cur->def.arg.id);
-    (*new)->def.arg.type = CopyAst(cur->def.arg.type);
-    (*new)->def.body     = CopyAst(cur->def.body);
+  ProcInst *cur = copy, *new = NULL, *root = NULL;
+  root = (ProcInst*)malloc(sizeof(ProcInst));
+  if (cur != NULL) {
+    root->def.arg.id   = strdup(cur->def.arg.id);
+    root->def.arg.type = CopyAst(cur->def.arg.type);
+    root->def.body     = CopyAst(cur->def.body);
+    new = root->next;
     cur = cur->next;
-    new = &((*new)->next);
   }
-  return *new;
+
+  while (cur != NULL) {
+    new = (ProcInst*)malloc(sizeof(ProcInst));
+    new->def.arg.id   = strdup(cur->def.arg.id);
+    new->def.arg.type = CopyAst(cur->def.arg.type);
+    new->def.body     = CopyAst(cur->def.body);
+    cur = cur->next;
+    new = new->next;
+  }
+  return root;
 }
 
 Ast* CopyAstEntityLiteralProcSet(Ast* proc)
@@ -457,7 +466,8 @@ Ast* CopyAstEntityLiteralProcSet(Ast* proc)
     Ast* arg_type = CopyAst(lambda->arg.type);
     Ast* body     = CopyAst(lambda->body);
     r = CreateAstEntityLiteralProc(arg_id, arg_type, body, NULL);
-    r->u.entity.u.literal.u.proc.set = CopyProcSet(proc->u.entity.u.literal.u.proc.set);
+    if (proc->u.entity.u.literal.u.proc.set != NULL)
+      r->u.entity.u.literal.u.proc.set = CopyProcSet(proc->u.entity.u.literal.u.proc.set);
   }
   return r;
 }

@@ -20,6 +20,7 @@ StringSet* copyStringSet(StringSet* s)
   Elem* elem = s->root;
   while (elem != NULL) {
     appendStr(elem->str, res);
+    elem = elem->next;
   }
   return res;
 }

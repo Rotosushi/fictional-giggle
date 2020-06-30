@@ -186,7 +186,7 @@ typedef struct Scanner {
     alpha      = [a-zA-Z];
     digit      = [0-9];
     alnum      = [alpha|digit];
-    identifier = [-a-zA-Z_][-a-zA-Z0-9_]*;
+    identifier = [a-zA-Z][-a-zA-Z0-9]*;
 */
 
 #define YYPEEK()       *scanner->cursor
@@ -199,16 +199,18 @@ typedef struct Scanner {
 
 int yylex(Parser* parser, Scanner* scanner)
 {
-
   scanner->token = scanner->cursor;
 loop:
   /*!re2c
       re2c:define:YYCTYPE  = char;
       re2c:sentinel = -1;
       re2c:yyfill:enable = 0;
+      re2c:eof = 0;
 
-      [ \t\n\r]  { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); goto loop; }
       *          { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return ERR; }
+      $          { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return END; }
+      [ \t\r]    { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); goto loop; }
+      [\n]       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return NEWLN; }
       "nil"      { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return NIL; }
       "Nil"      { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return NIL_TYPE; }
       ":"        { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return COLON; }

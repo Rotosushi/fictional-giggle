@@ -28,13 +28,14 @@ term:
     //| unop
 */
 
+extern bool traced;
 
 Parser* createParser()
 {
   Parser* result    = (Parser*)malloc(sizeof(Parser));
   result->markstack = NULL;
   result->tokbuf    = NULL;
-  result->texbuf    = NULL;
+  result->txtbuf    = NULL;
   result->locbuf    = NULL;
   result->idx       = 0;
   result->mkstsz    = 0;
@@ -55,8 +56,8 @@ void destroyParser(Parser* p)
   free(p->tokbuf);
   free(p->locbuf);
   for (int i = 0; i < p->bufsz; ++i)
-    free(p->texbuf[i]);
-  free(p->texbuf);
+    free(p->txtbuf[i]);
+  free(p->txtbuf);
   DestroyPrecedenceTable(p->pTable);
   DestroyStringSet(p->binopSet);
   DestroyStringSet(p->unopSet);
@@ -80,17 +81,93 @@ void resetParser(Parser* p)
     free(p->locbuf);
     p->locbuf = NULL;
   }
-  if (p->texbuf != NULL) {
+  if (p->txtbuf != NULL) {
     for (int i = 1; i < p->bufsz; ++i)
-      free(p->texbuf[i]);
-    free(p->texbuf);
-    p->texbuf = NULL;
+      free(p->txtbuf[i]);
+    free(p->txtbuf);
+    p->txtbuf = NULL;
   }
 
   p->idx = 0;
   p->mkstsz = 0;
   p->bufsz = 0;
   p->end = false;
+}
+
+void printParsedTokens(Parser* p)
+{
+  for (int i = 0; i < p->bufsz; i++) {
+    printf("[%s]", tokenToString(p->tokbuf[i]));
+  }
+  printf("\n");
+  /*
+  for (int i = 0; i < p->bufsz; i++) {
+    printf("[%s]", p->txtbuf[i]);
+  }
+  printf("\n");
+  */
+}
+
+char* tokenToString(Token t)
+{
+  char* result = NULL;
+  switch(t) {
+    case ERR:
+      result = "ERR";
+      break;
+    case END:
+      result = "END";
+      break;
+    case NEWLN:
+      result = "NEWLN";
+      break;
+    case MORE:
+      result = "MORE";
+      break;
+    case BINOP:
+      result = "BINOP";
+      break;
+    case UNOP:
+      result = "UNOP";
+      break;
+    case NIL:
+      result = "NIL";
+      break;
+    case NIL_TYPE:
+      result = "NIL_TYPE";
+      break;
+    case ID:
+      result = "ID";
+      break;
+    case COLON:
+      result = "COLON";
+      break;
+    case COLONEQUALS:
+      result = "COLONEQUALS";
+      break;
+    case BSLASH:
+      result = "BSLASH";
+      break;
+    case REQARROW:
+      result = "REQARROW";
+      break;
+    case SEMICOLON:
+      result = "SEMICOLON";
+      break;
+    case LPAREN:
+      result = "LPAREN";
+      break;
+    case RPAREN:
+      result = "RPAREN";
+      break;
+    case LBRACE:
+      result = "LBRACE";
+      break;
+    case RBRACE:
+      result = "RBRACE";
+      break;
+  }
+  return result;
 }
 
 
@@ -146,10 +223,10 @@ Token curtok(Parser* p)
 
 char* curtxt(Parser* p)
 {
-  if (p->texbuf == NULL)
+  if (p->txtbuf == NULL)
     return NULL;
 
-  return p->texbuf[p->idx];
+  return p->txtbuf[p->idx];
 }
 
 StrLoc* curloc(Parser* p)
@@ -177,7 +254,7 @@ void fillTokens(Parser* p, Scanner* s, int i)
     // add (n) more slots to each buffer.
 
     p->tokbuf = (Token*)realloc(p->tokbuf,  sizeof(Token) * (p->bufsz + n));
-    p->texbuf = (char**)realloc(p->texbuf,  sizeof(char**) * (p->bufsz + n));
+    p->txtbuf = (char**)realloc(p->txtbuf,  sizeof(char**) * (p->bufsz + n));
     p->locbuf = (StrLoc*)realloc(p->locbuf, sizeof(StrLoc) * (p->bufsz + n));
 
     for (int j = 0; j < n; ++j) {
@@ -189,7 +266,7 @@ void fillTokens(Parser* p, Scanner* s, int i)
        t = yylex(p, s);
 
        p->tokbuf[p->bufsz + j] = t;
-       p->texbuf[p->bufsz + j] = yytext(s);
+       p->txtbuf[p->bufsz + j] = yytext(s);
        p->locbuf[p->bufsz + j] = *yylloc(s);
     }
 
@@ -275,7 +352,7 @@ bool predicts_primary(Token t)
 bool predicts_end(Token t)
 {
   switch(t) {
-    case RPAREN: case END:
+    case RPAREN: case END: case NEWLN:
     case RBRACE: case REQARROW:
       return true;
     default:
@@ -299,6 +376,12 @@ Ast* parse(Parser* parser, Scanner* scanner)
   good_term = speculate_term(parser, scanner);
   release(parser);
 
+  if (good_term && traced) {
+    printf("speculatively parsed: ");
+    printParsedTokens(parser);
+  }
+
+
   if (good_term)
     result = parse_term(parser, scanner);
   else {
@@ -309,46 +392,7 @@ Ast* parse(Parser* parser, Scanner* scanner)
 }
 
 /*
-    these few expressions are what really
-    is the driving force behind what the language
-    is to me. if we consider the expressive power
-    of infix expressions plus function application.
-    we have arrived at some percentage of the
-    expressive power of both imperitive and functional
-    languages. this core is extended with subtyping, polymorphism,
-    modules/abstract types, and concurrency. but
-    the basic framework of specifying a program
-    flows from primitive operations, and
-    the ability to compose those operations together.
-    the ability to describe new operations by way
-    of some composition of known primitives is the
-    focus of the kernel of the language. the basic
-    unit of abstraction is the function.
-    operations are the basic unit of work.
-    expressions and function application are the
-    basic units of composition. by restricting
-    definitions to be known/computable at compile time
-    we can factor as much out of the runtime of the simplest
-    program as is reasonable. "only pay for what you use."
-    again because this language
-    is built to specify programs from the base materia.
 
-    types and the type system is what maintains
-    the alignment between what expressions can validly
-    be stated by the grammar and what expressions can be
-    validly expressed by the runtime.
-
-    a + b c - d
-    -->> (+ a (- (b c) d))
-
-    b c d e * f g h i
-    -->> (* (b d c e) (f g h i))
-
-    a b + c d * e f - g h
-    -->> (+ (a b) (- (* (c d) (e f)) (g h))
-
-    (a binop b) (c binop d binop e)
-    -->>(binop a b) (binop c (binop d e))
 */
 
 
@@ -386,6 +430,8 @@ Ast* parse_term(Parser* p, Scanner* s)
         rhs = parse_primary(p, s);
         StrLoc call_loc;
 
+        // update ctok after the call to parse_primary
+        ctok = curtok(p);
 
         call_loc.first_line   = lhsloc->first_line;
         call_loc.first_column = lhsloc->first_column;
@@ -444,7 +490,7 @@ Ast* parse_primary(Parser* p, Scanner* s)
     case ID: {
       char* id = strdup(ctxt);
       nexttok(p, s); // eat ID
-
+      ctok = curtok(p);
       if (ctok == COLONEQUALS) { // this is a bind term
         nexttok(p, s); // eat ':='
 
@@ -491,7 +537,7 @@ Ast* parse_primary(Parser* p, Scanner* s)
       term = parse_term(p, s);
       ctok = curtok(p);
       if (ctok == RPAREN) {
-        nexttok(p, s);
+        nexttok(p, s); // eat ')'
 
       } else {
         printf("expecting rparen after term.\n");
@@ -499,6 +545,9 @@ Ast* parse_primary(Parser* p, Scanner* s)
       }
       break;
     }
+
+    case END:
+      break;
     default: {
       printf("unexpected token.\n");
       // error: unknown token.
@@ -543,19 +592,7 @@ Ast* parse_lambda(Parser* p, Scanner* s)
       if (ct == REQARROW) {
         nexttok(p, s); // eat '=>' which predicts the body of the function.
 
-        if (ct == LBRACE) { // an explicit scope can be denoted with enclosing '{''}'
-          nexttok(p, s);
-
-          body = parse_term(p, s);
-
-          if (ct == RBRACE) {
-            nexttok(p, s);
-          } else {
-            // error: missing rbrace after term
-          }
-        } else {
-          body = parse_term(p, s);
-        }
+        body = parse_term(p, s);
 
         if (body == NULL) {
           error_abort("unexpected NULL from parsed lambda body! aborting", __FILE__, __LINE__);
@@ -792,7 +829,7 @@ bool speculate_term(Parser* p, Scanner* s)
         if (!result) break;
       } while (predicts_primary(curtok(p)));
     }
-    else if (predicts_binop(p, curtxt(p)))) {
+    else if (predicts_binop(p, curtxt(p))) {
       do {
         nexttok(p, s); // eat the binop token
         result = speculate_primary(p, s);
@@ -814,7 +851,14 @@ bool speculate_primary(Parser* p, Scanner* s)
       result = speculate_term(p, s);
     }
   }
-  else if (speculate_lambda(p, s));
+  else if (speculate(p, s, LPAREN)) {
+    if (speculate_term(p, s)) {
+      result = speculate(p, s, RPAREN);
+    }
+    else result = false;
+  }
+  else if (speculate_lambda(p, s))
+  ;
 
   return result;
 }

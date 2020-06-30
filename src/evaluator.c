@@ -10,7 +10,7 @@
 #include "typechecker.h"
 #include "error.h"
 
-bool traced = true;
+extern bool traced;
 
 //Ast* evaluate_type(Ast* type, Symboltable* env);
 //Ast* evaluate_lambda(Ast* lambda, Symboltable* env);
@@ -327,7 +327,7 @@ Ast* evaluate_call(Ast* call, Symboltable* env)
     }
 
     Ast* rhs_type = type_of(rhs, env);
-    Ast* proc = HasInstance(&(lhs->u.entity.u.literal.u.proc), rhs_type, env);
+    Ast* proc = HasInstance(lhs, rhs_type, env);
     DeleteAst(rhs_type);
 
     if (proc != NULL) {

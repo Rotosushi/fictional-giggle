@@ -87,6 +87,8 @@ can be done by walking in an iterative style.
 
 */
 
+bool traced = true;
+
 int main(int argc, char** argv)
 {
 	Scanner* scanner;
@@ -181,6 +183,7 @@ int main(int argc, char** argv)
 
 	} /* !while(1) */
 
+	printParsedTokens(parser);
 
 	if (parser != NULL)
 		destroyParser(parser);

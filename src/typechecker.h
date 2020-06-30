@@ -10,6 +10,6 @@
 Ast* type_of(Ast* term, Symboltable* env);
 bool typesEqual(Ast* t1, Ast* t2, Symboltable* env);
 
-Ast* HasInstance(ProcSet* set, Ast* type, Symboltable* env);
+Ast* HasInstance(Ast* proc, Ast* type, Symboltable* env);
 
 #endif
