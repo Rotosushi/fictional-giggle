@@ -535,7 +535,34 @@ the closure that x points to is usually allocated in the heap.
 but what if we define the closure to store the closed over
 values directly?
 
+--------------------------------------------------------------------------------
 
+given some polymorphic function application,
+we simply do not have enough information
+without instanciating a version of the function
+with the type substituted in, which we can do here
+iff the call tree's lhs node is the polymorphic
+function directly, if the function is specified by
+name, we would need to be able to evaluate the name
+to get the body, to be able to then typecheck that.
+so we do not have enough information in the general
+case to be able to typecheck a polymorphic procedure
+application. however, if we have a valid monomorphic member
+in the procedure-set currently being typechecked,
+we then do actually have enough information
+to for real typecheck the call expression.
+so when we typecheck a call, we have to search the
+ProcSet for a potential matching argument type.
+if we find a matching argument that is actually exactly
+enough information to make the typing judgement then
+and there, if we do not find any overload/monomorph,
+but the function itself is polymorphic then we have the
+freedom to create an instance of the function with the
+given type, and check to see if we can type the function
+given that type. if we can type the resulting function
+we store it into the ProcSet and return the resulting
+type. if we cannot type the resulting procedure, that
+is enough information to report a type error.
 
 --------------------------------------------------------------------------------
 

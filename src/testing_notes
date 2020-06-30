@@ -1,0 +1,13 @@
+
+some lambda calculus to run through the interpreter to test it's
+correctness:
+
+I := \x => x
+K := \x=>\y=>x
+S := \x=>\y=>\z=>x z (y z)
+
+B := \x=>\y=>\z=>x (y z)
+C := \x=>\y=>\z=>x z y
+W := \x=>\y=>x y y
+U := \x =>x x
+Y := \g => (\x => g (x x)) (\x => g (x x))

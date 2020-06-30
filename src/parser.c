@@ -124,11 +124,8 @@ char* tokenToString(Token t)
     case MORE:
       result = "MORE";
       break;
-    case BINOP:
-      result = "BINOP";
-      break;
-    case UNOP:
-      result = "UNOP";
+    case OPERATOR:
+      result = "OP";
       break;
     case NIL:
       result = "NIL";
@@ -136,6 +133,12 @@ char* tokenToString(Token t)
     case NIL_TYPE:
       result = "NIL_TYPE";
       break;
+      case INT:
+        result = "INT";
+        break;
+      case INT_TYPE:
+        result = "INT_TYPE";
+        break;
     case ID:
       result = "ID";
       break;
@@ -336,6 +339,7 @@ bool predicts_primary(Token t)
              | parens
   */
   switch (t) {
+    case INT: case INT_TYPE:
     case NIL: case NIL_TYPE: case ID:
     case LPAREN: case BSLASH:
     {
@@ -526,6 +530,18 @@ Ast* parse_primary(Parser* p, Scanner* s)
       break;
     }
 
+    case INT: {
+      term = CreateAstEntityLiteralInt(atoi(ctxt), cloc);
+      nexttok(p, s); // eat INT
+      break;
+    }
+
+    case INT_TYPE: {
+      term = CreateAstEntityTypeInt(cloc);
+      nexttok(p, s); // eat "Int"
+      break;
+    }
+
     case BSLASH: {
       term = parse_lambda(p, s);
       break;
@@ -542,6 +558,22 @@ Ast* parse_primary(Parser* p, Scanner* s)
       } else {
         printf("expecting rparen after term.\n");
         // error: missing rparen after term
+      }
+      break;
+    }
+
+    case OPERATOR: {
+      if (predicts_unop(p, ctxt)) {
+        nexttok(p, s); // eat OPERATOR
+        Ast* rhs = parse_primary(p, s); // parse the rhs primary
+        StrLoc* rhsloc = curloc(p), unoploc;
+        unoploc.first_line   = cloc->first_line;
+        unoploc.first_column = cloc->first_column;
+        unoploc.last_line    = rhsloc->last_line;
+        unoploc.last_column  = rhsloc->last_column;
+        term = CreateAstUnop(ctxt, rhs, &unoploc);
+      } else {
+        printf("operator in primary position [%s] is not a unary operator.\n", ctxt);
       }
       break;
     }
@@ -846,6 +878,8 @@ bool speculate_primary(Parser* p, Scanner* s)
   bool result = true;
   if (speculate(p, s, NIL));
   else if (speculate(p, s, NIL_TYPE));
+  else if (speculate(p, s, INT));
+  else if (speculate(p, s, INT_TYPE));
   else if (speculate(p, s, ID)) {
     if (speculate(p, s, COLONEQUALS)) {
       result = speculate_term(p, s);
@@ -856,6 +890,9 @@ bool speculate_primary(Parser* p, Scanner* s)
       result = speculate(p, s, RPAREN);
     }
     else result = false;
+  }
+  else if (speculate(p, s, OPERATOR)) {
+    result = speculate_primary(p, s);
   }
   else if (speculate_lambda(p, s))
   ;

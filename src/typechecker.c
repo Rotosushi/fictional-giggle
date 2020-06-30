@@ -542,14 +542,14 @@ Ast* typeofBinop(Ast* binop, Symboltable* env)
     LT = type_of (binop->u.binop.lhs, env);
 
     if (!LT) {
-      printf("binops lhs not typable.");
+      printf("binops lhs not typable.\n");
       return NULL;
     }
 
     RT = type_of (binop->u.binop.rhs, env);
 
     if (!RT) {
-      printf("binops rhs not typeable.");
+      printf("binops rhs not typeable.\n");
       DeleteAst(LT);
       return NULL;
     }
@@ -570,8 +570,99 @@ Ast* typeofBinop(Ast* binop, Symboltable* env)
         we may have to burn this bridge more than once...
       */
       return CreateAstEntityTypeProc(LT, RT, NULL);
-    } else {
-      printf("binop not known. [%s]", binop->u.binop.op);
+    }
+    else if (strcmp(binop->u.binop.op, "+") == 0) {
+      if (LT->u.entity.u.type.tag != T_INT) {
+        printf("operator + only defined on Int, lhs type mismatch\n");
+        DeleteAst(LT);
+        DeleteAst(RT);
+        return NULL;
+      }
+
+      if (RT->u.entity.u.type.tag != T_INT) {
+        printf("operator + only defined on Int, rhs type mismatch\n");
+        DeleteAst(LT);
+        DeleteAst(RT);
+        return NULL;
+      }
+
+      DeleteAst(LT);
+      return RT;
+    }
+    else if (strcmp(binop->u.binop.op, "-") == 0) {
+      if (LT->u.entity.u.type.tag != T_INT) {
+        printf("operator - only defined on Int, lhs type mismatch\n");
+        DeleteAst(LT);
+        DeleteAst(RT);
+        return NULL;
+      }
+
+      if (RT->u.entity.u.type.tag != T_INT) {
+        printf("operator - only defined on Int, rhs type mismatch\n");
+        DeleteAst(LT);
+        DeleteAst(RT);
+        return NULL;
+      }
+
+      DeleteAst(LT);
+      return RT;
+    }
+    else if (strcmp(binop->u.binop.op, "*") == 0) {
+      if (LT->u.entity.u.type.tag != T_INT) {
+        printf("operator * only defined on Int, lhs type mismatch\n");
+        DeleteAst(LT);
+        DeleteAst(RT);
+        return NULL;
+      }
+
+      if (RT->u.entity.u.type.tag != T_INT) {
+        printf("operator * only defined on Int, rhs type mismatch\n");
+        DeleteAst(LT);
+        DeleteAst(RT);
+        return NULL;
+      }
+
+      DeleteAst(LT);
+      return RT;
+    }
+    else if (strcmp(binop->u.binop.op, "/") == 0) {
+      if (LT->u.entity.u.type.tag != T_INT) {
+        printf("operator / only defined on Int, lhs type mismatch\n");
+        DeleteAst(LT);
+        DeleteAst(RT);
+        return NULL;
+      }
+
+      if (RT->u.entity.u.type.tag != T_INT) {
+        printf("operator / only defined on Int, rhs type mismatch\n");
+        DeleteAst(LT);
+        DeleteAst(RT);
+        return NULL;
+      }
+
+      DeleteAst(LT);
+      return RT;
+    }
+    else if (strcmp(binop->u.binop.op, "%") == 0) {
+      if (LT->u.entity.u.type.tag != T_INT) {
+        printf("operator %% only defined on Int, lhs type mismatch\n");
+        DeleteAst(LT);
+        DeleteAst(RT);
+        return NULL;
+      }
+
+      if (RT->u.entity.u.type.tag != T_INT) {
+        printf("operator %% only defined on Int, rhs type mismatch\n");
+        DeleteAst(LT);
+        DeleteAst(RT);
+        return NULL;
+      }
+
+      DeleteAst(LT);
+      return RT;
+    }
+    else {
+      printf("binop not known. [%s]\n", binop->u.binop.op);
       DeleteAst(LT);
       DeleteAst(RT);
       return NULL;
@@ -588,10 +679,30 @@ Ast* typeofUnop(Ast* unop, Symboltable* env)
               ENV |- op term : T2
   */
   if (unop != NULL) {
-    return NULL; // there are no unops yet.
+    Ast* RT = type_of(unop->u.unop.rhs, env);
+
+    if (!RT) {
+      printf("unop rhs not typeable.\n");
+      return NULL;
+    }
+
+    if (strcmp(unop->u.unop.op, "-") == 0) {
+      if (RT->u.entity.u.type.tag != T_INT) {
+        printf("unop \"-\" only valid on Ints. rhs type mismatch.\n");
+        DeleteAst(RT);
+        return NULL;
+      }
+
+      return (RT);
+    }
+    else {
+      printf("unop not known. [%s]\n", unop->u.unop.op);
+      DeleteAst(RT);
+      return NULL;
+    }
   }
   else {
-    printf("unop NULL.");
+    printf("unop NULL.\n");
     return NULL;
   }
 }
@@ -616,6 +727,9 @@ Ast* typeofEntityType(Ast* type, Symboltable* env)
     /* ENV |- nil : Nil */
     if (type->u.entity.u.type.tag == T_NIL) {
       return CreateAstEntityTypeNil(NULL);
+    }
+    if (type->u.entity.u.type.tag == T_INT) {
+      return CreateAstEntityTypeInt(NULL);
     }
     if (type->u.entity.u.type.tag == T_POLY) {
       return CreateAstEntityTypePoly();
@@ -660,6 +774,9 @@ Ast* typeofEntityLiteral(Ast* literal, Symboltable* env)
   if (literal != NULL) {
     if (literal->u.entity.u.literal.tag == L_NIL) {
       return CreateAstEntityTypeNil(NULL);
+    }
+    else if (literal->u.entity.u.literal.tag == L_INT) {
+      return CreateAstEntityTypeInt(NULL);
     }
     else if (literal->u.entity.u.literal.tag == L_PROC) {
       return typeofEntityLiteralProcedure(literal, env);
@@ -854,50 +971,6 @@ Ast* typeofCall(Ast* call, Symboltable* env)
       if (typeB != NULL) {
         if (typeA->u.entity.u.type.tag == T_PROC) {
               /*
-                given some polymorphic function application,
-                we simply do not have enough information
-                without instanciating a version of the function
-                with the type substituted in, which we can do here
-                iff the call tree has the lhs node as the polymorphic
-                function directly, if the function is specified by
-                name, we would need to be able to evaluate the name
-                to get the body, to be able to then typecheck that.
-                so we do not have enough information in the general
-                case to be able to typecheck a polymorphic procedure
-                application. however, if we have a valid ProcInst
-                in the procedure currently being typechecked,
-                we then do actually have enough information
-                to for real typecheck the call expression.
-                so when we typecheck a call, we have to search the
-                ProcSet for a potential matching argument type.
-                if we find a matching argument that is actually exactly
-                enough information to make the typing judgement then
-                and there, if we do not find any overload, but the function
-                itself is polymorphic then we have the freedom to
-                create an instance of the function with the given
-                type, and check to see if we can type the function
-                given that type. if we can type the resulting function
-                we store it into the ProcSet and return the resulting
-                type.
-
-                we want to typecheck as much as possible, but we cannot
-                invent information or alignment from nowhere.
-                especially when working within structure that
-                already has logical alignment and existance.
-                so we have to abort out of typechecking a polymorphic
-                function definition. however, we still want to
-                ensure the soundness of the program, so we wait
-                to typecheck polymorphic procedures until application
-                time, when we are given a value/type to pass to the procedure.
-                so, when we typecheck that procedure we
-                compare the formal argument type against the actual
-                argument type, and if they match we can type this call
-                as the result type. (which is called typeB here.
-                and explicitly refers to the return type of
-                the function literal.)
-              */
-
-              /*
                 we can't factor out this check for polymorphism,
                 because it is not semantically redundant to the
                 underlying check for polymorphism. (within HasInstance)
@@ -909,9 +982,11 @@ Ast* typeofCall(Ast* call, Symboltable* env)
                 the algorithms for a polymorphic and monomorphic procedure
                 are materially different. if we observe a polymorphic
                 procedure within the typechecking algortithm we
-                must avoid actual typechecking, because it doesn't really
-                make sense to type a polymorphic version of the procedure.
-                any arrangement of terms can be valid given the right context
+                must avoid serious typechecking, because it doesn't really
+                make sense to type a polymorphic version of the procedure,
+                the names are used to set up positions within the abstracted
+                expression, and the types are whatever we are given.
+                any arrangement of terms can be valid given the right context.
                 it is only when provided with some type that we can judge
                 if that type is valid within the body of a term.
               */
@@ -936,6 +1011,38 @@ Ast* typeofCall(Ast* call, Symboltable* env)
                   return typeB;
                 }
               }
+        }
+        else if (typeA->u.entity.u.type.tag == T_POLY) {
+          /*
+            recall that the only way
+            we construct a polymorphic type is if the source code
+            abstains from providing a type annotation within
+            the parameter list of a procedure. since this is
+            some name that has polymorphic type within
+            this call node, we can infer that
+            we must be typechecking the body of a function.
+            given that polymorphic types are used to abstract over
+            expressions without first knowing the actual types,
+            it makes sense to interpret this
+            lhs as a function type poly -> poly, and then
+            attach the type of the rhs.
+
+            (\x=>x)             : poly -> poly
+            (\x=>x x)           : poly -> poly
+            (\x=>\y=>x y)       : poly -> poly
+            (\x=>\y=>\z=>x y z) : poly -> poly -> poly
+
+            and given the reasoning above, since this is some polymorphic
+            procedure application, we must avoid doing serious typechecking
+            of the body. we are not evaluating this application, we are
+            typing it, when we go to evaluate this subsequent application
+            against a monomorphic function,
+            then we will use the regular function typechecking as above.
+            this makes this case the same as above, it's just when we encounter
+            the reverse syntactic case.
+          */
+          DeleteAst(typeA);
+          return typeB;
         }
         else {
           DeleteAst(typeA);

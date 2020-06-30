@@ -55,14 +55,16 @@ typedef enum EntityTag {
 } EntityTag;
 
 typedef enum TypeTag {
-	T_NIL,
   T_PROC,
   T_POLY,
+  T_NIL,
+  T_INT,
 } TypeTag;
 
 typedef enum LiteralTag {
   L_NIL,
   L_PROC,
+  L_INT,
 } LiteralTag;
 
 struct Ast;
@@ -107,6 +109,7 @@ typedef struct Literal {
   LiteralTag tag;
   union {
     char nil;
+    int  integer;
     ProcSet proc;
   } u;
 } Literal;
@@ -167,10 +170,11 @@ typedef struct Ast {
 
 
 
-
+Ast* CreateAstEntityTypeInt(struct StrLoc* llocp);
 Ast* CreateAstEntityTypeNil(struct StrLoc* llocp);
 Ast* CreateAstEntityTypePoly();
 Ast* CreateAstEntityTypeProc(struct Ast* lhs, struct Ast* rhs, struct StrLoc* llocp);
+Ast* CreateAstEntityLiteralInt(int value, struct StrLoc* llocp);
 Ast* CreateAstEntityLiteralNil(struct StrLoc* llocp);
 Ast* CreateAstEntityLiteralProc(char* arg_id, Ast* arg_type, Ast* body, struct StrLoc* llocp);
 Ast* CreateAstId(char* id, struct StrLoc* llocp);

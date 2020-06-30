@@ -78,6 +78,27 @@ Ast* CreateAstEntityTypeNil(StrLoc* llocp)
   return node;
 }
 
+Ast* CreateAstEntityTypeInt(StrLoc* llocp)
+{
+  Ast* node                    = (Ast*)malloc(sizeof(Ast));
+  node->tag                    = N_ENTITY;
+  node->u.entity.tag           = E_TYPE;
+  node->u.entity.u.type.tag    = T_INT;
+  node->u.entity.u.type.u.nil  = '\0';
+  if (llocp != NULL) {
+    node->lloc.first_line   = llocp->first_line;
+    node->lloc.first_column = llocp->first_column;
+    node->lloc.last_line    = llocp->last_line;
+    node->lloc.last_column  = llocp->last_column;
+  } else {
+    node->lloc.first_line   = 0;
+    node->lloc.first_column = 0;
+    node->lloc.last_line    = 0;
+    node->lloc.last_column  = 0;
+  }
+  return node;
+}
+
 Ast* CreateAstEntityTypePoly()
 {
   Ast* node                    = (Ast*)malloc(sizeof(Ast));
@@ -121,6 +142,27 @@ Ast* CreateAstEntityLiteralNil(StrLoc* llocp)
   node->u.entity.tag             = E_LITERAL;
   node->u.entity.u.literal.tag   = L_NIL;
   node->u.entity.u.literal.u.nil = '\0';
+  if (llocp != NULL) {
+    node->lloc.first_line   = llocp->first_line;
+    node->lloc.first_column = llocp->first_column;
+    node->lloc.last_line    = llocp->last_line;
+    node->lloc.last_column  = llocp->last_column;
+  } else {
+    node->lloc.first_line   = 0;
+    node->lloc.first_column = 0;
+    node->lloc.last_line    = 0;
+    node->lloc.last_column  = 0;
+  }
+  return node;
+}
+
+Ast* CreateAstEntityLiteralInt(int value, StrLoc* llocp)
+{
+  Ast* node                          = (Ast*)malloc(sizeof(Ast));
+  node->tag                          = N_ENTITY;
+  node->u.entity.tag                 = E_LITERAL;
+  node->u.entity.u.literal.tag       = L_INT;
+  node->u.entity.u.literal.u.integer = value;
   if (llocp != NULL) {
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
@@ -269,7 +311,7 @@ void DeleteAstEntityType(Ast* type)
             types, if we factor deleting the tree structure
             into the above case
         */
-      case T_NIL: case T_POLY:
+      case T_NIL: case T_POLY: case T_INT:
         free(type);
         break;
       default:
@@ -303,7 +345,7 @@ void DeleteAstEntityLiteral(Ast* literal)
         DeleteAst(l->u.proc.def.arg.type);
         DeleteAst(l->u.proc.def.body);
         DeleteProcSet(l->u.proc.set);
-      case L_NIL:
+      case L_NIL: case L_INT:
         free(literal);
         break;
       default:
@@ -418,15 +460,14 @@ Ast* CopyAstEntityType(Ast* type)
       switch(t->tag) {
         case T_NIL:
           return CreateAstEntityTypeNil(NULL);
-          break;
+        case T_INT:
+          return CreateAstEntityTypeInt(NULL);
         case T_POLY:
           return CreateAstEntityTypePoly();
-          break;
         case T_PROC:
           return CreateAstEntityTypeProc(CopyAst(t->u.proc.lhs), \
                                          CopyAst(t->u.proc.rhs), \
                                          NULL);
-          break;
         default:
           error_abort("malformed type tag! aborting", __FILE__, __LINE__);
       }
@@ -479,7 +520,8 @@ Ast* CopyAstEntityLiteral(Ast* literal)
     switch(l->tag) {
       case L_NIL:
         return CreateAstEntityLiteralNil(NULL);
-        break;
+      case L_INT:
+        return CreateAstEntityLiteralInt(l->u.integer, NULL);
       case L_PROC:
         return CopyAstEntityLiteralProcSet(literal);
       default:
@@ -557,6 +599,11 @@ char* AstEntityTypeToString(Ast* ast)
         break;
       }
 
+      case T_INT: {
+        result = strdup("Int");
+        break;
+      }
+
       case T_POLY: {
         result = strdup("Poly");
         break;
@@ -615,6 +662,10 @@ char* AstEntityLiteralToString(Ast* ast)
     switch (l->tag) {
       case L_NIL:
         result = strdup("nil");
+        break;
+      case L_INT:
+        result = (char*)calloc(33, sizeof(int));
+        snprintf(result, sizeof(int) * 33, "%i", ast->u.entity.u.literal.u.integer);
         break;
       case L_PROC: {
         char *bs = "\\ ", *cln = " : ", *reqarw = " => ";

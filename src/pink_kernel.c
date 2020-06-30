@@ -47,20 +47,30 @@ void InitEnvWithKernel (Symboltable* env)
    this makes sense given the straightforward type
    of any given binop, which is also T1 -> T2 -> T3
    */
-
+   
 }
 
 void InitializePrecedenceTable(PrecedenceTable* pTable)
 {
+  InsertOpPrec(pTable, "*",  4, A_LEFT);
+  InsertOpPrec(pTable, "/",  4, A_LEFT);
+  InsertOpPrec(pTable, "%",  4, A_LEFT);
   InsertOpPrec(pTable, "->", 5, A_RIGHT);
+  InsertOpPrec(pTable, "+",  5, A_LEFT);
+  InsertOpPrec(pTable, "-",  5, A_LEFT);
 }
 
 void InitializeBinops(StringSet* binopSet)
 {
   appendStr("->", binopSet);
+  appendStr("+", binopSet);
+  appendStr("-", binopSet);
+  appendStr("*", binopSet);
+  appendStr("/", binopSet);
+  appendStr("%", binopSet);
 }
 
 void InitializeUnops(StringSet* unopSet)
 {
-
+  appendStr("-", unopSet);
 }
