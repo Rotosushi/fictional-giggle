@@ -737,7 +737,7 @@ Ast* parse_affix_expr(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc, int minPr
     binoploc.first_column = lhsloc->first_column;
     binoploc.last_line    = rhsloc.last_line;
     binoploc.last_column  = rhsloc.last_column;
-    lhs = CreateAstBinop(optxt, lhs, rhs, &binoploc);
+    lhs = CreateAstBinop(strdup(optxt), lhs, rhs, &binoploc);
   }
 
   /*

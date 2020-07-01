@@ -3,7 +3,7 @@
  *
  * 	Simplified: Read -> Evaluate -> Print -> Loop
  *
- *
+ *	version 0.0.2
  *
  *
  *

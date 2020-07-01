@@ -379,6 +379,8 @@ Subtype polymorphism: (some literature denotes it with "<:" )
 #include "ast.h"
 #include "error.h"
 
+extern bool traced;
+
 /*
   we have to make all typeing judgements
   with respect to an environment. which
@@ -435,6 +437,10 @@ bool is_polymorphic(Ast* type) {
 */
 Ast* type_of(Ast* term, Symboltable* env)
 {
+  if (traced) {
+    printf("type_of\n");
+  }
+
   if (term != NULL) {
       switch(term->tag) {
         case N_ID:     return typeofId(term, env);
@@ -454,6 +460,9 @@ Ast* type_of(Ast* term, Symboltable* env)
 
 Ast* typeofId(Ast* id, Symboltable* env)
 {
+  if (traced) {
+    printf("typeofId\n");
+  }
   /*
         id is-in FV(ENV)
       ------------------
@@ -474,6 +483,9 @@ Ast* typeofId(Ast* id, Symboltable* env)
 
 Ast* typeofBinop(Ast* binop, Symboltable* env)
 {
+  if (traced) {
+    printf("typeofBinop\n");
+  }
   /*
       ENV |- fn (op) : T1 -> T2 -> T3, lhs : T1, rhs : T2
       ------------------------------------
@@ -553,6 +565,31 @@ Ast* typeofBinop(Ast* binop, Symboltable* env)
       DeleteAst(LT);
       return NULL;
     }
+
+    /*
+      the strategy for polymorphism, is to
+      ignore it until the last possible moment,
+      then check to see the monomorphic version
+      of the function actually types.
+      if we were smart we could use the
+      partial type information of semi bound
+      terms to check if there is any function
+      that could be a target for the partially
+      known types, but we cannot expect to
+      actually make a judgement until all types
+      are known, that is what is means to be
+      'strongly typed' imo.
+    */
+    if (is_polymorphic(LT)) {
+      DeleteAst(RT);
+      return LT;
+    }
+
+    if (is_polymorphic(RT)) {
+      DeleteAst(LT);
+      return RT;
+    }
+
 
     if (strcmp(binop->u.binop.op, "->") == 0) {
       /*
@@ -673,6 +710,9 @@ Ast* typeofBinop(Ast* binop, Symboltable* env)
 
 Ast* typeofUnop(Ast* unop, Symboltable* env)
 {
+  if (traced) {
+    printf("typeofUnop\n");
+  }
   /*
       ENV |- fn (op) : T1 -> T2, term : T1
       ------------------------------------
@@ -723,6 +763,9 @@ Ast* typeofEntity(Ast* entity, Symboltable* env)
 
 Ast* typeofEntityType(Ast* type, Symboltable* env)
 {
+  if (traced) {
+    printf("typeofEntityType\n");
+  }
   if (type != NULL) {
     /* ENV |- nil : Nil */
     if (type->u.entity.u.type.tag == T_NIL) {
@@ -771,6 +814,9 @@ Ast* typeofEntityType(Ast* type, Symboltable* env)
 
 Ast* typeofEntityLiteral(Ast* literal, Symboltable* env)
 {
+  if (traced) {
+    printf("typeofEntityLiteral\n");
+  }
   if (literal != NULL) {
     if (literal->u.entity.u.literal.tag == L_NIL) {
       return CreateAstEntityTypeNil(NULL);
@@ -789,6 +835,9 @@ Ast* typeofEntityLiteral(Ast* literal, Symboltable* env)
 
 Ast* typeofEntityLiteralProcedure(Ast* lambda, Symboltable* env)
 {
+  if (traced) {
+    printf("typeofEntityLiteralProcedure\n");
+  }
   /*
         ENV |- id : type1, term : type2
         --------------------------------
@@ -830,7 +879,9 @@ Ast* typeofEntityLiteralProcedure(Ast* lambda, Symboltable* env)
 
 Ast* HasInstance(Ast* proc, Ast* type, Symboltable* env)
 {
-
+  if (traced) {
+    printf("HasInstance\n");
+  }
   /*
     either returns the procedure associated with the passed argument type.
     or returns NULL if there is no procedure associated with the argument type
@@ -955,6 +1006,9 @@ Ast* HasInstance(Ast* proc, Ast* type, Symboltable* env)
 
 Ast* typeofCall(Ast* call, Symboltable* env)
 {
+  if (traced) {
+    printf("typeofCall\n");
+  }
   /*
   ENV |- term1 : type1 -> type2, term2 : type1
   --------------------------------------------
@@ -992,7 +1046,8 @@ Ast* typeofCall(Ast* call, Symboltable* env)
               */
               if (is_polymorphic(typeA)) {
                 DeleteAst(typeA);
-                return typeB;
+                DeleteAst(typeB);
+                return CreateAstEntityTypePoly();
               } else {
                 Ast* Inst = HasInstance(term1, typeB, env);
 
@@ -1070,6 +1125,9 @@ Ast* typeofCall(Ast* call, Symboltable* env)
 
 Ast* typeofBind(Ast* bind, Symboltable* env)
 {
+  if (traced) {
+    printf("typeofBind\n");
+  }
   /*
         ENV |- term2 : type2
     ---------------------------------

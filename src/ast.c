@@ -20,7 +20,7 @@ int last_column;
 
 Ast* CreateAstId(char* name, StrLoc* llocp)
 {
-  Ast* node  = (Ast*)malloc(sizeof(Ast));
+  Ast* node  = (Ast*)calloc(1, sizeof(Ast));
   node->tag  = N_ID;
   node->u.id = name;
   if (llocp != NULL) {
@@ -39,7 +39,7 @@ Ast* CreateAstId(char* name, StrLoc* llocp)
 
 Ast* CreateAstBind(char* id, Ast* term, StrLoc* llocp)
 {
-  Ast* node         = (Ast*)malloc(sizeof(Ast));
+  Ast* node         = (Ast*)calloc(1, sizeof(Ast));
   node->tag         = N_BIND;
   node->u.bind.id   = id;
   node->u.bind.term = term;
@@ -59,7 +59,7 @@ Ast* CreateAstBind(char* id, Ast* term, StrLoc* llocp)
 
 Ast* CreateAstEntityTypeNil(StrLoc* llocp)
 {
-  Ast* node                    = (Ast*)malloc(sizeof(Ast));
+  Ast* node                    = (Ast*)calloc(1, sizeof(Ast));
   node->tag                    = N_ENTITY;
   node->u.entity.tag           = E_TYPE;
   node->u.entity.u.type.tag    = T_NIL;
@@ -80,7 +80,7 @@ Ast* CreateAstEntityTypeNil(StrLoc* llocp)
 
 Ast* CreateAstEntityTypeInt(StrLoc* llocp)
 {
-  Ast* node                    = (Ast*)malloc(sizeof(Ast));
+  Ast* node                    = (Ast*)calloc(1, sizeof(Ast));
   node->tag                    = N_ENTITY;
   node->u.entity.tag           = E_TYPE;
   node->u.entity.u.type.tag    = T_INT;
@@ -101,7 +101,7 @@ Ast* CreateAstEntityTypeInt(StrLoc* llocp)
 
 Ast* CreateAstEntityTypePoly()
 {
-  Ast* node                    = (Ast*)malloc(sizeof(Ast));
+  Ast* node                    = (Ast*)calloc(1, sizeof(Ast));
   node->tag                    = N_ENTITY;
   node->u.entity.tag           = E_TYPE;
   node->u.entity.u.type.tag    = T_POLY;
@@ -115,7 +115,7 @@ Ast* CreateAstEntityTypePoly()
 
 Ast* CreateAstEntityTypeProc(struct Ast* lhs, struct Ast* rhs, struct StrLoc* llocp)
 {
-  Ast* node = (Ast*)malloc(sizeof(Ast));
+  Ast* node = (Ast*)calloc(1, sizeof(Ast));
   node->tag = N_ENTITY;
   node->u.entity.tag = E_TYPE;
   node->u.entity.u.type.tag = T_PROC;
@@ -137,7 +137,7 @@ Ast* CreateAstEntityTypeProc(struct Ast* lhs, struct Ast* rhs, struct StrLoc* ll
 
 Ast* CreateAstEntityLiteralNil(StrLoc* llocp)
 {
-  Ast* node                      = (Ast*)malloc(sizeof(Ast));
+  Ast* node                      = (Ast*)calloc(1, sizeof(Ast));
   node->tag                      = N_ENTITY;
   node->u.entity.tag             = E_LITERAL;
   node->u.entity.u.literal.tag   = L_NIL;
@@ -158,7 +158,7 @@ Ast* CreateAstEntityLiteralNil(StrLoc* llocp)
 
 Ast* CreateAstEntityLiteralInt(int value, StrLoc* llocp)
 {
-  Ast* node                          = (Ast*)malloc(sizeof(Ast));
+  Ast* node                          = (Ast*)calloc(1, sizeof(Ast));
   node->tag                          = N_ENTITY;
   node->u.entity.tag                 = E_LITERAL;
   node->u.entity.u.literal.tag       = L_INT;
@@ -179,7 +179,7 @@ Ast* CreateAstEntityLiteralInt(int value, StrLoc* llocp)
 
 Ast* CreateAstEntityLiteralProc(char* name, Ast* type, Ast* body, StrLoc* llocp)
 {
-  Ast* node                                = (Ast*)malloc(sizeof(Ast));
+  Ast* node                                = (Ast*)calloc(1, sizeof(Ast));
   node->tag                                = N_ENTITY;
   node->u.entity.tag                       = E_LITERAL;
   node->u.entity.u.literal.tag             = L_PROC;
@@ -203,7 +203,7 @@ Ast* CreateAstEntityLiteralProc(char* name, Ast* type, Ast* body, StrLoc* llocp)
 
 Ast* CreateAstCall(Ast* l, Ast* r, StrLoc* llocp)
 {
-  Ast* node        = (Ast*)malloc(sizeof(Ast));
+  Ast* node        = (Ast*)calloc(1, sizeof(Ast));
   node->tag        = N_CALL;
   node->u.call.lhs = l;
   node->u.call.rhs = r;
@@ -223,7 +223,7 @@ Ast* CreateAstCall(Ast* l, Ast* r, StrLoc* llocp)
 
 Ast* CreateAstBinop(char* op, Ast* lhs, Ast* rhs, StrLoc* llocp)
 {
-  Ast* node         = (Ast*)malloc(sizeof(Ast));
+  Ast* node         = (Ast*)calloc(1, sizeof(Ast));
   node->tag         = N_BINOP;
   node->u.binop.op  = op;
   node->u.binop.lhs = lhs;
@@ -244,7 +244,7 @@ Ast* CreateAstBinop(char* op, Ast* lhs, Ast* rhs, StrLoc* llocp)
 
 Ast* CreateAstUnop(char* op, Ast* rhs, StrLoc* llocp)
 {
-  Ast* node = (Ast*)malloc(sizeof(Ast));
+  Ast* node = (Ast*)calloc(1, sizeof(Ast));
   node->tag = N_UNOP;
   node->u.unop.op = op;
   node->u.unop.rhs = rhs;
@@ -874,7 +874,7 @@ char* AstToString(Ast* ast)
         break;
       }
       default:
-        error_abort("malformed type tag! aborting", __FILE__, __LINE__);
+        error_abort("malformed node tag! aborting", __FILE__, __LINE__);
     }
   }
   return result;

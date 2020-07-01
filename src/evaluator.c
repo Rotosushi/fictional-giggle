@@ -35,24 +35,38 @@ void rename_binding(Ast* lambda, Ast* value);
   DeleteAst to seg-fault. instead, each function maintains
   it's own memory during evaluation, allocating
   and deallocating intermediate results, and subsequently
-  returning the final result tree.
+  returning the final result tree. don't be fooled, this
+  code leaks memory all over the place. This probably won't
+  change until i decide to rewrite in c++, which is happening
+  soon.
 
   additionally, I think that, because of the while loop
   within evaluate this would be considered a big-step
   semantics?
   though,
   i think the formal versions state small-step semantics.
-  because we consider each replacement step.
+  because we consider each replacement step?
+  but if each step of replacement is always a full greedy
+  reduction, what is the difference between the two? I
+  need to go reread Types and Programming Languages.
 
   but if we derive evaluate literally from the small step
   semantics, then the looping needs to occur in the caller
   to evaluate to ensure that we have actually evaluated enough.
+  the first call will preform a single step of beta-reduction
+  or sometimes more if the reduction is inside of a larger
+  structure. but this version always fully reduces any given
+  expression. (that i have tested, see testing_notes for
+  example lambda expressions.)
 
+  "formal semantics are just semantics stated formally."
 
+  evaluate implements the semantics implicit behind the
+  [term -> term'] expressions within the formalizations of
+  language constructs.
 */
 Ast* evaluate(Ast* term, Symboltable* env)
 {
-  Ast* tmp  = NULL;
   Ast* copy = CopyAst(term);
   /* dynamic type dispatch! */
   if (copy == NULL)
@@ -66,7 +80,6 @@ Ast* evaluate(Ast* term, Symboltable* env)
       free(s);
     }
 
-    tmp = copy;
     switch(copy->tag) {
       case N_ID:     copy = evaluate_id(copy, env); break;    /* return the bound term. */
       //case N_ENTITY: copy = evaluate_entity(copy, env); /* values are already in beta-normal form */
@@ -76,7 +89,7 @@ Ast* evaluate(Ast* term, Symboltable* env)
       case N_UNOP:   copy = evaluate_unop(copy, env); break;
       default: error_abort("malformed ast node tag! aborting", __FILE__, __LINE__);
     }
-    DeleteAst(tmp);
+    //DeleteAst(tmp);
 
     if (copy == NULL) {
       break;
@@ -88,6 +101,9 @@ Ast* evaluate(Ast* term, Symboltable* env)
 
 Ast* evaluate_id(Ast* id, Symboltable* env)
 {
+  if (traced) {
+    printf("evaluate_id\n");
+  }
   /*
    in order to evalute an id,
    we need to discover what entity
@@ -100,6 +116,8 @@ Ast* evaluate_id(Ast* id, Symboltable* env)
    ENV |- id : type = value
    -------------------------
        id -> value
+
+
   */
   if (id != NULL) {
     if (traced) {
@@ -132,7 +150,18 @@ Ast* evaluate_id(Ast* id, Symboltable* env)
 
 Ast* evaluate_bind(Ast* bind_ast, Symboltable* env)
 {
+  if (traced) {
+    printf("evaluate_bind\n");
+  }
   /*
+
+  this function is almost line for line lifted from
+  the formal definition, it is literally the formal
+  description, operating upon the AST and Symboltable.
+  lookup is a function implementing the behavior implicit
+  in the [id is-not-in FV(ENV)] expression below.
+
+
                         term -> term'
                   ---------------------------
                   id := term -> id := term'
@@ -165,8 +194,12 @@ Ast* evaluate_bind(Ast* bind_ast, Symboltable* env)
 
     if (traced) {
       char* s2 = AstToString(term);
-      printf("bound: [%s] to: [%s]\n", bind_ast->u.bind.id, s2);
+      Ast*  t2 = type_of(term, env);
+      char* st2 = AstToString(t2);
+      printf("bound: [%s] to: [%s] : %s\n", bind_ast->u.bind.id, s2, st2);
       free(s2);
+      free(st2);
+      DeleteAst(t2);
     }
 
     DeleteAst(term);
@@ -188,6 +221,9 @@ Ast* evaluate_int_modulo(Ast* binop, Symboltable* env);
 
 Ast* evaluate_binop(Ast* binop, Symboltable* env)
 {
+  if (traced) {
+    printf("evaluate_binop\n");
+  }
   /*
       lhs -> lhs'
   ----------------------
@@ -206,7 +242,7 @@ lhs-value op rhs-value -> ((op) lhs-value) rhs-value -> result
     /*
     we need to solve the problems of
     a) more binary operators, like, a lot more before this is done.
-        so many it's probably worth it's own file.
+        so many it's probably worth it's own file, maybe it's own folder.
     b) user defined operators, and overloading operators.
     */
     if (strcmp(binop->u.binop.op, "->") == 0) {
@@ -271,6 +307,14 @@ Ast* evaluate_type_proc_constructor(Ast* binop, Symboltable* env)
     return NULL;
   }
 
+  if (traced) {
+    char* LT = AstToString(lhs);
+    char* RT = AstToString(rhs);
+    printf("constructing the type: [%s -> %s]\n", LT, RT);
+    free(LT);
+    free(RT);
+  }
+
   /*
   in this particular case we are constructing
   a type entity as the result.
@@ -309,6 +353,14 @@ Ast* evaluate_int_addition(Ast* binop, Symboltable* env)
     DeleteAst(lhs);
     DeleteAst(rhs);
     return NULL;
+  }
+
+  if (traced) {
+    char* LV = AstToString(lhs);
+    char* RV = AstToString(rhs);
+    printf("adding: [%s + %s]\n", LV, RV);
+    free(LV);
+    free(RV);
   }
 
   /*
@@ -351,6 +403,14 @@ Ast* evaluate_int_subtraction(Ast* binop, Symboltable* env)
     return NULL;
   }
 
+  if (traced) {
+    char* LV = AstToString(lhs);
+    char* RV = AstToString(rhs);
+    printf("subtracting: [%s + %s]\n", LV, RV);
+    free(LV);
+    free(RV);
+  }
+
   /*
   in this particular case we are subtracting two integers as the result
   */
@@ -389,6 +449,14 @@ Ast* evaluate_int_multiplication(Ast* binop, Symboltable* env)
     DeleteAst(lhs);
     DeleteAst(rhs);
     return NULL;
+  }
+
+  if (traced) {
+    char* LV = AstToString(lhs);
+    char* RV = AstToString(rhs);
+    printf("multiplying: [%s * %s]\n", LV, RV);
+    free(LV);
+    free(RV);
   }
 
   /*
@@ -431,6 +499,14 @@ Ast* evaluate_int_division(Ast* binop, Symboltable* env)
     return NULL;
   }
 
+  if (traced) {
+    char* LV = AstToString(lhs);
+    char* RV = AstToString(rhs);
+    printf("dividing: [%s / %s]\n", LV, RV);
+    free(LV);
+    free(RV);
+  }
+
   /*
   in this particular case we are dividing two integers as the result
   */
@@ -471,6 +547,14 @@ Ast* evaluate_int_modulo(Ast* binop, Symboltable* env)
     return NULL;
   }
 
+  if (traced) {
+    char* LV = AstToString(lhs);
+    char* RV = AstToString(rhs);
+    printf("modulo: [%s %% %s]\n", LV, RV);
+    free(LV);
+    free(RV);
+  }
+
   /*
   in this particular case we are modulusing two integers as the result
   */
@@ -482,6 +566,9 @@ Ast* evaluate_int_negation(Ast* unop, Symboltable* env);
 
 Ast* evaluate_unop(Ast* unop, Symboltable* env)
 {
+  if (traced) {
+    printf("evaluate_unop\n");
+  }
   /*
   rhs -> rhs'
 ---------------------
@@ -522,12 +609,21 @@ Ast* evaluate_int_negation(Ast* unop, Symboltable* env)
     return NULL;
   }
 
+  if (traced) {
+    char* RV = AstToString(rhs);
+    printf("negating: [- %s]\n", RV);
+    free(RV);
+  }
+
   int result = -(rhs->u.entity.u.literal.u.integer);
   return CreateAstEntityLiteralInt(result, NULL);
 }
 
 Ast* evaluate_call(Ast* call, Symboltable* env)
 {
+  if (traced) {
+    printf("evaluate_call\n");
+  }
   /*
   in order to evaluate a call expression, we want to
   return the result of substituting
@@ -740,6 +836,10 @@ void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
           substitute(name, &((*term)->u.entity.u.literal.u.proc.def.body), value, env);
         }
       }
+      else if ((*term)->u.entity.tag == E_LITERAL) {
+        // this is a literal that isn't a procedure,
+        // which means it's an Int or a nil.
+      }
       else {
         error_abort("malformed entity tag! aborting", __FILE__, __LINE__);
       }
@@ -800,6 +900,9 @@ void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
 
 bool appears_free_in(char* name, Ast* term)
 {
+  if (name == NULL || term == NULL) {
+    return false;
+  }
  switch(term->tag) {
 
 
@@ -812,24 +915,32 @@ bool appears_free_in(char* name, Ast* term)
        }
      }
 
-     case N_ENTITY: {
-         if (term->u.entity.tag == E_TYPE) {
-           // names cannot appear in types, yet...
-           return false;
-         }
-         else if (term->u.entity.tag == E_LITERAL && term->u.entity.u.literal.tag == L_PROC) {
-         if (strcmp(name, term->u.entity.u.literal.u.proc.def.arg.id) == 0) {
-           // the name appears bound in term, not free.
-           return false;
-         }
-         else {
-           return (appears_free_in(name, term->u.entity.u.literal.u.proc.def.body));
-         }
-       }
-       else {
-         error_abort("malformed entity tag! aborting", __FILE__, __LINE__);
-       }
-     }
+      case N_ENTITY: {
+        if (term->u.entity.tag == E_TYPE) {
+          // names cannot appear in types, yet...
+          return false;
+        }
+        else if (term->u.entity.tag == E_LITERAL && term->u.entity.u.literal.tag == L_PROC) {
+          if (strcmp(name, term->u.entity.u.literal.u.proc.def.arg.id) == 0) {
+             // the name appears bound in term, not free.
+             return false;
+          }
+          else {
+             return (appears_free_in(name, term->u.entity.u.literal.u.proc.def.body));
+          }
+        }
+        else if (term->u.entity.tag == E_LITERAL) {
+          // the appearance of some other constant,
+          // we can't see names within numbers.
+          // maybe we complex syntactic structures
+          // we would need to pass this algorithm into
+          // substructures here, but not yet.
+          return false;
+        }
+        else {
+          error_abort("malformed entity tag! aborting", __FILE__, __LINE__);
+        }
+      }
 
      case N_CALL: {
        return appears_free_in(name, term->u.call.lhs) \
