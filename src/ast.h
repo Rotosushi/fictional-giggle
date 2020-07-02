@@ -47,6 +47,7 @@ typedef enum NodeTag {
   N_BIND,
 	N_BINOP,
   N_UNOP,
+  N_IF,
 } NodeTag;
 
 typedef enum EntityTag {
@@ -59,12 +60,14 @@ typedef enum TypeTag {
   T_POLY,
   T_NIL,
   T_INT,
+  T_BOOL,
 } TypeTag;
 
 typedef enum LiteralTag {
   L_NIL,
   L_PROC,
   L_INT,
+  L_BOOL,
 } LiteralTag;
 
 struct Ast;
@@ -110,6 +113,7 @@ typedef struct Literal {
   union {
     char nil;
     int  integer;
+    bool boolean;
     ProcSet proc;
   } u;
 } Literal;
@@ -150,6 +154,12 @@ typedef struct Unop {
   struct Ast* rhs;
 } Unop;
 
+typedef struct Cond {
+  struct Ast* test;
+  struct Ast* first;
+  struct Ast* second;
+} Cond;
+
 /*
 	the ast needs to provide the uniform type so that we can talk about
 	ast's as objects and Entitys. we use a tagged union implementation
@@ -165,15 +175,17 @@ typedef struct Ast {
     Bind   bind;
 		Binop  binop;
     Unop   unop;
+    Cond   cond;
 	} u;
 } Ast;
 
 
-
+Ast* CreateAstEntityTypeBool(struct StrLoc* llocp);
 Ast* CreateAstEntityTypeInt(struct StrLoc* llocp);
 Ast* CreateAstEntityTypeNil(struct StrLoc* llocp);
 Ast* CreateAstEntityTypePoly();
 Ast* CreateAstEntityTypeProc(struct Ast* lhs, struct Ast* rhs, struct StrLoc* llocp);
+Ast* CreateAstEntityLiteralBool(bool value, struct StrLoc* llocp);
 Ast* CreateAstEntityLiteralInt(int value, struct StrLoc* llocp);
 Ast* CreateAstEntityLiteralNil(struct StrLoc* llocp);
 Ast* CreateAstEntityLiteralProc(char* arg_id, Ast* arg_type, Ast* body, struct StrLoc* llocp);
@@ -182,6 +194,7 @@ Ast* CreateAstBind(char* id, Ast* term, struct StrLoc* llocp);
 Ast* CreateAstCall(Ast* lhs, Ast* rhs, struct StrLoc* llocp);
 Ast* CreateAstBinop(char* op, Ast* lhs, Ast* rhs, struct StrLoc* llocp);
 Ast* CreateAstUnop(char* op, Ast* rhs, struct StrLoc* llocp);
+Ast* CreateAstCond(Ast* cond, Ast* first, Ast* second, struct StrLoc* llocp);
 
 void DeleteAst(Ast* ast);
 

@@ -408,6 +408,7 @@ Ast* typeofCall(Ast* call, Symboltable* env);
 Ast* typeofBind(Ast* bind, Symboltable* env);
 Ast* typeofBinop(Ast* binop, Symboltable* env);
 Ast* typeofUnop(Ast* unop, Symboltable* env);
+Ast* typeofCond(Ast* cond, Symboltable* env);
 
 bool is_polymorphic(Ast* type) {
   if (type == NULL) return false;
@@ -449,6 +450,7 @@ Ast* type_of(Ast* term, Symboltable* env)
         case N_BIND:   return typeofBind(term, env);
         case N_BINOP:  return typeofBinop(term, env);
         case N_UNOP:   return typeofUnop(term, env);
+        case N_IF:     return typeofCond(term, env);
         default:  error_abort("malformed Ast node! aborting", __FILE__, __LINE__);
       }
   }
@@ -479,6 +481,7 @@ Ast* typeofId(Ast* id, Symboltable* env)
     printf("id \"%s\" not in ENV!\n", name);
     return NULL;
   }
+  return NULL;
 }
 
 Ast* typeofBinop(Ast* binop, Symboltable* env)
@@ -774,6 +777,9 @@ Ast* typeofEntityType(Ast* type, Symboltable* env)
     if (type->u.entity.u.type.tag == T_INT) {
       return CreateAstEntityTypeInt(NULL);
     }
+    if (type->u.entity.u.type.tag == T_BOOL) {
+      return CreateAstEntityTypeBool(NULL);
+    }
     if (type->u.entity.u.type.tag == T_POLY) {
       return CreateAstEntityTypePoly();
     }
@@ -823,6 +829,9 @@ Ast* typeofEntityLiteral(Ast* literal, Symboltable* env)
     }
     else if (literal->u.entity.u.literal.tag == L_INT) {
       return CreateAstEntityTypeInt(NULL);
+    }
+    else if (literal->u.entity.u.literal.tag == L_BOOL) {
+      return CreateAstEntityTypeBool(NULL);
     }
     else if (literal->u.entity.u.literal.tag == L_PROC) {
       return typeofEntityLiteralProcedure(literal, env);
@@ -1145,6 +1154,74 @@ Ast* typeofBind(Ast* bind, Symboltable* env)
   }
   else {
     printf("bind NULL!\n");
+    return NULL;
+  }
+}
+
+Ast* typeofCond(Ast* cond, Symboltable* env)
+{
+  /*
+    ENV |- 'if' t1 : T1 'then' t2 : T2 'else' t3 : T3,
+    if T1 has-type Bool, and T2 is-equal-to T3,
+    -------------------------------------------------
+    ENV |- ('if' t1 : T1 'then' t2 : T2 'else' t3 : T3) : T2
+  */
+  if (cond != NULL) {
+    Ast* type1 = type_of(cond->u.cond.test, env);
+
+    if (type1 == NULL) {
+      // char* s = AstToString(type1);
+      printf("conditional not typeable\n");
+      // printf("conditional must have type Bool, has type [%s]\n", s);
+      // free(s);
+      return NULL;
+    }
+
+    Ast* booltype = CreateAstEntityTypeBool(NULL);
+
+    if (!typesEqual(type1, booltype, env)) {
+      char* s = AstToString(type1);
+      printf("conditional must have type Bool, has type [%s]\n", s);
+      free(s);
+      DeleteAst(type1);
+      DeleteAst(booltype);
+      return NULL;
+    }
+
+    Ast* type2 = type_of(cond->u.cond.first, env);
+
+    if (type2 == NULL) {
+      printf("first term not typeable\n");
+      DeleteAst(type1);
+      return NULL;
+    }
+
+    Ast* type3 = type_of(cond->u.cond.second, env);
+
+    if (type3 == NULL) {
+      printf("second term not typeable.\n");
+      DeleteAst(type1);
+      DeleteAst(type2);
+    }
+
+    if (!typesEqual(type2, type3, env)) {
+      char* s1 = AstToString(type2);
+      char* s2 = AstToString(type3);
+      printf("antecedent terms have different types. lhs: [%s] rhs: [%s]. conditional not typeable.\n", s1, s2);
+      DeleteAst(type1);
+      DeleteAst(type2);
+      DeleteAst(type3);
+      free(s1);
+      free(s2);
+      return NULL;
+    }
+
+    DeleteAst(type1);
+    DeleteAst(type3);
+    return type2;
+  }
+  else {
+    printf("cond NULL.\n");
     return NULL;
   }
 }

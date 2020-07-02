@@ -212,12 +212,13 @@ Ast* evaluate_bind(Ast* bind_ast, Symboltable* env)
   return NULL;
 }
 
-Ast* evaluate_type_proc_constructor(Ast* binop, Symboltable* env);
-Ast* evaluate_int_addition(Ast* binop, Symboltable* env);
-Ast* evaluate_int_subtraction(Ast* binop, Symboltable* env);
-Ast* evaluate_int_multiplication(Ast* binop, Symboltable* env);
-Ast* evaluate_int_division(Ast* binop, Symboltable* env);
-Ast* evaluate_int_modulo(Ast* binop, Symboltable* env);
+Ast* evaluate_type_proc_constructor(Ast* lhs, Ast* rhs, Symboltable* env);
+Ast* evaluate_plus(Ast* lhs, Ast* rhs, Symboltable* env);
+Ast* evaluate_minus(Ast* lhs, Ast* rhs, Symboltable* env);
+Ast* evaluate_mult(Ast* lhs, Ast* rhs, Symboltable* env);
+Ast* evaluate_div(Ast* lhs, Ast* rhs, Symboltable* env);
+Ast* evaluate_modulo(Ast* lhs, Ast* rhs, Symboltable* env);
+Ast* evaluate_equality(Ast* lhs, Ast* rhs, Symboltable* env);
 
 Ast* evaluate_binop(Ast* binop, Symboltable* env)
 {
@@ -236,9 +237,26 @@ lhs op rhs -> lhs op rhs'
 
 lhs-value op rhs-value -> ((op) lhs-value) rhs-value -> result
 
+so, we need to lookup a function, named with a string
+of special characters. and each is represented by a
+function object.
 
   */
   if (binop != NULL) {
+    Ast* lhs = evaluate(binop->u.binop.lhs, env);
+
+    if (lhs == NULL) {
+      printf("evaluate lhs failed.\n");
+      return NULL;
+    }
+
+    Ast* rhs = evaluate(binop->u.binop.lhs, env);
+
+    if (rhs == NULL) {
+      printf("evaluate rhs failed.\n");
+      return NULL;
+    }
+
     /*
     we need to solve the problems of
     a) more binary operators, like, a lot more before this is done.
@@ -246,22 +264,25 @@ lhs-value op rhs-value -> ((op) lhs-value) rhs-value -> result
     b) user defined operators, and overloading operators.
     */
     if (strcmp(binop->u.binop.op, "->") == 0) {
-      return evaluate_type_proc_constructor(binop, env);
+      return evaluate_type_proc_constructor(lhs, rhs, env);
     }
     else if (strcmp(binop->u.binop.op, "+") == 0) {
-      return evaluate_int_addition(binop, env);
+      return evaluate_plus(lhs, rhs, env);
     }
     else if (strcmp(binop->u.binop.op, "-") == 0) {
-      return evaluate_int_subtraction(binop, env);
+      return evaluate_minus(lhs, rhs, env);
     }
     else if (strcmp(binop->u.binop.op, "*") == 0) {
-      return evaluate_int_multiplication(binop, env);
+      return evaluate_mult(lhs, rhs, env);
     }
     else if (strcmp(binop->u.binop.op, "/") == 0) {
-      return evaluate_int_division(binop, env);
+      return evaluate_div(lhs, rhs, env);
     }
     else if (strcmp(binop->u.binop.op, "%") == 0) {
-      return evaluate_int_modulo(binop, env);
+      return evaluate_modulo(lhs, rhs, env);
+    }
+    else if (strcmp(binop->u.binop.op, "=") == 0) {
+      return evaluate_equality(lhs, rhs, env);
     }
     else {
       printf("unknown binop [%s]\n", binop->u.binop.op);
@@ -274,292 +295,175 @@ lhs-value op rhs-value -> ((op) lhs-value) rhs-value -> result
   return NULL;
 }
 
-Ast* evaluate_type_proc_constructor(Ast* binop, Symboltable* env)
+Ast* evaluate_type_proc_constructor(Ast* lhs, Ast* rhs, Symboltable* env)
 {
-  Ast* lhs = evaluate(binop->u.binop.lhs, env);
-
-  if (lhs == NULL) {
-    printf("evaluate lhs failed.\n");
+  if (lhs->u.entity.tag != E_TYPE || rhs->u.entity.tag != E_TYPE)
+  {
+    printf("operator '->' only valid on types\n");
     return NULL;
   }
 
-  // lhs must be an entity for evaluate to have returned it.
-  // but is it the right kind of entity for the binop?
-  // in this case both args need to be a type entity.
-  if (lhs->u.entity.tag != E_TYPE) {
-    printf("\"->\" operator only valid on type entities. lhs not a type\n");
-    DeleteAst(lhs);
-    return NULL;
-  }
-
-  Ast* rhs = evaluate(binop->u.binop.rhs, env);
-
-  if (rhs == NULL) {
-    printf("evaluate rhs failed.\n");
-    DeleteAst(lhs);
-    return NULL;
-  }
-
-  if (rhs->u.entity.tag != E_TYPE) {
-    printf("\"->\" operator only valid on type entities. rhs not a type\n");
-    DeleteAst(lhs);
-    DeleteAst(rhs);
-    return NULL;
-  }
-
-  if (traced) {
-    char* LT = AstToString(lhs);
-    char* RT = AstToString(rhs);
-    printf("constructing the type: [%s -> %s]\n", LT, RT);
-    free(LT);
-    free(RT);
-  }
-
-  /*
-  in this particular case we are constructing
-  a type entity as the result.
-  */
-  return CreateAstEntityTypeProc(lhs, rhs, NULL);
+  return CreateAstEntityTypeProc(CopyAst(lhs), CopyAst(rhs), NULL);
 }
 
-Ast* evaluate_int_addition(Ast* binop, Symboltable* env)
+Ast* evaluate_plus(Ast* lhs, Ast* rhs, Symboltable* env)
 {
-  Ast* lhs = evaluate(binop->u.binop.lhs, env);
-
-  if (lhs == NULL) {
-    printf("evaluate lhs failed.\n");
+  if (lhs->u.entity.tag != E_LITERAL || rhs->u.entity.tag != E_LITERAL) {
+    printf("operator + only valid on literals.\n");
     return NULL;
   }
 
-  // lhs must be an entity for evaluate to have returned it.
-  // but is it the right kind of entity for the binop?
-  // in this case both args need to be a literal int entity.
-  if (lhs->u.entity.tag != E_LITERAL || lhs->u.entity.u.literal.tag != L_INT) {
-    printf("\"+\" operator only valid on literal integers. lhs not an integer\n");
-    DeleteAst(lhs);
-    return NULL;
+  Ast *lhstype = type_of(lhs, env), *rhstype = type_of(rhs, env);
+  Ast* inttype = CreateAstEntityTypeInt(NULL);
+  Ast* result = NULL;
+  if (typesEqual(lhstype, inttype, env) && typesEqual(rhstype, inttype, env)) {
+    int value = lhs->u.entity.u.literal.u.integer + rhs->u.entity.u.literal.u.integer;
+    result = CreateAstEntityLiteralInt(value, NULL);
   }
-
-  Ast* rhs = evaluate(binop->u.binop.rhs, env);
-
-  if (rhs == NULL) {
-    printf("evaluate rhs failed.\n");
-    DeleteAst(lhs);
-    return NULL;
+  else {
+    printf("operator + not valid on non Int types.");
   }
-
-  if (rhs->u.entity.tag != E_LITERAL || rhs->u.entity.u.literal.tag != L_INT) {
-    printf("\"->\" operator only valid on type entities. rhs not a type\n");
-    DeleteAst(lhs);
-    DeleteAst(rhs);
-    return NULL;
-  }
-
-  if (traced) {
-    char* LV = AstToString(lhs);
-    char* RV = AstToString(rhs);
-    printf("adding: [%s + %s]\n", LV, RV);
-    free(LV);
-    free(RV);
-  }
-
-  /*
-  in this particular case we are adding two integers as the result
-  */
-  int result = lhs->u.entity.u.literal.u.integer + rhs->u.entity.u.literal.u.integer;
-  return CreateAstEntityLiteralInt(result, NULL);
+  DeleteAst(lhstype);
+  DeleteAst(rhstype);
+  DeleteAst(inttype);
+  return result;
 }
 
-Ast* evaluate_int_subtraction(Ast* binop, Symboltable* env)
+Ast* evaluate_minus(Ast* lhs, Ast* rhs, Symboltable* env)
 {
-  Ast* lhs = evaluate(binop->u.binop.lhs, env);
-
-  if (lhs == NULL) {
-    printf("evaluate lhs failed.\n");
+  if (lhs->u.entity.tag != E_LITERAL || rhs->u.entity.tag != E_LITERAL) {
+    printf("operator - only valid on literals.\n");
     return NULL;
   }
 
-  // lhs must be an entity for evaluate to have returned it.
-  // but is it the right kind of entity for the binop?
-  // in this case both args need to be a literal int entity.
-  if (lhs->u.entity.tag != E_LITERAL || lhs->u.entity.u.literal.tag != L_INT) {
-    printf("\"+\" operator only valid on literal integers. lhs not an integer\n");
-    DeleteAst(lhs);
-    return NULL;
+  Ast *lhstype = type_of(lhs, env), *rhstype = type_of(rhs, env);
+  Ast* inttype = CreateAstEntityTypeInt(NULL);
+  Ast* result = NULL;
+  if (typesEqual(lhstype, inttype, env) && typesEqual(rhstype, inttype, env)) {
+    int value = lhs->u.entity.u.literal.u.integer - rhs->u.entity.u.literal.u.integer;
+    result = CreateAstEntityLiteralInt(value, NULL);
   }
-
-  Ast* rhs = evaluate(binop->u.binop.rhs, env);
-
-  if (rhs == NULL) {
-    printf("evaluate rhs failed.\n");
-    DeleteAst(lhs);
-    return NULL;
+  else {
+    printf("operator - not valid on non Int types.");
   }
-
-  if (rhs->u.entity.tag != E_LITERAL || rhs->u.entity.u.literal.tag != L_INT) {
-    printf("\"->\" operator only valid on type entities. rhs not a type\n");
-    DeleteAst(lhs);
-    DeleteAst(rhs);
-    return NULL;
-  }
-
-  if (traced) {
-    char* LV = AstToString(lhs);
-    char* RV = AstToString(rhs);
-    printf("subtracting: [%s + %s]\n", LV, RV);
-    free(LV);
-    free(RV);
-  }
-
-  /*
-  in this particular case we are subtracting two integers as the result
-  */
-  int result = lhs->u.entity.u.literal.u.integer - rhs->u.entity.u.literal.u.integer;
-  return CreateAstEntityLiteralInt(result, NULL);
+  DeleteAst(lhstype);
+  DeleteAst(rhstype);
+  DeleteAst(inttype);
+  return result;
 }
 
-Ast* evaluate_int_multiplication(Ast* binop, Symboltable* env)
+Ast* evaluate_mult(Ast* lhs, Ast* rhs, Symboltable* env)
 {
-  Ast* lhs = evaluate(binop->u.binop.lhs, env);
-
-  if (lhs == NULL) {
-    printf("evaluate lhs failed.\n");
+  if (lhs->u.entity.tag != E_LITERAL || rhs->u.entity.tag != E_LITERAL) {
+    printf("operator * only valid on literals.\n");
     return NULL;
   }
 
-  // lhs must be an entity for evaluate to have returned it.
-  // but is it the right kind of entity for the binop?
-  // in this case both args need to be a literal int entity.
-  if (lhs->u.entity.tag != E_LITERAL || lhs->u.entity.u.literal.tag != L_INT) {
-    printf("\"+\" operator only valid on literal integers. lhs not an integer\n");
-    DeleteAst(lhs);
-    return NULL;
+  Ast *lhstype = type_of(lhs, env), *rhstype = type_of(rhs, env);
+  Ast* inttype = CreateAstEntityTypeInt(NULL);
+  Ast* result = NULL;
+  if (typesEqual(lhstype, inttype, env) && typesEqual(rhstype, inttype, env)) {
+    int value = lhs->u.entity.u.literal.u.integer * rhs->u.entity.u.literal.u.integer;
+    result = CreateAstEntityLiteralInt(value, NULL);
   }
-
-  Ast* rhs = evaluate(binop->u.binop.rhs, env);
-
-  if (rhs == NULL) {
-    printf("evaluate rhs failed.\n");
-    DeleteAst(lhs);
-    return NULL;
+  else {
+    printf("operator * not valid on non Int types.");
   }
-
-  if (rhs->u.entity.tag != E_LITERAL || rhs->u.entity.u.literal.tag != L_INT) {
-    printf("\"->\" operator only valid on type entities. rhs not a type\n");
-    DeleteAst(lhs);
-    DeleteAst(rhs);
-    return NULL;
-  }
-
-  if (traced) {
-    char* LV = AstToString(lhs);
-    char* RV = AstToString(rhs);
-    printf("multiplying: [%s * %s]\n", LV, RV);
-    free(LV);
-    free(RV);
-  }
-
-  /*
-  in this particular case we are multiplying two integers as the result
-  */
-  int result = lhs->u.entity.u.literal.u.integer * rhs->u.entity.u.literal.u.integer;
-  return CreateAstEntityLiteralInt(result, NULL);
+  DeleteAst(lhstype);
+  DeleteAst(rhstype);
+  DeleteAst(inttype);
+  return result;
 }
 
-Ast* evaluate_int_division(Ast* binop, Symboltable* env)
+Ast* evaluate_div(Ast* lhs, Ast* rhs, Symboltable* env)
 {
-  Ast* lhs = evaluate(binop->u.binop.lhs, env);
-
-  if (lhs == NULL) {
-    printf("evaluate lhs failed.\n");
+  if (lhs->u.entity.tag != E_LITERAL || rhs->u.entity.tag != E_LITERAL) {
+    printf("operator / only valid on literals.\n");
     return NULL;
   }
 
-  // lhs must be an entity for evaluate to have returned it.
-  // but is it the right kind of entity for the binop?
-  // in this case both args need to be a literal int entity.
-  if (lhs->u.entity.tag != E_LITERAL || lhs->u.entity.u.literal.tag != L_INT) {
-    printf("\"+\" operator only valid on literal integers. lhs not an integer\n");
-    DeleteAst(lhs);
-    return NULL;
+  Ast *lhstype = type_of(lhs, env), *rhstype = type_of(rhs, env);
+  Ast* inttype = CreateAstEntityTypeInt(NULL);
+  Ast* result = NULL;
+  if (typesEqual(lhstype, inttype, env) && typesEqual(rhstype, inttype, env)) {
+    int value = lhs->u.entity.u.literal.u.integer / rhs->u.entity.u.literal.u.integer;
+    result = CreateAstEntityLiteralInt(value, NULL);
   }
-
-  Ast* rhs = evaluate(binop->u.binop.rhs, env);
-
-  if (rhs == NULL) {
-    printf("evaluate rhs failed.\n");
-    DeleteAst(lhs);
-    return NULL;
+  else {
+    printf("operator / not valid on non Int types.");
   }
-
-  if (rhs->u.entity.tag != E_LITERAL || rhs->u.entity.u.literal.tag != L_INT) {
-    printf("\"->\" operator only valid on type entities. rhs not a type\n");
-    DeleteAst(lhs);
-    DeleteAst(rhs);
-    return NULL;
-  }
-
-  if (traced) {
-    char* LV = AstToString(lhs);
-    char* RV = AstToString(rhs);
-    printf("dividing: [%s / %s]\n", LV, RV);
-    free(LV);
-    free(RV);
-  }
-
-  /*
-  in this particular case we are dividing two integers as the result
-  */
-  int result = lhs->u.entity.u.literal.u.integer / rhs->u.entity.u.literal.u.integer;
-  return CreateAstEntityLiteralInt(result, NULL);
+  DeleteAst(lhstype);
+  DeleteAst(rhstype);
+  DeleteAst(inttype);
+  return result;
 }
 
-Ast* evaluate_int_modulo(Ast* binop, Symboltable* env)
+Ast* evaluate_modulo(Ast* lhs, Ast* rhs, Symboltable* env)
 {
-  Ast* lhs = evaluate(binop->u.binop.lhs, env);
-
-  if (lhs == NULL) {
-    printf("evaluate lhs failed.\n");
+  if (lhs->u.entity.tag != E_LITERAL || rhs->u.entity.tag != E_LITERAL) {
+    printf("operator %% only valid on literals.\n");
     return NULL;
   }
 
-  // lhs must be an entity for evaluate to have returned it.
-  // but is it the right kind of entity for the binop?
-  // in this case both args need to be a literal int entity.
-  if (lhs->u.entity.tag != E_LITERAL || lhs->u.entity.u.literal.tag != L_INT) {
-    printf("\"+\" operator only valid on literal integers. lhs not an integer\n");
-    DeleteAst(lhs);
+  Ast *lhstype = type_of(lhs, env), *rhstype = type_of(rhs, env);
+  Ast* inttype = CreateAstEntityTypeInt(NULL);
+  Ast* result = NULL;
+  if (typesEqual(lhstype, inttype, env) && typesEqual(rhstype, inttype, env)) {
+    int value = lhs->u.entity.u.literal.u.integer % rhs->u.entity.u.literal.u.integer;
+    result = CreateAstEntityLiteralInt(value, NULL);
+  }
+  else {
+    printf("operator %% not valid on non Int types.");
+  }
+  DeleteAst(lhstype);
+  DeleteAst(rhstype);
+  DeleteAst(inttype);
+  return result;
+}
+
+Ast* evaluate_equality(Ast* lhs, Ast* rhs, Symboltable* env)
+{
+  Ast* result   = NULL;
+  if (lhs->u.entity.tag != rhs->u.entity.tag) {
+    printf("operator = only valid on either literals or types.\n");
     return NULL;
   }
+  else if (lhs->u.entity.tag == E_LITERAL) {
+    Ast *lhstype  = type_of(lhs, env);
+    Ast *rhstype  = type_of(rhs, env);
+    Ast *inttype  = CreateAstEntityTypeInt(NULL);
+    Ast *booltype = CreateAstEntityTypeBool(NULL);
 
-  Ast* rhs = evaluate(binop->u.binop.rhs, env);
+    if (typesEqual(lhstype, inttype, env) && typesEqual(rhstype, inttype, env)) {
+      int value = lhs->u.entity.u.literal.u.integer + rhs->u.entity.u.literal.u.integer;
+      result = CreateAstEntityLiteralInt(value, NULL);
+    }
+    else if (typesEqual(lhstype, booltype, env) && typesEqual(rhstype, booltype, env)) {
+      bool value = lhs->u.entity.u.literal.u.boolean == rhs->u.entity.u.literal.u.boolean;
+      result = CreateAstEntityLiteralBool(value, NULL);
+    }
+    else {
+      printf("operator = only valid with Int or Bool literals.");
+    }
 
-  if (rhs == NULL) {
-    printf("evaluate rhs failed.\n");
-    DeleteAst(lhs);
-    return NULL;
+    DeleteAst(lhstype);
+    DeleteAst(rhstype);
+    DeleteAst(inttype);
+  }
+  else {
+    /*
+      given two type entitys, we compare them
+      with typesEqual, just like in the typechecker.
+    */
+    Ast *lhstype = type_of(lhs, env);
+    Ast *rhstype = type_of(rhs, env);
+    bool value   = typesEqual(lhstype, rhstype, env);
+    result       = CreateAstEntityLiteralBool(value, NULL);
+    DeleteAst(lhstype);
+    DeleteAst(rhstype);
   }
 
-  if (rhs->u.entity.tag != E_LITERAL || rhs->u.entity.u.literal.tag != L_INT) {
-    printf("\"->\" operator only valid on type entities. rhs not a type\n");
-    DeleteAst(lhs);
-    DeleteAst(rhs);
-    return NULL;
-  }
-
-  if (traced) {
-    char* LV = AstToString(lhs);
-    char* RV = AstToString(rhs);
-    printf("modulo: [%s %% %s]\n", LV, RV);
-    free(LV);
-    free(RV);
-  }
-
-  /*
-  in this particular case we are modulusing two integers as the result
-  */
-  int result = lhs->u.entity.u.literal.u.integer % rhs->u.entity.u.literal.u.integer;
-  return CreateAstEntityLiteralInt(result, NULL);
+  return result;
 }
 
 Ast* evaluate_int_negation(Ast* unop, Symboltable* env);
@@ -838,7 +742,7 @@ void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
       }
       else if ((*term)->u.entity.tag == E_LITERAL) {
         // this is a literal that isn't a procedure,
-        // which means it's an Int or a nil.
+        // which means it's an Int, a Bool or a nil.
       }
       else {
         error_abort("malformed entity tag! aborting", __FILE__, __LINE__);
@@ -893,6 +797,12 @@ void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
     case N_UNOP: {
       substitute(name, &((*term)->u.unop.rhs), value, env);
       break;
+    }
+
+    case N_IF: {
+      substitute(name, &((*term)->u.cond.test), value, env);
+      substitute(name, &((*term)->u.cond.first), value, env);
+      substitute(name, &((*term)->u.cond.second), value, env);
     }
   }
 }
@@ -963,6 +873,12 @@ bool appears_free_in(char* name, Ast* term)
 
      case N_UNOP: {
        return appears_free_in(name, term->u.unop.rhs);
+     }
+
+     case N_IF: {
+       return appears_free_in(name, term->u.cond.test)  \
+          ||  appears_free_in(name, term->u.cond.first) \
+          ||  appears_free_in(name, term->u.cond.second);
      }
      default: error_abort("malformed Ast node tag! aborting", __FILE__, __LINE__);
  }

@@ -289,6 +289,17 @@ is not consumed. (which is why it takes another pointer to support.)
     allocated memory?)
 */
 
+
+
+/*
+    we use the Generic re2c Interface to allow us to
+    store the lexer variables in our own structure,
+    because the lexer will eventually be reentrant.
+    and if the lexer is specified as reentrant, it
+    expects the user to store them like this,
+    (but this current use case is not documented at all.
+        at least explicitly.)
+*/
 #define YYPEEK()       *scanner->cursor
 #define YYSKIP()       ++(scanner->cursor)
 #define YYBACKUP()     scanner->marker = scanner->cursor
@@ -315,10 +326,24 @@ loop:
       "Nil"      { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return NIL_TYPE; }
       [0-9]+     { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return INT; }
       "Int"      { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return INT_TYPE; }
+      "true"     { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return TRUE; }
+      "false"    { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return FALSE; }
+      "Bool"     { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return BOOL_TYPE; }
+      "if"       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return IF; }
+      "then"     { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return THEN; }
+      "else"     { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return ELSE; }
       ":"        { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return COLON; }
       ":="       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return COLONEQUALS; }
       "\\"       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return BSLASH; }
       "=>"       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return REQARROW; }
+      /*
+        notice how each of these binary operators returns the same token to the lexer.
+        eventually we want to allow programmers to specify their own
+        operators, which means we will want to lex arbitrary strings
+        of special characters (probably [~`,.!@#$%^&*_-+=><?/]),
+        this use case will subsume each of the
+        underlying cases. but for now, we keep things simple.
+      */
       "->"       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return OPERATOR; }
       "+"        { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return OPERATOR; }
       "-"        { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return OPERATOR; }

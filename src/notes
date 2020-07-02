@@ -1,4 +1,11 @@
 
+this is essentially a collection of program comments
+that became so large they made the code hard to read,
+so they were moved here for posterity.
+
+the #! is used to provide some extra context to the
+comment, because some of them are hard to understand
+out of their code location.
 
 Just enough to say what is interesting
   no more.
@@ -12,6 +19,7 @@ Just enough to say what is interesting
   -> loop/iterate/recur
 
 -------------------------------------------------------------------------------
+#! language-philosophy
 
 a + b c - d
 -->> (+ a (- (b c) d))

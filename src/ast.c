@@ -78,6 +78,28 @@ Ast* CreateAstEntityTypeNil(StrLoc* llocp)
   return node;
 }
 
+Ast* CreateAstEntityTypeBool(StrLoc* llocp)
+{
+  Ast* node                    = (Ast*)calloc(1, sizeof(Ast));
+  node->tag                    = N_ENTITY;
+  node->u.entity.tag           = E_TYPE;
+  node->u.entity.u.type.tag    = T_BOOL;
+  node->u.entity.u.type.u.nil  = '\0';
+  if (llocp != NULL) {
+    node->lloc.first_line   = llocp->first_line;
+    node->lloc.first_column = llocp->first_column;
+    node->lloc.last_line    = llocp->last_line;
+    node->lloc.last_column  = llocp->last_column;
+  } else {
+    node->lloc.first_line   = 0;
+    node->lloc.first_column = 0;
+    node->lloc.last_line    = 0;
+    node->lloc.last_column  = 0;
+  }
+  return node;
+}
+
+
 Ast* CreateAstEntityTypeInt(StrLoc* llocp)
 {
   Ast* node                    = (Ast*)calloc(1, sizeof(Ast));
@@ -142,6 +164,27 @@ Ast* CreateAstEntityLiteralNil(StrLoc* llocp)
   node->u.entity.tag             = E_LITERAL;
   node->u.entity.u.literal.tag   = L_NIL;
   node->u.entity.u.literal.u.nil = '\0';
+  if (llocp != NULL) {
+    node->lloc.first_line   = llocp->first_line;
+    node->lloc.first_column = llocp->first_column;
+    node->lloc.last_line    = llocp->last_line;
+    node->lloc.last_column  = llocp->last_column;
+  } else {
+    node->lloc.first_line   = 0;
+    node->lloc.first_column = 0;
+    node->lloc.last_line    = 0;
+    node->lloc.last_column  = 0;
+  }
+  return node;
+}
+
+Ast* CreateAstEntityLiteralBool(bool value, StrLoc* llocp)
+{
+  Ast* node                      = (Ast*)calloc(1, sizeof(Ast));
+  node->tag                      = N_ENTITY;
+  node->u.entity.tag             = E_LITERAL;
+  node->u.entity.u.literal.tag   = L_BOOL;
+  node->u.entity.u.literal.u.boolean = value;
   if (llocp != NULL) {
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
@@ -262,12 +305,34 @@ Ast* CreateAstUnop(char* op, Ast* rhs, StrLoc* llocp)
   return node;
 }
 
+Ast* CreateAstCond(Ast* test, Ast* first, Ast* second, StrLoc* llocp)
+{
+  Ast* node           = (Ast*)calloc(1, sizeof(Ast));
+  node->tag           = N_IF;
+  node->u.cond.test   = test;
+  node->u.cond.first  = first;
+  node->u.cond.second = second;
+  if (llocp != NULL) {
+    node->lloc.first_line   = llocp->first_line;
+    node->lloc.first_column = llocp->first_column;
+    node->lloc.last_line    = llocp->last_line;
+    node->lloc.last_column  = llocp->last_column;
+  } else {
+    node->lloc.first_line   = 0;
+    node->lloc.first_column = 0;
+    node->lloc.last_line    = 0;
+    node->lloc.last_column  = 0;
+  }
+  return node;
+}
+
 void DeleteAstEntity(Ast* entity);
 void DeleteAstCall(Ast* call);
 void DeleteAstBind(Ast* bind);
 void DeleteAstBinop(Ast* binop);
 void DeleteAstUnop(Ast* unop);
 void DeleteAstBind(Ast* bind);
+void DeleteAstCond(Ast* cond);
 
 void DeleteAst(Ast* ast)
 {
@@ -292,6 +357,9 @@ void DeleteAst(Ast* ast)
       case N_UNOP:
         DeleteAstUnop(ast);
         break;
+      case N_IF:
+        DeleteAstCond(ast);
+        break;
       default:
         error_abort("malformed ast tag! aborting", __FILE__, __LINE__);
     }
@@ -311,7 +379,7 @@ void DeleteAstEntityType(Ast* type)
             types, if we factor deleting the tree structure
             into the above case
         */
-      case T_NIL: case T_POLY: case T_INT:
+      case T_NIL: case T_POLY: case T_INT: case T_BOOL:
         free(type);
         break;
       default:
@@ -345,7 +413,7 @@ void DeleteAstEntityLiteral(Ast* literal)
         DeleteAst(l->u.proc.def.arg.type);
         DeleteAst(l->u.proc.def.body);
         DeleteProcSet(l->u.proc.set);
-      case L_NIL: case L_INT:
+      case L_NIL: case L_INT: case L_BOOL:
         free(literal);
         break;
       default:
@@ -410,6 +478,16 @@ void DeleteAstUnop(Ast* unop)
   }
 }
 
+void DeleteAstCond(Ast* cond)
+{
+  if (cond != NULL) {
+    DeleteAst(cond->u.cond.test);
+    DeleteAst(cond->u.cond.first);
+    DeleteAst(cond->u.cond.second);
+    free(cond);
+  }
+}
+
 
 Ast* CopyAstId(Ast* id);
 Ast* CopyAstBind(Ast* bind);
@@ -417,6 +495,7 @@ Ast* CopyAstEntity(Ast* entity);
 Ast* CopyAstCall(Ast* call);
 Ast* CopyAstBinop(Ast* binop);
 Ast* CopyAstUnop(Ast* unop);
+Ast* CopyAstIf(Ast* cond);
 
 Ast* CopyAst(Ast* ast)
 {
@@ -430,6 +509,7 @@ Ast* CopyAst(Ast* ast)
     case N_BIND:   return CopyAstBind(ast);
     case N_BINOP:  return CopyAstBinop(ast);
     case N_UNOP:   return CopyAstUnop(ast);
+    case N_IF:     return CopyAstIf(ast);
     default: error_abort ("malformed ast! aborting", __FILE__, __LINE__);
   }
 }
@@ -462,6 +542,8 @@ Ast* CopyAstEntityType(Ast* type)
           return CreateAstEntityTypeNil(NULL);
         case T_INT:
           return CreateAstEntityTypeInt(NULL);
+        case T_BOOL:
+          return CreateAstEntityTypeBool(NULL);
         case T_POLY:
           return CreateAstEntityTypePoly();
         case T_PROC:
@@ -522,6 +604,8 @@ Ast* CopyAstEntityLiteral(Ast* literal)
         return CreateAstEntityLiteralNil(NULL);
       case L_INT:
         return CreateAstEntityLiteralInt(l->u.integer, NULL);
+      case L_BOOL:
+        return CreateAstEntityLiteralBool(l->u.boolean, NULL);
       case L_PROC:
         return CopyAstEntityLiteralProcSet(literal);
       default:
@@ -578,6 +662,17 @@ Ast* CopyAstUnop(Ast* unop)
   return NULL;
 }
 
+Ast* CopyAstIf(Ast* cond)
+{
+  if (cond != NULL) {
+    return CreateAstCond(CopyAst(cond->u.cond.test),   \
+                         CopyAst(cond->u.cond.first),  \
+                         CopyAst(cond->u.cond.second), \
+                         NULL);
+  }
+  return NULL;
+}
+
 
 char* AstEntityTypeToString(Ast*);
 char* AstEntityProcToString(Ast*);
@@ -601,6 +696,11 @@ char* AstEntityTypeToString(Ast* ast)
 
       case T_INT: {
         result = strdup("Int");
+        break;
+      }
+
+      case T_BOOL: {
+        result = strdup("Bool");
         break;
       }
 
@@ -666,6 +766,12 @@ char* AstEntityLiteralToString(Ast* ast)
       case L_INT:
         result = (char*)calloc(33, sizeof(int));
         snprintf(result, sizeof(int) * 33, "%i", ast->u.entity.u.literal.u.integer);
+        break;
+      case L_BOOL:
+        if (l->u.boolean == true)
+          result = strdup("true");
+        else
+          result = strdup("false");
         break;
       case L_PROC: {
         char *bs = "\\ ", *cln = " : ", *reqarw = " => ";
@@ -844,6 +950,32 @@ char* AstBindToString(Ast* ast)
   return result;
 }
 
+char* AstCondToString(Ast* ast)
+{
+  char* result = NULL;
+  if (ast != NULL) {
+    char* iftxt = "if ", *thentxt = " then ", *elsetxt = " else ";
+    char* testtxt = AstToString(ast->u.cond.test);
+    char* firsttxt = AstToString(ast->u.cond.first);
+    char* secondtxt = AstToString(ast->u.cond.second);
+    int len = strlen(iftxt)
+            + strlen(testtxt)
+            + strlen(thentxt)
+            + strlen(firsttxt)
+            + strlen(elsetxt)
+            + strlen(secondtxt)
+            + 1;
+    result = (char*)calloc(len, sizeof(char));
+    strcat(result, iftxt);
+    strcat(result, testtxt);
+    strcat(result, thentxt);
+    strcat(result, firsttxt);
+    strcat(result, elsetxt);
+    strcat(result, secondtxt);
+  }
+  return result;
+}
+
 char* AstToString(Ast* ast)
 {
   char* result = NULL;
@@ -871,6 +1003,10 @@ char* AstToString(Ast* ast)
       }
       case N_UNOP: {
         result = AstUnopToString(ast);
+        break;
+      }
+      case N_IF: {
+        result = AstCondToString(ast);
         break;
       }
       default:

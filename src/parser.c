@@ -133,12 +133,30 @@ char* tokenToString(Token t)
     case NIL_TYPE:
       result = "NIL_TYPE";
       break;
-      case INT:
-        result = "INT";
-        break;
-      case INT_TYPE:
-        result = "INT_TYPE";
-        break;
+    case INT:
+      result = "INT";
+      break;
+    case INT_TYPE:
+      result = "INT_TYPE";
+      break;
+    case TRUE:
+      result = "TRUE";
+      break;
+    case FALSE:
+      result = "FALSE";
+      break;
+    case BOOL_TYPE:
+      result = "BOOL_TYPE";
+      break;
+    case IF:
+      result = "IF";
+      break;
+    case THEN:
+      result = "THEN";
+      break;
+    case ELSE:
+      result = "ELSE";
+      break;
     case ID:
       result = "ID";
       break;
@@ -339,8 +357,9 @@ bool predicts_primary(Token t)
              | parens
   */
   switch (t) {
-    case INT: case INT_TYPE:
-    case NIL: case NIL_TYPE: case ID:
+    case INT:    case INT_TYPE: case BOOL_TYPE:
+    case TRUE:   case FALSE:    case IF:
+    case NIL:    case NIL_TYPE: case ID:
     case LPAREN: case BSLASH:
     {
       return true;
@@ -357,7 +376,8 @@ bool predicts_end(Token t)
 {
   switch(t) {
     case RPAREN: case END: case NEWLN:
-    case RBRACE: case REQARROW:
+    case RBRACE: case REQARROW: case THEN:
+    case ELSE: case IF:
       return true;
     default:
       return false;
@@ -400,7 +420,7 @@ Ast* parse(Parser* parser, Scanner* scanner)
 */
 
 
-
+Ast* parse_if(Parser* p, Scanner* s);
 Ast* parse_lambda(Parser* p, Scanner* s);
 Ast* parse_binop(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc);
 Ast* parse_infix_expr(Parser* p, Scanner* s, Ast* lhs, StrLoc* lhsloc, int minPrec);
@@ -542,6 +562,29 @@ Ast* parse_primary(Parser* p, Scanner* s)
       break;
     }
 
+    case TRUE: {
+      term = CreateAstEntityLiteralBool(true, cloc);
+      nexttok(p, s); // eat "true"
+      break;
+    }
+
+    case FALSE: {
+      term = CreateAstEntityLiteralBool(false, cloc);
+      nexttok(p, s); // eat "false"
+      break;
+    }
+
+    case BOOL_TYPE: {
+      term = CreateAstEntityTypeBool(cloc);
+      nexttok(p, s); // eat "Bool"
+      break;
+    }
+
+    case IF: {
+      term = parse_if(p, s);
+      break;
+    }
+
     case BSLASH: {
       term = parse_lambda(p, s);
       break;
@@ -588,6 +631,60 @@ Ast* parse_primary(Parser* p, Scanner* s)
   }
 
   return term;
+}
+
+Ast* parse_if(Parser* p, Scanner* s)
+{
+  Token ct = curtok(p);
+  Ast *cond = NULL, *first = NULL, *second = NULL, *result = NULL;
+  StrLoc* begin_loc = curloc(p), *end_loc = NULL;
+  StrLoc if_loc;
+
+  if (ct == IF) {
+    nexttok(p, s); // eat IF
+
+    cond = parse_term(p, s);
+
+    if (cond == NULL) {
+      printf ("couldn't parse conditional.\n");
+      return NULL;
+    }
+
+    ct = curtok(p);
+    if (ct == THEN) {
+      nexttok(p, s); // eat THEN
+
+      first = parse_term(p, s);
+
+      if (first == NULL) {
+        printf("couldn't parse first term.\n");
+        return NULL;
+      }
+
+      ct = curtok(p);
+      if (ct == ELSE) {
+        nexttok(p, s); // eat ELSE
+
+        second = parse_term(p, s);
+
+        if (second == NULL) {
+            printf("couldn't parse second term.\n");
+            return NULL;
+        }
+
+        result = CreateAstCond(cond, first, second)
+      }
+    }
+    else {
+      // error, no then
+    }
+  }
+  else {
+    // error, no if.
+  }
+
+
+  return result;
 }
 
 Ast* parse_lambda(Parser* p, Scanner* s)
@@ -880,10 +977,32 @@ bool speculate_primary(Parser* p, Scanner* s)
   else if (speculate(p, s, NIL_TYPE));
   else if (speculate(p, s, INT));
   else if (speculate(p, s, INT_TYPE));
+  else if (speculate(p, s, TRUE));
+  else if (speculate(p, s, FALSE));
+  else if (speculate(p, s, BOOL_TYPE));
   else if (speculate(p, s, ID)) {
     if (speculate(p, s, COLONEQUALS)) {
       result = speculate_term(p, s);
     }
+  }
+  else if (speculate(p, s, IF)) {
+    if (speculate_term(p, s)) {
+      if (speculate(p, s, THEN)) {
+        if (speculate_term(p, s)) {
+          if (speculate(p, s, ELSE)) {
+            result = speculate_term(p, s);
+          }
+          else
+            result = false;
+        }
+        else
+          result = false;
+      }
+      else
+        result = false;
+    }
+    else
+      result = false;
   }
   else if (speculate(p, s, LPAREN)) {
     if (speculate_term(p, s)) {

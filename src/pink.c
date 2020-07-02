@@ -31,14 +31,16 @@
 
 /*
 the overall structure of this program is
-mainly tree walking.
+tree walking.
 
 the data structure that the entire program is
 built around is the Ast.
 
 if the code needs to walk the tree and preform actions,
 the general strategy employed for tree walking is recursive,
-which means that memory is going to be used linearly
+using switches over tagged unions to disambiguate actions
+upon the nodes.
+which means that memory is going to be used mostly linearly
 with the size of the input, specifically relative to the depth
 of the tree. memory has to be used linearly
 to represent the input as a tree, then each task that
@@ -58,6 +60,10 @@ after we can preform execution on terms in the
 limited calculus currently specified. i.e. getting
 something that gives feedback correctly is first priority
 then make it nice, then upgrade it.
+
+hey, hey, hey, we bumped up the version number,
+how about we reimplement in c++ and take advantage
+of all the niceties of newer language constructs.
 
 in the split walk/action pattern the
 walk algorithm takes as a param a fn ptr to

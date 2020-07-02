@@ -58,6 +58,7 @@ void InitializePrecedenceTable(PrecedenceTable* pTable)
   InsertOpPrec(pTable, "->", 4, A_RIGHT);
   InsertOpPrec(pTable, "+",  4, A_LEFT);
   InsertOpPrec(pTable, "-",  4, A_LEFT);
+  InsertOpPrec(pTable, "=",  1, A_LEFT);
 }
 
 void InitializeBinops(StringSet* binopSet)
@@ -68,6 +69,7 @@ void InitializeBinops(StringSet* binopSet)
   appendStr("*", binopSet);
   appendStr("/", binopSet);
   appendStr("%", binopSet);
+  appendStr("=", binopSet);
 }
 
 void InitializeUnops(StringSet* unopSet)
