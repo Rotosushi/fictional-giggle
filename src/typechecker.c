@@ -410,6 +410,41 @@ Ast* typeofBinop(Ast* binop, Symboltable* env);
 Ast* typeofUnop(Ast* unop, Symboltable* env);
 Ast* typeofCond(Ast* cond, Symboltable* env);
 
+/*
+  some type t1 can only be equal to
+  some type t2 if they are both
+  nil, both infer, or they have the
+  same types T1, T2 in the type T1 -> T2
+  if they do not have the same type tag,
+  they are not equal, and function types,
+  need to compare recursively.
+
+  this is essentially the inductive definition
+  of equal types.
+*/
+bool typesEqual(Ast* t1, Ast* t2, Symboltable* env)
+{
+  if (t1 != NULL && t2 != NULL) {
+    if  (t1->tag != N_ENTITY         \
+      || t1->u.entity.tag != E_TYPE  \
+      || t2->tag != N_ENTITY         \
+      || t2->u.entity.tag != E_TYPE)
+      error_abort("non-type ast cannot compare to type ast! aborting", __FILE__, __LINE__);
+
+    if (t1->u.entity.u.type.tag == T_PROC && t2->u.entity.u.type.tag == T_PROC)
+      return typesEqual(t1->u.entity.u.type.u.proc.lhs, t2->u.entity.u.type.u.proc.lhs, env) \
+          && typesEqual(t1->u.entity.u.type.u.proc.rhs, t2->u.entity.u.type.u.proc.rhs, env);
+
+    else if (t1->u.entity.u.type.tag == t2->u.entity.u.type.tag)
+      return true;
+    else
+      return false;
+  }
+  error_abort("type NULL! aborting", __FILE__, __LINE__);
+  return false;
+}
+
+
 bool is_polymorphic(Ast* type) {
   if (type == NULL) return false;
 
@@ -455,9 +490,9 @@ Ast* type_of(Ast* term, Symboltable* env)
       }
   }
   else {
-    printf("term NULL!\n");
-    return NULL;
+    error_abort("cannot type NULL Ast. aborting\n", __FILE__, __LINE__);
   }
+  return NULL;
 }
 
 Ast* typeofId(Ast* id, Symboltable* env)
@@ -478,6 +513,7 @@ Ast* typeofId(Ast* id, Symboltable* env)
     return type;
   }
   else {
+    // ERROR:
     printf("id \"%s\" not in ENV!\n", name);
     return NULL;
   }
@@ -557,6 +593,7 @@ Ast* typeofBinop(Ast* binop, Symboltable* env)
     LT = type_of (binop->u.binop.lhs, env);
 
     if (!LT) {
+      // ERROR:
       printf("binops lhs not typable.\n");
       return NULL;
     }
@@ -564,6 +601,7 @@ Ast* typeofBinop(Ast* binop, Symboltable* env)
     RT = type_of (binop->u.binop.rhs, env);
 
     if (!RT) {
+      // ERROR:
       printf("binops rhs not typeable.\n");
       DeleteAst(LT);
       return NULL;
@@ -613,6 +651,7 @@ Ast* typeofBinop(Ast* binop, Symboltable* env)
     }
     else if (strcmp(binop->u.binop.op, "+") == 0) {
       if (LT->u.entity.u.type.tag != T_INT) {
+        // ERROR:
         printf("operator + only defined on Int, lhs type mismatch\n");
         DeleteAst(LT);
         DeleteAst(RT);
@@ -620,6 +659,7 @@ Ast* typeofBinop(Ast* binop, Symboltable* env)
       }
 
       if (RT->u.entity.u.type.tag != T_INT) {
+        // ERROR:
         printf("operator + only defined on Int, rhs type mismatch\n");
         DeleteAst(LT);
         DeleteAst(RT);
@@ -631,6 +671,7 @@ Ast* typeofBinop(Ast* binop, Symboltable* env)
     }
     else if (strcmp(binop->u.binop.op, "-") == 0) {
       if (LT->u.entity.u.type.tag != T_INT) {
+        // ERROR:
         printf("operator - only defined on Int, lhs type mismatch\n");
         DeleteAst(LT);
         DeleteAst(RT);
@@ -638,6 +679,7 @@ Ast* typeofBinop(Ast* binop, Symboltable* env)
       }
 
       if (RT->u.entity.u.type.tag != T_INT) {
+        // ERROR:
         printf("operator - only defined on Int, rhs type mismatch\n");
         DeleteAst(LT);
         DeleteAst(RT);
@@ -700,6 +742,25 @@ Ast* typeofBinop(Ast* binop, Symboltable* env)
 
       DeleteAst(LT);
       return RT;
+    }
+    else if (strcmp(binop->u.binop.op, "=") == 0) {
+      /*
+      '=' compares for equality between entities.
+      */
+      if (LT->u.entity.u.type.tag != RT->u.entity.u.type.tag) {
+        char* s1 = AstToString(LT);
+        char* s2 = AstToString(RT);
+        printf("operator = only defined on equal types, type mismatch between lhs: [%s] rhs: [%s]\n", s1, s2);
+        free(s1);
+        free(s2);
+        DeleteAst(LT);
+        DeleteAst(RT);
+        return NULL;
+      }
+
+      DeleteAst(LT);
+      DeleteAst(RT);
+      return CreateAstEntityTypeBool(NULL);
     }
     else {
       printf("binop not known. [%s]\n", binop->u.binop.op);
@@ -1053,7 +1114,7 @@ Ast* typeofCall(Ast* call, Symboltable* env)
                 it is only when provided with some type that we can judge
                 if that type is valid within the body of a term.
               */
-              if (is_polymorphic(typeA)) {
+              if (is_polymorphic(typeA) || term1->tag != N_ENTITY) {
                 DeleteAst(typeA);
                 DeleteAst(typeB);
                 return CreateAstEntityTypePoly();
@@ -1106,12 +1167,13 @@ Ast* typeofCall(Ast* call, Symboltable* env)
             the reverse syntactic case.
           */
           DeleteAst(typeA);
-          return typeB;
+          DeleteAst(typeB);
+          return CreateAstEntityTypePoly();
         }
         else {
+          printf("term1 doesn't have function type! has type \"%s\"\n", AstToString(typeA));
           DeleteAst(typeA);
           DeleteAst(typeB);
-          printf("term1 doesn't have function type! has type \"%s\"\n", AstToString(typeA));
           return NULL;
         }
       }
@@ -1160,6 +1222,9 @@ Ast* typeofBind(Ast* bind, Symboltable* env)
 
 Ast* typeofCond(Ast* cond, Symboltable* env)
 {
+  if (traced) {
+    printf("typeofCond\n");
+  }
   /*
     ENV |- 'if' t1 : T1 'then' t2 : T2 'else' t3 : T3,
     if T1 has-type Bool, and T2 is-equal-to T3,
@@ -1178,13 +1243,15 @@ Ast* typeofCond(Ast* cond, Symboltable* env)
     }
 
     Ast* booltype = CreateAstEntityTypeBool(NULL);
+    Ast* polytype = CreateAstEntityTypePoly();
 
-    if (!typesEqual(type1, booltype, env)) {
+    if (!typesEqual(type1, booltype, env) && !typesEqual(type1, polytype, env)) {
       char* s = AstToString(type1);
       printf("conditional must have type Bool, has type [%s]\n", s);
       free(s);
       DeleteAst(type1);
       DeleteAst(booltype);
+      DeleteAst(polytype);
       return NULL;
     }
 
@@ -1193,6 +1260,8 @@ Ast* typeofCond(Ast* cond, Symboltable* env)
     if (type2 == NULL) {
       printf("first term not typeable\n");
       DeleteAst(type1);
+      DeleteAst(booltype);
+      DeleteAst(polytype);
       return NULL;
     }
 
@@ -1202,15 +1271,31 @@ Ast* typeofCond(Ast* cond, Symboltable* env)
       printf("second term not typeable.\n");
       DeleteAst(type1);
       DeleteAst(type2);
+      DeleteAst(booltype);
+      DeleteAst(polytype);
     }
 
-    if (!typesEqual(type2, type3, env)) {
+    /*
+    my thinking here is that both terms
+    must be the same type, because even if the
+    programmer were to give only one of the terms
+    polymorphic type, it is only legal to instance
+    that polymorph term with the same type
+    as the monomorphic term. however, allowing
+    one or the other to be polymorphic allows the
+    programmer to elide a type annotation.
+    */
+    if (!typesEqual(type2, type3, env)
+    && !is_polymorphic(type2)
+    && !is_polymorphic(type3)) {
       char* s1 = AstToString(type2);
       char* s2 = AstToString(type3);
       printf("antecedent terms have different types. lhs: [%s] rhs: [%s]. conditional not typeable.\n", s1, s2);
       DeleteAst(type1);
       DeleteAst(type2);
       DeleteAst(type3);
+      DeleteAst(booltype);
+      DeleteAst(polytype);
       free(s1);
       free(s2);
       return NULL;
@@ -1218,6 +1303,8 @@ Ast* typeofCond(Ast* cond, Symboltable* env)
 
     DeleteAst(type1);
     DeleteAst(type3);
+    DeleteAst(booltype);
+    DeleteAst(polytype);
     return type2;
   }
   else {
@@ -1226,37 +1313,7 @@ Ast* typeofCond(Ast* cond, Symboltable* env)
   }
 }
 
-/*
-  some type t1 can only be equal to
-  some type t2 if they are both
-  nil, both infer, or they have the
-  same types T1, T2 in the type T1 -> T2
-  if they do not have the same type tag,
-  they are not equal, and function types,
-  need to compare recursively.
 
-  this is essentially the inductive definition
-  of equal types.
-*/
-bool typesEqual(Ast* t1, Ast* t2, Symboltable* env)
-{
-  if (t1 != NULL && t2 != NULL) {
-    if  (t1->tag != N_ENTITY         \
-      || t1->u.entity.tag != E_TYPE  \
-      || t2->tag != N_ENTITY        \
-      || t2->u.entity.tag != E_TYPE)
-      error_abort("non-type ast cannot compare to type ast! aborting", __FILE__, __LINE__);
-    if (t1->u.entity.u.type.tag == T_NIL && t2->u.entity.u.type.tag == T_NIL)
-      return true;
-    else if (t1->u.entity.u.type.tag == T_PROC && t2->u.entity.u.type.tag == T_PROC)
-      return typesEqual(t1->u.entity.u.type.u.proc.lhs, t2->u.entity.u.type.u.proc.lhs, env) \
-          && typesEqual(t1->u.entity.u.type.u.proc.rhs, t2->u.entity.u.type.u.proc.rhs, env);
-    else
-      return false;
-  }
-  error_abort("malformed type! aborting", __FILE__, __LINE__);
-  return false;
-}
 
 
 /*

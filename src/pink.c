@@ -93,7 +93,7 @@ can be done by walking in an iterative style.
 
 */
 
-bool traced = true;
+bool traced = false;
 
 int main(int argc, char** argv)
 {
@@ -147,7 +147,7 @@ int main(int argc, char** argv)
 			string associated with the input tokens directly
 			available within the scanner structure.
 		*/
-
+			printf("::> ");
 			charsRead = getline(&input, &maxChars, stdin);
 
 			if (charsRead == -1) {
@@ -159,37 +159,41 @@ int main(int argc, char** argv)
 			yysetbuffer(scanner, input, charsRead);
 
 			result = parse(parser, scanner);
-
+			Ast* parse = CopyAst(result);
 			if (result != NULL) {
 				Ast* type = type_of(result, env);
 				if (type != NULL) {
-					Ast* copy = CopyAst(result);
-					copy = evaluate(copy, env);
 
-					if (!copy) {
+					result = evaluate(result, env);
+
+					if (!result) {
 						printf("term not evaluatable!\n");
 					} else {
-						//char* ast_string = AstToString(result);
-						char* type_string = AstToString(type);
-						char* eval_string = AstToString(copy);
+						char* type_string = NULL;
+						if (is_polymorphic(type)) {
+							Ast* result_type = type_of(result, env);
+							type_string = AstToString(result_type);
+							DeleteAst(result_type);
+						} else {
+							type_string = AstToString(type);
+						}
+						char* ast_string = AstToString(parse);
+						char* eval_string = AstToString(result);
+						printf (":parse %s\n", ast_string);
 						printf (":type %s\n", type_string);
 						printf ("==>>  %s\n", eval_string);
-						DeleteAst(copy);
 					}
+					DeleteAst(parse);
 					DeleteAst(type);
+					DeleteAst(result);
 				}
 				else {
 					printf ("term not typable!\n");
 				}
-				DeleteAst(result);
 			} else {
 				printf ("input not parsable\n");
 			}
-
-
 	} /* !while(1) */
-
-	printParsedTokens(parser);
 
 	if (parser != NULL)
 		destroyParser(parser);

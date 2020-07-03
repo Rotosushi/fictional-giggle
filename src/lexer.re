@@ -344,6 +344,7 @@ loop:
         this use case will subsume each of the
         underlying cases. but for now, we keep things simple.
       */
+      "="        { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return OPERATOR; }
       "->"       { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return OPERATOR; }
       "+"        { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return OPERATOR; }
       "-"        { update_location((StrLoc*)&scanner->yylloc, scanner->token, scanner->cursor - scanner->token); return OPERATOR; }

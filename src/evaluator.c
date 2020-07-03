@@ -21,6 +21,7 @@ Ast* evaluate_call(Ast* call, Symboltable* env);
 Ast* evaluate_bind(Ast* bind, Symboltable* env);
 Ast* evaluate_binop(Ast* binop, Symboltable* env);
 Ast* evaluate_unop(Ast* unop, Symboltable* env);
+Ast* evaluate_cond(Ast* cond, Symboltable* env);
 
 void substitute(char* name, Ast** term, Ast* value, Symboltable* env);
 bool appears_free_in(char* name, Ast* term);
@@ -67,36 +68,51 @@ void rename_binding(Ast* lambda, Ast* value);
 */
 Ast* evaluate(Ast* term, Symboltable* env)
 {
-  Ast* copy = CopyAst(term);
+  //Ast* copy = CopyAst(term);
   /* dynamic type dispatch! */
-  if (copy == NULL)
+  if (term == NULL)
     return NULL;
 
-  while (copy->tag != N_ENTITY) {
-
+  while (term->tag != N_ENTITY) {
     if (traced) {
-      char* s = AstToString(copy);
+      char* s = AstToString(term);
       printf("evaluating term: [%s]\n", s);
       free(s);
     }
 
-    switch(copy->tag) {
-      case N_ID:     copy = evaluate_id(copy, env); break;    /* return the bound term. */
+    /*
+      this switch statement is where this program leaks
+      a ton of memory, we operate on a copy so we can
+      'consume' the tree, however upon each call to
+      a sub evaluate function, we do not clean up the memory
+      we are passed in, and simply return new memory. this
+      means that sometimes we leak memory. however only if
+      we produce an intermediate term which causes this while
+      to loop more than a single time. on each iteration,
+      we leak the intermediary term.
+      if we never loop, then when the outer scope deallocates
+      the tree it gave evaluate, it will clean up all of the
+      memory.
+    */
+
+    switch(term->tag) {
+      case N_ID:     term = evaluate_id(term, env); break;    /* return the bound term. */
       //case N_ENTITY: copy = evaluate_entity(copy, env); /* values are already in beta-normal form */
-      case N_CALL:   copy = evaluate_call(copy, env); break;  /* return the result of calling the fn. */
-      case N_BIND:   copy = evaluate_bind(copy, env); break;  /* evaluate the bind and return the value nil. */
-      case N_BINOP:  copy = evaluate_binop(copy, env); break;
-      case N_UNOP:   copy = evaluate_unop(copy, env); break;
+      case N_CALL:   term = evaluate_call(term, env); break;  /* return the result of calling the fn. */
+      case N_BIND:   term = evaluate_bind(term, env); break;  /* evaluate the bind and return the value nil. */
+      case N_BINOP:  term = evaluate_binop(term, env); break;
+      case N_UNOP:   term = evaluate_unop(term, env); break;
+      case N_IF:     term = evaluate_cond(term, env); break;
       default: error_abort("malformed ast node tag! aborting", __FILE__, __LINE__);
     }
     //DeleteAst(tmp);
 
-    if (copy == NULL) {
+    if (term == NULL) {
       break;
     }
 
   }
-  return copy;
+  return term;
 }
 
 Ast* evaluate_id(Ast* id, Symboltable* env)
@@ -133,14 +149,17 @@ Ast* evaluate_id(Ast* id, Symboltable* env)
         printf("id evaluated to: [%s]\n", s);
         free(s);
       }
+      // hopefully deleting garbage
+      DeleteAst(id);
       return term;
     }
     else {
-      error_abort("cannot find name in environment! aborting", __FILE__, __LINE__);
+      printf("cannot find name in environment!\n");
+      return NULL;
     }
   }
   else {
-    error_abort("cannot evaluate/lookup NULL id!", __FILE__, __LINE__);
+    error_abort("cannot evaluate NULL id!\n", __FILE__, __LINE__);
   }
   // suppressing a warning...
   // id either is or isn't NULL, so why does clang warn here?
@@ -250,7 +269,7 @@ function object.
       return NULL;
     }
 
-    Ast* rhs = evaluate(binop->u.binop.lhs, env);
+    Ast* rhs = evaluate(binop->u.binop.rhs, env);
 
     if (rhs == NULL) {
       printf("evaluate rhs failed.\n");
@@ -321,7 +340,7 @@ Ast* evaluate_plus(Ast* lhs, Ast* rhs, Symboltable* env)
     result = CreateAstEntityLiteralInt(value, NULL);
   }
   else {
-    printf("operator + not valid on non Int types.");
+    printf("operator + not valid on non Int types.\n");
   }
   DeleteAst(lhstype);
   DeleteAst(rhstype);
@@ -344,7 +363,7 @@ Ast* evaluate_minus(Ast* lhs, Ast* rhs, Symboltable* env)
     result = CreateAstEntityLiteralInt(value, NULL);
   }
   else {
-    printf("operator - not valid on non Int types.");
+    printf("operator - not valid on non Int types.\n");
   }
   DeleteAst(lhstype);
   DeleteAst(rhstype);
@@ -367,7 +386,7 @@ Ast* evaluate_mult(Ast* lhs, Ast* rhs, Symboltable* env)
     result = CreateAstEntityLiteralInt(value, NULL);
   }
   else {
-    printf("operator * not valid on non Int types.");
+    printf("operator * not valid on non Int types.\n");
   }
   DeleteAst(lhstype);
   DeleteAst(rhstype);
@@ -390,7 +409,7 @@ Ast* evaluate_div(Ast* lhs, Ast* rhs, Symboltable* env)
     result = CreateAstEntityLiteralInt(value, NULL);
   }
   else {
-    printf("operator / not valid on non Int types.");
+    printf("operator / not valid on non Int types.\n");
   }
   DeleteAst(lhstype);
   DeleteAst(rhstype);
@@ -413,7 +432,7 @@ Ast* evaluate_modulo(Ast* lhs, Ast* rhs, Symboltable* env)
     result = CreateAstEntityLiteralInt(value, NULL);
   }
   else {
-    printf("operator %% not valid on non Int types.");
+    printf("operator %% not valid on non Int types.\n");
   }
   DeleteAst(lhstype);
   DeleteAst(rhstype);
@@ -433,17 +452,25 @@ Ast* evaluate_equality(Ast* lhs, Ast* rhs, Symboltable* env)
     Ast *rhstype  = type_of(rhs, env);
     Ast *inttype  = CreateAstEntityTypeInt(NULL);
     Ast *booltype = CreateAstEntityTypeBool(NULL);
+    Ast *niltype  = CreateAstEntityTypeNil(NULL);
 
     if (typesEqual(lhstype, inttype, env) && typesEqual(rhstype, inttype, env)) {
-      int value = lhs->u.entity.u.literal.u.integer + rhs->u.entity.u.literal.u.integer;
-      result = CreateAstEntityLiteralInt(value, NULL);
+      bool value = lhs->u.entity.u.literal.u.integer == rhs->u.entity.u.literal.u.integer;
+      result = CreateAstEntityLiteralBool(value, NULL);
     }
     else if (typesEqual(lhstype, booltype, env) && typesEqual(rhstype, booltype, env)) {
       bool value = lhs->u.entity.u.literal.u.boolean == rhs->u.entity.u.literal.u.boolean;
       result = CreateAstEntityLiteralBool(value, NULL);
     }
+    else if (typesEqual(lhstype, niltype, env) && typesEqual(rhstype, niltype, env)) {
+      result = CreateAstEntityLiteralBool(true, NULL);
+    }
     else {
-      printf("operator = only valid with Int or Bool literals.");
+      char* s1 = AstToString(lhstype);
+      char* s2 = AstToString(rhstype);
+      printf("operator = not valid on lhs: [%s] rhs: [%s] literals.\n", s1, s2);
+      free(s1);
+      free(s2);
     }
 
     DeleteAst(lhstype);
@@ -521,6 +548,105 @@ Ast* evaluate_int_negation(Ast* unop, Symboltable* env)
 
   int result = -(rhs->u.entity.u.literal.u.integer);
   return CreateAstEntityLiteralInt(result, NULL);
+}
+
+Ast* evaluate_cond(Ast* cond, Symboltable* env)
+{
+  Ast* result = NULL;
+  if (traced) {
+    printf("evaluate_cond\n");
+  }
+  /*
+    to evaluate a conditional we must evaluate it's
+    test, then depending upon the truth or falsity of
+    the test, we return either the first or second case
+    respectively. this is why both cases must have
+    the same type, and why the test must have type bool.
+  */
+  if (cond != NULL) {
+    Ast* testtype = type_of(cond->u.cond.test, env);
+    Ast* booltype = CreateAstEntityTypeBool(NULL);
+
+    if (!typesEqual(testtype, booltype, env)) {
+      char* s = AstToString(testtype);
+      printf("conditional test expression must have Bool type, has type [%s]", s);
+      free(s);
+      DeleteAst(testtype);
+      DeleteAst(booltype);
+      return NULL;
+    }
+
+    Ast* firsttype = type_of(cond->u.cond.first, env);
+
+    if (firsttype == NULL) {
+      printf("first alternative term not typeable.\n");
+      DeleteAst(testtype);
+      DeleteAst(booltype);
+      return NULL;
+    }
+
+    Ast* secondtype = type_of(cond->u.cond.second, env);
+
+    if (secondtype == NULL) {
+      printf("second alternative term no typeable.\n");
+      DeleteAst(firsttype);
+      DeleteAst(testtype);
+      DeleteAst(booltype);
+      return NULL;
+    }
+
+    if (!typesEqual(firsttype, secondtype, env)
+    && !is_polymorphic(firsttype)
+    && !is_polymorphic(secondtype)) {
+      char* s1 = AstToString(firsttype);
+      char* s2 = AstToString(secondtype);
+      printf("alternative expressions, must have matching types. instead have types first: [%s] second: [%s]", s1, s2);
+      free(s1);
+      free(s2);
+      DeleteAst(firsttype);
+      DeleteAst(testtype);
+      DeleteAst(booltype);
+      return NULL;
+    }
+
+    /*
+      once we get here, we know the invariants
+      for this expression have been met, so now
+      we must preform the requisite action.
+      so, we will return one of the alternative
+      expressions as the result, depending upon
+      the value within the test expressions result.
+      this means, evaluating the test expression,
+      then returning a copy of one of the
+      alternative expressions for further evaluation.
+    */
+
+    Ast* testresult = evaluate(cond->u.cond.test, env);
+
+    if (testresult == NULL) {
+      printf("evaluate test failed.\n");
+      DeleteAst(firsttype);
+      DeleteAst(testtype);
+      DeleteAst(booltype);
+      return NULL;
+    }
+
+    if (testresult->u.entity.u.literal.u.boolean == true) {
+      // when the test evaluates to true, we select the
+      // first alternative
+      result = CopyAst(cond->u.cond.first);
+    } else {
+      result = CopyAst(cond->u.cond.second);
+    }
+    DeleteAst(firsttype);
+    DeleteAst(testtype);
+    DeleteAst(booltype);
+  }
+  else {
+    error_abort("cannot evaluate NULL conditional.\n", __FILE__, __LINE__);
+  }
+
+  return result;
 }
 
 Ast* evaluate_call(Ast* call, Symboltable* env)
@@ -610,7 +736,8 @@ Ast* evaluate_call(Ast* call, Symboltable* env)
       DeleteAst(lhs);
       DeleteAst(rhs);
       DeleteAst(proc);
-      error_abort("no instance found for passed type! aborting", __FILE__, __LINE__);
+      printf("no instance found for passed type!");
+      return NULL;
     }
   }
   else {

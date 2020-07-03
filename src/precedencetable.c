@@ -19,7 +19,8 @@ void DestroyPrecedenceTable(PrecedenceTable* table)
   while (cur) {
     prv = cur;
     cur = cur->next;
-    free(prv->op);
+    if (prv->op)
+      free(prv->op);
     free(prv);
   }
 

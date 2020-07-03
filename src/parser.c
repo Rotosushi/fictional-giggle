@@ -412,6 +412,12 @@ Ast* parse(Parser* parser, Scanner* scanner)
     printf("bad term.\n");
   }
 
+  if (result != NULL) {
+    char* s = AstToString(result);
+    printf("parsed Ast: [%s]\n", s);
+    free(s);
+  }
+
   return result;
 }
 
@@ -638,7 +644,7 @@ Ast* parse_if(Parser* p, Scanner* s)
   Token ct = curtok(p);
   Ast *cond = NULL, *first = NULL, *second = NULL, *result = NULL;
   StrLoc* begin_loc = curloc(p), *end_loc = NULL;
-  StrLoc if_loc;
+  StrLoc cond_loc;
 
   if (ct == IF) {
     nexttok(p, s); // eat IF
@@ -672,7 +678,12 @@ Ast* parse_if(Parser* p, Scanner* s)
             return NULL;
         }
 
-        result = CreateAstCond(cond, first, second)
+        end_loc = curloc(p);
+        cond_loc.first_line   = begin_loc->first_line;
+        cond_loc.first_column = begin_loc->first_column;
+        cond_loc.last_line    = end_loc->last_line;
+        cond_loc.last_column  = end_loc->last_column;
+        result = CreateAstCond(cond, first, second, &cond_loc);
       }
     }
     else {
@@ -714,6 +725,7 @@ Ast* parse_lambda(Parser* p, Scanner* s)
         nexttok(p, s); // eat ':'
                                  // the colon predicts a type expression,
         type = parse_term(p, s); // so we parse it here.
+        ct = curtok(p);
       } else {
         type = CreateAstEntityTypePoly();
       }

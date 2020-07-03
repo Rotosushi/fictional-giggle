@@ -24,11 +24,13 @@ Ast* CreateAstId(char* name, StrLoc* llocp)
   node->tag  = N_ID;
   node->u.id = name;
   if (llocp != NULL) {
+    node->hasloc = true;
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
     node->lloc.last_line    = llocp->last_line;
     node->lloc.last_column  = llocp->last_column;
   } else {
+    node->hasloc = false;
     node->lloc.first_line   = 0;
     node->lloc.first_column = 0;
     node->lloc.last_line    = 0;
@@ -44,11 +46,13 @@ Ast* CreateAstBind(char* id, Ast* term, StrLoc* llocp)
   node->u.bind.id   = id;
   node->u.bind.term = term;
   if (llocp != NULL) {
+    node->hasloc = true;
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
     node->lloc.last_line    = llocp->last_line;
     node->lloc.last_column  = llocp->last_column;
   } else {
+    node->hasloc = false;
     node->lloc.first_line   = 0;
     node->lloc.first_column = 0;
     node->lloc.last_line    = 0;
@@ -65,11 +69,13 @@ Ast* CreateAstEntityTypeNil(StrLoc* llocp)
   node->u.entity.u.type.tag    = T_NIL;
   node->u.entity.u.type.u.nil  = '\0';
   if (llocp != NULL) {
+    node->hasloc = true;
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
     node->lloc.last_line    = llocp->last_line;
     node->lloc.last_column  = llocp->last_column;
   } else {
+    node->hasloc = false;
     node->lloc.first_line   = 0;
     node->lloc.first_column = 0;
     node->lloc.last_line    = 0;
@@ -86,11 +92,13 @@ Ast* CreateAstEntityTypeBool(StrLoc* llocp)
   node->u.entity.u.type.tag    = T_BOOL;
   node->u.entity.u.type.u.nil  = '\0';
   if (llocp != NULL) {
+    node->hasloc = true;
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
     node->lloc.last_line    = llocp->last_line;
     node->lloc.last_column  = llocp->last_column;
   } else {
+    node->hasloc = false;
     node->lloc.first_line   = 0;
     node->lloc.first_column = 0;
     node->lloc.last_line    = 0;
@@ -108,11 +116,13 @@ Ast* CreateAstEntityTypeInt(StrLoc* llocp)
   node->u.entity.u.type.tag    = T_INT;
   node->u.entity.u.type.u.nil  = '\0';
   if (llocp != NULL) {
+    node->hasloc = true;
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
     node->lloc.last_line    = llocp->last_line;
     node->lloc.last_column  = llocp->last_column;
   } else {
+    node->hasloc = false;
     node->lloc.first_line   = 0;
     node->lloc.first_column = 0;
     node->lloc.last_line    = 0;
@@ -128,6 +138,7 @@ Ast* CreateAstEntityTypePoly()
   node->u.entity.tag           = E_TYPE;
   node->u.entity.u.type.tag    = T_POLY;
   node->u.entity.u.type.u.nil  = '\0';
+  node->hasloc                 = false;
   node->lloc.first_line        = 0;
   node->lloc.first_column      = 0;
   node->lloc.last_line         = 0;
@@ -144,11 +155,13 @@ Ast* CreateAstEntityTypeProc(struct Ast* lhs, struct Ast* rhs, struct StrLoc* ll
   node->u.entity.u.type.u.proc.lhs = lhs;
   node->u.entity.u.type.u.proc.rhs = rhs;
   if (llocp != NULL) {
+    node->hasloc = true;
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
     node->lloc.last_line    = llocp->last_line;
     node->lloc.last_column  = llocp->last_column;
   } else {
+    node->hasloc = false;
     node->lloc.first_line   = 0;
     node->lloc.first_column = 0;
     node->lloc.last_line    = 0;
@@ -165,11 +178,13 @@ Ast* CreateAstEntityLiteralNil(StrLoc* llocp)
   node->u.entity.u.literal.tag   = L_NIL;
   node->u.entity.u.literal.u.nil = '\0';
   if (llocp != NULL) {
+    node->hasloc = true;
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
     node->lloc.last_line    = llocp->last_line;
     node->lloc.last_column  = llocp->last_column;
   } else {
+    node->hasloc = false;
     node->lloc.first_line   = 0;
     node->lloc.first_column = 0;
     node->lloc.last_line    = 0;
@@ -186,11 +201,13 @@ Ast* CreateAstEntityLiteralBool(bool value, StrLoc* llocp)
   node->u.entity.u.literal.tag   = L_BOOL;
   node->u.entity.u.literal.u.boolean = value;
   if (llocp != NULL) {
+    node->hasloc = true;
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
     node->lloc.last_line    = llocp->last_line;
     node->lloc.last_column  = llocp->last_column;
   } else {
+    node->hasloc = false;
     node->lloc.first_line   = 0;
     node->lloc.first_column = 0;
     node->lloc.last_line    = 0;
@@ -207,11 +224,13 @@ Ast* CreateAstEntityLiteralInt(int value, StrLoc* llocp)
   node->u.entity.u.literal.tag       = L_INT;
   node->u.entity.u.literal.u.integer = value;
   if (llocp != NULL) {
+    node->hasloc = true;
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
     node->lloc.last_line    = llocp->last_line;
     node->lloc.last_column  = llocp->last_column;
   } else {
+    node->hasloc = false;
     node->lloc.first_line   = 0;
     node->lloc.first_column = 0;
     node->lloc.last_line    = 0;
@@ -231,11 +250,13 @@ Ast* CreateAstEntityLiteralProc(char* name, Ast* type, Ast* body, StrLoc* llocp)
   node->u.entity.u.literal.u.proc.def.body     = body;
   node->u.entity.u.literal.u.proc.set          = NULL;
   if (llocp != NULL) {
+    node->hasloc = true;
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
     node->lloc.last_line    = llocp->last_line;
     node->lloc.last_column  = llocp->last_column;
   } else {
+    node->hasloc = false;
     node->lloc.first_line   = 0;
     node->lloc.first_column = 0;
     node->lloc.last_line    = 0;
@@ -251,11 +272,13 @@ Ast* CreateAstCall(Ast* l, Ast* r, StrLoc* llocp)
   node->u.call.lhs = l;
   node->u.call.rhs = r;
   if (llocp != NULL) {
+    node->hasloc = true;
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
     node->lloc.last_line    = llocp->last_line;
     node->lloc.last_column  = llocp->last_column;
   } else {
+    node->hasloc = false;
     node->lloc.first_line   = 0;
     node->lloc.first_column = 0;
     node->lloc.last_line    = 0;
@@ -272,11 +295,13 @@ Ast* CreateAstBinop(char* op, Ast* lhs, Ast* rhs, StrLoc* llocp)
   node->u.binop.lhs = lhs;
   node->u.binop.rhs = rhs;
   if (llocp != NULL) {
+    node->hasloc = true;
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
     node->lloc.last_line    = llocp->last_line;
     node->lloc.last_column  = llocp->last_column;
   } else {
+    node->hasloc = false;
     node->lloc.first_line   = 0;
     node->lloc.first_column = 0;
     node->lloc.last_line    = 0;
@@ -292,11 +317,13 @@ Ast* CreateAstUnop(char* op, Ast* rhs, StrLoc* llocp)
   node->u.unop.op = op;
   node->u.unop.rhs = rhs;
   if (llocp != NULL) {
+    node->hasloc = true;
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
     node->lloc.last_line    = llocp->last_line;
     node->lloc.last_column  = llocp->last_column;
   } else {
+    node->hasloc = false;
     node->lloc.first_line   = 0;
     node->lloc.first_column = 0;
     node->lloc.last_line    = 0;
@@ -313,11 +340,13 @@ Ast* CreateAstCond(Ast* test, Ast* first, Ast* second, StrLoc* llocp)
   node->u.cond.first  = first;
   node->u.cond.second = second;
   if (llocp != NULL) {
+    node->hasloc = true;
     node->lloc.first_line   = llocp->first_line;
     node->lloc.first_column = llocp->first_column;
     node->lloc.last_line    = llocp->last_line;
     node->lloc.last_column  = llocp->last_column;
   } else {
+    node->hasloc = false;
     node->lloc.first_line   = 0;
     node->lloc.first_column = 0;
     node->lloc.last_line    = 0;
@@ -864,11 +893,11 @@ char* AstCallToString(Ast* ast)
 
     int len = strlen(lhs) + strlen(spc) + 1 + strlen(rhs) + 2;
     result  = (char*)calloc(len, sizeof(char));
-    strcat(result, lprn);
     strcat(result, lhs);
-    strcat(result, rprn);
     strcat(result, spc);
+    strcat(result, lprn);
     strcat(result, rhs);
+    strcat(result, rprn);
     free(lhs);
     free(rhs);
   }

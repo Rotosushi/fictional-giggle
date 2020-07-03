@@ -168,6 +168,7 @@ typedef struct Cond {
 typedef struct Ast {
 	NodeTag tag;
 	struct StrLoc lloc;
+  bool hasloc;
 	union {
     char*  id;
 		Entity entity;
