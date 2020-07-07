@@ -412,7 +412,8 @@ Ast* parse(Parser* parser, Scanner* scanner)
     printf("bad term.\n");
   }
 
-  if (result != NULL) {
+
+  if (traced && result != NULL) {
     char* s = AstToString(result);
     printf("parsed Ast: [%s]\n", s);
     free(s);

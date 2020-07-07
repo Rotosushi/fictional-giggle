@@ -180,8 +180,8 @@ int main(int argc, char** argv)
 						char* ast_string = AstToString(parse);
 						char* eval_string = AstToString(result);
 						printf (":parse %s\n", ast_string);
-						printf (":type %s\n", type_string);
-						printf ("==>>  %s\n", eval_string);
+						printf (":type  %s\n", type_string);
+						printf ("==>>   %s\n", eval_string);
 					}
 					DeleteAst(parse);
 					DeleteAst(type);

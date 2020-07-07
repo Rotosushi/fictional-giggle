@@ -314,7 +314,7 @@ loop:
   scanner->token = scanner->cursor;
   /*!re2c
       re2c:define:YYCTYPE  = char;
-      re2c:sentinel = -1;
+      
       re2c:yyfill:enable = 0;
       re2c:eof = 0;
 
