@@ -1,11 +1,15 @@
-
+#pragma once
 #include <string>
+using std::string;
 #include <memory>
 using std::unique_ptr;
 #include <utility>
 using std::move;
 #include <list>
 using std::list;
+#include <variant>
+using std::variant;
+using std::get;
 
 /*
   the abstract syntax tree is the main
@@ -50,6 +54,14 @@ public:
     last_column  = loc.last_column;
   }
 
+  Location& operator=(const Location& rhs) {
+    first_line   = rhs.first_line;
+    first_column = rhs.first_column;
+    last_line    = rhs.last_line;
+    last_column  = rhs.last_column;
+    return *this;
+  }
+
   ~Location() {
     first_line   = 0;
     first_column = 0;
@@ -57,8 +69,6 @@ public:
     last_column  = 0;
   }
 };
-
-class AstVisitor;
 
 /*
   this is the main data-type
@@ -84,7 +94,37 @@ public:
   Location loc;
 
   Ast() : loc() {}
-  Ast(Location& loc) : loc(loc) {}
+  Ast(const Location& loc) : loc(loc) {}
+  virtual ~Ast() = default;
+
+protected:
+  virtual Ast* clone_internal();
+  virtual string to_string_internal();
+  /*
+  in order to support copying of Ast objects
+  we use the "clone" pattern. whereby we deep-copy
+  unique_ptrs, then we get a new copy of the entire
+  tree. we absolutely do not want to use shared_ptrs
+  for evaluation or typechecking.
+
+  basically, when we call clone on some arbitrary
+  Ast, we dispatch to the clone of the right
+  derived class, which deep copies, then returns
+  the copy through the auto return type..
+  when we later copy constructors, we
+  get a deep-copy of the tree instead of
+  a shared refrence. (this function "clone_interal"
+  is extended through covariance, as it's
+  return type can vary by derived class.
+  and that is okay precisely because it is
+  extended over derived classes, which means
+  every return type is at least an Ast.)
+
+  */
+public:
+  auto clone() { return unique_ptr<Ast>(clone_internal()); }
+  string to_string() { return to_string_internal(); }
+
 };
 
 // variables are one of the essential
@@ -96,6 +136,14 @@ public:
 
   Variable(const string& str) : Ast(), id(str) {}
   Variable(const string& str, const Location& loc) : Ast(loc), id(str) {}
+  Variable(const Variable& r) : Ast(r.loc), id(r.id) {}
+
+protected:
+  virtual Variable* clone_internal() override { return new Variable(*this); }
+
+  virtual string to_string_internal() override {
+    return id;
+  }
 };
 
 // Application is another essential component
@@ -111,6 +159,42 @@ public:
 
   Call(unique_ptr<Ast> l, unique_ptr<Ast> r) : Ast(), lhs(move(l)), rhs(move(r)) {}
   Call(unique_ptr<Ast> l, unique_ptr<Ast> r, const Location& loc) : Ast(loc), lhs(move(l)), rhs(move(r)) {}
+  Call(const Call& c) : Ast(c.loc), lhs(c.lhs->clone()), rhs(c.rhs->clone()) {}
+
+protected:
+  virtual Call* clone_internal() override { return new Call(*this); }
+
+  virtual string to_string_internal() override {
+    /*
+      given some call:
+      a b c d
+      i am very torn on how to display some
+      arbitrary call expression.
+      when do parens make things more explicit?
+      wrapping parens around the LHS of the
+      call expression recursively groups expressions
+      like:
+      (((a) b) c) d
+
+      whereas wrapping around the RHS of the call
+      expression recursively groups expressions
+      like:
+      a (b) (c) (d)
+
+      wrapping around the whole expression recursively
+      groups like:
+      (((a b) c) d)
+
+      i have flip flopped a lot with this.
+    */
+    string result;
+    result  = "(";
+    result += lhs->to_string();
+    result += " ";
+    result += rhs->to_string();
+    result += ")";
+    return result;
+  }
 };
 
 // a bind expression is an essential component
@@ -119,7 +203,7 @@ public:
 // calculus, however it has traditionally
 // considered a 'meta-operation' to be
 // performed by the human-computer evaluating
-// the mathematical expression in the lambda calculus.
+// the mathematical expression of the lambda calculus.
 // but this action is so basic (bind a name to some
 // value), that it is in fact one of the central
 // actions of the calculus itself (arguments).
@@ -133,6 +217,18 @@ public:
 
   Bind(const string& str, unique_ptr<Ast> r) : Ast(), id(str), rhs(move(r)) {}
   Bind(const string& str, unique_ptr<Ast> r, const Location& loc) : Ast(loc), id(str), rhs(move(r)) {}
+  Bind(const Bind& rhs) : Ast(rhs.loc), id(rhs.id), rhs(rhs.rhs->clone()) {}
+
+protected:
+  virtual Bind* clone_internal() override { return new Bind(*this); }
+
+  virtual string to_string_internal() override {
+    string result;
+    result  = id;
+    result += " := ";
+    result += rhs->to_string();
+    return result;
+  }
 };
 
 /*
@@ -149,14 +245,17 @@ public:
  in order to make abstraction useful (one
  may beg the question, abstraction was proven
  turing complete, why do we need anything more?
- and basically, so the language doesn't become
+ basically, so the language doesn't become
  a turing tar-pit. getting things done is the
  constant and pressing goal, clarity and
  communication help to facilitate that goal.
+ just because everything "can" be done in one
+ way, doesn't provide enough reason that is
+ "should" be done in that way and no other.
  in fact, as we consider scaling, clarity of
  design and of communication become paramount
- in my opinion.), we
- must be given some other framework for
+ in my opinion,.),
+ we must be given some other abstraction for
  specifying expressions to then subsequently
  abstract over. now, given the complicated
  nature of what one must specify in some
@@ -164,10 +263,11 @@ public:
  abstraction to specify programs. luckily we
  already know what it is. and again, it has classically
  not been considered formally, mathematitions
- essentially do the equivalent of "#include basic-arithmetic"
- into lambda calculus definitions. to allow them
- the freedom to include numers and addition and such.
- in reality the abstraction of the infix expression
+ essentially do the equivalent of
+ "#include basic-arithmetic"
+ into formal lambda calculus definitions. to allow them
+ the freedom to write numers and addition and such.
+ in reality the abstraction of an infix expression
  is very versatile and mathematically sound, what
  makes it a slam dunk for me is if we consider two
  features, operator overloading and operator declarations.
@@ -176,7 +276,7 @@ public:
  mechanisms, we have something that is approaching
  production quality. all that would be required
  to push such a language over the top is modules,
- and a solid standard library. (all of which is
+ and a solid standard library. (all of which is very
  non-trival.)
 */
 class Binop : public Ast {
@@ -187,7 +287,20 @@ public:
 
   Binop(const string& str, unique_ptr<Ast> l, unique_ptr<Ast> r) : Ast(), op(str), lhs(move(l)), rhs(move(r)) {}
   Binop(const string& str, unique_ptr<Ast> l, unique_ptr<Ast> r, const Location& loc) : Ast(loc), op(str), lhs(move(l)), rhs(move(r)) {}
+  Binop(const Binop& rhs) : Ast(rhs.loc), op(rhs.op), lhs(rhs.lhs->clone()), rhs(rhs.rhs->clone()) {}
 
+protected:
+  virtual Binop* clone_internal() override { return new Binop(*this); }
+
+  virtual string to_string_internal() override {
+    string result;
+    result  = lhs->to_string();
+    result += " ";
+    result += op; // op already 'is-a' string :)
+    result += " ";
+    result += rhs->to_string();
+    return result;
+  }
 };
 
 class Unop : public Ast {
@@ -197,7 +310,18 @@ public:
 
   Unop(const string& str, unique_ptr<Ast> r) : Ast(), op(str), rhs(move(r)) {}
   Unop(const string& str, unique_ptr<Ast> r, const Location& loc) : Ast(loc), op(str), rhs(move(r)) {}
+  Unop(const Unop& rhs) : Ast(rhs.loc), op(rhs.op), rhs(rhs.rhs->clone()) {}
 
+protected:
+  virtual Unop* clone_internal() override { return new Unop(*this); }
+
+  virtual string to_string_internal() override {
+    string result;
+    result  = op;
+    result += " ";
+    result += rhs->to_string();
+    return result;
+  }
 };
 
 /*
@@ -227,6 +351,16 @@ public:
   and we need not consider a new operator as
   anything other than a new two argument function
   behind the scenes.
+  affix/infix expressions, plus polymorphism,
+  operator definitions, and operator overloading,
+  and subtyping allow for programmers to build up
+  any number of layers on top of one another in
+  many different logical ways. each expressing
+  different parts of the basic affix expression.
+  when we consider a body of executable code, we
+  consider at some level, sequencing, selection,
+  and iteration over basic entities in the language.
+
 */
 
 
@@ -238,7 +372,21 @@ public:
 
   Cond(unique_ptr<Ast> t, unique_ptr<Ast> f, unique_ptr<Ast> s) : Ast(), test(move(t)), first(move(f)), second(move(s)) {}
   Cond(unique_ptr<Ast> t, unique_ptr<Ast> f, unique_ptr<Ast> s, const Location& loc) : Ast(loc), test(move(t)), first(move(f)), second(move(s)) {}
+  Cond(const Cond& rhs) : Ast(rhs.loc), test(rhs.test->clone()), first(rhs.first->clone()), second(rhs.second->clone()) {}
 
+protected:
+  virtual Cond* clone_internal()  override { return new Cond(*this); }
+
+  virtual string to_string_internal() override {
+    string result;
+    result  = "if ";
+    result += test->to_string();
+    result += " then ";
+    result += first->to_string();
+    result += " else ";
+    result += second->to_string();
+    return result;
+  }
 };
 
 
@@ -257,16 +405,21 @@ public:
   procedure types, we must compare both sides,
   and both sides must be equivalent.
 */
-class MonoType;
-class PolyType;
-class ProcType;
 
 class Type {
 public:
   Location loc;
 
-  Type() = delete;
+  Type() : loc() {}
   Type(const Location& loc) : loc(loc) {}
+
+protected:
+  virtual Type* clone_internal();
+  virtual string to_string_internal();
+
+public:
+  auto clone() { return unique_ptr<Type>(clone_internal()); }
+  string to_string() { return to_string_internal(); }
 };
 
 enum class PrimitiveType {
@@ -277,19 +430,52 @@ enum class PrimitiveType {
 
 class MonoType : public Type {
 public:
-  PrimitiveType primitivetype;
+  PrimitiveType primtype;
 
   MonoType() = delete;
-  MonoType(PrimitiveType pt) : loc(), primitivetype(pt) {}
-  MonoType(PrimitiveType pt, const Location& loc) : loc(loc), primitivetype(pt) {}
-  MonoType(MonoType& mt) : loc(mt.loc), primitivetype(mt.primitivetype) {}
+  MonoType(PrimitiveType pt) : Type(), primtype(pt) {}
+  MonoType(PrimitiveType pt, const Location& loc) : Type(loc), primtype(pt) {}
+  MonoType(MonoType& mt) : Type(mt.loc), primtype(mt.primtype) {}
+
+protected:
+  virtual MonoType* clone_internal() override { return new MonoType(*this); }
+
+  virtual string to_string_internal() override {
+    string result;
+    switch(primtype) {
+      case PrimitiveType::Nil: {
+        result = "Nil";
+      }
+
+      case PrimitiveType::Int: {
+        result = "Int";
+      }
+
+      case PrimitiveType::Bool: {
+        result = "Bool";
+      }
+
+      default:
+        throw "malformed MonoType tag.\n";
+    }
+    return result;
+  }
 };
 
 class PolyType : Type {
 public:
-  PolyType() : loc() {}
-  PolyType(const Location& loc) : loc(loc) {}
-  PolyType(PolyType& pt) : loc(pt.loc) {}
+  PolyType() : Type() {}
+  PolyType(const Location& loc) : Type(loc) {}
+  PolyType(PolyType& pt) : Type(pt.loc) {}
+
+protected:
+  virtual PolyType* clone_internal() override { return new PolyType(*this); }
+
+  virtual string to_string_internal() override {
+    string result;
+    result = "Poly";
+    return result;
+  }
 };
 
 class ProcType : Type {
@@ -298,9 +484,60 @@ public:
   unique_ptr<Type> rhs;
 
   ProcType() = delete;
-  ProcType(ProcType& pt) : loc(pt.loc), lhs(pt.lhs), rhs(pt.rhs) {}
-  ProcType(unique_ptr<Type> l, unique_ptr<Type> r) : loc(), lhs(move(l)), rhs(move(r)) {}
-  ProcType(unique_ptr<Type> l, unique_ptr<Type> r, const Location& loc) : loc(loc), lhs(move(l)), rhs(move(r)) {}
+  ProcType(ProcType& pt) : Type(pt.loc), lhs(pt.lhs->clone()), rhs(pt.rhs->clone()) {}
+  ProcType(unique_ptr<Type> l, unique_ptr<Type> r) : Type(), lhs(move(l)), rhs(move(r)) {}
+  ProcType(unique_ptr<Type> l, unique_ptr<Type> r, const Location& loc) : Type(loc), lhs(move(l)), rhs(move(r)) {}
+
+protected:
+  virtual ProcType* clone_internal() override { return new ProcType(*this); }
+
+  virtual string to_string_internal() override {
+    string result;
+    /*
+    given some possible:
+      Type -> Type
+    if the lhs of a type description is
+    itself a procedure type, we must group
+    it with parentheses to make that
+    clear to the programmer.
+    otherwise the Type would look like
+    a basic two argument procedure
+     Type -> Type -> Type
+    instead of what it actually is
+      (Type -> Type) -> Type.
+    notice, this is just one example.
+     given that the lambda calculus's grammar
+     defines a functionally infite
+     number of ways to reconfigure
+     these terms, there are a lot more
+     possible examples of this.
+     however, we can get a mental
+     handle on these cases by recognizing
+     that these type signatures
+     essentially fall into three categories
+     (Type -> Type) -> Type;
+     Type -> (Type -> Type);
+     Type -> (Type -> Type) -> Type;
+      )
+
+    we use the c++ std typeid to get
+    a "==" comparable versions of the
+    types of these two objects. and use
+    the c++ std::operator== to compare
+    them.
+    */
+    if (typeid(*lhs) == typeid(ProcType)) {
+      result  = "(";
+      result += lhs->to_string();
+      result += ") -> ";
+      result += rhs->to_string();
+    } else {
+      result  = lhs->to_string();
+      result += " -> ";
+      result += rhs->to_string();
+    }
+    return result;
+  }
 };
 
 class Procedure {
@@ -310,15 +547,24 @@ public:
   unique_ptr<Type> arg_type;
   unique_ptr<Ast>  body;
 
-  Procedure() = delete;
+  Procedure();
   Procedure(const string& str, unique_ptr<Type> at, unique_ptr<Ast> b)
-    : Ast(), arg_id(str), arg_type(move(at)), body(move(b)) {}
+    : loc(), arg_id(str), arg_type(move(at)), body(move(b)) {}
 
   Procedure(const string& str, unique_ptr<Type> at, unique_ptr<Ast> b, const Location& loc)
-    : Ast(loc), arg_id(str), arg_type(move(at)), body(move(b)) {}
+    : loc(loc), arg_id(str), arg_type(move(at)), body(move(b)) {}
 
   Procedure(const Procedure& p)
-    : Ast(p.loc), arg_id(p.arg_id), arg_type(p.arg_type), body(p.body) {}
+    : loc(p.loc), arg_id(p.arg_id), arg_type(p.arg_type->clone()), body(p.body->clone()) {}
+
+  Procedure& operator=(const Procedure& rhs)
+  {
+    loc      = rhs.loc;
+    arg_id   = rhs.arg_id;
+    arg_type = rhs.arg_type->clone();
+    body     = rhs.body->clone();
+    return *this;
+  }
 };
 
 class ProcSet {
@@ -327,12 +573,19 @@ public:
   list <Procedure> set;
   bool polymorphic;
 
-  ProcSet() = delete;
-  ProcSet(const Procedure& p, bool poly) : Ast(), def(p), set(), polymorphic(poly) {}
-  ProcSet(const Procedure& p, bool poly, const Location& loc) : Ast(loc), def(p), set(), polymorphic(poly) {}
-  ProcSet(const ProcSet& ps) : Ast(ps.loc), def(ps.def), set(ps.set), polymorphic(ps.polymorphic) {}
-};
+  ProcSet();
+  ProcSet(const Procedure& p, bool poly) : def(p), set(), polymorphic(poly) {}
+  ProcSet(const Procedure& p, bool poly, const Location& loc) : def(p), set(), polymorphic(poly) {}
+  ProcSet(const ProcSet& ps) : def(ps.def), set(ps.set), polymorphic(ps.polymorphic) {}
 
+  ProcSet& operator=(const ProcSet& rhs)
+  {
+    def = rhs.def;
+    set = rhs.set;
+    polymorphic = rhs.polymorphic;
+    return *this;
+  }
+};
 
 enum class EntityTag {
   Nil,
@@ -342,50 +595,125 @@ enum class EntityTag {
 };
 
 /*
-  an entity is simply put some form considered
-  with it's type. these also happen to
+  an entity is (simply put)
+  some form considered with it's type.
+  the thing i name entity also happens to
   correspond exactly with beta-normal
   forms when looking from a lambda calculus
   perspective, and values held within cells,
   when looking from an assembly perspective.
-  again, this mental/internal alignment is important.
+  again, this mental concept / language concept
+  alignment is important.
+
+  we use a tag in addition to a type field so that I can
+  write a ToString function without having to
+  call the typechecker. and the Type field is
+  used by the typechecker and evaluator.
+
+  theoretically, we could have each of the
+  members of the variant be a derived class
+  right? my brain is just balking and
+  having to rethink the implementation logic
+  that much during the rewite.
+  this way will look more like c, but i think
+  that could be a good refactor, maybe then,
+  we gain some property that makes it easier
+  to extend the language with more entities.
+  i don't really know. I code to much in c to
+  really know. i'm honestly just happy having
+  function overloading :)
+  i don't want to change much from c in terms
+  of implementation of this language.
 */
 class Entity : public Ast {
 public:
   Type    type;
   EntityTag tag;
-  union {
-    char    Nil;
-    int     Int;
-    bool    Bool;
-    ProcSet Proc;
-  };
+  union U {
+    char nil;
+    int  integer;
+    bool boolean;
+    ProcSet procedure;
+
+    U(const char& c) : nil(c) {}
+    U(const int&  i) : integer(i) {}
+    U(const bool& b) : boolean(b) {}
+    U(const ProcSet& ps) : procedure(ps) {}
+  } u;
 
   Entity() = delete;
   Entity(const Type& t, const char& c, const Location& loc)
-    : Ast(loc), type(t), Nil(c) {
-      tag = EntityTag::Nil;
-    }
+    : Ast(loc), type(t), tag(EntityTag::Nil), u(c) {}
 
   Entity(const Type& t, const int& i, const Location& loc)
-    : Ast(loc), type(t), Int(i) {
-      tag = EntityTag::Int;
-    }
+    : Ast(loc), type(t), tag(EntityTag::Int), u(i) {}
 
   Entity(const Type& t, const bool& b, const Location& loc)
-    : Ast(loc), type(t), Bool(b) {
-      tag = EntityTag::Bool;
-    }
+    : Ast(loc), type(t), tag(EntityTag::Bool), u(b) {}
 
   Entity(const Type& t, const Procedure& p, bool poly, const Location& loc)
-    : Ast(loc), type(t), Proc(p, poly) {
-      tag = EntityTag::Proc;
-    }
+    : Ast(loc), type(t), tag(EntityTag::Proc), u((*(new ProcSet(p, poly)))) {}
 
   Entity(const Type& t, const ProcSet& p, const Location& loc)
-    : Ast(loc), type(t), Proc(p) {
-      tag = EntityTag::Proc;
-    }
-};
+    : Ast(loc), type(t), tag(EntityTag::Proc), u(p) {}
 
-string AstToString(const Ast& a);
+  Entity(const Entity& rhs)
+  : Ast(rhs.loc), {
+    tag = rhs.tag;
+    switch(tag) {
+      case EntityTag::Nil: {
+        u.nil = rhs.nil;
+      }
+
+      case EntityTag::Int: {
+        u.integer = rhs.integer;
+      }
+
+      case EntityTag::Bool: {
+        u.boolean = rhs.boolean;
+      }
+
+      case EntityTag::Proc: {
+        u.procedure = rhs.procedure;
+      }
+
+      default:
+        throw "malformed entity tag!";
+    }
+  }
+
+protected:
+  virtual Entity* clone_internal() override { return new Entity(*this); }
+
+  virtual string to_string_internal() override {
+    string result;
+    switch(tag) {
+      case EntityTag::Nil: {
+        result = "nil";
+      }
+
+      case EntityTag::Int: {
+        result = std::to_string(get<int>(u));
+      }
+
+      case EntityTag::Bool: {
+        if (get<bool>(u) == true) {
+          result = "true";
+        } else {
+          result = "false";
+        }
+      }
+
+      case EntityTag::Proc: {
+        ProcSet p = get<ProcSet>(u);
+        result  = "\\ ";
+        result += p.def.arg_id;
+        result += " : ";
+        result += p.def.arg_type->to_string();
+        result += " => ";
+        result += p.def.body->to_string();
+      }
+    }
+    return result;
+  }
+};
