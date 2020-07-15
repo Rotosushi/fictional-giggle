@@ -19,7 +19,7 @@ void OperatorTable::insert(const string& op, int precedence, Assoc associativity
   ops.insert(make_pair(op, make_pair(precedence, associativity)));
 }
 
-optional<pair<int, Assoc>> OperatorTable::exists(const string& op)
+optional<pair<int, Assoc>> OperatorTable::find(const string& op)
 {
   auto cursor = ops.find(op);
   if (cursor == ops.end()) {

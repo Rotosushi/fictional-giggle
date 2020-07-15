@@ -15,6 +15,17 @@ void Lexer::set_buffer(const string& str)
     loc.last_column  = 0;
 }
 
+void Lexer::reset()
+{
+    buf.clear();
+    end = buf.end();
+    cursor = marker = token = buf.begin();
+    loc.first_line   = 0;
+    loc.first_column = 0;
+    loc.last_line    = 0;
+    loc.last_column  = 0;
+}
+
 void Lexer::update_location()
 {
     int length = cursor - token;
@@ -43,7 +54,7 @@ string Lexer::yytext()
 
         so here we emulate said behavior by copying
         the series of characters from token until cursor.
-    */
+
     string result;
     int length = cursor - token;
     for (int i = 0; i < length; i++)
@@ -51,6 +62,8 @@ string Lexer::yytext()
         result += token[i];
     }
     return result;
+    */
+    return string(token, cursor);
 }
 
 Location& Lexer::yylloc()
@@ -75,6 +88,7 @@ Token Lexer::yylex()
     while(1) {
         token = cursor;
         /*!re2c
+            re2c:define:YYCTYPE = char;
             re2c:yyfill:enable = 0;
             re2c:eof = 0;
 

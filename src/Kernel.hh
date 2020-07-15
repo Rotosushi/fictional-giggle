@@ -1,4 +1,4 @@
-#pragma once;
+#pragma once
 
 #include <string>
 using std::string;
@@ -8,4 +8,4 @@ using std::set;
 #include "OperatorTable.hh"
 
 void init_binops(OperatorTable& binops);
-void init_unops(OperatorTable& unops);
+void init_unops(set<string>& unops);

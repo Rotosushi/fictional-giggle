@@ -4,7 +4,9 @@
 using std::string;
 
 #include "Ast.hh"
-#include "Parser.hh"
+
+
+enum class Token;
 
 class Lexer {
   string buf;
@@ -16,10 +18,12 @@ class Lexer {
 
 public:
   void set_buffer(const string& str);
+  void reset();
+
+  Token     yylex();
   string    yytext();
   Location& yylloc();
-  Token     yylex();
 
 private:
-  void update_location(int length);
+  void update_location();
 };

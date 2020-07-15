@@ -22,7 +22,7 @@ class OperatorTable {
 
 public:
   void insert(const string& op, int precedence, Assoc associativity);
-  optional<pair<int, Assoc>> exists(const string& op);
+  optional<pair<int, Assoc>> find(const string& op);
   optional<int>   getPrecedence(const string& op);
   optional<Assoc> getAssociativity(const string& op);
 };

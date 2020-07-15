@@ -14,7 +14,7 @@ using std::unique_ptr;
 #include "Ast.hh"
 #include "Lexer.hh"
 #include "OperatorTable.hh"
-#include "Kernel.h"
+#include "Kernel.hh"
 
 
 enum class Token {
@@ -42,8 +42,10 @@ enum class Token {
   Operator,
 };
 
+class Lexer;
+
 class Parser {
-  stack<int, Container = vector<int>> marks;
+  stack<int, vector<int>> marks;
   vector<Token>    tokbuf;
   vector<string>   txtbuf;
   vector<Location> locbuf;
@@ -55,7 +57,7 @@ class Parser {
 public:
   Parser();
 
-  unique_ptr<Ast> parse(const string& text);
+  optional<unique_ptr<Ast>> parse(const string& text);
 
 private:
   void reset();
@@ -86,6 +88,5 @@ private:
   bool speculate_term();
   bool speculate_primary();
   bool speculate_if();
-  bool speculate_lambda();
   bool speculate_procedure();
 };

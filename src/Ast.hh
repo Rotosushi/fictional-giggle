@@ -98,8 +98,8 @@ public:
   virtual ~Ast() = default;
 
 protected:
-  virtual Ast* clone_internal();
-  virtual string to_string_internal();
+  virtual Ast* clone_internal() { return new Ast(); };
+  virtual string to_string_internal() { return ""; };
   /*
   in order to support copying of Ast objects
   we use the "clone" pattern. whereby we deep-copy
@@ -122,8 +122,8 @@ protected:
 
   */
 public:
-  auto clone() { return unique_ptr<Ast>(clone_internal()); }
-  string to_string() { return to_string_internal(); }
+  virtual unique_ptr<Ast> clone() { return unique_ptr<Ast>(clone_internal()); }
+  virtual string to_string() { return to_string_internal(); }
 
 };
 
@@ -408,14 +408,30 @@ protected:
 
 class Type {
 public:
-  Location loc;
-
-  Type() : loc() {}
-  Type(const Location& loc) : loc(loc) {}
+  Type() {}
+  virtual ~Type() = default;
 
 protected:
-  virtual Type* clone_internal();
-  virtual string to_string_internal();
+  virtual Type* clone_internal() { return new Type(); }
+  virtual string to_string_internal() { return ""; }
+
+public:
+  auto clone() { return unique_ptr<Type>(clone_internal()); }
+  string to_string() { return to_string_internal(); }
+};
+
+class UndefType : public Type {
+public:
+  UndefType() : Type() {}
+
+protected:
+  UndefType* clone_internal() override {
+    return new UndefType(*this);
+  }
+
+  string to_string_internal() override {
+    return "Undef";
+  }
 
 public:
   auto clone() { return unique_ptr<Type>(clone_internal()); }
@@ -434,8 +450,7 @@ public:
 
   MonoType() = delete;
   MonoType(PrimitiveType pt) : Type(), primtype(pt) {}
-  MonoType(PrimitiveType pt, const Location& loc) : Type(loc), primtype(pt) {}
-  MonoType(MonoType& mt) : Type(mt.loc), primtype(mt.primtype) {}
+  MonoType(MonoType& mt) : Type(), primtype(mt.primtype) {}
 
 protected:
   virtual MonoType* clone_internal() override { return new MonoType(*this); }
@@ -462,11 +477,10 @@ protected:
   }
 };
 
-class PolyType : Type {
+class PolyType : public Type {
 public:
   PolyType() : Type() {}
-  PolyType(const Location& loc) : Type(loc) {}
-  PolyType(PolyType& pt) : Type(pt.loc) {}
+  PolyType(PolyType& pt) : Type() {}
 
 protected:
   virtual PolyType* clone_internal() override { return new PolyType(*this); }
@@ -478,88 +492,44 @@ protected:
   }
 };
 
-class ProcType : Type {
+class ProcType : public Type {
 public:
   unique_ptr<Type> lhs;
   unique_ptr<Type> rhs;
 
   ProcType() = delete;
-  ProcType(ProcType& pt) : Type(pt.loc), lhs(pt.lhs->clone()), rhs(pt.rhs->clone()) {}
+  ProcType(ProcType& pt) : Type(), lhs(pt.lhs->clone()), rhs(pt.rhs->clone()) {}
   ProcType(unique_ptr<Type> l, unique_ptr<Type> r) : Type(), lhs(move(l)), rhs(move(r)) {}
-  ProcType(unique_ptr<Type> l, unique_ptr<Type> r, const Location& loc) : Type(loc), lhs(move(l)), rhs(move(r)) {}
 
 protected:
   virtual ProcType* clone_internal() override { return new ProcType(*this); }
 
   virtual string to_string_internal() override {
     string result;
-    /*
-    given some possible:
-      Type -> Type
-    if the lhs of a type description is
-    itself a procedure type, we must group
-    it with parentheses to make that
-    clear to the programmer.
-    otherwise the Type would look like
-    a basic two argument procedure
-     Type -> Type -> Type
-    instead of what it actually is
-      (Type -> Type) -> Type.
-    notice, this is just one example.
-     given that the lambda calculus's grammar
-     defines a functionally infite
-     number of ways to reconfigure
-     these terms, there are a lot more
-     possible examples of this.
-     however, we can get a mental
-     handle on these cases by recognizing
-     that these type signatures
-     essentially fall into three categories
-     (Type -> Type) -> Type;
-     Type -> (Type -> Type);
-     Type -> (Type -> Type) -> Type;
-      )
-
-    we use the c++ std typeid to get
-    a "==" comparable versions of the
-    types of these two objects. and use
-    the c++ std::operator== to compare
-    them.
-    */
-    if (typeid(*lhs) == typeid(ProcType)) {
-      result  = "(";
-      result += lhs->to_string();
-      result += ") -> ";
-      result += rhs->to_string();
-    } else {
-      result  = lhs->to_string();
-      result += " -> ";
-      result += rhs->to_string();
-    }
+    result  = "(";
+    result += lhs->to_string();
+    result += " -> ";
+    result += rhs->to_string();
+    result += ")";
     return result;
   }
 };
 
 class Procedure {
 public:
-  Location         loc;
   string           arg_id;
-  unique_ptr<Type> arg_type;
+  unique_ptr<Ast> arg_type;
   unique_ptr<Ast>  body;
 
   Procedure();
-  Procedure(const string& str, unique_ptr<Type> at, unique_ptr<Ast> b)
-    : loc(), arg_id(str), arg_type(move(at)), body(move(b)) {}
-
-  Procedure(const string& str, unique_ptr<Type> at, unique_ptr<Ast> b, const Location& loc)
-    : loc(loc), arg_id(str), arg_type(move(at)), body(move(b)) {}
+  Procedure(const string& str, unique_ptr<Ast> at, unique_ptr<Ast> b)
+    : arg_id(str), arg_type(move(at)), body(move(b)) {}
 
   Procedure(const Procedure& p)
-    : loc(p.loc), arg_id(p.arg_id), arg_type(p.arg_type->clone()), body(p.body->clone()) {}
+    : arg_id(p.arg_id), arg_type(p.arg_type->clone()), body(p.body->clone()) {}
 
   Procedure& operator=(const Procedure& rhs)
   {
-    loc      = rhs.loc;
     arg_id   = rhs.arg_id;
     arg_type = rhs.arg_type->clone();
     body     = rhs.body->clone();
@@ -588,6 +558,7 @@ public:
 };
 
 enum class EntityTag {
+  Type,
   Nil,
   Int,
   Bool,
@@ -639,9 +610,14 @@ public:
     U(const int&  i) : integer(i) {}
     U(const bool& b) : boolean(b) {}
     U(const ProcSet& ps) : procedure(ps) {}
+    ~U() {};
   } u;
 
+  ~Entity() = default;
   Entity() = delete;
+  Entity(const Type& t, const Location& loc)
+    : Ast(loc), type(t), tag(EntityTag::Type), u('\0') {}
+
   Entity(const Type& t, const char& c, const Location& loc)
     : Ast(loc), type(t), tag(EntityTag::Nil), u(c) {}
 
@@ -658,23 +634,23 @@ public:
     : Ast(loc), type(t), tag(EntityTag::Proc), u(p) {}
 
   Entity(const Entity& rhs)
-  : Ast(rhs.loc), {
+  : Ast(rhs.loc), u('\0') {
     tag = rhs.tag;
     switch(tag) {
       case EntityTag::Nil: {
-        u.nil = rhs.nil;
+        u.nil = rhs.u.nil;
       }
 
       case EntityTag::Int: {
-        u.integer = rhs.integer;
+        u.integer = rhs.u.integer;
       }
 
       case EntityTag::Bool: {
-        u.boolean = rhs.boolean;
+        u.boolean = rhs.u.boolean;
       }
 
       case EntityTag::Proc: {
-        u.procedure = rhs.procedure;
+        u.procedure = rhs.u.procedure;
       }
 
       default:
@@ -688,16 +664,19 @@ protected:
   virtual string to_string_internal() override {
     string result;
     switch(tag) {
+      case EntityTag::Type: {
+        result = type.to_string();
+      }
       case EntityTag::Nil: {
         result = "nil";
       }
 
       case EntityTag::Int: {
-        result = std::to_string(get<int>(u));
+        result = std::to_string(u.integer);
       }
 
       case EntityTag::Bool: {
-        if (get<bool>(u) == true) {
+        if (u.boolean == true) {
           result = "true";
         } else {
           result = "false";
@@ -705,7 +684,7 @@ protected:
       }
 
       case EntityTag::Proc: {
-        ProcSet p = get<ProcSet>(u);
+        ProcSet& p = u.procedure;
         result  = "\\ ";
         result += p.def.arg_id;
         result += " : ";
