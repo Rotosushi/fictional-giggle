@@ -124,12 +124,32 @@ protected:
 public:
   virtual unique_ptr<Ast> clone() { return unique_ptr<Ast>(clone_internal()); }
   virtual string to_string() { return to_string_internal(); }
-
 };
 
-// variables are one of the essential
-// components of Abstraction, and thusly
-// our programming language.
+/*
+  Empty, for when the user enters an empty term.
+  i.e. they enter no characters where a term was
+       expected.
+*/
+class Empty : public Ast {
+public:
+
+  Empty() {};
+  Empty(const Location& loc) : Ast(loc) {}
+  Empty(const Empty& e) : Ast(e.loc) {}
+
+protected:
+  virtual Empty* clone_internal() override { return new Empty(*this); }
+  virtual string to_string_internal() override {
+    return "";
+  }
+};
+
+/*
+  variables are one of the essential
+  components of Abstraction, and thusly
+  our programming language.
+*/
 class Variable : public Ast {
 public:
   string id;
@@ -303,6 +323,103 @@ protected:
   }
 };
 
+/*
+
+  unary operations are another third of
+  affix expressions, they comprise operations
+  which are valid on single entities.
+  these can include lots of actions,
+  negation of natural numbers, taking a
+  square root of a number, taking the
+  refrence of an object and derefrencing
+  to retrieve some object are all unary
+  operations.
+
+  the last third of affix/infix expressions
+  which are currently absent from the language.
+  why? because they are secretly binary operations,
+  the array-derefrencing operator of c is a two
+  argument function. the tuple derefrencing operation
+  is a two argument function. what makes these operations
+  different from regular binary operators is the
+  way they interact with precedence. when a programmer
+  types A + B[C] the expectation is that the derefrence
+  happens before the addition, so that we can
+  conveinently write operations upon cells within the
+  array structure. so, postfix operations are similar
+  to unary operations, in that they have very high
+  precedence. such that we always expect them to happen
+  before any binary/infix operator is applied.
+  now, since postfix operators can be thought of
+  as very high precedence binary operators,
+  why make them their own class of physical thing?
+  why not just define them in terms of the more
+  primitive binary operation?
+  the tricky part of this way of thinking is noticing
+  that postfix operations traditionally have
+  two symbols which enclose the second argument to
+  the function. how do we allow a programmer to
+  define a new postfix operation and extend the
+  parser accordingly? with unary and binary operations
+  the choice is obvious, we can conceive of both
+  in terms of a single unit of text which disambiguates
+  operations, (with overloading handling operations
+  which are valid upon more than one type) ((in this
+  sense operators are a special kind of procedure.))
+  perhaps the formal definition of a postfix operation
+  requires two strings which will correspond to the
+  beginning token of the postfix operation and
+  the ending token. but given that the argument
+  itself must by definition allow any other term
+  to appear, (to allow the programmer to prefix any
+  postix operation with other operations.)
+  how do we properly extend the parser such that we
+  allow two arbitrary strings to direct the parse
+  of the postfix operation. we could imagine a
+  mapping which stores the pair of strings for each
+  postfix operator, and we can use the beginning token
+  direct the parser to a sub-parsing function which then
+  looks up the pair of symbols and is responsible
+  for parsing until we see (or do not see)
+  the ending token. (how do we conceive of allowing
+  arbitrary text appear as the ending token of
+  any given term. because the current parser has the
+  full set of tokens which can appear as the end of a term
+  known a-priori. more particularly, the procedure
+  is_ender(Token t) would seem to require a formal
+  parameter modification, or, perhaps, we utilize
+  the fact that operators are parsed as
+  Token::Operator, and call an auxillary procedure
+  which then can assume the full responsibility of
+  comparing the text which was parsed as an operator
+  and seeing if that appears as a valid ender for
+  some postfix procedure call.
+
+  we may be able to write the postfix operator
+  parser subroutine by way of a map. whereby
+  we can associate the beginning string denoting
+  some binary operation with the ending string
+  denoting the end of the term by looking up the
+  strings in the map, and using it's existance in
+  the map structure to validate.
+  we could use a multimap and set the keys to be
+  the beginning and end tokens, but why not
+  make it a map from the beginning token to the
+  ending token? then the procedure can 'parse' against
+  the ending token, regardless of what the text associated
+  with the operator is. which is what allows for extension.
+  (we then also need a way to lookup the operation,
+   so which name do we use? maybe we do the c++ way, and
+   the name of the postfix operation is the beginning and
+   ending tokens concatenated together?)
+
+   something to note is that postfix operators take precedence
+   over binary operators, which to me means that we want to
+   ensure that we query against the set of postfix operations
+   before we look for the next binary operation when we
+   parse some given primary. which is the essence of
+   higher precedence.
+*/
 class Unop : public Ast {
 public:
   string op;
@@ -332,6 +449,8 @@ protected:
   make it easy to express some programs,
   and if we add in assignment,
   form something that is turing-complete.
+  (assignment does most of the heavy lifting
+   in getting to turing-completeness)
   iteration and recursion are two sides
   of the same coin.
   these primitive abstractions, I think
@@ -348,11 +467,11 @@ protected:
   place arbitrary code behind an operator,
   and to define new operations on their defined
   types. this is the growth that I speak of.
-  and we need not consider a new operator as
+  and we need not consider a new binop as
   anything other than a new two argument function
   behind the scenes.
   affix/infix expressions, plus polymorphism,
-  operator definitions, and operator overloading,
+  operator definitions, operator overloading,
   and subtyping allow for programmers to build up
   any number of layers on top of one another in
   many different logical ways. each expressing
@@ -360,6 +479,71 @@ protected:
   when we consider a body of executable code, we
   consider at some level, sequencing, selection,
   and iteration over basic entities in the language.
+  we then have ways of composing and decomposing
+  entities from/into their consituent parts.
+  subtyping seems to interfere with overloading,
+  but if some object of a subtype is valid
+  in all instances of where its supertype is valid,
+  as subtyping would seem to imply to me, does it
+  not make sense to simply pass the subtype to
+  some function expecting a supertype?
+  because the only manipulations
+  which exist (by this i mean the set of things
+  that can be done to some type or done with more
+  than one of some type),
+  are either some primitive procedure,
+  or some composite procedure, itself composed of
+  primitive procedures, then the only way we could
+  expect some type to be a subtype of another would
+  be to say that the relationship is encapsulated by
+  the set of procedures which can be validly applied
+  to the supertype are also valid on the subtype.
+  hence, any function i can call
+  on the supertype, i can call on any subtype, and
+  expect the body of that very procedure to itself
+  validly manipulate the subtype object. now,
+  this may be facilitated behind the scenes by way of
+  more than one sequence of assembly instructions,
+  or more than one instance of the procedure in the
+  interpreter.
+  but that is alright because the programmer need not
+  be concerned with their correctness,
+  and, given the above subtyping relationship,
+  if we have some set of procedures which
+  operates upon type A, and we say that some
+  type B is a subtype of A, (written B <: A)
+  then the compiler could infer that every function
+  the programmer has written to operate upon
+  A will be valid upon the type B, and therefore
+  should any of these procedures be polymorphic,
+  we could have the compiler generate the code
+  for each procedure by means of the polymorphic
+  mechanisms. and if these procedures are not
+  polymorphic, we could have the compiler issue
+  a warning or an error to the programmer, and
+  we can do it for each procedure which is valid
+  upon the supertype but not yet the subtype.
+
+  in this same way, we can allow interoperation
+  between program code and handrolled assembly,
+  as long as the programmer is aware of how
+  things are passed, they can write some function
+  in assembly and call it directly within the
+  program. the assumed type signature of the assembly
+  would need to be
+  associated with the assembly code by some mechanisms
+  which would by nessecity alert the linker to these
+  activities.
+  the assumed type of the assembly is such that
+  when i set up the calling context like so, i can
+  issue a jump instruction to such and such location and
+  expect to be jumping into somewhere that continues
+  progress and preservation, i.e. well-formed behavior.
+  and will presumably return to this location of
+  execution whereupon we can resume the current
+  state of affairs.
+  this is in essence the same set of assumptions
+  which are set up for each procedure call.
 
 */
 
@@ -399,9 +583,8 @@ protected:
   only truly consider exact matches
   here. two monomorphic types are only
   equivalent if they represent the same
-  monomorphic type. two possible polymorph types
-  are only equivalent if both actually are
-  polymorphic. if we are comparing two
+  monomorphic type. two entities of polymorphic type
+  are never equivalent. if we are comparing two
   procedure types, we must compare both sides,
   and both sides must be equivalent.
 */
@@ -420,6 +603,14 @@ public:
   string to_string() { return to_string_internal(); }
 };
 
+/*  this is an internal type, which is
+    the type of entities that are not
+    immediately typeable by the parser,
+    which is only procedures in this version.
+    this is anything that isn't atomically
+    some type. and literal is typeable
+    once it has been parsed.
+*/
 class UndefType : public Type {
 public:
   UndefType() : Type() {}
@@ -438,7 +629,7 @@ public:
   string to_string() { return to_string_internal(); }
 };
 
-enum class PrimitiveType {
+enum class AtomicType {
   Nil,
   Int,
   Bool,
@@ -446,28 +637,31 @@ enum class PrimitiveType {
 
 class MonoType : public Type {
 public:
-  PrimitiveType primtype;
+  AtomicType type;
 
   MonoType() = delete;
-  MonoType(PrimitiveType pt) : Type(), primtype(pt) {}
-  MonoType(MonoType& mt) : Type(), primtype(mt.primtype) {}
+  MonoType(AtomicType pt) : Type(), type(pt) {}
+  MonoType(MonoType& mt) : Type(), type(mt.type) {}
 
 protected:
   virtual MonoType* clone_internal() override { return new MonoType(*this); }
 
   virtual string to_string_internal() override {
     string result;
-    switch(primtype) {
-      case PrimitiveType::Nil: {
+    switch(type) {
+      case AtomicType::Nil: {
         result = "Nil";
+        break;
       }
 
-      case PrimitiveType::Int: {
+      case AtomicType::Int: {
         result = "Int";
+        break;
       }
 
-      case PrimitiveType::Bool: {
+      case AtomicType::Bool: {
         result = "Bool";
+        break;
       }
 
       default:
@@ -479,7 +673,7 @@ protected:
 
 class PolyType : public Type {
 public:
-  PolyType() : Type() {}
+  PolyType() {}
   PolyType(PolyType& pt) : Type() {}
 
 protected:
@@ -497,7 +691,7 @@ public:
   unique_ptr<Type> lhs;
   unique_ptr<Type> rhs;
 
-  ProcType() = delete;
+  ProcType() {}
   ProcType(ProcType& pt) : Type(), lhs(pt.lhs->clone()), rhs(pt.rhs->clone()) {}
   ProcType(unique_ptr<Type> l, unique_ptr<Type> r) : Type(), lhs(move(l)), rhs(move(r)) {}
 
@@ -515,13 +709,80 @@ protected:
   }
 };
 
+
+/*
+  procedures:
+  this is the trickiest part of the language
+  when we consider the semantic translation
+  from our syntax to the syntax of x86 and LLVM.
+  procedures have a lot of subtlety to their
+  correct implementation, and in my mind, this
+  is where the language lives or dies.
+  the bodies of procedures need to exist in
+  the assembly translation, and,
+  in order to satisfy all invariants,
+  i would guess we need one assembly procedure
+  body per monomorphic instance of any given
+  polymorphic procedure, in addition to an instance per
+  explicit overload of any procedure. ditto
+  for all operators used (they are 'just' procedures
+  themselves.). and any procedure that is
+  stored as a value will actually need to be stored
+  as a pair of pointers, one to the function,
+  and one to the capture/closure of the 'local'(lexically)
+  variables that said procedure captures from it's
+  syntactic definition. the body of the procedure
+  will be written such that it is assumed that
+  any captured variables will be accessable through
+  the capture/closure ptr, which will be implicitly
+  passed as a hidden first argument to the procedure.
+  and, since it is a refrence, the compiler gets the
+  choice of where to allocate said closure,
+  depending on which funarg problem is being solved.
+  (down or up) now, here is a question that still
+  needs answering, does the same closure work
+  for any single given procedure? if the procedure is
+  polymorphic, then any given instance the compiler
+  generates will have the exact same capture list,
+  as the defining location of the polymorphic procedure
+  is the defining location of every monomorphic
+  instance of that procedure (by definition.)
+  however, if the user can write a new overload
+  anywhere else in the program text, which would
+  be the most conveinent implementation imo,
+  then we couldn't expect that overload to have
+  the same capture list. so within the compiler
+  we need to be careful with our implementation
+  of closures. even though a shared_ptr makes a
+  lot of sense given some polymorph (as each
+  monomorphic instance has the same capture/closure,
+  by definition they capture the same locals.)
+  it makes less sense for any given explicit overload.
+  as each defining occurance has the ability to
+  capture different locals. and, much later, we
+  could imagine picking up explicit overloads from
+  separate compilation units, especially when we
+  consider overloads of operators against different
+  programmer defined objects. the conveinent definition
+  location is with the object you are overloading for.
+  which by best practices is a separate module and
+  file, which allows for a myriad of different ways
+  of closing over different entities.
+  so internally, procedures need to have their
+  own capture/closure object (and hence, each
+  assembly representation will have different instruction
+  sequences for accessing the entities which were captured),
+  but in the case of polymorphs we can,
+  as an optimization, share the same closure/capture
+  between the monomorphic instances.
+*/
 class Procedure {
 public:
-  string           arg_id;
+  string          arg_id;
   unique_ptr<Ast> arg_type;
-  unique_ptr<Ast>  body;
+  unique_ptr<Ast> body;
 
-  Procedure();
+  Procedure() {}
   Procedure(const string& str, unique_ptr<Ast> at, unique_ptr<Ast> b)
     : arg_id(str), arg_type(move(at)), body(move(b)) {}
 
@@ -537,13 +798,37 @@ public:
   }
 };
 
+/*
+  how do we solve the problem of multiple
+  definition, which is what polymorphism and
+  overloading both require. well, instead of
+  considering a procedure to be a singular
+  entity, we consider a procedure definition
+  to actually define a set of procedures.
+  then, when we want to call a polymorphic
+  procedure, we can use the set accessor method
+  to satisfy the typing invariants of the language,
+  and return back a monomorphic instance of the
+  set. or, when we see more than one definition
+  of the same monomorphic procedure,
+  we know that we can add that definition to the set.
+  and when we call
+  said procedure we can use the set accessor
+  procedure to satisfy the typing requirements.
+  (did you give me an argument list that I have
+   a valid definition for? is the same question
+   regardless of polymorphism or monomorphic overloads.)
+   ((and, explicit monomorphic overloads of a
+     polymorphic procedure acts as what c++ calls,
+     partial template specialization))
+*/
 class ProcSet {
 public:
   Procedure def;
   list <Procedure> set;
   bool polymorphic;
 
-  ProcSet();
+  ProcSet() {};
   ProcSet(const Procedure& p, bool poly) : def(p), set(), polymorphic(poly) {}
   ProcSet(const Procedure& p, bool poly, const Location& loc) : def(p), set(), polymorphic(poly) {}
   ProcSet(const ProcSet& ps) : def(ps.def), set(ps.set), polymorphic(ps.polymorphic) {}
@@ -576,13 +861,14 @@ enum class EntityTag {
   again, this mental concept / language concept
   alignment is important.
 
-  we use a tag in addition to a type field so that I can
-  write a ToString function without having to
-  call the typechecker. and the Type field is
-  used by the typechecker and evaluator.
+  we use a tagged union approach because I want
+  entities to represent each of the different
+  'things in the language that can be acted upon'.
+  as unifying this semnatic location, allows for
+  a clean separation between state and behavior.
 
   theoretically, we could have each of the
-  members of the variant be a derived class
+  members of the union be a derived class
   right? my brain is just balking and
   having to rethink the implementation logic
   that much during the rewite.
@@ -594,12 +880,14 @@ enum class EntityTag {
   really know. i'm honestly just happy having
   function overloading :)
   i don't want to change much from c in terms
-  of implementation of this language.
+  of implementation of this language, as the
+  full brunt of OO and FP are not what we
+  are going for, we want a happy medium.
 */
 class Entity : public Ast {
 public:
-  Type    type;
-  EntityTag tag;
+  unique_ptr<Type> type;
+  EntityTag        tag;
   union U {
     char nil;
     int  integer;
@@ -614,43 +902,51 @@ public:
   } u;
 
   ~Entity() = default;
-  Entity() = delete;
-  Entity(const Type& t, const Location& loc)
-    : Ast(loc), type(t), tag(EntityTag::Type), u('\0') {}
+  Entity() : u('\0') {}
+  Entity(unique_ptr<Type> t, const Location& loc)
+    : Ast(loc), type(move(t)), tag(EntityTag::Type), u('\0') {}
 
-  Entity(const Type& t, const char& c, const Location& loc)
-    : Ast(loc), type(t), tag(EntityTag::Nil), u(c) {}
+  Entity(unique_ptr<Type> t, const char& c, const Location& loc)
+    : Ast(loc), type(move(t)), tag(EntityTag::Nil), u(c) {}
 
-  Entity(const Type& t, const int& i, const Location& loc)
-    : Ast(loc), type(t), tag(EntityTag::Int), u(i) {}
+  Entity(unique_ptr<Type> t, const int& i, const Location& loc)
+    : Ast(loc), type(move(t)), tag(EntityTag::Int), u(i) {}
 
-  Entity(const Type& t, const bool& b, const Location& loc)
-    : Ast(loc), type(t), tag(EntityTag::Bool), u(b) {}
+  Entity(unique_ptr<Type> t, const bool& b, const Location& loc)
+    : Ast(loc), type(move(t)), tag(EntityTag::Bool), u(b) {}
 
-  Entity(const Type& t, const Procedure& p, bool poly, const Location& loc)
-    : Ast(loc), type(t), tag(EntityTag::Proc), u((*(new ProcSet(p, poly)))) {}
+  Entity(unique_ptr<Type> t, const Procedure& p, bool poly, const Location& loc)
+    : Ast(loc), type(move(t)), tag(EntityTag::Proc), u((*(new ProcSet(p, poly)))) {}
 
-  Entity(const Type& t, const ProcSet& p, const Location& loc)
-    : Ast(loc), type(t), tag(EntityTag::Proc), u(p) {}
+  Entity(unique_ptr<Type> t, const ProcSet& p, const Location& loc)
+    : Ast(loc), type(move(t)), tag(EntityTag::Proc), u(p) {}
 
   Entity(const Entity& rhs)
-  : Ast(rhs.loc), u('\0') {
+  : Ast(rhs.loc), type(move(rhs.type->clone())), u('\0') {
     tag = rhs.tag;
     switch(tag) {
+      case EntityTag::Type: {
+        break;
+      }
+
       case EntityTag::Nil: {
         u.nil = rhs.u.nil;
+        break;
       }
 
       case EntityTag::Int: {
         u.integer = rhs.u.integer;
+        break;
       }
 
       case EntityTag::Bool: {
         u.boolean = rhs.u.boolean;
+        break;
       }
 
       case EntityTag::Proc: {
         u.procedure = rhs.u.procedure;
+        break;
       }
 
       default:
@@ -665,14 +961,18 @@ protected:
     string result;
     switch(tag) {
       case EntityTag::Type: {
-        result = type.to_string();
+        result = type->to_string();
+        break;
       }
+
       case EntityTag::Nil: {
         result = "nil";
+        break;
       }
 
       case EntityTag::Int: {
         result = std::to_string(u.integer);
+        break;
       }
 
       case EntityTag::Bool: {
@@ -681,6 +981,7 @@ protected:
         } else {
           result = "false";
         }
+        break;
       }
 
       case EntityTag::Proc: {
@@ -691,6 +992,7 @@ protected:
         result += p.def.arg_type->to_string();
         result += " => ";
         result += p.def.body->to_string();
+        break;
       }
     }
     return result;

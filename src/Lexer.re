@@ -4,6 +4,8 @@ using std::string;
 #include "Ast.hh"
 #include "Parser.hh"
 
+string dstr;
+
 void Lexer::set_buffer(const string& str)
 {
     buf = str;
@@ -43,7 +45,7 @@ void Lexer::update_location()
     }
 }
 
-string Lexer::yytext()
+string* Lexer::yytxt()
 {
     /*
         this was once
@@ -53,20 +55,15 @@ string Lexer::yytext()
         to lex.)
 
         so here we emulate said behavior by copying
-        the series of characters from token until cursor.
-
-    string result;
-    int length = cursor - token;
-    for (int i = 0; i < length; i++)
-    {
-        result += token[i];
-    }
-    return result;
+        the series of characters from token until cursor
+        we utilize the string constructor defined
+        with two string iterators to achieve the same
+        result.
     */
-    return string(token, cursor);
+    return new string(token, cursor);
 }
 
-Location& Lexer::yylloc()
+Location& Lexer::yyloc()
 {
     return loc;
 }
@@ -94,7 +91,7 @@ Token Lexer::yylex()
 
             *          { update_location(); return Token::Error;       }
             $          { update_location(); return Token::End;         }
-            [ \t]      { update_location(); return Token::More;        }
+            [ \t]      { update_location(); continue;                  }
             [\n]       { update_location(); return Token::NewLn;       }
             "nil"      { update_location(); return Token::Nil;         }
             "Nil"      { update_location(); return Token::TypeNil;     }
@@ -105,13 +102,13 @@ Token Lexer::yylex()
             "if"       { update_location(); return Token::If;          }
             "then"     { update_location(); return Token::Then;        }
             "else"     { update_location(); return Token::Else;        }
-            identifier { update_location(); return Token::Id;          }
             "\\"       { update_location(); return Token::Backslash;   }
             "("        { update_location(); return Token::LParen;      }
             ")"        { update_location(); return Token::RParen;      }
             ":"        { update_location(); return Token::Colon;       }
             ":="       { update_location(); return Token::ColonEquals; }
             "=>"       { update_location(); return Token::EqRarrow;    }
+            identifier { update_location(); return Token::Id;          }
             integer    { update_location(); return Token::Int;         }
             operator   { update_location(); return Token::Operator;    }
         */

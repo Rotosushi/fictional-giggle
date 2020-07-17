@@ -21,8 +21,8 @@ public:
   void reset();
 
   Token     yylex();
-  string    yytext();
-  Location& yylloc();
+  string*   yytxt();
+  Location& yyloc();
 
 private:
   void update_location();

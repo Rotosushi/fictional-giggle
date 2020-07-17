@@ -6,6 +6,7 @@ using std::string;
 using std::cin;
 using std::cout;
 using std::istream;
+using std::endl;
 
 #include "Ast.hh"
 #include "Lexer.hh"
@@ -24,7 +25,7 @@ int main()
     auto ast = parser.parse(input);
 
     if (ast) {
-      cout << (*ast)->to_string();
+      cout << (*ast)->to_string() << endl ;
     } else {
       cout << "failed to parse input: " << input << "\n";
     }

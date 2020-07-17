@@ -18,6 +18,49 @@ Just enough to say what is interesting
   -> make it do another thing
   -> loop/iterate/recur
 
+
+  events/captures -> analysis/reasoning -> views/storage
+
+-------------------------------------------------------------------------------
+what is a programming language composed of?
+		-> state and behavior.
+
+	what does a programming language need to talk about?
+		-> itself and its environment
+
+		divide the language into four quadrants
+     (state <-> behavior, itself <-> environment)
+
+
+        				|state				            | behavior
+----------------|-------------------------|----------------------------
+				        |	vars, constants	        |	functions
+itself          |	internal context        |	function calls
+				        |	new types		            |	primitive behaviors
+----------------|-------------------------|------------------------
+				        |	processor state         |	OS/library functions
+environment	    |	OS state,		            |	other programs
+				        |	Hardware state	        |	internal/external hardware.
+
+		note:
+			divide the language into four quadrants
+      (primary <-> composed, concrete <-> abstract)
+
+			      |	primary (an entity that cannot be decomposed			|	composed (an entity formed of primary and
+			      |				at the current level of abstraction)		    |				composed entities)
+------------|---------------------------------------------------|------------------------
+			      |	functions&macros:		| atoms:						          |	function:			      	| atoms:
+concrete	  |	=, +, *, cmpxchg,		|	int, real, text,			      |	  push, pop, peek,		|   stack, queue, list
+ provided	  |	typeof, sizeof, [],	|	predefined constants		    |	  prepend, append,		|   map, set, file,
+ by the		  |	if, while, print		|	[], *, !*,					        |	  open, seek, fork,		|   socket, thread,
+ language	  |							        |								              |
+------------|---------------------------------------------------|-------------------------
+			      |	functions:				| atoms:						            |	function:				     | atoms:
+abstract	  |	macro, fcall,			|	local & global vars,		      |	fn, \, 						   | type (adt),
+ written	  |	 						      |								                | operator definitions |
+ by the		  |							      |	local and global consts		    |
+ programmer	|							      |							                	|
+
 -------------------------------------------------------------------------------
 #! language-philosophy
 
@@ -98,6 +141,7 @@ a b + c d * e f - g h
 
 
 --------------------------------------------------------------------------------
+#! working out Procedures
 
 how is it that we mean to support first class functions in a
 procedural way? I'm like 99% sure that we don't want to give
@@ -573,7 +617,7 @@ type. if we cannot type the resulting procedure, that
 is enough information to report a type error.
 
 --------------------------------------------------------------------------------
-
+#! language-philosophy
 
 basis/thesis of something being judged true or false
 basis: what makes it true?
@@ -587,7 +631,7 @@ such that we can validly construct a proof from some starting point
 to a fixed goal "something being judged true or false."
 
 -------------------------------------------------------------------------------
-
+#! working through parsing
 a term is either:
 a variable
 a literal
@@ -1219,8 +1263,8 @@ one task is the context switch.
   of your compiler, and this binds your project even tighter
   to which specific compiler you are using which could
   have consequences. (and you have already decided to write
-  assembly, so you throw portability out of the window for that
-  particular component.)
+  assembly, so you, by definition, throw portability
+  out of the window for that particular component.)
 
   you can always write a separate
   assembly source file and call your assembly like a c-function,
