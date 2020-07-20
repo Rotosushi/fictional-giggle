@@ -8,6 +8,8 @@ using std::cout;
 using std::istream;
 using std::endl;
 
+#include <llvm-10/llvm/IR/Constants.h>
+
 #include "Ast.hh"
 #include "Lexer.hh"
 #include "Parser.hh"
@@ -21,11 +23,12 @@ int main()
 
   while (1) {
     cout << ":> ";
-    cin  >> input;
+    getline(cin, input);
+
     auto ast = parser.parse(input);
 
     if (ast) {
-      cout << (*ast)->to_string() << endl ;
+      cout << (*ast)->to_string() << endl;
     } else {
       cout << "failed to parse input: " << input << "\n";
     }

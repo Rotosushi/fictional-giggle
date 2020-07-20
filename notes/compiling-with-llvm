@@ -1,0 +1,10 @@
+
+
+-I flags need to tell the compiler where the include
+directories are for both llvm and llvm-c. (as they are
+interdependent.)
+
+`llvm-config-10 --cxxflags --ldflags --libs`
+this needs to be a part of the arguments to the
+compiler, otherwise the linker complains about a
+missing function internal to LLVM.

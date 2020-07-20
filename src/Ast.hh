@@ -7,8 +7,6 @@ using std::unique_ptr;
 using std::move;
 #include <list>
 using std::list;
-#include <variant>
-using std::variant;
 using std::get;
 
 /*
@@ -69,6 +67,7 @@ public:
     last_column  = 0;
   }
 };
+
 
 /*
   this is the main data-type
@@ -435,7 +434,6 @@ protected:
   virtual string to_string_internal() override {
     string result;
     result  = op;
-    result += " ";
     result += rhs->to_string();
     return result;
   }
@@ -882,7 +880,8 @@ enum class EntityTag {
   i don't want to change much from c in terms
   of implementation of this language, as the
   full brunt of OO and FP are not what we
-  are going for, we want a happy medium.
+  are going for, we want a happy medium
+  between C and ML, to begin.
 */
 class Entity : public Ast {
 public:

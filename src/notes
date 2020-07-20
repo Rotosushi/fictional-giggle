@@ -22,6 +22,179 @@ Just enough to say what is interesting
   events/captures -> analysis/reasoning -> views/storage
 
 -------------------------------------------------------------------------------
+
+#! out-of-order definitions/usage before definition
+simply put:
+we need to associate each name with a unique definition.
+this is however be context dependent.
+if the programmer defines some name,
+and then another version of the name in the same
+visibility level as the previous definition, (i.e.
+both at global scope, both as local variables, etc.)
+this is an error, as each name needs to be unique.
+however if the programmer redefines the name
+at a lower scope, i.e. there is a global with name
+X, and X is given another definition within a module,
+or a procedure, the new definition instead shadows the
+older definition. ditto for the case of a local procedure.
+this is already the case for procedure arguments,
+we want this behavior as,
+it allows for programmers to use a common set of
+names for basic actions, such as loop iteration, or
+accumulation, without having to worry that some name
+they pick now, will be associated with that one thing
+forever and ever globally. this leads to needless
+complication. as long as everyone is aware that
+the shadow definition takes precedence within the
+scope, and we can still reach the old name by some
+mechanism, (i almost like namespaces, but i need to think
+on it more.) then this is a useful feature.
+
+another subtlety to consider in actually writing
+this language is out of order definitions.
+an out of order definition is a name that is used in
+a definition before it's own defining occurrence.
+this is something that is non-obvious given the
+definition of the grammar, but when writing a program
+it is often the case that we write them 'backwards'
+from how our brains want to approach the problem.
+
+one of the aspects of this problem, is that
+of information ordering. something i commonly find myself
+doing, is having to state my solution to the problem
+in the reverse of how I naturally state the solution.
+this is also part of why we have both 'let x = y in z' and
+'z where x = y' forms in functional languages.
+when wading through logic, brains approach through many different
+possible routes, some place the importance on differing aspects,
+and for a myriad of reasons it is sometimes useful to state
+the same thing in another order. but, this introduces some
+issues, namely, execution ordering, because if we require
+strict execution, then we need the definition of each name
+to happen before each of it's usages, but if some local
+variable is used before it's declaration then the
+declaration code nessecarily needs to be places before the
+usage code, which could be a non-obvious reordering of
+information to programmers of the language.
+so maybe we only allow procedure names to be out-of-order?
+
+this actually becomes a problem in the case of mutually recursive
+procedures, as in, two procedures which call one another, which
+is perfectly acceptable program behavior, and is a legitimate
+problem solving strategy, however when considering writing
+mutually recursive procedures, one must put one down into the
+syntax before the other. both in space and time. if one
+reverses the ordering, they simply reverse the issue.
+this is a problem, for what is a useful property of programming
+languages. the main issue is how do we safely let some
+names be undefined, while still retaining the useful properties
+of the language (progress and preservation).
+well, the parser already doesn't care about the validity of
+any name, so we can construct the tree representation of
+the declaration regardless of it's typeability or it's
+executability. given this, perhaps we can solve the issue
+via interactions with the typechecker. if we denote the
+known issue "usage before declaration" with a special
+path of execution, we could perhaps use that to move
+such "invalid" declarations to a staging area, and, given
+the declaration of a new name, we could go back
+and look to see if that makes any of our "invalid" declarations
+typecheck. and, instead of running a full typecheck everytime a
+name is declared, we only do a typecheck once we find the
+requisite name, the staging area could be a multimap
+which maps the undeclared names to the dependent declarations, then upon
+declaration of a new name, we check the multimap for a procedure
+which could now be typeable. if we get back a declaration
+we could then try to typecheck that declaration given
+the newly defined name, which has three possible outcomes,
+the name was the only missing declaration, and now the
+declaration is typeable, and thus, executable. or the
+declaration is not typeable, in which case we find our
+two other options, the typing failed because the new name
+was not the only undeclared name, in which case we need to keep
+delaying. or the new name was in fact the only missing
+declaration, but, given it's new type, the old declaration
+now does not typecheck, which is an error.
+(an unanswered question: what about name shadowing?
+how do we know when to look for staged functions
+if we do it everytime a name is declared, then
+there remains the possibility of the compiler
+inferring a local declaration as the name to
+be associated, which would undoubtedly be confusing.
+we only want to compare against new definitions
+which occur in the same of higher visibility
+level as the staged definition. perhaps we
+do a check only at certain points of compilation
+to enforce this?
+lets stop thinking in the abstract and consider
+an actual example.
+take the context of the interpretive
+environment to start;
+if we encounter a declaration that needs to be staged,
+say a name,
+  x := y
+where y is undefined.
+we, instead of immediately reporting an error,
+stage the declaration,
+then when another name is declared we could
+check the staged declarations to see if
+one of them is depending upon the newly declared name.
+say,
+  y := 42
+woohoo! guess what, the staged declaration
+is now typeable, and can be executed!
+if one of the staged declarations becomes
+a valid and full declaration, we would need
+to trigger this behavior again, in case one
+of the still staged declarations depended upon the
+newly valid declaration.
+
+if we were compiling, I think this could work.
+but we also need to consider that a declaration
+in one module, relies upon a declaration within
+another module.
+
+the only thing that cannot happen to a staged
+declaration is execution, typing, and compilation.
+if we are forced into a situation where in order
+to proceed we have to type/execute/compile a
+staged declaration, that is an error.
+we allow some information reordering to allow
+a wider range of ideas to be stated.
+
+is the order of
+
+z := x + y;
+x := 4;
+useful?
+
+it allows for the equivalent of the difference between
+'let x = y in z' and 'z where x = y'
+in an imperative style.
+
+it is not trivially obvious why this is useful.
+but it is very useful, especially in complex
+circumstances.
+
+another aspect of use-before-definition is of operators,
+as the precedence of operators needs to be known a-priori to
+properly parse an affix expression.
+
+which means that an affix expression may fail to parse,
+even if the operator is defined later in the source text.
+to allow these to parse we need to fail, and wait for a different
+event, the declaration of an operator. then reparse the actual
+input text. as there is no way to even validly parse an undefined
+operator. which means the staging area would, by the above logic,
+be a multimap of strings to string, where the keys are
+the undefined operators, and the value is the string which needs
+parsing. the really interesting thing, is how pervasive and
+deeply nested affix expressions are within the Abstract Syntax Tree.
+if we think of an undefined operator within an argument to a
+procedure call, within the body of a procedure definition, we
+have a lot of parser to backtrack and restart.
+
+-------------------------------------------------------------------------------
 what is a programming language composed of?
 		-> state and behavior.
 

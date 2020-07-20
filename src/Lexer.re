@@ -71,7 +71,7 @@ Location& Lexer::yyloc()
 /*!re2c
     identifier = [a-zA-Z_][a-zA-Z0-9_]*;
     integer    = [0-9]+;
-    operator   = [*/+-><:=&^%$#@!?~|]+;
+    operator   = [+\-*/%<>:=&@!~|$\^]+;
 */
 
 #define YYPEEK()      (*cursor)

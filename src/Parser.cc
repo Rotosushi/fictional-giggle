@@ -60,9 +60,9 @@ void Parser::fillTokens(int i)
     int n = (curidx + i) - tokbuf.size(); // how many tokens do we need?
 
     for (int j = 0; j < n; j++) {
-      auto tok = lexer.yylex();
-      auto str = lexer.yytxt();
-      auto loc = lexer.yyloc();
+      auto    tok = lexer.yylex();
+      string* str = lexer.yytxt();
+      auto    loc = lexer.yyloc();
       tokbuf.push_back(tok);
       txtbuf.push_back(*str);
       locbuf.push_back(loc);
@@ -222,7 +222,8 @@ unique_ptr<Ast> Parser::parse_term()
     root node as ((a b) c) d.
   */
   if (lhs) {
-    if (is_primary(curtok())) {
+    if ((curtok() == Token::Operator && is_unop(curtxt()))
+     || (curtok() != Token::Operator && is_primary(curtok()))) {
       do {
         rhs = parse_primary();
         Location&& rhsloc = curloc();
@@ -232,7 +233,8 @@ unique_ptr<Ast> Parser::parse_term()
                                     rhsloc.first_column);
 
         lhs = unique_ptr<Ast>(new Call(move(lhs), move(rhs), callloc));
-      } while (is_primary(curtok()));
+      } while ((curtok() == Token::Operator && is_unop(curtxt()))
+            || (curtok() != Token::Operator && is_primary(curtok())));
     }
     /*
     if the term immediately after the primary
@@ -271,7 +273,9 @@ unique_ptr<Ast> Parser::parse_primary()
       the value 'nil', a senseless operation.
       defining it as the lhs of the bind, would
       allow compound bindings to be well formed,
-      something the designers of c liked,)
+      something the designers of c liked.
+      something like x := y := z := 100)
+
     */
     case Token::Id: {
       string&& id = curtxt();
@@ -645,16 +649,18 @@ bool Parser::speculate_term()
   }
 
   if (result) {
-    if (is_primary(curtok())) {
+    if ((curtok() == Token::Operator && is_unop(curtxt()))
+     || (curtok() != Token::Operator && is_primary(curtok()))) {
       do {
         result = speculate_primary();
         if (!result) {
           // error: unable to parse primary term.
           break;
         }
-      } while (is_primary(curtok()));
+      } while ((curtok() == Token::Operator && is_unop(curtxt()))
+            || (curtok() != Token::Operator && is_primary(curtok())));
     }
-    else if (is_binop(curtxt())) {
+    else if (curtok() == Token::Operator && is_binop(curtxt())) {
       /*
       an infix/affix expression,
       modulo precedence, is:
@@ -667,7 +673,7 @@ bool Parser::speculate_term()
           // error: unable to parse primary term.
           break;
         }
-      } while (is_binop(curtxt()));
+      } while (curtok() == Token::Operator && is_binop(curtxt()));
     }
   }
 
@@ -693,6 +699,9 @@ bool Parser::speculate_primary()
     if (speculate_term()) {
       result = speculate(Token::RParen);
     }
+  }
+  else if (speculate(Token::Operator)) {
+    result = speculate_primary();
   }
   else if (curtok() == Token::If) {
     result = speculate_if();

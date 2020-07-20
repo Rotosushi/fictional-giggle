@@ -1,0 +1,166 @@
+
+
+so, we will be using LLVM as the backend
+to simplify implementation.
+
+to first get up and running
+we need to think about what
+the assembly representation
+needs to include and look
+like, in order to plan somewhat
+the organization and structure
+of the "translator" class.
+
+we can define the Typechecker,
+the Evaluator, and the Translator
+classes as visitors to the Ast.
+in order for the subroutines
+to do their work upon the different
+types of Node, the class will be an
+overload set of procedures, each having
+a unique body to deal with each node,
+and the node to be processed is passed
+by argument, which allows us to define
+the visitors to be mutually recursive,
+and apply the right procedure to the right
+runtime type of the Ast nodes being
+processed. with the dispatch being
+taken care of by the compiler, instead
+of having to write the switch statement
+ourselves. (as we did in the c implementation)
+
+
+so,
+getting to LLVM,
+we need to start with
+what do we need to be producing,
+and how do we produce it?
+(some eternal programming questions)
+
+we (eventually) need to produce separate
+compilation units, the contents of each
+being the translated contents of each
+source file that was parsed and
+translated by the compiler.
+this is after we have modules however.
+
+to start, we consider translation from the
+perspective of the interpretive environment.
+namely, a procedure which takes an Abstract
+syntax tree, and produces the correct LLVM
+intermediate Representation which has the
+same semantics as the given syntax.
+this is the primitive operation upon which
+we act to build up the assembly translation
+of all the source text.
+
+we can consider an interpretive
+environment which can translate pieces of
+itself into LLVM. it is then, that we can
+consider the processes of compilation.
+as a coordination of the translation
+process, such that we end up with a single
+executable, which exhibits the semantics of
+all the source text. we combine two source
+files, expecting to find no two identical
+declarations, (with a small exception in
+procedure overloading),
+we will eventually consider modules,
+which control the visibility of their definitions
+and thus control the visibility of names
+between modules. additionally, we will have
+some form of object orientation, given that
+objects are a implementation of existential
+types, and existential types give us interfaces,
+and objects. we need not take all the same subtleties
+and constraints. (but we may need to take and
+understand some, those which are more fundamental
+to the problem, than those that are fundamental to
+the implementation within other languages.)
+
+simply put, names need
+to uniquely identify entites within the
+program, we would say global value names need
+to be distinct from one another, as we cannot
+treat a global constant name as two separate
+anythings. but we can allow procedures to share
+names as long they differ by number or type of
+arguments.
+
+
+starting from a set of
+source files, and a function which can
+translate any given Ast into LLVM IR.
+we consider the processes of picking up
+definitions until we are out of source text
+and then translating the final set of
+knowable definitions into the final executable.
+(this is modulo dynamic linking.)
+
+{ source-file : { source-text }} ...
+{ module : { IR }} ...
+{ executable }
+
+
+so, we consider the translation of each of our component
+language entities.
+
+starting with Types.
+we can type Integers as having type IntegerType
+with some specified bitwidth
+
+we can represent bool types as having
+IntegerType with bitwidth one.
+
+we can represent reals as having Type
+float. but llvm declares no subclass
+for floats.
+
+
+
+
+starting with expressions, and thusly, constants.
+in LLVM constants have their own class for representation.
+
+#include "llvm/IR/Constants.h"
+
+we can translate literal integers that we see directly
+into objects of type
+  ConstantInt.
+there are constructors which take strings even.
+
+we can similarly use more of these classes for
+constants of other varieties.
+
+ConstantFP (for Real literals)
+
+ConstantArray
+ConstantVector
+ConstantStruct
+
+ConstantExpr (for expressions which can be performed at compile time)
+
+
+GlobalValue is the type of functions (their address specifically)
+ and global variables, and is a subclass of Constant
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+----------------------------------------------
