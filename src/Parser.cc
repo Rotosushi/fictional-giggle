@@ -15,6 +15,9 @@ using std::optional;
 using std::pair;
 using std::get;
 
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Type.h"
+
 #include "Parser.hh"
 #include "Ast.hh"
 #include "Lexer.hh"
@@ -56,10 +59,12 @@ bool Parser::speculating()
 
 void Parser::fillTokens(int i)
 {
-  if (curidx + i > tokbuf.size()) { // do we need more tokens than we have?
+  if (curidx + i > tokbuf.size()) // do we need more tokens than we have?
+  {
     int n = (curidx + i) - tokbuf.size(); // how many tokens do we need?
 
-    for (int j = 0; j < n; j++) {
+    for (int j = 0; j < n; j++)
+    {
       auto    tok = lexer.yylex();
       string* str = lexer.yytxt();
       auto    loc = lexer.yyloc();
@@ -99,9 +104,12 @@ Location Parser::curloc()
 bool Parser::is_unop(const string& op)
 {
   auto unop = unops.find(op);
-  if (unop != unops.end()) {
+  if (unop != unops.end())
+  {
     return true;
-  } else {
+  }
+  else
+  {
     return false;
   }
 }
@@ -109,22 +117,53 @@ bool Parser::is_unop(const string& op)
 bool Parser::is_binop(const string& op)
 {
   auto binop = binops.find(op);
-  if (binop) {
+  if (binop)
+  {
     return true;
-  } else {
+  }
+  else
+  {
+    return false;
+  }
+}
+
+bool Parser::is_typeop(const string& op)
+{
+  auto typeop = typeops.find(op);
+  if (typeop)
+  {
+    return true;
+  }
+  else
+  {
     return false;
   }
 }
 
 bool Parser::is_primary(Token t)
 {
-  switch(t) {
-    case Token::Nil: case Token::TypeNil:
-    case Token::Int: case Token::TypeInt:
+  if (is_type_primitive(t))
+    return true;
+
+  switch(t)
+  {
+    case Token::Nil: case Token::Int:
     case Token::True: case Token::False:
-    case Token::TypeBool: case Token::If:
-    case Token::Id: case Token::Backslash:
-    case Token::Operator: case Token::LParen:
+    case Token::Id: case Token::If:
+    case Token::Backslash: case Token::Operator:
+    case Token::LParen:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool Parser::is_type_primitive(Token t)
+{
+  switch(t)
+  {
+    case Token::TypeNil: case Token::TypeInt:
+    case Token::TypeBool:
       return true;
     default:
       return false;
@@ -133,7 +172,8 @@ bool Parser::is_primary(Token t)
 
 bool Parser::is_ender(Token t)
 {
-  switch(t) {
+  switch(t)
+  {
     case Token::RParen: case Token::End:
     case Token::NewLn: case Token::EqRarrow:
     case Token::Then: case Token::Else:
@@ -145,10 +185,13 @@ bool Parser::is_ender(Token t)
 
 bool Parser::speculate(Token t)
 {
-  if (t == curtok()) {
+  if (t == curtok())
+  {
     nextok();
     return true;
-  } else {
+  }
+  else
+  {
     return false;
 
   }
@@ -196,7 +239,8 @@ unique_ptr<Ast> Parser::parse_term()
     (we hope).
   */
   Location&& lhsloc = curloc();
-  if (is_primary(curtok())) {
+  if (is_primary(curtok()))
+  {
     lhs = parse_primary();
   }
 
@@ -223,8 +267,10 @@ unique_ptr<Ast> Parser::parse_term()
   */
   if (lhs) {
     if ((curtok() == Token::Operator && is_unop(curtxt()))
-     || (curtok() != Token::Operator && is_primary(curtok()))) {
-      do {
+     || (curtok() != Token::Operator && is_primary(curtok())))
+    {
+      do
+      {
         rhs = parse_primary();
         Location&& rhsloc = curloc();
         Location callloc = Location(lhsloc.first_line,
@@ -254,7 +300,13 @@ unique_ptr<Ast> Parser::parse_primary()
 {
   unique_ptr<Ast> lhs;
   Location&& lhsloc = curloc();
-  switch(curtok()) {
+  switch(curtok())
+  {
+    case TypeNil:
+    case TypeInt:
+    case TypeBool:
+      lhs = parse_type_primitive();
+      break;
     /* a variable by itself, or a bind expression.
       notice how, unless the bind expression is
       contained within some lexical structure,
@@ -281,7 +333,8 @@ unique_ptr<Ast> Parser::parse_primary()
       string&& id = curtxt();
       nextok(); // eat Id
 
-      if (curtok() == Token::ColonEquals) {
+      if (curtok() == Token::ColonEquals)
+      {
         nextok(); // eat ':='
 
         // parse_term is responsible for consuming
@@ -293,7 +346,9 @@ unique_ptr<Ast> Parser::parse_primary()
                                     rhsloc.first_line,
                                     rhsloc.first_column);
         lhs = unique_ptr<Ast>(new Bind(id, move(rhs), bindloc));
-      } else {
+      }
+      else
+      {
         lhs = unique_ptr<Ast>(new Variable(id, lhsloc));
       }
       break;
@@ -324,52 +379,35 @@ unique_ptr<Ast> Parser::parse_primary()
     of parsing subroutines.
     */
 
-    case Token::Nil: {
-      auto niltype = unique_ptr<Type>(new MonoType(AtomicType::Nil));
-      lhs = unique_ptr<Ast>(new Entity(move(niltype), '\0', lhsloc));
+    case Token::Nil:
+    {
+      Type* niltype = ctx->getVoidTy();
+      lhs = unique_ptr<Ast>(new Entity(niltype, '\0', lhsloc));
       nextok();
       break;
     }
 
-    case Token::TypeNil: {
-      auto niltype = unique_ptr<Type>(new MonoType(AtomicType::Nil));
-      lhs = unique_ptr<Ast>(new Entity(move(niltype), lhsloc));
+    case Token::Int:
+    {
+      int value     = stoi(curtxt());
+      Type* inttype = ctx->getInt32Ty();
+      lhs = unique_ptr<Ast>(new Entity(inttype, value, lhsloc));
       nextok();
       break;
     }
 
-    case Token::Int: {
-      int value    = stoi(curtxt());
-      auto inttype = unique_ptr<Type>(new MonoType(AtomicType::Int));
-      lhs = unique_ptr<Ast>(new Entity(move(inttype), value, lhsloc));
+    case Token::True:
+    {
+      Type* booltype = ctx->getInt1Ty();
+      lhs = unique_ptr<Ast>(new Entity(booltype, true, lhsloc));
       nextok();
       break;
     }
 
-    case Token::TypeInt: {
-      auto inttype = unique_ptr<Type>(new MonoType(AtomicType::Int));
-      lhs = unique_ptr<Ast>(new Entity(move(inttype), lhsloc));
-      nextok();
-      break;
-    }
-
-    case Token::True: {
-      auto booltype = unique_ptr<Type>(new MonoType(AtomicType::Bool));
-      lhs = unique_ptr<Ast>(new Entity(move(booltype), true, lhsloc));
-      nextok();
-      break;
-    }
-
-    case Token::False: {
-      auto booltype = unique_ptr<Type>(new MonoType(AtomicType::Bool));
-      lhs = unique_ptr<Ast>(new Entity(move(booltype), false, lhsloc));
-      nextok();
-      break;
-    }
-
-    case Token::TypeBool: {
-      auto booltype = unique_ptr<Type>(new MonoType(AtomicType::Bool));
-      lhs = unique_ptr<Ast>(new Entity(move(booltype), lhsloc));
+    case Token::False:
+    {
+      Type* booltype = ctx->getInt1Ty();
+      lhs = unique_ptr<Ast>(new Entity(booltype, false, lhsloc));
       nextok();
       break;
     }
@@ -379,7 +417,8 @@ unique_ptr<Ast> Parser::parse_primary()
     is always considered to be a unary operation
     by the parser.
     */
-    case Token::Operator: {
+    case Token::Operator:
+    {
       string&& op = curtxt();
       nextok();
 
@@ -394,25 +433,31 @@ unique_ptr<Ast> Parser::parse_primary()
       break;
     }
 
-    case Token::LParen: {
+    case Token::LParen:
+    {
       nextok();
 
       auto lhs = parse_term();
 
-      if (curtok() == Token::RParen) {
+      if (curtok() == Token::RParen)
+      {
         nextok();
         // good term
-      } else {
+      }
+      else
+      {
         // error: missing closing right parenthesis.
       }
     }
 
-    case Token::If: {
+    case Token::If:
+    {
       lhs = parse_if();
       break;
     }
 
-    case Token::Backslash: {
+    case Token::Backslash:
+    {
       lhs = parse_procedure();
       break;
     }
@@ -430,14 +475,16 @@ unique_ptr<Ast> Parser::parse_primary()
       from the point-of-view of the theorist,
       everything past turing completeness is
       syntactic conveinence, so i don't hold
-      much stock in that argument.
+      much stock in that counter-argument.
       the conveinence is more akin to expressing intention
       in different ways to me. sometimes it is
       usefull to say the same thing in different ways,
       as everyone understands things differently.
       so we simply choose to draw the line a little
       further up from the bare minimum, just enough
-      that we can still get a grasp on
+      that we can still get a grasp on everything
+      from a theoretical perspective, but loose
+      enough to give some freedom of expression.
     */
     case Token::End: case Token::Then:
     case Token::Else: case Token::RParen:
@@ -461,17 +508,20 @@ unique_ptr<Ast> Parser::parse_if()
 {
   Location&& lhsloc = curloc();
   unique_ptr<Ast> cond, test, first, second;
-  if (curtok() == Token::If) {
+  if (curtok() == Token::If)
+  {
     nextok();
 
     test = parse_term();
 
-    if (curtok() == Token::Then) {
+    if (curtok() == Token::Then)
+    {
       nextok();
 
       first = parse_term();
 
-      if (curtok() == Token::Else) {
+      if (curtok() == Token::Else)
+      {
         nextok();
 
         second = parse_term();
@@ -481,11 +531,13 @@ unique_ptr<Ast> Parser::parse_if()
                                               rhsloc.first_column);
         cond = unique_ptr<Ast>(new Cond(move(test), move(first), move(second), condloc));
       }
-      else {
+      else
+      {
         // error: missing else
       }
     }
-    else {
+    else
+    {
       // error: missing then
     }
   }
@@ -497,25 +549,29 @@ unique_ptr<Ast> Parser::parse_procedure()
   bool poly = false;
   unique_ptr<Ast> proc, type, body;
   Location&& lhsloc = curloc();
-  if (curtok() == Token::Backslash) {
+  if (curtok() == Token::Backslash)
+  {
     nextok();
 
-    if (curtok() == Token::Id) {
+    if (curtok() == Token::Id)
+    {
       string&& id = curtxt();
       nextok();
 
       // parse the optional type annotation
-      if (curtok() == Token::Colon) {
+      if (curtok() == Token::Colon)
+      {
         nextok();
         type = parse_term();
       }
-      else {
-        auto polytype = unique_ptr<Type>(new PolyType());
-        type = unique_ptr<Ast>(new Entity(move(polytype), Location()));
+      else
+      {
+        type = unique_ptr<Ast>(new Entity(EntityTypeTag::Poly, Location()));
         poly = true;
       }
 
-      if (curtok() == Token::EqRarrow) {
+      if (curtok() == Token::EqRarrow)
+      {
         nextok();
         body = parse_term();
         Location&& rhsloc = curloc();
@@ -524,19 +580,57 @@ unique_ptr<Ast> Parser::parse_procedure()
                          rhsloc.first_line,
                          rhsloc.first_column);
 
-        auto undeftype = unique_ptr<Type>(new UndefType());
-        proc = unique_ptr<Ast>(new Entity(move(undeftype), Procedure(id, move(type), move(body)), move(poly), procloc));
+        proc = unique_ptr<Ast>(new Entity(Procedure(id, move(type), move(body)), poly, procloc));
       }
-      else {
+      else
+      {
         // error: expecting '=>' to predict function body
       }
 
     }
-    else {
+    else
+    {
       // error: expecting Id immediately after '\\'
     }
   }
   return proc;
+}
+
+unique_ptr<Ast> Parser::parse_type_primitive()
+{
+  unique_ptr<Ast> lhs;
+  Location loc = curloc();
+  switch(curtok())
+  {
+    case Token::TypeNil:
+    {
+      Type* niltype = ctx->getVoidTy();
+      lhs = unique_ptr<Ast>(new Entity(niltype, lhsloc));
+      nextok();
+      break;
+    }
+
+    case Token::TypeInt:
+    {
+      Type* inttype = ctx->getInt32Ty();
+      lhs = unique_ptr<Ast>(new Entity(inttype, lhsloc));
+      nextok();
+      break;
+    }
+
+    case Token::TypeBool:
+    {
+      Type* booltype = ctx->getInt1Ty();
+      lhs = unique_ptr<Ast>(new Entity(booltype, lhsloc));
+      nextok();
+      break;
+    }
+
+    default:
+      throw "unknown type primitive\n";
+
+  }
+  return lhs;
 }
 
 unique_ptr<Ast> Parser::parse_infix(unique_ptr<Ast> lhs, int precedence)
@@ -588,7 +682,8 @@ unique_ptr<Ast> Parser::parse_infix(unique_ptr<Ast> lhs, int precedence)
   */
   optional<pair<int, Assoc>> lopPrec;
 
-  while ((lopPrec = binops.find(curtxt())) && get<int>(*lopPrec) >= precedence) {
+  while ((lopPrec = binops.find(curtxt())) && get<int>(*lopPrec) >= precedence)
+  {
     string&& optxt = curtxt();
     auto       op = lopPrec;
 
@@ -641,26 +736,49 @@ bool Parser::speculate_term()
 {
   bool result = true;
 
-  if (is_primary(curtok())) {
+  if (is_primary(curtok()))
+  {
     result = speculate_primary();
-  } else {
+  }
+  else
+  {
     // error: expression must begin
     //  with a primary term.
   }
 
-  if (result) {
-    if ((curtok() == Token::Operator && is_unop(curtxt()))
-     || (curtok() != Token::Operator && is_primary(curtok()))) {
-      do {
+  if (result)
+  {
+
+    if (curtok() != Token::Operator && is_primary(curtok()))
+    {
+      do
+      {
         result = speculate_primary();
-        if (!result) {
+        if (!result)
+        {
           // error: unable to parse primary term.
           break;
         }
-      } while ((curtok() == Token::Operator && is_unop(curtxt()))
-            || (curtok() != Token::Operator && is_primary(curtok())));
+      } while (curtok() != Token::Operator && is_primary(curtok()));
     }
-    else if (curtok() == Token::Operator && is_binop(curtxt())) {
+    else if (curtok() == Token::Operator && is_unop(curtxt()))
+    {
+      nextok();
+      result = speculate_term();
+    }
+    else if (curtok() == Token::Operator && is_typeop(curtxt()))
+    {
+      do {
+        nextok();
+        result = speculate_type_primitive();
+        if (!result) {
+          // error: type operators only valid on type primitives
+          break;
+        }
+      } while (curtok() == Token::Operator && is_typeop(curtxt()));
+    }
+    else if (curtok() == Token::Operator && is_binop(curtxt()))
+    {
       /*
       an infix/affix expression,
       modulo precedence, is:
@@ -669,7 +787,8 @@ bool Parser::speculate_term()
       do {
         nextok(); // eat the binop
         result = speculate_primary();
-        if (!result) {
+        if (!result)
+        {
           // error: unable to parse primary term.
           break;
         }

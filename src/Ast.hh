@@ -9,6 +9,9 @@ using std::move;
 using std::list;
 using std::get;
 
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Type.h"
+
 /*
   the abstract syntax tree is the main
   data structure of this program. each
@@ -585,8 +588,20 @@ protected:
   are never equivalent. if we are comparing two
   procedure types, we must compare both sides,
   and both sides must be equivalent.
+
+  i am currently rethinking the Type class
+  after having written some of the typechecker.
+  with the current design, we are forced into
+  using dynamic_cast to enforce some invariants.
+  it may instead be better if we were to
+  implement the Type class in the same way as
+  the Entity class. a tagged union between
+  MonoType and ProcType. this would turn
+  dynamic_casts into checks against the tag.
+  this would factor out RTTI of the design.
 */
 
+/*
 class Type {
 public:
   Type() {}
@@ -601,33 +616,9 @@ public:
   string to_string() { return to_string_internal(); }
 };
 
-/*  this is an internal type, which is
-    the type of entities that are not
-    immediately typeable by the parser,
-    which is only procedures in this version.
-    this is anything that isn't atomically
-    some type. and literal is typeable
-    once it has been parsed.
-*/
-class UndefType : public Type {
-public:
-  UndefType() : Type() {}
-
-protected:
-  UndefType* clone_internal() override {
-    return new UndefType(*this);
-  }
-
-  string to_string_internal() override {
-    return "Undef";
-  }
-
-public:
-  auto clone() { return unique_ptr<Type>(clone_internal()); }
-  string to_string() { return to_string_internal(); }
-};
-
 enum class AtomicType {
+  Undef,
+  Poly,
   Nil,
   Int,
   Bool,
@@ -637,8 +628,8 @@ class MonoType : public Type {
 public:
   AtomicType type;
 
-  MonoType() = delete;
-  MonoType(AtomicType pt) : Type(), type(pt) {}
+  MonoType() : Type(), type(AtomicType::Undef) {}
+  MonoType(AtomicType t) : Type(), type(t) {}
   MonoType(MonoType& mt) : Type(), type(mt.type) {}
 
 protected:
@@ -647,6 +638,16 @@ protected:
   virtual string to_string_internal() override {
     string result;
     switch(type) {
+      case AtomicType::Undef: {
+        result = "Undef";
+        break;
+      }
+
+      case AtomicType::Poly: {
+        result = "Poly";
+        break;
+      }
+
       case AtomicType::Nil: {
         result = "Nil";
         break;
@@ -669,20 +670,6 @@ protected:
   }
 };
 
-class PolyType : public Type {
-public:
-  PolyType() {}
-  PolyType(PolyType& pt) : Type() {}
-
-protected:
-  virtual PolyType* clone_internal() override { return new PolyType(*this); }
-
-  virtual string to_string_internal() override {
-    string result;
-    result = "Poly";
-    return result;
-  }
-};
 
 class ProcType : public Type {
 public:
@@ -706,6 +693,7 @@ protected:
     return result;
   }
 };
+*/
 
 
 /*
@@ -840,13 +828,7 @@ public:
   }
 };
 
-enum class EntityTag {
-  Type,
-  Nil,
-  Int,
-  Bool,
-  Proc,
-};
+
 
 /*
   an entity is (simply put)
@@ -882,11 +864,59 @@ enum class EntityTag {
   full brunt of OO and FP are not what we
   are going for, we want a happy medium
   between C and ML, to begin.
+
+
+  so, we want entites to have LLVM types
+  which we will use to write the typechecker
+  and thusly, the internal evaluator.
+  this should make writing the translator
+  easier, because we can use the LLVM types
+  to direct the control flow, which is the
+  intended use of the LLVM types.
+
+  since types are uniqued behind the scenes
+  each entites type is represented
+  by a pointer to the actual type.
+
 */
+
+enum class EntityTypeTag {
+  Undef,
+  Mono,
+  Poly,
+};
+
+enum class EntityValueTag {
+  Undef,
+  Type,
+  Nil,
+  Int,
+  Bool,
+  Proc,
+};
+
 class Entity : public Ast {
 public:
-  unique_ptr<Type> type;
-  EntityTag        tag;
+  Type* type;
+  // the type tag is used to tell if
+  // this entity is some actual type,
+  // or a polymorphic entity, or an
+  // entity whose type is undefined
+  // for one of a few reasons,
+  // we cannot type said entity at construction time,
+  // as is the case of procedures and
+  // will be the case of other composite literals.
+  // it is the type of an invalid expression.
+  // we may use it to reparse expressions
+  // in order to support name-use-before-definition.
+  // but we need to separate an actual error
+  // from a known case, like name-use-before-definition
+  // vs. a missing primary expression.
+  // vs. a missing terminal token within some term.
+  EntityTypeTag  type_tag;
+  // the value tag is to differenciate
+  // between union members
+  EntityValueTag value_tag;
   union U {
     char nil;
     int  integer;
@@ -901,28 +931,48 @@ public:
   } u;
 
   ~Entity() = default;
-  Entity() : u('\0') {}
-  Entity(unique_ptr<Type> t, const Location& loc)
-    : Ast(loc), type(move(t)), tag(EntityTag::Type), u('\0') {}
+  Entity()
+    : Ast(), type(nullptr), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Undef), u('\0') {}
 
-  Entity(unique_ptr<Type> t, const char& c, const Location& loc)
-    : Ast(loc), type(move(t)), tag(EntityTag::Nil), u(c) {}
+  Entity(EntityTypeTag tt, const Location& loc)
+    : Ast(), type(nullptr), type_tag(tt), value_tag(EntityValueTag::Type), u('\0') {}
 
-  Entity(unique_ptr<Type> t, const int& i, const Location& loc)
-    : Ast(loc), type(move(t)), tag(EntityTag::Int), u(i) {}
+  Entity(Type* t, const Location& loc)
+    : Ast(loc), type(t), type_tag(EntityTypeTag::Type), value_tag(EntityValueTag::Type), u('\0') {}
 
-  Entity(unique_ptr<Type> t, const bool& b, const Location& loc)
-    : Ast(loc), type(move(t)), tag(EntityTag::Bool), u(b) {}
+  Entity(Type* t, const char& c, const Location& loc)
+    : Ast(loc), type(t), type_tag(EntityTypeTag::Mono), value_tag(EntityValueTag::Nil), u(c) {}
 
-  Entity(unique_ptr<Type> t, const Procedure& p, bool poly, const Location& loc)
-    : Ast(loc), type(move(t)), tag(EntityTag::Proc), u((*(new ProcSet(p, poly)))) {}
+  Entity(Type* t, const int& i, const Location& loc)
+    : Ast(loc), type(t), type_tag(EntityTypeTag::Mono), value_tag(EntityValueTag::Int), u(i) {}
 
-  Entity(unique_ptr<Type> t, const ProcSet& p, const Location& loc)
-    : Ast(loc), type(move(t)), tag(EntityTag::Proc), u(p) {}
+  Entity(Type* t, const bool& b, const Location& loc)
+    : Ast(loc), type(t), type_tag(EntityTypeTag::Mono), value_tag(EntityValueTag::Bool), u(b) {}
+
+  Entity(const Procedure& p, bool poly, const Location& loc)
+    : Ast(loc), type(nullptr), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Proc), u((*(new ProcSet(p, poly))))
+  {
+    if (poly) {
+      type_tag = EntityTypeTag::Poly;
+    } else {
+      type_tag = EntityTypeTag::Mono;
+    }
+  }
+
+  Entity(const ProcSet& p, const Location& loc)
+    : Ast(loc), type(nullptr), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Proc), u(p)
+  {
+    if (p.polymorphic) {
+      type_tag = EntityTypeTag::Poly;
+    } else {
+      type_tag = EntityTypeTag::Mono;
+    }
+  }
 
   Entity(const Entity& rhs)
-  : Ast(rhs.loc), type(move(rhs.type->clone())), u('\0') {
-    tag = rhs.tag;
+  : Ast(rhs.loc), type(rhs.type), u('\0') {
+    type_tag  = rhs.type_tag;
+    value_tag = rhs.value_tag;
     switch(tag) {
       case EntityTag::Type: {
         break;

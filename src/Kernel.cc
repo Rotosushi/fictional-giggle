@@ -14,6 +14,11 @@ using std::get;
 #include "OperatorTable.hh"
 #include "Kernel.hh"
 
+void init_typeops(OperatorTable& typeops)
+{
+  typeops.insert("->", 5, Assoc::Right);
+}
+
 void init_binops(OperatorTable& binops)
 {
   binops.insert("+", 5, Assoc::Left);

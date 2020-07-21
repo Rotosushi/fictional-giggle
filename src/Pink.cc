@@ -8,7 +8,7 @@ using std::cout;
 using std::istream;
 using std::endl;
 
-#include <llvm-10/llvm/IR/Constants.h>
+#include "llvm-10/llvm/IR/Constants.h"
 
 #include "Ast.hh"
 #include "Lexer.hh"
@@ -16,7 +16,9 @@ using std::endl;
 
 int main()
 {
-  Parser parser;
+  LLVMContext context;
+  
+  Parser parser(&context);
   string input;
 
   cout << "Welcome to Pink v0.0.2\npress Ctrl+C or Ctrl+D to quit.\n";
