@@ -923,7 +923,7 @@ public:
   // vs. a missing primary expression.
   // vs. a missing terminal token within some term.
   EntityTypeTag  type_tag;
-  struct {
+  struct ProcType {
     unique_ptr<Ast> lhs;
     unique_ptr<Ast> rhs;
   } ProcType;
@@ -946,7 +946,7 @@ public:
 
   ~EntityNode() = default;
   EntityNode()
-    : Ast(), t(), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Undef), u() {}
+    : Ast(), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Undef), u() {}
 
   EntityNode(unique_ptr<Ast> l, unique_ptr<Ast> r, const Location& loc)
     : Ast(loc), type_tag(EntityTypeTag::Proc), value_tag(EntityValueTag::Type), u()
@@ -956,62 +956,19 @@ public:
   }
 
   EntityNode(EntityTypeTag tt, const Location& loc)
-    : Ast(loc), type_tag(tt), value_tag(EntityValueTag::Type), u()
-  {
-    switch(tt) {
-      case EntityTypeTag::Undef: {
-        t.Nil = nullptr;
-        break;
-      }
+    : Ast(loc), type_tag(tt), value_tag(EntityValueTag::Type), u() {}
 
-      case EntityTypeTag::Nil: {
-        t.Nil = Type::getVoidTy();
-        break;
-      }
+  EntityNode(const void* c, const Location& loc)
+    : Ast(loc), type_tag(EntityTypeTag::Nil), value_tag(EntityValueTag::Nil), u('\0') {}
 
-      case EntityTypeTag::Int: {
-        t.Int = Type::getInt32Ty();
-        break;
-      }
+  EntityNode(const int& i, const Location& loc)
+    : Ast(loc), type_tag(EntityTypeTag::Int), value_tag(EntityValueTag::Int), u(i) {}
 
-      case EntityTypeTag::Bool: {
-        t.Bool = Type::getInt1Ty();
-        break;
-      }
-
-      case EntityTypeTag::Poly: {
-        t.Nil = nullptr;
-        break;
-      }
-
-      case EntityTypeTag::Proc: {
-        t.Proc.lhs = nullptr;
-        t.Proc.rhs = nullptr;
-        break;
-      }
-    }
-  }
-
-  EntityNode(Type* t, const char& c, const Location& loc)
-    : Ast(loc), type_tag(EntityTypeTag::Nil), value_tag(EntityValueTag::Nil), u(c)
-  {
-    t.Nil = t;
-  }
-
-  EntityNode(IntegerType* t, const int& i, const Location& loc)
-    : Ast(loc), type_tag(EntityTypeTag::Int), value_tag(EntityValueTag::Int), u(i)
-  {
-    t.Int = t;
-  }
-
-  EntityNode(IntegerType* t, const bool& b, const Location& loc)
-    : Ast(loc), type_tag(EntityTypeTag::Bool), value_tag(EntityValueTag::Bool), u(b)
-  {
-    t.Bool = t;
-  }
+  EntityNode(const bool& b, const Location& loc)
+    : Ast(loc), type_tag(EntityTypeTag::Bool), value_tag(EntityValueTag::Bool), u(b) {}
 
   EntityNode(const ProcedureNode& p, bool poly, const Location& loc)
-    : Ast(loc), t(), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Proc), u((*(new ProcSetNode(p, poly))))
+    : Ast(loc), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Proc), u((*(new ProcSetNode(p, poly))))
   {
     if (poly) {
       type_tag = EntityTypeTag::Poly;
@@ -1019,7 +976,7 @@ public:
   }
 
   EntityNode(const ProcSetNode& p, const Location& loc)
-    : Ast(loc), t(), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Proc), u(p)
+    : Ast(loc), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Proc), u(p)
   {
     if (p.polymorphic) {
       type_tag = EntityTypeTag::Poly;
@@ -1027,41 +984,13 @@ public:
   }
 
   EntityNode(const EntityNode& rhs)
-  : Ast(rhs.loc), u() {
+    : Ast(rhs.loc), u()
+  {
     // Undef, Mono, Poly, Proc
     type_tag  = rhs.type_tag;
-    switch(type_tag) {
-      case EntityTypeTag::Undef: {
-        break;
-      }
-
-      case EntityTypeTag::Nil: {
-        t.Nil = t.Nil;
-        break;
-      }
-
-      case EntityTypeTag::Int: {
-        t.Int = t.Int;
-        break;
-      }
-
-      case EntityTypeTag::Bool: {
-        t.Bool = t.Bool;
-        break;
-      }
-
-      case EntityTypeTag::Poly: {
-        break;
-      }
-
-      case EntityTypeTag::Proc: {
-        t.Proc.lhs = rhs.t.Proc.lhs->clone();
-        t.Proc.rhs = rhs.t.Proc.rhs->clone();
-        break;
-      }
-
-      default:
-        throw "malformed type_tag\n";
+    if (type_tag == EntityTypeTag::Proc) {
+      ProcType.lhs = rhs.ProcType.lhs->clone();
+      ProcType.rhs = rhs.ProcType.rhs->clone();
     }
 
     // Undef, Type, Nil, Int, Bool
@@ -1137,7 +1066,7 @@ protected:
           }
 
           case EntityTypeTag::Proc: {
-            auto l = dynamic_cast<EntityNode*>(t.Proc.lhs.get());
+            auto l = dynamic_cast<EntityNode*>(ProcType.lhs.get());
 
             if (l)
             {
@@ -1157,16 +1086,16 @@ protected:
               if (l->type_tag == EntityTypeTag::Proc)
               {
                 result  = "(";
-                result += t.Proc.lhs->to_string();
+                result += ProcType.lhs->to_string();
                 result += ") -> ";
-                result += t.Proc.rhs->to_string();
+                result += ProcType.rhs->to_string();
                 break;
               }
               else
               {
-                result  = t.Proc.lhs->to_string();
+                result  = ProcType.lhs->to_string();
                 result += " -> ";
-                result += t.Proc.rhs->to_string();
+                result += ProcType.rhs->to_string();
               }
             }
             else

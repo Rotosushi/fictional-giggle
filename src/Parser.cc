@@ -357,8 +357,7 @@ unique_ptr<Ast> Parser::parse_primary()
   auto lhsloc = curloc();
   lhs = parse_primitive();
 
-  if ((curtok() != Token::Operator && is_primary(curtok())
-   || (curtok() == Token::Operator && is_unop(curtxt()))))
+  if (curtok() != Token::Operator && is_primary(curtok()))
   {
     do
     {
@@ -370,8 +369,7 @@ unique_ptr<Ast> Parser::parse_primary()
                                   rhsloc.first_column);
 
       lhs = unique_ptr<Ast>(new CallNode(move(lhs), move(rhs), callloc));
-    } while ((curtok() != Token::Operator && is_primary(curtok())
-          || (curtok() == Token::Operator && is_unop(curtxt()))));
+    } while (curtok() != Token::Operator && is_primary(curtok()));
 
   }
   return move(lhs);
@@ -403,7 +401,11 @@ unique_ptr<Ast> Parser::parse_primitive()
       defining it as the lhs of the bind, would
       allow compound bindings to be well formed,
       something the designers of c liked.
-      something like x := y := z := 100)
+      something like x := y := z := 100
+      it would be up to us what the above means,
+      is each the value 100? or is each the
+      other, meaning we need to travel through
+      the bindings to reach the 100?)
 
     */
     case Token::Id: {
@@ -465,54 +467,50 @@ unique_ptr<Ast> Parser::parse_primitive()
 
     case Token::TypeInt:
     {
-      Type* inttype = Type::getInt32Ty(*ctx);
-      lhs = unique_ptr<Ast>(new EntityNode(inttype, lhsloc));
+      lhs = unique_ptr<Ast>(new EntityNode(EntityTypeTag::Int, lhsloc));
       nextok();
       break;
     }
 
     case Token::TypeBool:
     {
-      Type* booltype = Type::getInt1Ty(*ctx);
-      lhs = unique_ptr<Ast>(new EntityNode(booltype, lhsloc));
+      lhs = unique_ptr<Ast>(new EntityNode(EntityTypeTag::Bool, lhsloc));
       nextok();
       break;
     }
 
     case Token::Nil:
     {
-      Type* niltype = Type::getVoidTy(*ctx);
-      lhs = unique_ptr<Ast>(new EntityNode(niltype, '\0', lhsloc));
+      lhs = unique_ptr<Ast>(new EntityNode((void*)nullptr, lhsloc));
       nextok();
       break;
     }
 
     case Token::Int:
     {
-      int value     = stoi(curtxt());
-      Type* inttype = Type::getInt32Ty(*ctx);
-      lhs = unique_ptr<Ast>(new EntityNode(inttype, value, lhsloc));
+      int value = stoi(curtxt());
+      lhs = unique_ptr<Ast>(new EntityNode(value, lhsloc));
       nextok();
       break;
     }
 
     case Token::True:
     {
-      Type* booltype = Type::getInt1Ty(*ctx);
-      lhs = unique_ptr<Ast>(new EntityNode(booltype, true, lhsloc));
+      lhs = unique_ptr<Ast>(new EntityNode(true, lhsloc));
       nextok();
       break;
     }
 
     case Token::False:
     {
-      Type* booltype = Type::getInt1Ty(*ctx);
-      lhs = unique_ptr<Ast>(new EntityNode(booltype, false, lhsloc));
+      lhs = unique_ptr<Ast>(new EntityNode(false, lhsloc));
       nextok();
       break;
     }
 
     /*
+    back to multiple token literals.
+
     an operator in primary position
     is always considered to be a unary operation
     by the parser.
@@ -538,7 +536,7 @@ unique_ptr<Ast> Parser::parse_primitive()
     {
       nextok();
 
-      auto lhs = parse_term();
+      lhs = parse_term();
 
       if (curtok() == Token::RParen)
       {
@@ -547,8 +545,10 @@ unique_ptr<Ast> Parser::parse_primitive()
       }
       else
       {
+
         // error: missing closing right parenthesis.
       }
+      break;
     }
 
     case Token::If:
