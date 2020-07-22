@@ -57,7 +57,7 @@ bool Parser::speculating()
   return marks.size() > 0;
 }
 
-void Parser::fillTokens(int i)
+void Parser::gettok(int i)
 {
   if (curidx + i > tokbuf.size()) // do we need more tokens than we have?
   {
@@ -83,7 +83,7 @@ void Parser::nextok()
     reset();
   }
 
-  fillTokens(1);
+  gettok(1);
 }
 
 Token Parser::curtok()
@@ -127,43 +127,16 @@ bool Parser::is_binop(const string& op)
   }
 }
 
-bool Parser::is_typeop(const string& op)
-{
-  auto typeop = typeops.find(op);
-  if (typeop)
-  {
-    return true;
-  }
-  else
-  {
-    return false;
-  }
-}
-
 bool Parser::is_primary(Token t)
 {
-  if (is_type_primitive(t))
-    return true;
-
   switch(t)
   {
     case Token::Nil: case Token::Int:
     case Token::True: case Token::False:
     case Token::Id: case Token::If:
     case Token::Backslash: case Token::Operator:
-    case Token::LParen:
-      return true;
-    default:
-      return false;
-  }
-}
-
-bool Parser::is_type_primitive(Token t)
-{
-  switch(t)
-  {
-    case Token::TypeNil: case Token::TypeInt:
-    case Token::TypeBool:
+    case Token::LParen: case Token::TypeNil:
+    case Token::TypeInt: case Token::TypeBool:
       return true;
     default:
       return false;
@@ -204,8 +177,18 @@ optional<unique_ptr<Ast>> Parser::parse(const string& text)
 
   lexer.set_buffer(text);
 
-  fillTokens(1);
+  gettok(1);
 
+  /*
+    #! use-before-definition
+    we could make one of the invariants
+    of terms which make use of a name before
+    it is defined: being speculatively parseable.
+    this at least ensures that things which look
+    like operators, but may not be defined, are
+    still where we expect them, but we still want
+    to reject truly malformed terms.
+  */
   mark();
   bool good = speculate_term();
   release();
@@ -223,8 +206,29 @@ unique_ptr<Ast> Parser::parse_term()
   unique_ptr<Ast> lhs, rhs;
 
   /*
-    starting from anywhere we could
-    expect to see some term, we
+  term := primary
+        | primary binop primary
+
+  primary := atom
+           | atom atom
+           | unop atom
+
+  atom := identifier
+        | identifier := term
+        | Nil
+        | nil
+        | Int
+        | [0-9]+
+        | Bool
+        | true
+        | false
+        | \ identifier (: term)? => term
+        | if term then term else term
+        |
+  */
+
+  /*
+    we
     require that the first term of
     any expression be a primary expression,
     this includes, variables,
@@ -236,77 +240,148 @@ unique_ptr<Ast> Parser::parse_term()
     with binary operators directing values into
     functions in such a way as to allow more
     human readable descriptions of computation
-    (we hope).
+    (obviously we can observe that other languages
+     have extensible binary operations and Polymorphism
+     and overloading, in fact we are working with one right
+     now)
   */
   Location&& lhsloc = curloc();
   if (is_primary(curtok()))
   {
     lhs = parse_primary();
-  }
 
-  /*
-    if we parsed some primary expression,
-    then we must expect that we could be
-    required to parse more of some exression,
-    and so we check, should the next token
-    be another primary term, then we must be
-    parsing some call node. which means we must
-    construct a call Ast node containing these
-    two primary expressions, however, we need to
-    be cognizant of the associativity of the
-    call expression itself.
-    do we parse [a b c d] as:
-      (((a b) c) d)
-    or
-      (a (b (c d)))
-    i.e. do call terms associative left or right ?.
-    the answer is they associate to the left,
-    we construct the deepest node as (a b)
-    the next node as (a b) c, then the outermost,
-    root node as ((a b) c) d.
-  */
-  if (lhs) {
-    if ((curtok() == Token::Operator && is_unop(curtxt()))
-     || (curtok() != Token::Operator && is_primary(curtok())))
-    {
-      do
-      {
-        rhs = parse_primary();
-        Location&& rhsloc = curloc();
-        Location callloc = Location(lhsloc.first_line,
-                                    lhsloc.first_column,
-                                    rhsloc.first_line,
-                                    rhsloc.first_column);
-
-        lhs = unique_ptr<Ast>(new Call(move(lhs), move(rhs), callloc));
-      } while ((curtok() == Token::Operator && is_unop(curtxt()))
-            || (curtok() != Token::Operator && is_primary(curtok())));
-    }
     /*
-    if the term immediately after the primary
-    term is an operator, then the assumption is
-    that is a binary operation. and so we dispatch
-    to the operator precedence parser.
+      if we parsed some primary expression,
+      then we must expect that we could be
+      required to parse more of said exression,
+      and so we check, should the next token
+      be another primary term, then we must be
+      parsing some call node. which means we must
+      construct a call Ast node containing these
+      two primary expressions, however, we need to
+      be cognizant of the associativity of the
+      call expression itself.
+      do we parse [a b c d] as:
+        (((a b) c) d)
+      or
+        (a (b (c d)))
+      i.e. do call terms associative left or right?
+      the answer is they associate to the left,
+      we construct the deepest node as (a b)
+      the next node as (a b) c, then the outermost,
+      root node as ((a b) c) d.
+
+      should the next token be an operator, then
+      we need to distinguish between which kind of
+      operator it is, and where we could see it.
+      with unary operators, we want them to bind
+      tightly to the immediate next term, but
+      we do not want them to parse a full term
+      afterwards. we want
+      a -b c -d
+      to parse as
+      (((a (-b)) c) (-d))
+      this is because we want programmers to easily
+      apply unary operations to procedure arguments,
+      and have those operations happen before we apply
+      the procedure. this allows programmers to trivially
+      pass the address of some variable, or any number
+      of other actions could occur.
     */
-    else if (curtok() == Token::Operator) {
-      lhs = parse_infix(move(lhs), 0);
+    if (lhs)
+    {
+      /*
+        there may be more expression past the first
+        primary term.
+      */
+      if (curtok() == Token::Operator && is_binop(curtxt()))
+      {
+        lhs = parse_infix(move(lhs), 0);
+      }
+      /*
+        we could also validly see
+        the end of the expression.
+      */
+      else if (is_ender(curtok()))
+      {
+        ;
+      }
+      else
+      {
+        /*
+           error: unknown token following valid
+                  primary term.
+                  we expect to see the end of the
+                  expression past the first valid term,
+                  should we not see an operator which
+                  could bind multiple terms together,
+                  or multiple primary terms following
+                  which are bound together within a
+                  call expression. past those two
+                  grouping constructs, there is no
+                  way to combine primary terms together.
+                  so it follows that a term which
+                  contains a single valid primary, and is
+                  followed by neither binop, another
+                  primary term, a unop term, or an
+                  end of term token, is followed by
+                  an invalid token.
+        */
+      }
+    }
+    else
+    {
+      /*
+       if we didn't see some lhs,
+       but we predicted that we would,
+       it's an error term.
+      */
     }
   }
-
+  else if (is_ender(curtok()))
+  {
+    lhs = unique_ptr<Ast>(new Empty(lhsloc));
+  }
+  else
+  {
+    // error: unknown token, not primary, or an ending token.
+  }
   return move(lhs);
 }
 
 unique_ptr<Ast> Parser::parse_primary()
 {
+  unique_ptr<Ast> lhs, rhs;
+  auto lhsloc = curloc();
+  lhs = parse_primitive();
+
+  if ((curtok() != Token::Operator && is_primary(curtok())
+   || (curtok() == Token::Operator && is_unop(curtxt()))))
+  {
+    do
+    {
+      rhs = parse_primitive();
+      Location&& rhsloc = curloc();
+      Location callloc = Location(lhsloc.first_line,
+                                  lhsloc.first_column,
+                                  rhsloc.first_line,
+                                  rhsloc.first_column);
+
+      lhs = unique_ptr<Ast>(new Call(move(lhs), move(rhs), callloc));
+    } while ((curtok() != Token::Operator && is_primary(curtok())
+          || (curtok() == Token::Operator && is_unop(curtxt()))));
+
+  }
+  return move(lhs);
+}
+
+unique_ptr<Ast> Parser::parse_primitive()
+{
   unique_ptr<Ast> lhs;
   Location&& lhsloc = curloc();
   switch(curtok())
   {
-    case TypeNil:
-    case TypeInt:
-    case TypeBool:
-      lhs = parse_type_primitive();
-      break;
+
     /* a variable by itself, or a bind expression.
       notice how, unless the bind expression is
       contained within some lexical structure,
@@ -379,6 +454,30 @@ unique_ptr<Ast> Parser::parse_primary()
     of parsing subroutines.
     */
 
+    case Token::TypeNil:
+    {
+      Type* niltype = ctx->getVoidTy();
+      lhs = unique_ptr<Ast>(new Entity(niltype, lhsloc));
+      nextok();
+      break;
+    }
+
+    case Token::TypeInt:
+    {
+      Type* inttype = ctx->getInt32Ty();
+      lhs = unique_ptr<Ast>(new Entity(inttype, lhsloc));
+      nextok();
+      break;
+    }
+
+    case Token::TypeBool:
+    {
+      Type* booltype = ctx->getInt1Ty();
+      lhs = unique_ptr<Ast>(new Entity(booltype, lhsloc));
+      nextok();
+      break;
+    }
+
     case Token::Nil:
     {
       Type* niltype = ctx->getVoidTy();
@@ -421,8 +520,9 @@ unique_ptr<Ast> Parser::parse_primary()
     {
       string&& op = curtxt();
       nextok();
-
-      auto rhs    = parse_term();
+      // unops bind to their immediate next
+      // term only.
+      auto rhs    = parse_primitive();
       auto rhsloc = curloc();
       Location unoploc(lhsloc.first_line,
                        lhsloc.first_column,
@@ -493,14 +593,12 @@ unique_ptr<Ast> Parser::parse_primary()
         we don't want to consume the ending token
         because the enclosing scope deals with it.
       */
-      lhs = unique_ptr<Ast>(new Empty(lhsloc));
       break;
     }
 
     default:
-      throw "unexpected token in primary position.";
+      throw "unexpected token in primitive position.";
   }
-
   return lhs;
 }
 
@@ -596,42 +694,6 @@ unique_ptr<Ast> Parser::parse_procedure()
   return proc;
 }
 
-unique_ptr<Ast> Parser::parse_type_primitive()
-{
-  unique_ptr<Ast> lhs;
-  Location loc = curloc();
-  switch(curtok())
-  {
-    case Token::TypeNil:
-    {
-      Type* niltype = ctx->getVoidTy();
-      lhs = unique_ptr<Ast>(new Entity(niltype, lhsloc));
-      nextok();
-      break;
-    }
-
-    case Token::TypeInt:
-    {
-      Type* inttype = ctx->getInt32Ty();
-      lhs = unique_ptr<Ast>(new Entity(inttype, lhsloc));
-      nextok();
-      break;
-    }
-
-    case Token::TypeBool:
-    {
-      Type* booltype = ctx->getInt1Ty();
-      lhs = unique_ptr<Ast>(new Entity(booltype, lhsloc));
-      nextok();
-      break;
-    }
-
-    default:
-      throw "unknown type primitive\n";
-
-  }
-  return lhs;
-}
 
 unique_ptr<Ast> Parser::parse_infix(unique_ptr<Ast> lhs, int precedence)
 {

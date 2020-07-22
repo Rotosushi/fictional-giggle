@@ -120,7 +120,10 @@ protected:
   return type can vary by derived class.
   and that is okay precisely because it is
   extended over derived classes, which means
-  every return type is at least an Ast.)
+  every return type is an Ast,
+  and each differing return type is unique to
+  it's class, each of which can have only one
+  overriding definition.)
 
   */
 public:
@@ -133,15 +136,15 @@ public:
   i.e. they enter no characters where a term was
        expected.
 */
-class Empty : public Ast {
+class EmptyNode : public Ast {
 public:
 
-  Empty() {};
-  Empty(const Location& loc) : Ast(loc) {}
-  Empty(const Empty& e) : Ast(e.loc) {}
+  EmptyNode() {};
+  EmptyNode(const Location& loc) : Ast(loc) {}
+  EmptyNode(const EmptyNode& e) : Ast(e.loc) {}
 
 protected:
-  virtual Empty* clone_internal() override { return new Empty(*this); }
+  virtual EmptyNode* clone_internal() override { return new EmptyNode(*this); }
   virtual string to_string_internal() override {
     return "";
   }
@@ -152,16 +155,16 @@ protected:
   components of Abstraction, and thusly
   our programming language.
 */
-class Variable : public Ast {
+class VariableNode : public Ast {
 public:
   string id;
 
-  Variable(const string& str) : Ast(), id(str) {}
-  Variable(const string& str, const Location& loc) : Ast(loc), id(str) {}
-  Variable(const Variable& r) : Ast(r.loc), id(r.id) {}
+  VariableNode(const string& str) : Ast(), id(str) {}
+  VariableNode(const string& str, const Location& loc) : Ast(loc), id(str) {}
+  VariableNode(const VariableNode& r) : Ast(r.loc), id(r.id) {}
 
 protected:
-  virtual Variable* clone_internal() override { return new Variable(*this); }
+  virtual VariableNode* clone_internal() override { return new VariableNode(*this); }
 
   virtual string to_string_internal() override {
     return id;
@@ -174,17 +177,17 @@ protected:
 // representing a procedure call in the
 // assembly representing this expression.
 // this mental/internal alignment is central to the language.
-class Call : public Ast {
+class CallNode : public Ast {
 public:
   unique_ptr<Ast> lhs;
   unique_ptr<Ast> rhs;
 
-  Call(unique_ptr<Ast> l, unique_ptr<Ast> r) : Ast(), lhs(move(l)), rhs(move(r)) {}
-  Call(unique_ptr<Ast> l, unique_ptr<Ast> r, const Location& loc) : Ast(loc), lhs(move(l)), rhs(move(r)) {}
-  Call(const Call& c) : Ast(c.loc), lhs(c.lhs->clone()), rhs(c.rhs->clone()) {}
+  CallNode(unique_ptr<Ast> l, unique_ptr<Ast> r) : Ast(), lhs(move(l)), rhs(move(r)) {}
+  CallNode(unique_ptr<Ast> l, unique_ptr<Ast> r, const Location& loc) : Ast(loc), lhs(move(l)), rhs(move(r)) {}
+  CallNode(const CallNode& c) : Ast(c.loc), lhs(c.lhs->clone()), rhs(c.rhs->clone()) {}
 
 protected:
-  virtual Call* clone_internal() override { return new Call(*this); }
+  virtual CallNode* clone_internal() override { return new CallNode(*this); }
 
   virtual string to_string_internal() override {
     /*
@@ -232,17 +235,17 @@ protected:
 // so why early lambda calculus didn't consider
 // name binding formally eludes me (other than
 // plain human lazyness, but that isn't very charitable.)
-class Bind : public Ast {
+class BindNode : public Ast {
 public:
   string          id;
   unique_ptr<Ast> rhs;
 
-  Bind(const string& str, unique_ptr<Ast> r) : Ast(), id(str), rhs(move(r)) {}
-  Bind(const string& str, unique_ptr<Ast> r, const Location& loc) : Ast(loc), id(str), rhs(move(r)) {}
-  Bind(const Bind& rhs) : Ast(rhs.loc), id(rhs.id), rhs(rhs.rhs->clone()) {}
+  BindNode(const string& str, unique_ptr<Ast> r) : Ast(), id(str), rhs(move(r)) {}
+  BindNode(const string& str, unique_ptr<Ast> r, const Location& loc) : Ast(loc), id(str), rhs(move(r)) {}
+  BindNode(const BindNode& rhs) : Ast(rhs.loc), id(rhs.id), rhs(rhs.rhs->clone()) {}
 
 protected:
-  virtual Bind* clone_internal() override { return new Bind(*this); }
+  virtual BindNode* clone_internal() override { return new BindNode(*this); }
 
   virtual string to_string_internal() override {
     string result;
@@ -301,18 +304,18 @@ protected:
  and a solid standard library. (all of which is very
  non-trival.)
 */
-class Binop : public Ast {
+class BinopNode : public Ast {
 public:
   string          op;
   unique_ptr<Ast> lhs;
   unique_ptr<Ast> rhs;
 
-  Binop(const string& str, unique_ptr<Ast> l, unique_ptr<Ast> r) : Ast(), op(str), lhs(move(l)), rhs(move(r)) {}
-  Binop(const string& str, unique_ptr<Ast> l, unique_ptr<Ast> r, const Location& loc) : Ast(loc), op(str), lhs(move(l)), rhs(move(r)) {}
-  Binop(const Binop& rhs) : Ast(rhs.loc), op(rhs.op), lhs(rhs.lhs->clone()), rhs(rhs.rhs->clone()) {}
+  BinopNode(const string& str, unique_ptr<Ast> l, unique_ptr<Ast> r) : Ast(), op(str), lhs(move(l)), rhs(move(r)) {}
+  BinopNode(const string& str, unique_ptr<Ast> l, unique_ptr<Ast> r, const Location& loc) : Ast(loc), op(str), lhs(move(l)), rhs(move(r)) {}
+  BinopNode(const BinopNode& rhs) : Ast(rhs.loc), op(rhs.op), lhs(rhs.lhs->clone()), rhs(rhs.rhs->clone()) {}
 
 protected:
-  virtual Binop* clone_internal() override { return new Binop(*this); }
+  virtual BinopNode* clone_internal() override { return new BinopNode(*this); }
 
   virtual string to_string_internal() override {
     string result;
@@ -422,17 +425,17 @@ protected:
    parse some given primary. which is the essence of
    higher precedence.
 */
-class Unop : public Ast {
+class UnopNode : public Ast {
 public:
   string op;
   unique_ptr<Ast>   rhs;
 
-  Unop(const string& str, unique_ptr<Ast> r) : Ast(), op(str), rhs(move(r)) {}
-  Unop(const string& str, unique_ptr<Ast> r, const Location& loc) : Ast(loc), op(str), rhs(move(r)) {}
-  Unop(const Unop& rhs) : Ast(rhs.loc), op(rhs.op), rhs(rhs.rhs->clone()) {}
+  UnopNode(const string& str, unique_ptr<Ast> r) : Ast(), op(str), rhs(move(r)) {}
+  UnopNode(const string& str, unique_ptr<Ast> r, const Location& loc) : Ast(loc), op(str), rhs(move(r)) {}
+  UnopNode(const UnopNode& rhs) : Ast(rhs.loc), op(rhs.op), rhs(rhs.rhs->clone()) {}
 
 protected:
-  virtual Unop* clone_internal() override { return new Unop(*this); }
+  virtual UnopNode* clone_internal() override { return new UnopNode(*this); }
 
   virtual string to_string_internal() override {
     string result;
@@ -549,18 +552,18 @@ protected:
 */
 
 
-class Cond : public Ast {
+class CondNode : public Ast {
 public:
   unique_ptr<Ast> test;
   unique_ptr<Ast> first;
   unique_ptr<Ast> second;
 
-  Cond(unique_ptr<Ast> t, unique_ptr<Ast> f, unique_ptr<Ast> s) : Ast(), test(move(t)), first(move(f)), second(move(s)) {}
-  Cond(unique_ptr<Ast> t, unique_ptr<Ast> f, unique_ptr<Ast> s, const Location& loc) : Ast(loc), test(move(t)), first(move(f)), second(move(s)) {}
-  Cond(const Cond& rhs) : Ast(rhs.loc), test(rhs.test->clone()), first(rhs.first->clone()), second(rhs.second->clone()) {}
+  CondNode(unique_ptr<Ast> t, unique_ptr<Ast> f, unique_ptr<Ast> s) : Ast(), test(move(t)), first(move(f)), second(move(s)) {}
+  CondNode(unique_ptr<Ast> t, unique_ptr<Ast> f, unique_ptr<Ast> s, const Location& loc) : Ast(loc), test(move(t)), first(move(f)), second(move(s)) {}
+  CondNode(const CondNode& rhs) : Ast(rhs.loc), test(rhs.test->clone()), first(rhs.first->clone()), second(rhs.second->clone()) {}
 
 protected:
-  virtual Cond* clone_internal()  override { return new Cond(*this); }
+  virtual CondNode* clone_internal()  override { return new CondNode(*this); }
 
   virtual string to_string_internal() override {
     string result;
@@ -762,26 +765,18 @@ protected:
   as an optimization, share the same closure/capture
   between the monomorphic instances.
 */
-class Procedure {
+class ProcedureNode {
 public:
   string          arg_id;
   unique_ptr<Ast> arg_type;
   unique_ptr<Ast> body;
 
-  Procedure() {}
-  Procedure(const string& str, unique_ptr<Ast> at, unique_ptr<Ast> b)
+  ProcedureNode() {}
+  ProcedureNode(const string& str, unique_ptr<Ast> at, unique_ptr<Ast> b)
     : arg_id(str), arg_type(move(at)), body(move(b)) {}
 
-  Procedure(const Procedure& p)
+  ProcedureNode(const ProcedureNode& p)
     : arg_id(p.arg_id), arg_type(p.arg_type->clone()), body(p.body->clone()) {}
-
-  Procedure& operator=(const Procedure& rhs)
-  {
-    arg_id   = rhs.arg_id;
-    arg_type = rhs.arg_type->clone();
-    body     = rhs.body->clone();
-    return *this;
-  }
 };
 
 /*
@@ -808,24 +803,17 @@ public:
      polymorphic procedure acts as what c++ calls,
      partial template specialization))
 */
-class ProcSet {
+class ProcSetNode {
 public:
-  Procedure def;
-  list <Procedure> set;
+  ProcedureNode def;
+  list <ProcedureNode> set;
   bool polymorphic;
 
-  ProcSet() {};
-  ProcSet(const Procedure& p, bool poly) : def(p), set(), polymorphic(poly) {}
-  ProcSet(const Procedure& p, bool poly, const Location& loc) : def(p), set(), polymorphic(poly) {}
-  ProcSet(const ProcSet& ps) : def(ps.def), set(ps.set), polymorphic(ps.polymorphic) {}
+  ProcSetNode() {};
+  ProcSetNode(const ProcedureNode& p, bool poly) : def(p), set(), polymorphic(poly) {}
+  ProcSetNode(const ProcedureNode& p, bool poly, const Location& loc) : def(p), set(), polymorphic(poly) {}
+  ProcProcSetNodeSet(const ProcSetNode& ps) : def(ps.def), set(ps.set), polymorphic(ps.polymorphic) {}
 
-  ProcSet& operator=(const ProcSet& rhs)
-  {
-    def = rhs.def;
-    set = rhs.set;
-    polymorphic = rhs.polymorphic;
-    return *this;
-  }
 };
 
 
@@ -884,6 +872,7 @@ enum class EntityTypeTag {
   Undef,
   Mono,
   Poly,
+  Proc,
 };
 
 enum class EntityValueTag {
@@ -892,12 +881,10 @@ enum class EntityValueTag {
   Nil,
   Int,
   Bool,
-  Proc,
 };
 
-class Entity : public Ast {
+class EntityNode : public Ast {
 public:
-  Type* type;
   // the type tag is used to tell if
   // this entity is some actual type,
   // or a polymorphic entity, or an
@@ -914,6 +901,17 @@ public:
   // vs. a missing primary expression.
   // vs. a missing terminal token within some term.
   EntityTypeTag  type_tag;
+  union T {
+    llvm::Type* mono;
+    struct {
+      unique_ptr<Ast> lhs;
+      unique_ptr<Ast> rhs;
+    };
+
+    T() : mono(nullptr) {}
+    T(llvm::Type* t) : mono(t) {}
+    T(unique_ptr<Ast> l, unique_ptr<Ast> r) : lhs(move(l)), rhs(move(r)) {}
+  } t;
   // the value tag is to differenciate
   // between union members
   EntityValueTag value_tag;
@@ -923,6 +921,7 @@ public:
     bool boolean;
     ProcSet procedure;
 
+    U() : nil('\0') {}
     U(const char& c) : nil(c) {}
     U(const int&  i) : integer(i) {}
     U(const bool& b) : boolean(b) {}
@@ -930,76 +929,101 @@ public:
     ~U() {};
   } u;
 
-  ~Entity() = default;
-  Entity()
-    : Ast(), type(nullptr), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Undef), u('\0') {}
+  ~EntityNode() = default;
+  EntityNode()
+    : Ast(), t(), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Undef), u() {}
 
-  Entity(EntityTypeTag tt, const Location& loc)
-    : Ast(), type(nullptr), type_tag(tt), value_tag(EntityValueTag::Type), u('\0') {}
+  EntityNode(EntityTypeTag tt, const Location& loc)
+    : Ast(loc), t(), type_tag(tt), value_tag(EntityValueTag::Type), u() {}
 
-  Entity(Type* t, const Location& loc)
-    : Ast(loc), type(t), type_tag(EntityTypeTag::Type), value_tag(EntityValueTag::Type), u('\0') {}
+  EntityNode(unique_ptr<Ast> l, unique_ptr<Ast> r, const Location* loc)
+    : Ast(loc), t({l, r}), type_tag(EntityTypeTag::Proc), value_tag(EntityValueTag::Type), u() {}
 
-  Entity(Type* t, const char& c, const Location& loc)
-    : Ast(loc), type(t), type_tag(EntityTypeTag::Mono), value_tag(EntityValueTag::Nil), u(c) {}
+  EntityNode(Type* t, const Location& loc)
+    : Ast(loc), t(t), type_tag(EntityTypeTag::Mono), value_tag(EntityValueTag::Type), u() {}
 
-  Entity(Type* t, const int& i, const Location& loc)
-    : Ast(loc), type(t), type_tag(EntityTypeTag::Mono), value_tag(EntityValueTag::Int), u(i) {}
+  EntityNode(Type* t, const char& c, const Location& loc)
+    : Ast(loc), t(t), type_tag(EntityTypeTag::Mono), value_tag(EntityValueTag::Nil), u(c) {}
 
-  Entity(Type* t, const bool& b, const Location& loc)
-    : Ast(loc), type(t), type_tag(EntityTypeTag::Mono), value_tag(EntityValueTag::Bool), u(b) {}
+  EntityNode(Type* t, const int& i, const Location& loc)
+    : Ast(loc), t(t), type_tag(EntityTypeTag::Mono), value_tag(EntityValueTag::Int), u(i) {}
 
-  Entity(const Procedure& p, bool poly, const Location& loc)
-    : Ast(loc), type(nullptr), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Proc), u((*(new ProcSet(p, poly))))
+  EntityNode(Type* t, const bool& b, const Location& loc)
+    : Ast(loc), t(t), type_tag(EntityTypeTag::Mono), value_tag(EntityValueTag::Bool), u(b) {}
+
+  EntityNode(const ProcedureNode& p, bool poly, const Location& loc)
+    : Ast(loc), t(), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Proc), u((*(new ProcSet(p, poly))))
   {
     if (poly) {
       type_tag = EntityTypeTag::Poly;
-    } else {
-      type_tag = EntityTypeTag::Mono;
     }
   }
 
-  Entity(const ProcSet& p, const Location& loc)
-    : Ast(loc), type(nullptr), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Proc), u(p)
+  EntityNode(const ProcSetNode& p, const Location& loc)
+    : Ast(loc), t(), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Proc), u(p)
   {
     if (p.polymorphic) {
       type_tag = EntityTypeTag::Poly;
-    } else {
-      type_tag = EntityTypeTag::Mono;
     }
   }
 
-  Entity(const Entity& rhs)
-  : Ast(rhs.loc), type(rhs.type), u('\0') {
+  EntityNode(const EntityNode& rhs)
+  : Ast(rhs.loc), u() {
+    // Undef, Mono, Poly, Proc
     type_tag  = rhs.type_tag;
-    value_tag = rhs.value_tag;
-    switch(tag) {
-      case EntityTag::Type: {
+    switch(type_tag) {
+      case EntityTypeTag::Undef: {
         break;
       }
 
-      case EntityTag::Nil: {
+      case EntityTypeTag::Mono: {
+        t.mono = rhs.t.mono;
+        break;
+      }
+
+      case EntityTypeTag::Poly: {
+        break;
+      }
+
+      case EntityTypeTag::Proc: {
+        t.lhs = rhs.t.lhs->clone();
+        r.rhs = rhs.t.rhs->clone();
+        break;
+      }
+
+      default:
+        throw "malformed type_tag\n";
+    }
+
+    // Undef, Type, Nil, Int, Bool
+    value_tag = rhs.value_tag;
+    switch(value_tag) {
+      case EntityValueTag::Type: {
+        break;
+      }
+
+      case EntityValueTag::Nil: {
         u.nil = rhs.u.nil;
         break;
       }
 
-      case EntityTag::Int: {
+      case EntityValueTag::Int: {
         u.integer = rhs.u.integer;
         break;
       }
 
-      case EntityTag::Bool: {
+      case EntityValueTag::Bool: {
         u.boolean = rhs.u.boolean;
         break;
       }
 
-      case EntityTag::Proc: {
+      case EntityValueTag::Proc: {
         u.procedure = rhs.u.procedure;
         break;
       }
 
       default:
-        throw "malformed entity tag!";
+        throw "malformed value_tag\n";
     }
   }
 
@@ -1008,9 +1032,91 @@ protected:
 
   virtual string to_string_internal() override {
     string result;
-    switch(tag) {
-      case EntityTag::Type: {
-        result = type->to_string();
+    switch(value_tag) {
+      case EntityValueTag::Undef: {
+        result = "Undef";
+        break;
+      }
+
+      case EntityValueTag::Type: {
+        /*
+        nested switch statements, ew.
+        */
+        switch (type_tag) {
+          case EntityTypeTag::Undef: {
+            result = "Undef";
+            break;
+          }
+
+          case EntityTypeTag::Mono: {
+            if (mono == nullptr)
+              throw "monotype cannot be nullptr\n";
+
+            if (mono->isVoidTy())
+            {
+              result = "Nil";
+            }
+            else if (mono->isIntegerTy(1))
+            {
+              result = "Bool";
+            }
+            else if (mono->isIntegerTy(32))
+            {
+              result = "Int";
+            }
+            else
+            {
+              throw "unknown monotype\n";
+            }
+            break;
+          }
+
+          case EntityTypeTag::Poly: {
+            result = "Poly";
+          }
+
+          case EntityTypeTag::Proc: {
+            auto l = dynamic_cast<EntityNode*>(t.lhs.get());
+
+            if (l)
+            {
+              /*
+              since the '->' operator associates to the
+              right, we have to be explicit when the lhs
+              of some '->', is itself a procedure as well.
+              because the simple "to_string" logic would
+              output
+              type -> type -> type
+              for both:
+              (type -> type) -> type
+              and:
+              type -> type -> type
+              when in fact these two types are distinct.
+              */
+              if (l->type_tag == EntityTypeTag::Proc)
+              {
+                result  = "(";
+                result += t.lhs->to_string();
+                result += ") -> ";
+                result += t.rhs->to_string();
+                break;
+              }
+              else
+              {
+                result  = t.lhs->to_string();
+                result += " -> ";
+                result += t.rhs->to_string();
+              }
+            }
+            else
+            {
+              throw "procedure type only valid with a type as the lhs\n";
+            }
+          }
+
+          default:
+            throw "malformed type_tag\n";
+        }
         break;
       }
 

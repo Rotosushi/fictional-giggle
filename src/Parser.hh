@@ -53,7 +53,6 @@ class Parser {
   vector<string>   txtbuf;
   vector<Location> locbuf;
   Lexer            lexer;
-  OperatorTable    typeops;
   OperatorTable    binops;
   set<string>      unops;
   int              curidx;
@@ -70,7 +69,7 @@ private:
   void release();
   bool speculating();
 
-  void     fillTokens(int n);
+  void     gettok(int n);
   void     nextok();
   Token    curtok();
   string   curtxt();
@@ -78,7 +77,6 @@ private:
 
   bool is_unop(const string& op);
   bool is_binop(const string& op);
-  bool is_typeop(const string& op);
 
   bool is_primary(Token t);
   bool is_type_primitive(Token t);
@@ -86,10 +84,9 @@ private:
 
   unique_ptr<Ast> parse_term();
   unique_ptr<Ast> parse_primary();
+  unique_ptr<Ast> parse_primitive();
   unique_ptr<Ast> parse_if();
   unique_ptr<Ast> parse_procedure();
-  unique_ptr<Ast> parse_type_primitive();
-  unique_ptr<Ast> parse_type_annotation();
   unique_ptr<Ast> parse_infix(unique_ptr<Ast> lhs, int precedence);
 
   bool speculate(Token t);
@@ -97,5 +94,4 @@ private:
   bool speculate_primary();
   bool speculate_if();
   bool speculate_procedure();
-  bool speculate_type_primitive();
 };
