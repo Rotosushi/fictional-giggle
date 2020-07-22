@@ -10,7 +10,11 @@ using std::list;
 using std::get;
 
 #include "llvm/IR/LLVMContext.h"
+using llvm::LLVMContext;
 #include "llvm/IR/Type.h"
+using llvm::Type;
+#include "llvm/IR/DerivedTypes.h"
+using llvm::IntegerType;
 
 /*
   the abstract syntax tree is the main
@@ -777,6 +781,14 @@ public:
 
   ProcedureNode(const ProcedureNode& p)
     : arg_id(p.arg_id), arg_type(p.arg_type->clone()), body(p.body->clone()) {}
+
+  ProcedureNode& operator=(const ProcedureNode& rhs)
+  {
+    arg_id   = rhs.arg_id;
+    arg_type = rhs.arg_type->clone();
+    body     = rhs.body->clone();
+    return *this;
+  }
 };
 
 /*
@@ -812,8 +824,15 @@ public:
   ProcSetNode() {};
   ProcSetNode(const ProcedureNode& p, bool poly) : def(p), set(), polymorphic(poly) {}
   ProcSetNode(const ProcedureNode& p, bool poly, const Location& loc) : def(p), set(), polymorphic(poly) {}
-  ProcProcSetNodeSet(const ProcSetNode& ps) : def(ps.def), set(ps.set), polymorphic(ps.polymorphic) {}
+  ProcSetNode(const ProcSetNode& ps) : def(ps.def), set(ps.set), polymorphic(ps.polymorphic) {}
 
+  ProcSetNode& operator=(const ProcSetNode& rhs)
+  {
+    def = rhs.def;
+    set = rhs.set;
+    polymorphic = rhs.polymorphic;
+    return *this;
+  }
 };
 
 
@@ -870,7 +889,9 @@ public:
 
 enum class EntityTypeTag {
   Undef,
-  Mono,
+  Nil,
+  Int,
+  Bool,
   Poly,
   Proc,
 };
@@ -881,6 +902,7 @@ enum class EntityValueTag {
   Nil,
   Int,
   Bool,
+  Proc,
 };
 
 class EntityNode : public Ast {
@@ -901,17 +923,10 @@ public:
   // vs. a missing primary expression.
   // vs. a missing terminal token within some term.
   EntityTypeTag  type_tag;
-  union T {
-    llvm::Type* mono;
-    struct {
-      unique_ptr<Ast> lhs;
-      unique_ptr<Ast> rhs;
-    };
-
-    T() : mono(nullptr) {}
-    T(llvm::Type* t) : mono(t) {}
-    T(unique_ptr<Ast> l, unique_ptr<Ast> r) : lhs(move(l)), rhs(move(r)) {}
-  } t;
+  struct {
+    unique_ptr<Ast> lhs;
+    unique_ptr<Ast> rhs;
+  } ProcType;
   // the value tag is to differenciate
   // between union members
   EntityValueTag value_tag;
@@ -919,13 +934,13 @@ public:
     char nil;
     int  integer;
     bool boolean;
-    ProcSet procedure;
+    ProcSetNode procedure;
 
     U() : nil('\0') {}
     U(const char& c) : nil(c) {}
     U(const int&  i) : integer(i) {}
     U(const bool& b) : boolean(b) {}
-    U(const ProcSet& ps) : procedure(ps) {}
+    U(const ProcSetNode& ps) : procedure(ps) {}
     ~U() {};
   } u;
 
@@ -933,26 +948,70 @@ public:
   EntityNode()
     : Ast(), t(), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Undef), u() {}
 
+  EntityNode(unique_ptr<Ast> l, unique_ptr<Ast> r, const Location& loc)
+    : Ast(loc), type_tag(EntityTypeTag::Proc), value_tag(EntityValueTag::Type), u()
+  {
+    ProcType.lhs = move(l);
+    ProcType.rhs = move(r);
+  }
+
   EntityNode(EntityTypeTag tt, const Location& loc)
-    : Ast(loc), t(), type_tag(tt), value_tag(EntityValueTag::Type), u() {}
+    : Ast(loc), type_tag(tt), value_tag(EntityValueTag::Type), u()
+  {
+    switch(tt) {
+      case EntityTypeTag::Undef: {
+        t.Nil = nullptr;
+        break;
+      }
 
-  EntityNode(unique_ptr<Ast> l, unique_ptr<Ast> r, const Location* loc)
-    : Ast(loc), t({l, r}), type_tag(EntityTypeTag::Proc), value_tag(EntityValueTag::Type), u() {}
+      case EntityTypeTag::Nil: {
+        t.Nil = Type::getVoidTy();
+        break;
+      }
 
-  EntityNode(Type* t, const Location& loc)
-    : Ast(loc), t(t), type_tag(EntityTypeTag::Mono), value_tag(EntityValueTag::Type), u() {}
+      case EntityTypeTag::Int: {
+        t.Int = Type::getInt32Ty();
+        break;
+      }
+
+      case EntityTypeTag::Bool: {
+        t.Bool = Type::getInt1Ty();
+        break;
+      }
+
+      case EntityTypeTag::Poly: {
+        t.Nil = nullptr;
+        break;
+      }
+
+      case EntityTypeTag::Proc: {
+        t.Proc.lhs = nullptr;
+        t.Proc.rhs = nullptr;
+        break;
+      }
+    }
+  }
 
   EntityNode(Type* t, const char& c, const Location& loc)
-    : Ast(loc), t(t), type_tag(EntityTypeTag::Mono), value_tag(EntityValueTag::Nil), u(c) {}
+    : Ast(loc), type_tag(EntityTypeTag::Nil), value_tag(EntityValueTag::Nil), u(c)
+  {
+    t.Nil = t;
+  }
 
-  EntityNode(Type* t, const int& i, const Location& loc)
-    : Ast(loc), t(t), type_tag(EntityTypeTag::Mono), value_tag(EntityValueTag::Int), u(i) {}
+  EntityNode(IntegerType* t, const int& i, const Location& loc)
+    : Ast(loc), type_tag(EntityTypeTag::Int), value_tag(EntityValueTag::Int), u(i)
+  {
+    t.Int = t;
+  }
 
-  EntityNode(Type* t, const bool& b, const Location& loc)
-    : Ast(loc), t(t), type_tag(EntityTypeTag::Mono), value_tag(EntityValueTag::Bool), u(b) {}
+  EntityNode(IntegerType* t, const bool& b, const Location& loc)
+    : Ast(loc), type_tag(EntityTypeTag::Bool), value_tag(EntityValueTag::Bool), u(b)
+  {
+    t.Bool = t;
+  }
 
   EntityNode(const ProcedureNode& p, bool poly, const Location& loc)
-    : Ast(loc), t(), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Proc), u((*(new ProcSet(p, poly))))
+    : Ast(loc), t(), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Proc), u((*(new ProcSetNode(p, poly))))
   {
     if (poly) {
       type_tag = EntityTypeTag::Poly;
@@ -976,8 +1035,18 @@ public:
         break;
       }
 
-      case EntityTypeTag::Mono: {
-        t.mono = rhs.t.mono;
+      case EntityTypeTag::Nil: {
+        t.Nil = t.Nil;
+        break;
+      }
+
+      case EntityTypeTag::Int: {
+        t.Int = t.Int;
+        break;
+      }
+
+      case EntityTypeTag::Bool: {
+        t.Bool = t.Bool;
         break;
       }
 
@@ -986,8 +1055,8 @@ public:
       }
 
       case EntityTypeTag::Proc: {
-        t.lhs = rhs.t.lhs->clone();
-        r.rhs = rhs.t.rhs->clone();
+        t.Proc.lhs = rhs.t.Proc.lhs->clone();
+        t.Proc.rhs = rhs.t.Proc.rhs->clone();
         break;
       }
 
@@ -1028,7 +1097,7 @@ public:
   }
 
 protected:
-  virtual Entity* clone_internal() override { return new Entity(*this); }
+  virtual EntityNode* clone_internal() override { return new EntityNode(*this); }
 
   virtual string to_string_internal() override {
     string result;
@@ -1048,26 +1117,18 @@ protected:
             break;
           }
 
-          case EntityTypeTag::Mono: {
-            if (mono == nullptr)
-              throw "monotype cannot be nullptr\n";
+          case EntityTypeTag::Nil: {
+            result = "Nil";
+            break;
+          }
 
-            if (mono->isVoidTy())
-            {
-              result = "Nil";
-            }
-            else if (mono->isIntegerTy(1))
-            {
-              result = "Bool";
-            }
-            else if (mono->isIntegerTy(32))
-            {
-              result = "Int";
-            }
-            else
-            {
-              throw "unknown monotype\n";
-            }
+          case EntityTypeTag::Int: {
+            result = "Int";
+            break;
+          }
+
+          case EntityTypeTag::Bool: {
+            result = "Bool";
             break;
           }
 
@@ -1076,7 +1137,7 @@ protected:
           }
 
           case EntityTypeTag::Proc: {
-            auto l = dynamic_cast<EntityNode*>(t.lhs.get());
+            auto l = dynamic_cast<EntityNode*>(t.Proc.lhs.get());
 
             if (l)
             {
@@ -1096,16 +1157,16 @@ protected:
               if (l->type_tag == EntityTypeTag::Proc)
               {
                 result  = "(";
-                result += t.lhs->to_string();
+                result += t.Proc.lhs->to_string();
                 result += ") -> ";
-                result += t.rhs->to_string();
+                result += t.Proc.rhs->to_string();
                 break;
               }
               else
               {
-                result  = t.lhs->to_string();
+                result  = t.Proc.lhs->to_string();
                 result += " -> ";
-                result += t.rhs->to_string();
+                result += t.Proc.rhs->to_string();
               }
             }
             else
@@ -1120,17 +1181,17 @@ protected:
         break;
       }
 
-      case EntityTag::Nil: {
+      case EntityValueTag::Nil: {
         result = "nil";
         break;
       }
 
-      case EntityTag::Int: {
+      case EntityValueTag::Int: {
         result = std::to_string(u.integer);
         break;
       }
 
-      case EntityTag::Bool: {
+      case EntityValueTag::Bool: {
         if (u.boolean == true) {
           result = "true";
         } else {
@@ -1139,8 +1200,8 @@ protected:
         break;
       }
 
-      case EntityTag::Proc: {
-        ProcSet& p = u.procedure;
+      case EntityValueTag::Proc: {
+        ProcSetNode& p = u.procedure;
         result  = "\\ ";
         result += p.def.arg_id;
         result += " : ";

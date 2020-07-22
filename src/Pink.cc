@@ -8,7 +8,9 @@ using std::cout;
 using std::istream;
 using std::endl;
 
-#include "llvm-10/llvm/IR/Constants.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/LLVMContext.h"
+using llvm::LLVMContext;
 
 #include "Ast.hh"
 #include "Lexer.hh"
@@ -17,7 +19,7 @@ using std::endl;
 int main()
 {
   LLVMContext context;
-  
+
   Parser parser(&context);
   string input;
 

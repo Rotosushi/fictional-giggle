@@ -17,6 +17,7 @@ using std::get;
 
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Type.h"
+using llvm::Type;
 
 #include "Parser.hh"
 #include "Ast.hh"
@@ -24,7 +25,8 @@ using std::get;
 #include "OperatorTable.hh"
 #include "Kernel.hh"
 
-Parser::Parser()
+Parser::Parser(LLVMContext* c)
+  : ctx(c)
 {
   init_binops(binops);
   init_unops(unops);
@@ -340,7 +342,7 @@ unique_ptr<Ast> Parser::parse_term()
   }
   else if (is_ender(curtok()))
   {
-    lhs = unique_ptr<Ast>(new Empty(lhsloc));
+    lhs = unique_ptr<Ast>(new EmptyNode(lhsloc));
   }
   else
   {
@@ -367,7 +369,7 @@ unique_ptr<Ast> Parser::parse_primary()
                                   rhsloc.first_line,
                                   rhsloc.first_column);
 
-      lhs = unique_ptr<Ast>(new Call(move(lhs), move(rhs), callloc));
+      lhs = unique_ptr<Ast>(new CallNode(move(lhs), move(rhs), callloc));
     } while ((curtok() != Token::Operator && is_primary(curtok())
           || (curtok() == Token::Operator && is_unop(curtxt()))));
 
@@ -420,11 +422,11 @@ unique_ptr<Ast> Parser::parse_primitive()
                                     lhsloc.first_column,
                                     rhsloc.first_line,
                                     rhsloc.first_column);
-        lhs = unique_ptr<Ast>(new Bind(id, move(rhs), bindloc));
+        lhs = unique_ptr<Ast>(new BindNode(id, move(rhs), bindloc));
       }
       else
       {
-        lhs = unique_ptr<Ast>(new Variable(id, lhsloc));
+        lhs = unique_ptr<Ast>(new VariableNode(id, lhsloc));
       }
       break;
     }
@@ -456,32 +458,31 @@ unique_ptr<Ast> Parser::parse_primitive()
 
     case Token::TypeNil:
     {
-      Type* niltype = ctx->getVoidTy();
-      lhs = unique_ptr<Ast>(new Entity(niltype, lhsloc));
+      lhs = unique_ptr<Ast>(new EntityNode(EntityTypeTag::Nil, lhsloc));
       nextok();
       break;
     }
 
     case Token::TypeInt:
     {
-      Type* inttype = ctx->getInt32Ty();
-      lhs = unique_ptr<Ast>(new Entity(inttype, lhsloc));
+      Type* inttype = Type::getInt32Ty(*ctx);
+      lhs = unique_ptr<Ast>(new EntityNode(inttype, lhsloc));
       nextok();
       break;
     }
 
     case Token::TypeBool:
     {
-      Type* booltype = ctx->getInt1Ty();
-      lhs = unique_ptr<Ast>(new Entity(booltype, lhsloc));
+      Type* booltype = Type::getInt1Ty(*ctx);
+      lhs = unique_ptr<Ast>(new EntityNode(booltype, lhsloc));
       nextok();
       break;
     }
 
     case Token::Nil:
     {
-      Type* niltype = ctx->getVoidTy();
-      lhs = unique_ptr<Ast>(new Entity(niltype, '\0', lhsloc));
+      Type* niltype = Type::getVoidTy(*ctx);
+      lhs = unique_ptr<Ast>(new EntityNode(niltype, '\0', lhsloc));
       nextok();
       break;
     }
@@ -489,24 +490,24 @@ unique_ptr<Ast> Parser::parse_primitive()
     case Token::Int:
     {
       int value     = stoi(curtxt());
-      Type* inttype = ctx->getInt32Ty();
-      lhs = unique_ptr<Ast>(new Entity(inttype, value, lhsloc));
+      Type* inttype = Type::getInt32Ty(*ctx);
+      lhs = unique_ptr<Ast>(new EntityNode(inttype, value, lhsloc));
       nextok();
       break;
     }
 
     case Token::True:
     {
-      Type* booltype = ctx->getInt1Ty();
-      lhs = unique_ptr<Ast>(new Entity(booltype, true, lhsloc));
+      Type* booltype = Type::getInt1Ty(*ctx);
+      lhs = unique_ptr<Ast>(new EntityNode(booltype, true, lhsloc));
       nextok();
       break;
     }
 
     case Token::False:
     {
-      Type* booltype = ctx->getInt1Ty();
-      lhs = unique_ptr<Ast>(new Entity(booltype, false, lhsloc));
+      Type* booltype = Type::getInt1Ty(*ctx);
+      lhs = unique_ptr<Ast>(new EntityNode(booltype, false, lhsloc));
       nextok();
       break;
     }
@@ -529,7 +530,7 @@ unique_ptr<Ast> Parser::parse_primitive()
                        rhsloc.first_line,
                        rhsloc.first_column);
 
-      lhs = unique_ptr<Ast>(new Unop(op, move(rhs), unoploc));
+      lhs = unique_ptr<Ast>(new UnopNode(op, move(rhs), unoploc));
       break;
     }
 
@@ -627,7 +628,7 @@ unique_ptr<Ast> Parser::parse_if()
                                               lhsloc.first_column,
                                               rhsloc.first_line,
                                               rhsloc.first_column);
-        cond = unique_ptr<Ast>(new Cond(move(test), move(first), move(second), condloc));
+        cond = unique_ptr<Ast>(new CondNode(move(test), move(first), move(second), condloc));
       }
       else
       {
@@ -664,7 +665,7 @@ unique_ptr<Ast> Parser::parse_procedure()
       }
       else
       {
-        type = unique_ptr<Ast>(new Entity(EntityTypeTag::Poly, Location()));
+        type = unique_ptr<Ast>(new EntityNode(EntityTypeTag::Poly, Location()));
         poly = true;
       }
 
@@ -678,7 +679,7 @@ unique_ptr<Ast> Parser::parse_procedure()
                          rhsloc.first_line,
                          rhsloc.first_column);
 
-        proc = unique_ptr<Ast>(new Entity(Procedure(id, move(type), move(body)), poly, procloc));
+        proc = unique_ptr<Ast>(new EntityNode({id, move(type), move(body)}, poly, procloc));
       }
       else
       {
@@ -788,7 +789,7 @@ unique_ptr<Ast> Parser::parse_infix(unique_ptr<Ast> lhs, int precedence)
                       lhs->loc.first_column,
                       rhstermloc.first_line,
                       rhstermloc.first_column);
-    lhs = unique_ptr<Ast>(new Binop(optxt, move(lhs), move(rhs), binoploc));
+    lhs = unique_ptr<Ast>(new BinopNode(optxt, move(lhs), move(rhs), binoploc));
   }
   return lhs;
 }
@@ -796,72 +797,55 @@ unique_ptr<Ast> Parser::parse_infix(unique_ptr<Ast> lhs, int precedence)
 
 bool Parser::speculate_term()
 {
-  bool result = true;
+  bool result = false;
 
   if (is_primary(curtok()))
   {
     result = speculate_primary();
+
+    if (result)
+    {
+      while (curtok() == Token::Operator && is_binop(curtxt()))
+      {
+        /*
+        an infix/affix expression,
+        modulo precedence, is:
+          primary (operator primary)+
+        */
+          nextok(); // eat the binop
+          result = speculate_primary();
+          if (!result)
+          {
+            // error: unable to parse primary term.
+            break;
+          }
+      }
+    }
+  }
+  else if (is_ender(curtok()))
+  {
+    result = true;
   }
   else
   {
     // error: expression must begin
     //  with a primary term.
   }
-
-  if (result)
-  {
-
-    if (curtok() != Token::Operator && is_primary(curtok()))
-    {
-      do
-      {
-        result = speculate_primary();
-        if (!result)
-        {
-          // error: unable to parse primary term.
-          break;
-        }
-      } while (curtok() != Token::Operator && is_primary(curtok()));
-    }
-    else if (curtok() == Token::Operator && is_unop(curtxt()))
-    {
-      nextok();
-      result = speculate_term();
-    }
-    else if (curtok() == Token::Operator && is_typeop(curtxt()))
-    {
-      do {
-        nextok();
-        result = speculate_type_primitive();
-        if (!result) {
-          // error: type operators only valid on type primitives
-          break;
-        }
-      } while (curtok() == Token::Operator && is_typeop(curtxt()));
-    }
-    else if (curtok() == Token::Operator && is_binop(curtxt()))
-    {
-      /*
-      an infix/affix expression,
-      modulo precedence, is:
-        term (operator term)+
-      */
-      do {
-        nextok(); // eat the binop
-        result = speculate_primary();
-        if (!result)
-        {
-          // error: unable to parse primary term.
-          break;
-        }
-      } while (curtok() == Token::Operator && is_binop(curtxt()));
-    }
-  }
-
   return result;
 }
 
 bool Parser::speculate_primary()
+{
+  bool result = false;
+  while ((curtok() != Token::Operator && is_primary(curtok()))
+      || (curtok() == Token::Operator && is_unop(curtxt())))
+  {
+    result = speculate_primitive();
+  }
+  return result;
+}
+
+bool Parser::speculate_primitive()
 {
   bool result = true;
   if      (speculate(Token::Nil));
@@ -880,6 +864,9 @@ bool Parser::speculate_primary()
     if (speculate_term()) {
       result = speculate(Token::RParen);
     }
+    else {
+      result = false;
+    }
   }
   else if (speculate(Token::Operator)) {
     result = speculate_primary();
@@ -892,11 +879,11 @@ bool Parser::speculate_primary()
   }
   else if (is_ender(curtok()));
   else {
-    // error: no valid primary term to parse.
+    // error: no valid primitive term to parse.
     result = false;
   }
 
-  return true;
+  return result;
 }
 
 bool Parser::speculate_if()

@@ -58,7 +58,7 @@ class Parser {
   int              curidx;
 
 public:
-  Parser(LLVMContext* c) : ctx(c) {}
+  Parser(LLVMContext* c);
 
   optional<unique_ptr<Ast>> parse(const string& text);
 
@@ -92,6 +92,7 @@ private:
   bool speculate(Token t);
   bool speculate_term();
   bool speculate_primary();
+  bool speculate_primitive();
   bool speculate_if();
   bool speculate_procedure();
 };
