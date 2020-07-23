@@ -10,6 +10,8 @@ using std::vector;
 using std::set;
 #include <memory>
 using std::unique_ptr;
+#include <utility>
+using std::optional;
 
 #include "llvm-10/llvm/IR/LLVMContext.h"
 
@@ -17,6 +19,8 @@ using std::unique_ptr;
 #include "Lexer.hh"
 #include "OperatorTable.hh"
 #include "Kernel.hh"
+#include "Location.hh"
+#include "Error.hh"
 
 
 enum class Token {
@@ -43,6 +47,8 @@ enum class Token {
   EqRarrow,
   Operator,
 };
+
+
 
 class Lexer;
 
@@ -90,9 +96,9 @@ private:
   unique_ptr<Ast> parse_infix(unique_ptr<Ast> lhs, int precedence);
 
   bool speculate(Token t);
-  bool speculate_term();
-  bool speculate_primary();
-  bool speculate_primitive();
-  bool speculate_if();
-  bool speculate_procedure();
+  optional<ParserError> speculate_term();
+  optional<ParserError> speculate_primary();
+  optional<ParserError> speculate_primitive();
+  optional<ParserError> speculate_if();
+  optional<ParserError> speculate_procedure();
 };

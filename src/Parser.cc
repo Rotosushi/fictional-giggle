@@ -1,3 +1,5 @@
+#include <iostream>
+using std::cout;
 #include <string>
 using std::string;
 using std::stoi;
@@ -24,6 +26,8 @@ using llvm::Type;
 #include "Lexer.hh"
 #include "OperatorTable.hh"
 #include "Kernel.hh"
+#include "Location.hh"
+#include "Error.hh"
 
 Parser::Parser(LLVMContext* c)
   : ctx(c)
@@ -67,6 +71,8 @@ void Parser::gettok(int i)
 
     for (int j = 0; j < n; j++)
     {
+      // without string here,
+      // gdb cannot print strings...
       auto    tok = lexer.yylex();
       string* str = lexer.yytxt();
       auto    loc = lexer.yyloc();
@@ -188,17 +194,29 @@ optional<unique_ptr<Ast>> Parser::parse(const string& text)
     it is defined: being speculatively parseable.
     this at least ensures that things which look
     like operators, but may not be defined, are
-    still where we expect them, but we still want
-    to reject truly malformed terms.
+    still where we expect them, as with identifiers,
+    but we still want to reject truly malformed terms.
   */
   mark();
-  bool good = speculate_term();
+  optional<ParserError> err_or = speculate_term();
   release();
 
-  if (good)
-    result = optional<unique_ptr<Ast>>(move(parse_term()));
-  else
+  /*
+  minor note: it is sort of weird that
+  we are using optionals in the reverse
+  of what they are usually, but given
+  we are constructing an error type or not,
+  i feel it still algins with the intended
+  usecase, "we are either given an error,
+  or we are given nothing, i.e. success."
+  */
+  if (err_or)
+  {
+    cout << buildErrStr(*err_or, text);
     result = optional<unique_ptr<Ast>>();
+  }
+  else
+    result = optional<unique_ptr<Ast>>(move(parse_term()));
 
   return result;
 }
@@ -253,25 +271,6 @@ unique_ptr<Ast> Parser::parse_term()
     lhs = parse_primary();
 
     /*
-      if we parsed some primary expression,
-      then we must expect that we could be
-      required to parse more of said exression,
-      and so we check, should the next token
-      be another primary term, then we must be
-      parsing some call node. which means we must
-      construct a call Ast node containing these
-      two primary expressions, however, we need to
-      be cognizant of the associativity of the
-      call expression itself.
-      do we parse [a b c d] as:
-        (((a b) c) d)
-      or
-        (a (b (c d)))
-      i.e. do call terms associative left or right?
-      the answer is they associate to the left,
-      we construct the deepest node as (a b)
-      the next node as (a b) c, then the outermost,
-      root node as ((a b) c) d.
 
       should the next token be an operator, then
       we need to distinguish between which kind of
@@ -289,11 +288,26 @@ unique_ptr<Ast> Parser::parse_term()
       the procedure. this allows programmers to trivially
       pass the address of some variable, or any number
       of other actions could occur.
+
+      we should recommend that
+      unary operators avoid symbolically
+      intersecting with binary operators.
+      if they do, be aware the grammar rules will select
+      the binary form of the operator every time.
+
+      this is to avoid the reverse case of parsing
+      [3 - 4] as [3 (-4)]
+      and yeah, you are reading that correctly,
+      it's a call expression...
+      and hence, does not allow the programmer
+      to even input an expression representing
+      [3 - 4]
+
     */
     if (lhs)
     {
       /*
-        there may be more expression past the first
+        there may be more expressions past the first
         primary term.
       */
       if (curtok() == Token::Operator && is_binop(curtxt()))
@@ -329,6 +343,7 @@ unique_ptr<Ast> Parser::parse_term()
                   end of term token, is followed by
                   an invalid token.
         */
+
       }
     }
     else
@@ -357,21 +372,56 @@ unique_ptr<Ast> Parser::parse_primary()
   auto lhsloc = curloc();
   lhs = parse_primitive();
 
-  if (curtok() != Token::Operator && is_primary(curtok()))
+  /*
+  if we parsed some primary expression,
+  then we must expect that we could be
+  required to parse more of said exression,
+  and so we check, should the next token
+  be another primary term, then we must be
+  parsing some call node.
+  which means we must
+  construct a call Ast node containing these
+  two primary expressions, however, we need to
+  be cognizant of the associativity of the
+  call expression itself.
+  do we parse [a b c d] as:
+   (((a b) c) d)
+  or
+   (a (b (c d)))
+  i.e. do call terms associative left or right?
+  the answer is they associate to the left,
+  we construct the deepest node as (a b)
+  the next node as (a b) c, then the outermost,
+  root node as ((a b) c) d.
+
+  we should recommend that
+  unary operators avoid symbolically
+  intersecting with binary operators.
+  if they do, be aware the grammar rules will select
+  the binary form of the operator every time.
+
+  this is to avoid the reverse case of parsing
+  [3 - 4] as [3 (-4)]
+  and yeah, you are reading that correctly,
+  it's a call expression...
+  and hence, does not allow the programmer
+  to even input an expression representing
+  [3 - 4]
+  */
+
+  while ((curtok() != Token::Operator && is_primary(curtok()))
+      || (curtok() == Token::Operator && !is_binop(curtxt())))
   {
-    do
-    {
-      rhs = parse_primitive();
-      Location&& rhsloc = curloc();
-      Location callloc = Location(lhsloc.first_line,
-                                  lhsloc.first_column,
-                                  rhsloc.first_line,
-                                  rhsloc.first_column);
+    rhs = parse_primitive();
+    Location&& rhsloc = curloc();
+    Location callloc = Location(lhsloc.first_line,
+                                lhsloc.first_column,
+                                rhsloc.first_line,
+                                rhsloc.first_column);
 
-      lhs = unique_ptr<Ast>(new CallNode(move(lhs), move(rhs), callloc));
-    } while (curtok() != Token::Operator && is_primary(curtok()));
-
+    lhs = unique_ptr<Ast>(new CallNode(move(lhs), move(rhs), callloc));
   }
+
   return move(lhs);
 }
 
@@ -795,9 +845,9 @@ unique_ptr<Ast> Parser::parse_infix(unique_ptr<Ast> lhs, int precedence)
 }
 
 
-bool Parser::speculate_term()
+optional<ParserError> Parser::speculate_term()
 {
-  bool result = false;
+  optional<ParserError> result;
 
   if (is_primary(curtok()))
   {
@@ -814,40 +864,35 @@ bool Parser::speculate_term()
         */
           nextok(); // eat the binop
           result = speculate_primary();
-          if (!result)
-          {
-            // error: unable to parse primary term.
-            break;
-          }
       }
     }
   }
   else if (is_ender(curtok()))
   {
-    result = true;
+    // an empty expression is represented by the empty term
+    result = optional<ParserError>();
   }
   else
   {
-    // error: expression must begin
-    //  with a primary term.
+     result = optional<ParserError>({curloc(), "unknown token in primary position"});
   }
   return result;
 }
 
-bool Parser::speculate_primary()
+optional<ParserError> Parser::speculate_primary()
 {
-  bool result = false;
+  optional<ParserError> result;
   while ((curtok() != Token::Operator && is_primary(curtok()))
-      || (curtok() == Token::Operator && is_unop(curtxt())))
+      || (curtok() == Token::Operator && !is_binop(curtxt())))
   {
     result = speculate_primitive();
   }
   return result;
 }
 
-bool Parser::speculate_primitive()
+optional<ParserError> Parser::speculate_primitive()
 {
-  bool result = true;
+  optional<ParserError> result;
   if      (speculate(Token::Nil));
   else if (speculate(Token::TypeNil));
   else if (speculate(Token::Int));
@@ -861,11 +906,20 @@ bool Parser::speculate_primitive()
     }
   }
   else if (speculate(Token::LParen)) {
-    if (speculate_term()) {
-      result = speculate(Token::RParen);
+    /*
+      remember that we are using the None
+      shape of the optional type to signal
+      success, and the implicit boolean
+      conversion of the None shape is false.
+    */
+    result = speculate_term();
+    if (!result && speculate(Token::RParen))
+    {
+      ;
     }
-    else {
-      result = false;
+    else
+    {
+      result = optional<ParserError>({curloc(), "missing closing parenthesis"});
     }
   }
   else if (speculate(Token::Operator)) {
@@ -880,47 +934,64 @@ bool Parser::speculate_primitive()
   else if (is_ender(curtok()));
   else {
     // error: no valid primitive term to parse.
-    result = false;
+    result = optional<ParserError>({curloc(), "unknown primitive"});
   }
 
   return result;
 }
 
-bool Parser::speculate_if()
+optional<ParserError> Parser::speculate_if()
 {
-  bool result = false;
+  optional<ParserError> result;
   if (speculate(Token::If)) {
-    if (speculate_term()) {
-      if (speculate(Token::Then)) {
-        if (speculate_term()) {
-          if (speculate(Token::Else)) {
-            if (speculate_term()) {
-              result = true;
-            }
+      result = speculate_term();
+      if (!result && speculate(Token::Then)) {
+          result = speculate_term();
+          if (!result && speculate(Token::Else)) {
+            result = speculate_term();
           }
-        }
+          else
+          {
+            result = optional<ParserError>({curloc(), "missing 'else'"});
+          }
       }
-    }
+      else
+      {
+        result = optional<ParserError>({curloc(), "missing 'then'"});
+      }
+  }
+  else
+  {
+    result = optional<ParserError>({curloc(), "missing 'if'"});
   }
   return result;
 }
 
-bool Parser::speculate_procedure()
+optional<ParserError> Parser::speculate_procedure()
 {
-  bool result = false;
+  optional<ParserError> result;
   if (speculate(Token::Backslash)) {
     if (speculate(Token::Id)) {
       if (speculate(Token::Colon)) {
-        if (speculate_term())
-        ;
+        result = speculate_term();
       }
 
-      if (speculate(Token::EqRarrow)) {
-        if (speculate_term()) {
-          result = true;
-        }
+      if (!result && speculate(Token::EqRarrow)) {
+        result = speculate_term();
+      }
+      else
+      {
+        result = optional<ParserError>({curloc(), "missing '=>'"});
       }
     }
+    else
+    {
+      result = optional<ParserError>({curloc(), "missing procedure identifier"});
+    }
+  }
+  else
+  {
+    result = optional<ParserError>({curloc(), "missing '\\'"});
   }
   return result;
 }

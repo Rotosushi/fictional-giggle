@@ -16,6 +16,8 @@ using llvm::Type;
 #include "llvm/IR/DerivedTypes.h"
 using llvm::IntegerType;
 
+#include "Location.hh"
+
 /*
   the abstract syntax tree is the main
   data structure of this program. each
@@ -28,52 +30,6 @@ using llvm::IntegerType;
   tree, then we should get more leeway in changing
   or adding structures to the tree in the future.
 */
-
-// for holding string locations.
-class Location {
-public:
-  int first_line;
-  int first_column;
-  int last_line;
-  int last_column;
-
-
-  Location() {
-    first_line   = 0;
-    first_column = 0;
-    last_line    = 0;
-    last_column  = 0;
-  }
-
-  Location(int fl, int fc, int ll, int lc) {
-    first_line   = fl;
-    first_column = fc;
-    last_line    = ll;
-    last_column  = lc;
-  }
-
-  Location(const Location& loc) {
-    first_line   = loc.first_line;
-    first_column = loc.first_column;
-    last_line    = loc.last_line;
-    last_column  = loc.last_column;
-  }
-
-  Location& operator=(const Location& rhs) {
-    first_line   = rhs.first_line;
-    first_column = rhs.first_column;
-    last_line    = rhs.last_line;
-    last_column  = rhs.last_column;
-    return *this;
-  }
-
-  ~Location() {
-    first_line   = 0;
-    first_column = 0;
-    last_line    = 0;
-    last_column  = 0;
-  }
-};
 
 
 /*
@@ -217,9 +173,9 @@ protected:
       i have flip flopped a lot with this.
     */
     string result;
-    result  = "(";
+    result  = "((";
     result += lhs->to_string();
-    result += " ";
+    result += ") ";
     result += rhs->to_string();
     result += ")";
     return result;
@@ -582,126 +538,6 @@ protected:
 };
 
 
-/*
-  The type heirarchy of Pink is
-  intentionaly simple. some type is
-  either monomorphic, polymorphic,
-  or a procedure type. if we are
-  comparing two types, we can
-  only truly consider exact matches
-  here. two monomorphic types are only
-  equivalent if they represent the same
-  monomorphic type. two entities of polymorphic type
-  are never equivalent. if we are comparing two
-  procedure types, we must compare both sides,
-  and both sides must be equivalent.
-
-  i am currently rethinking the Type class
-  after having written some of the typechecker.
-  with the current design, we are forced into
-  using dynamic_cast to enforce some invariants.
-  it may instead be better if we were to
-  implement the Type class in the same way as
-  the Entity class. a tagged union between
-  MonoType and ProcType. this would turn
-  dynamic_casts into checks against the tag.
-  this would factor out RTTI of the design.
-*/
-
-/*
-class Type {
-public:
-  Type() {}
-  virtual ~Type() = default;
-
-protected:
-  virtual Type* clone_internal() { return new Type(); }
-  virtual string to_string_internal() { return ""; }
-
-public:
-  auto clone() { return unique_ptr<Type>(clone_internal()); }
-  string to_string() { return to_string_internal(); }
-};
-
-enum class AtomicType {
-  Undef,
-  Poly,
-  Nil,
-  Int,
-  Bool,
-};
-
-class MonoType : public Type {
-public:
-  AtomicType type;
-
-  MonoType() : Type(), type(AtomicType::Undef) {}
-  MonoType(AtomicType t) : Type(), type(t) {}
-  MonoType(MonoType& mt) : Type(), type(mt.type) {}
-
-protected:
-  virtual MonoType* clone_internal() override { return new MonoType(*this); }
-
-  virtual string to_string_internal() override {
-    string result;
-    switch(type) {
-      case AtomicType::Undef: {
-        result = "Undef";
-        break;
-      }
-
-      case AtomicType::Poly: {
-        result = "Poly";
-        break;
-      }
-
-      case AtomicType::Nil: {
-        result = "Nil";
-        break;
-      }
-
-      case AtomicType::Int: {
-        result = "Int";
-        break;
-      }
-
-      case AtomicType::Bool: {
-        result = "Bool";
-        break;
-      }
-
-      default:
-        throw "malformed MonoType tag.\n";
-    }
-    return result;
-  }
-};
-
-
-class ProcType : public Type {
-public:
-  unique_ptr<Type> lhs;
-  unique_ptr<Type> rhs;
-
-  ProcType() {}
-  ProcType(ProcType& pt) : Type(), lhs(pt.lhs->clone()), rhs(pt.rhs->clone()) {}
-  ProcType(unique_ptr<Type> l, unique_ptr<Type> r) : Type(), lhs(move(l)), rhs(move(r)) {}
-
-protected:
-  virtual ProcType* clone_internal() override { return new ProcType(*this); }
-
-  virtual string to_string_internal() override {
-    string result;
-    result  = "(";
-    result += lhs->to_string();
-    result += " -> ";
-    result += rhs->to_string();
-    result += ")";
-    return result;
-  }
-};
-*/
-
 
 /*
   procedures:
@@ -1063,6 +899,7 @@ protected:
 
           case EntityTypeTag::Poly: {
             result = "Poly";
+            break;
           }
 
           case EntityTypeTag::Proc: {
