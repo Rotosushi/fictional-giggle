@@ -35,6 +35,8 @@ enum class Token {
   True,
   False,
   TypeBool,
+  While,
+  Do,
   If,
   Then,
   Else,
@@ -92,6 +94,7 @@ private:
   unique_ptr<Ast> parse_primary();
   unique_ptr<Ast> parse_primitive();
   unique_ptr<Ast> parse_if();
+  unique_ptr<Ast> parse_while();
   unique_ptr<Ast> parse_procedure();
   unique_ptr<Ast> parse_infix(unique_ptr<Ast> lhs, int precedence);
 
@@ -100,5 +103,6 @@ private:
   optional<ParserError> speculate_primary();
   optional<ParserError> speculate_primitive();
   optional<ParserError> speculate_if();
+  optional<ParserError> speculate_while();
   optional<ParserError> speculate_procedure();
 };

@@ -92,6 +92,27 @@ public:
 };
 
 /*
+  End, for when the user enters EOF.
+*/
+
+class EndNode : public Ast {
+public:
+  EndNode() {}
+  EndNode(const EndNode& e) {}
+
+protected:
+  virtual EndNode* clone_internal() override
+  {
+    return new EndNode(*this);
+  }
+
+  virtual string to_string_internal() override
+  {
+    return "";
+  }
+};
+
+/*
   Empty, for when the user enters an empty term.
   i.e. they enter no characters where a term was
        expected.
@@ -104,8 +125,12 @@ public:
   EmptyNode(const EmptyNode& e) : Ast(e.loc) {}
 
 protected:
-  virtual EmptyNode* clone_internal() override { return new EmptyNode(*this); }
-  virtual string to_string_internal() override {
+  virtual EmptyNode* clone_internal() override
+  {
+    return new EmptyNode(*this);
+  }
+  virtual string to_string_internal() override
+  {
     return "";
   }
 };
@@ -523,9 +548,13 @@ public:
   CondNode(const CondNode& rhs) : Ast(rhs.loc), test(rhs.test->clone()), first(rhs.first->clone()), second(rhs.second->clone()) {}
 
 protected:
-  virtual CondNode* clone_internal()  override { return new CondNode(*this); }
+  virtual CondNode* clone_internal()  override
+  {
+    return new CondNode(*this);
+  }
 
-  virtual string to_string_internal() override {
+  virtual string to_string_internal() override
+  {
     string result;
     result  = "if ";
     result += test->to_string();
@@ -537,6 +566,33 @@ protected:
   }
 };
 
+class WhileNode : public Ast {
+public:
+  unique_ptr<Ast> test;
+  unique_ptr<Ast> body;
+
+  WhileNode(unique_ptr<Ast> t, unique_ptr<Ast> b, const Location& loc)
+    : Ast(loc), test(move(t)), body(move(b)) {}
+
+  WhileNode(const WhileNode& rhs)
+    : Ast(rhs.loc), test(rhs.test->clone()), body(rhs.body->clone()) {}
+
+protected:
+    virtual WhileNode* clone_internal() override
+    {
+      return new WhileNode(*this);
+    }
+
+    virtual string to_string_internal() override
+    {
+      string result;
+      result += "while ";
+      result += test->to_string();
+      result += " do ";
+      result += body->to_string();
+      return result;
+    }
+};
 
 
 /*

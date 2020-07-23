@@ -145,6 +145,7 @@ bool Parser::is_primary(Token t)
     case Token::Backslash: case Token::Operator:
     case Token::LParen: case Token::TypeNil:
     case Token::TypeInt: case Token::TypeBool:
+    case Token::While:
       return true;
     default:
       return false;
@@ -158,6 +159,7 @@ bool Parser::is_ender(Token t)
     case Token::RParen: case Token::End:
     case Token::NewLn: case Token::EqRarrow:
     case Token::Then: case Token::Else:
+    case Token::Do:
       return true;
     default:
       return false;
@@ -186,6 +188,11 @@ optional<unique_ptr<Ast>> Parser::parse(const string& text)
   lexer.set_buffer(text);
 
   gettok(1);
+
+  if (curtok() == Token::End)
+  {
+    return optional<unique_ptr<Ast>>(new EndNode());
+  }
 
   /*
     #! use-before-definition
@@ -601,6 +608,12 @@ unique_ptr<Ast> Parser::parse_primitive()
       break;
     }
 
+    case Token::While:
+    {
+      lhs = parse_while();
+      break;
+    }
+
     case Token::If:
     {
       lhs = parse_if();
@@ -691,6 +704,31 @@ unique_ptr<Ast> Parser::parse_if()
     }
   }
   return cond;
+}
+
+unique_ptr<Ast> Parser::parse_while()
+{
+  unique_ptr<Ast> loop, test, body;
+  Location&& lhsloc = curloc();
+
+  if (curtok() == Token::While)
+  {
+    nextok();
+    test = parse_term();
+
+    if (curtok() == Token::Do) {
+      nextok();
+      body = parse_term();
+
+      Location&& rhsloc = curloc(), looploc(lhsloc.first_line,
+                                            lhsloc.first_column,
+                                            rhsloc.last_line,
+                                            rhsloc.last_column);
+
+      loop = unique_ptr<Ast>(new WhileNode(move(test), move(body), looploc));
+    }
+  }
+  return loop;
 }
 
 unique_ptr<Ast> Parser::parse_procedure()
@@ -925,6 +963,9 @@ optional<ParserError> Parser::speculate_primitive()
   else if (speculate(Token::Operator)) {
     result = speculate_primary();
   }
+  else if (speculate(Token::While)) {
+    result = speculate_while();
+  }
   else if (curtok() == Token::If) {
     result = speculate_if();
   }
@@ -937,6 +978,26 @@ optional<ParserError> Parser::speculate_primitive()
     result = optional<ParserError>({curloc(), "unknown primitive"});
   }
 
+  return result;
+}
+
+optional<ParserError> Parser::speculate_while()
+{
+  optional<ParserError> result;
+  if (speculate(Token::While)) {
+    result = speculate_term();
+    if (!result && speculate(Token::Do)) {
+      result = speculate_term();
+    }
+    else
+    {
+      result = optional<ParserError>({curloc(), "missing 'do'"});
+    }
+  }
+  else
+  {
+    result = optional<ParserError>({curloc(), "missing 'while'"});
+  }
   return result;
 }
 

@@ -32,6 +32,9 @@ int main()
     auto ast = parser.parse(input);
 
     if (ast) {
+      if (dynamic_cast<EndNode*>((*ast).get()))
+        break;
+
       cout << (*ast)->to_string() << endl;
     } else {
       cout << "failed to parse input: " << input << "\n";

@@ -91,14 +91,15 @@ Token Lexer::yylex()
 
             *          { update_location(); return Token::Error;       }
             $          { update_location(); return Token::End;         }
-            [ \t]      { update_location(); continue;                  }
-            [\n]       { update_location(); return Token::NewLn;       }
+            [ \t\n]    { update_location(); continue;                  }
             "nil"      { update_location(); return Token::Nil;         }
             "Nil"      { update_location(); return Token::TypeNil;     }
             "Int"      { update_location(); return Token::TypeInt;     }
             "true"     { update_location(); return Token::True;        }
             "false"    { update_location(); return Token::False;       }
             "Bool"     { update_location(); return Token::TypeBool;    }
+            "while"    { update_location(); return Token::While;       }
+            "do"       { update_location(); return Token::Do;          }
             "if"       { update_location(); return Token::If;          }
             "then"     { update_location(); return Token::Then;        }
             "else"     { update_location(); return Token::Else;        }

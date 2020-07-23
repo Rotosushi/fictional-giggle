@@ -26,16 +26,13 @@ public:
   bool is_polymorphic(const Type* const t);
   optional<unique_ptr<Ast>> HasInstance(const ProcSet* const, const Type* const t, SymbolTable* env);
 
-  unique_ptr<Type> getype(const Empty* const e, SymbolTable* env);
-  unique_ptr<Type> getype(const Variable* const v, SymbolTable* env);
-  unique_ptr<Type> getype(const Call* const c, SymbolTable* env);
-  unique_ptr<Type> getype(const Bind* const b, SymbolTable* env);
-  unique_ptr<Type> getype(const Binop* const b, SymbolTable* env);
-  unique_ptr<Type> getype(const Unop* const u, SymbolTable* env);
-  unique_ptr<Type> getype(const Cond* const c, SymbolTable* env);
-  unique_ptr<Type> getype(const Entity* const e, SymbolTable* env);
-  unique_ptr<Type> getype(const ProcSet* const p, SymbolTable* env);
-  unique_ptr<Type> getype(const MonoType* const m, SymbolTable* env);
-  unqiue_ptr<Type> getype(const ProcType* const p, SymbolTable* env);
+  unique_ptr<Ast> getype(const Empty* const e, SymbolTable* env);
+  unique_ptr<Ast> getype(const Variable* const v, SymbolTable* env);
+  unique_ptr<Ast> getype(const Call* const c, SymbolTable* env);
+  unique_ptr<Ast> getype(const Bind* const b, SymbolTable* env);
+  unique_ptr<Ast> getype(const Binop* const b, SymbolTable* env);
+  unique_ptr<Ast> getype(const Unop* const u, SymbolTable* env);
+  unique_ptr<Ast> getype(const Cond* const c, SymbolTable* env);
+  unique_ptr<Ast> getype(const Entity* const e, SymbolTable* env);
 
 };
