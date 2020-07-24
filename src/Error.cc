@@ -39,3 +39,9 @@ string buildErrStr(const ParserError& prserr, const string& errtext)
 {
   return buildErrStr(prserr.location(), prserr.what(), errtext);
 }
+
+string buildErrStr(const TypeError& typerr, const string& errtext)
+{
+
+  return buildErrStr(typerr.location() , typerr.what(), errtext);
+}

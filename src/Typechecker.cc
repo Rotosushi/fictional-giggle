@@ -16,141 +16,157 @@ using std::get;
 
 #include "Typechecker.hh"
 
-
-bool Typechecker::equivalent(const Type * const t1, const Type * const t2)
+Judgement Typechecker::equivalent(const TypeNode* t1, const TypeNode* t2)
 {
-  if (!t1 || !t2)
-    throw "cannot type compare against nullptr\n";
-
-  MonoType* mt1p = dynamic_cast<MonoType*> (t1.get());
-  MonoType* mt2p = dynamic_cast<MonoType*> (t2.get());
-
-  // if either cast fails, we return false
-  // because any MonoType does not equal
-  // a ProcType.
-  if (!mt1p || !mt2p) {
-    return false;
-  }
-  else if (mt1p && mt2p) {
-    // we compare MonoTypes by
-    // comparing their tags.
-    return mt1p.type == mt2p.type;
-  } else {
-    // if neither dynamic_cast above succeeded
-    // then neither are MonoTypes, and the only
-    // other kind of type is ProcType, so we
-    // assume that either both are ProcTypes,
-    // or the judgement is false.
-    // and to compare ProcTypes, we compare
-    // their branches.
-    ProcType* pt1p = dynamic_cast<ProcType*> (t1.get());
-    ProcType* pt2p = dynamic_cast<ProcType*> (t2.get());
-
-    if (!pt1p || !pt2p)
-      throw "cannot compare invalid Type ptrs\n";
-
-    return TypesEqual(pt1p->lhs, pt2p->lhs)
-        && TypesEqual(pt1p->rhs, pt2p->rhs);
-  }
-}
-
-bool is_polymorphic(const Type* const t)
-{
-  if (!t)
-    throw "cannot check for polymorphism of nullptr\n";
-
-  auto monotype = dynamic_cast<MonoType*>(t);
-
-  if (monotype) {
-    if (monotype->type == AtomicType::Poly) {
-      return true;
-    } else {
-      return false;
+  /*
+    AtomicType can-compare-to AtomicType
+    ProcType can-compare-to ProcType
+    AtomicType cannot-compare-to ProcType
+  */
+  AtomicType *t1p, *t2p;
+  if ((t1p = dynamic_cast<AtomicType*>(t1)) != nullptr)
+  {
+    if ((t2p = dynamic_cast<AtomicType*>(t2)) != nullptr))
+    {
+      if (t1p->type == t2p->type)
+      {
+        return Judgement(make_unique<AtomicType*>(*t1p));
+      }
+      else
+      {
+        return Judgement(TypeError(Location(), "atomic types not equal"));
+      }
     }
-  } else {
-    auto proctype = dynamic_cast<ProcType*>(t);
-
-    if (proctype) {
-      return is_polymorphic(proctype.lhs.get())
-          || is_polymorphic(proctype.rhs.get());
-    } else {
-      throw "invalid type\n";
+    else
+    {
+      return Judgement(TypeError(Location(), "cannot compare atomic type to proc type"));
     }
   }
+  else if ((t1p = dynamic_cast<ProcType*>(t1)) != nullptr)
+  {
+    if ((t2p = dynamic_cast<ProcType*>(t2)) != nullptr)
+    {
+      auto j1 = equivalent(t1p->lhs.get(), t2p->lhs.get());
+      // if j1 is true, it contains information we need,
+      // if j2 is false, it contains information we need.
+      if (j1)
+      {
+        auto j2 = equivalent(t1p->rhs.get(), t2p->rhs.get());
+        if (j2)
+        {
+          // we need both sides of the procedure types to be equivalent
+          // to judge the procedure types equivalent.
+          return Judgement(make_unique<ProcType*>(*t1p));
+        }
+        else
+        {
+          // rhs is not equal.
+          return j2;
+        }
+      }
+      else
+      {
+        // lhs is not equal.
+        return j1;
+      }
+    }
+    else
+    {
+      return Judgement(TypeError(Location(), "cannot compare proc type to non proc type"));
+    }
+  }
+  else
+    throw "unknown type node";
 }
 
-optional<unique_ptr<Ast>> HasInstance(const ProcSet* const ps, const Type* const t, SymbolTable* env)
+
+Judgement Typechecker::HasInstance(EntityNode& proc, const TypeNode* const type, SymbolTable* env)
 {
   /*
     either returns the procedure associated with the passed argument type,
-    returns None if there is no procedure associated with the argument type
+    returns failure if there is no procedure associated with the argument type
     or if the procedure is polymorphic, we construct a monomorphic version
     and then typecheck that, we insert one copy of the monomorphic procedure
     into the ProcSet to cache the result,
     and return another copy as the result instance.
   */
-  if (ps.polymorphic) {
-    /*
-    first, look in the set of procedures
-    in case we already made a valid
-    monomorphic instance, or if the
-    programmer provided an explicit
-    overload.
-    */
-    auto inst = find_if (ps.set.begin(), ps.set.end(),
-                        [](const Procedure& elem) -> bool {
-                          Type* elem_type = elem.arg_type->type.get();
-                          return equivalent(t, elem_type);
-                        });
-
-    if (inst != ps.set.end()) {
-      // if we get here, then inst points to the
-      // valid monomorph, so we return a copy.
-      return optional<unique_ptr<Ast>>(move(unique_ptr<Ast>(new Procedure(*inst))));
-    } else {
-      // we didn't find a valid instance, so
-      // we can try to construct the requested
-      // instance.
-      auto proc = unique_ptr<Ast>(new Procedure(*inst));
-
+  if (proc.value_tag == EntityValueTag::Proc)
+  {
+    ProcSetNode& p = proc.u.procedure;
+    if (p.polymorphic)
+    {
       /*
-        bind the argument name to it's type
-        during typechecking of the body.
+      first, look in the set of procedures
+      in case we already made a valid
+      monomorphic instance, or if the
+      programmer provided an explicit
+      overload.
       */
-      env.bind(proc->id, proc->arg_type);
-      auto T = getype(proc->body.get(), env);
-      env.unbind(proc->id);
+      std::list<Procedure>::iterator inst =
+        find_if (p.set.begin(), p.set.end(),
+                 [type](const Procedure& elem) -> bool
+                 {
+                   EntityNode* typenode = elem.arg_type.get();
+                   TypeNode* elem_type = typenode->type.get();
+                   return bool(equivalent(type, elem_type));
+                 });
 
-      auto monotype = dynamic_cast<MonoType*>(T.get());
-
-      if (monotype) {
-        if (monotype->type == AtomicType::Undef) {
-          return optional<unique_ptr<Ast>>();
-        } else {
-          // the body was typeable with type T
-          // so we insert the new valid definition
-          // into the set of definitions and return
-          // a copy of the procedure. (wrapped in an
-          // Entity to pass it through a unique_ptr<Ast>)
-          ps.set.emplace_front(*proc);
-          return optional<unique_ptr<Ast>>(new Entity((new ProcType(), *proc, false));
-        }
+      if (inst != p.set.end()) {
+        // if we get here, then inst points to the
+        // valid monomorph, so we return a copy.
+        return Judgement(make_unique<(move(unique_ptr<Ast>(new Procedure(*inst)))));
       } else {
-        // this is the case of some procedure
-        // result type.
-        auto proctype = dynamic_cast<ProcType*>(T.get());
+        // we didn't find a valid instance, so
+        // we can try to construct the requested
+        // instance.
+        auto proc = unique_ptr<Ast>(new Procedure(proc.u.procedure.def));
 
-        if (proctype) {
-          ps.set.emplace_front(*proc);
+        /*
+          bind the argument name to it's type
+          during typechecking of the body.
+        */
+        env.bind(proc->id, proc->arg_type);
+        auto T = getype(proc->body.get(), env);
+        env.unbind(proc->id);
+
+        auto monotype = dynamic_cast<MonoType*>(T.get());
+
+        if (monotype) {
+          if (monotype->type == AtomicType::Undef) {
+            return optional<unique_ptr<Ast>>();
+          } else {
+            // the body was typeable with type T
+            // so we insert the new valid definition
+            // into the set of definitions and return
+            // a copy of the procedure. (wrapped in an
+            // Entity to pass it through a unique_ptr<Ast>)
+            ps.set.emplace_front(*proc);
+            return optional<unique_ptr<Ast>>(new Entity((new ProcType(), *proc, false));
+          }
+        } else {
+          // this is the case of some procedure
+          // result type.
+          auto proctype = dynamic_cast<ProcType*>(T.get());
+
+          if (proctype) {
+            ps.set.emplace_front(*proc);
+          }
         }
       }
     }
-  } else {
+    else // procedure is monomorphic.
+    {
 
+    }
+  }
+  else
+  {
+    // error: entity is not a procedure.
+    return Judgement(TypeError(proc.loc, "entity is not a procedure"));
   }
 }
 
-unique_ptr<Type> Typechecker::getype(const Empty* const e, SymbolTable* env)
+Judgement Typechecker::getype(const EmptyNode* const e, SymbolTable* env)
 {
   /*
   any empty term has no type. as it is not anything
@@ -160,10 +176,10 @@ unique_ptr<Type> Typechecker::getype(const Empty* const e, SymbolTable* env)
   (it's definitely not AtomicType::Nil,
    as that is the type of the nil literal.)
   */
-  return unique_ptr<Type>(new MonoType(AtomicType::Undef));
+  return unique_ptr<Type>(new AtomicType(PrimitiveType::Undef));
 }
 
-unique_ptr<Type> Typechecker::getype(const Variable* const v, SymbolTable* env)
+Judgement Typechecker::getype(const VariableNode* const v, SymbolTable* env)
 {
   /*
         id is-in FV(ENV)
@@ -179,7 +195,7 @@ unique_ptr<Type> Typechecker::getype(const Variable* const v, SymbolTable* env)
   }
 }
 
-unique_ptr<Type> Typechecker::getype(const Call* const c, SymbolTable* env)
+Judgement Typechecker::getype(const Call* const c, SymbolTable* env)
 {
   /*
   ENV |- term1 : type1 -> type2, term2 : type1
@@ -259,11 +275,11 @@ unique_ptr<Type> Typechecker::getype(const Call* const c, SymbolTable* env)
 
 }
 
-unique_ptr<Type> Typechecker::getype(const Bind* const b, SymbolTable* env);
-unique_ptr<Type> Typechecker::getype(const Binop* const b, SymbolTable* env);
-unique_ptr<Type> Typechecker::getype(const Unop* const u, SymbolTable* env);
-unique_ptr<Type> Typechecker::getype(const Cond* const c, SymbolTable* env);
-unique_ptr<Type> Typechecker::getype(const Entity* const e, SymbolTable* env);
-unique_ptr<Type> Typechecker::getype(const ProcSet* const p, SymbolTable* env);
-unique_ptr<Type> Typechecker::getype(const MonoType* const m, SymbolTable* env);
-unqiue_ptr<Type> Typechecker::getype(const ProcType* const p, SymbolTable* env);
+Judgement Typechecker::getype(const Bind* const b, SymbolTable* env);
+Judgement Typechecker::getype(const Binop* const b, SymbolTable* env);
+Judgement Typechecker::getype(const Unop* const u, SymbolTable* env);
+Judgement Typechecker::getype(const Cond* const c, SymbolTable* env);
+Judgement Typechecker::getype(const Entity* const e, SymbolTable* env);
+Judgement Typechecker::getype(const ProcSet* const p, SymbolTable* env);
+Judgement Typechecker::getype(const MonoType* const m, SymbolTable* env);
+Judgement Typechecker::getype(const ProcType* const p, SymbolTable* env);

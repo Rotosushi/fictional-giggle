@@ -595,6 +595,108 @@ protected:
 };
 
 
+class TypeNode : public Ast {
+public:
+  TypeNode() = 0;
+  ~TypeNode() = 0;
+
+protected:
+  virtual TypeNode* clone_internal() = delete;
+  virtual string    to_string() = delete;
+};
+
+enum class PrimitiveType {
+  Undef,
+  Nil,
+  Bool,
+  Int,
+  Poly,
+};
+
+class AtomicType : public TypeNode {
+  PrimitiveType type;
+
+public:
+  AtomicType() : type(PrimitiveType::Undef) {}
+  AtomicType(PrimitiveType t, const Location& loc) : Ast(), type(t) {}
+  AtomicType(const AtomicType& rhs) : Ast(rhs.loc), type(rhs.type) {}
+
+  virtual AtomicType* clone_internal() override
+  {
+    return new AtomicType(*this);
+  }
+
+  virtual string to_string_internal() override
+  {
+    switch(type) {
+      case PrimitiveType::Undef:
+        return "Undef";
+
+      case PrimitiveType::Nil:
+        return "Nil";
+
+      case PrimitiveType::Int:
+        return "Int";
+
+      case PrimitiveType::Bool:
+        return "Bool";
+
+      case PrimitiveType::Poly:
+        return "Poly";
+
+      default:
+        throw "malformed PrimitiveType tag";
+    }
+  }
+};
+
+class ProcType : public TypeNode
+{
+  unique_ptr<TypeNode> lhs;
+  unique_ptr<TypeNode> rhs;
+
+public:
+  ProcType() = delete;
+  ProcType(unique_ptr<TypeNode> lhs, unique_ptr<TypeNode> rhs, const Location& loc)
+    : Ast(loc), lhs(move(lhs)), rhs(move(rhs)) {}
+
+  ProcType(const ProcType& rhs)
+    : Ast(rhs.loc), lhs(rhs.lhs->clone()), rhs(rhs.rhs->clone()) {}
+
+protected:
+    virtual ProcType* clone_internal() override
+    {
+      return new ProcType(*this);
+    }
+
+    virtual string to_string_internal() override
+    {
+      string result;
+      /*
+        we have to distinguish a procedure
+        appearing on the lhs of a type, otherwise
+        the fact that it is a procedure will
+        not be visually distinct, which changes
+        the meaning of the type.
+      */
+      if (dynamic_cast<ProcType*>(lhs.get()))
+      {
+        result = "(";
+        result += lhs->to_string();
+        result += ") -> ";
+        result += rhs->to_string();
+      }
+      else
+      {
+        result += lhs->to_string();
+        result += " -> ";
+        result += rhs->to_string();
+      }
+      return result;
+    }
+};
+
+
 /*
   procedures:
   this is the trickiest part of the language
@@ -779,15 +881,6 @@ public:
 
 */
 
-enum class EntityTypeTag {
-  Undef,
-  Nil,
-  Int,
-  Bool,
-  Poly,
-  Proc,
-};
-
 enum class EntityValueTag {
   Undef,
   Type,
@@ -814,11 +907,7 @@ public:
   // from a known case, like name-use-before-definition
   // vs. a missing primary expression.
   // vs. a missing terminal token within some term.
-  EntityTypeTag  type_tag;
-  struct ProcType {
-    unique_ptr<Ast> lhs;
-    unique_ptr<Ast> rhs;
-  } ProcType;
+  unique_ptr<TypeNode> type;
   // the value tag is to differenciate
   // between union members
   EntityValueTag value_tag;
@@ -838,29 +927,20 @@ public:
 
   ~EntityNode() = default;
   EntityNode()
-    : Ast(), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Undef), u() {}
+    : Ast(), type(*(new AtomicType(PrimitiveType::Undef))), value_tag(EntityValueTag::Undef), u() {}
 
-  EntityNode(unique_ptr<Ast> l, unique_ptr<Ast> r, const Location& loc)
-    : Ast(loc), type_tag(EntityTypeTag::Proc), value_tag(EntityValueTag::Type), u()
-  {
-    ProcType.lhs = move(l);
-    ProcType.rhs = move(r);
-  }
-
-  EntityNode(EntityTypeTag tt, const Location& loc)
-    : Ast(loc), type_tag(tt), value_tag(EntityValueTag::Type), u() {}
 
   EntityNode(const void* c, const Location& loc)
-    : Ast(loc), type_tag(EntityTypeTag::Nil), value_tag(EntityValueTag::Nil), u('\0') {}
+    : Ast(loc), type(*(new AtomicType(PrimitiveType::Nil))), value_tag(EntityValueTag::Nil), u('\0') {}
 
   EntityNode(const int& i, const Location& loc)
-    : Ast(loc), type_tag(EntityTypeTag::Int), value_tag(EntityValueTag::Int), u(i) {}
+    : Ast(loc), type(*(new AtomicType(PrimitiveType::Int))), value_tag(EntityValueTag::Int), u(i) {}
 
   EntityNode(const bool& b, const Location& loc)
-    : Ast(loc), type_tag(EntityTypeTag::Bool), value_tag(EntityValueTag::Bool), u(b) {}
+    : Ast(loc), type(*(new AtomicType(PrimitiveType::Bool))), value_tag(EntityValueTag::Bool), u(b) {}
 
   EntityNode(const ProcedureNode& p, bool poly, const Location& loc)
-    : Ast(loc), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Proc), u((*(new ProcSetNode(p, poly))))
+    : Ast(loc), type(*(new AtomicType(PrimitiveType::Undef))), value_tag(EntityValueTag::Proc), u((*(new ProcSetNode(p, poly))))
   {
     if (poly) {
       type_tag = EntityTypeTag::Poly;
@@ -868,7 +948,7 @@ public:
   }
 
   EntityNode(const ProcSetNode& p, const Location& loc)
-    : Ast(loc), type_tag(EntityTypeTag::Undef), value_tag(EntityValueTag::Proc), u(p)
+    : Ast(loc), type(*(new AtomicType(PrimitiveType::Undef))), value_tag(EntityValueTag::Proc), u(p)
   {
     if (p.polymorphic) {
       type_tag = EntityTypeTag::Poly;
@@ -876,14 +956,8 @@ public:
   }
 
   EntityNode(const EntityNode& rhs)
-    : Ast(rhs.loc), u()
+    : Ast(rhs.loc), type(rhs.type->clone()), u()
   {
-    // Undef, Mono, Poly, Proc
-    type_tag  = rhs.type_tag;
-    if (type_tag == EntityTypeTag::Proc) {
-      ProcType.lhs = rhs.ProcType.lhs->clone();
-      ProcType.rhs = rhs.ProcType.rhs->clone();
-    }
 
     // Undef, Type, Nil, Int, Bool
     value_tag = rhs.value_tag;

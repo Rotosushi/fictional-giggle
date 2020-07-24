@@ -15,6 +15,46 @@ using std::get;
 #include "SymbolTable.hh"
 #include "OperatorTable.hh"
 
+/*
+  A typing judgement has two possible
+  results we care about.
+  we care if the judgement fails or succeeds,
+  and given failure or success we care about
+  either the failure (to report it to the user)
+  or the success, where we care about the type result.
+
+  to support both of these control paths, we need to
+  combine these four peices of information into
+  the result type of the procedure which carries out
+  the typeing judgements.
+*/
+
+struct Judgement {
+  bool succeeded;
+  union {
+    unique_ptr<TypeNode> type;
+    TypeError       error;
+  };
+
+  Judgement() : succeeded(false), error(Location(), "Default Constructed Judgement") {}
+  Judgement(unique_ptr<TypeNode> t) : succeeded(true), type(t) {}
+  Judgement(const TypeError& err) : succeeded(false), error(err) {}
+
+  operator bool()
+  {
+    return succeeded;
+  }
+  // this is a spicy language feature c++
+  operator unique_ptr<TypeNode>()
+  {
+    return type.release();
+  }
+
+  operator TypeError()
+  {
+    return error;
+  }
+};
 
 class Typechecker {
   LLVMContext* ctx;
@@ -22,17 +62,16 @@ public:
 
   Typechecker(LLVMContext* c) : ctx(c) {}
 
-  bool equivalent(const Type * const t1, const Type * const t2);
-  bool is_polymorphic(const Type* const t);
-  optional<unique_ptr<Ast>> HasInstance(const ProcSet* const, const Type* const t, SymbolTable* env);
+  Judgement equivalent(const EntityNode& t1, const EntityNode& t2);
+  Judgement HasInstance(EntityNode& proc, const TypeNode* const type, SymbolTable* env);
 
-  unique_ptr<Ast> getype(const Empty* const e, SymbolTable* env);
-  unique_ptr<Ast> getype(const Variable* const v, SymbolTable* env);
-  unique_ptr<Ast> getype(const Call* const c, SymbolTable* env);
-  unique_ptr<Ast> getype(const Bind* const b, SymbolTable* env);
-  unique_ptr<Ast> getype(const Binop* const b, SymbolTable* env);
-  unique_ptr<Ast> getype(const Unop* const u, SymbolTable* env);
-  unique_ptr<Ast> getype(const Cond* const c, SymbolTable* env);
-  unique_ptr<Ast> getype(const Entity* const e, SymbolTable* env);
+  Judgement getype(const EmptyNode* const e, SymbolTable* env);
+  Judgement getype(const VariableNode* const v, SymbolTable* env);
+  Judgement getype(const CallNode* const c, SymbolTable* env);
+  Judgement getype(const BindNode* const b, SymbolTable* env);
+  Judgement getype(const BinopNode* const b, SymbolTable* env);
+  Judgement getype(const UnopNode* const u, SymbolTable* env);
+  Judgement getype(const CondNode* const c, SymbolTable* env);
+  Judgement getype(const EntityNode* const e, SymbolTable* env);
 
 };
