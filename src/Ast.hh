@@ -2,6 +2,7 @@
 #include <string>
 using std::string;
 #include <memory>
+using std::make_unique;
 using std::unique_ptr;
 #include <utility>
 using std::move;
@@ -18,6 +19,7 @@ using llvm::IntegerType;
 
 #include "Location.hh"
 
+class SymbolTable;
 /*
   the abstract syntax tree is the main
   data structure of this program. each
@@ -595,14 +597,22 @@ protected:
 };
 
 
-class TypeNode : public Ast {
+class TypeNode {
 public:
-  TypeNode() = 0;
-  ~TypeNode() = 0;
+  TypeNode();
+  virtual ~TypeNode() = 0;
+
+  virtual unique_ptr<TypeNode> clone() { return make_unique<TypeNode>(clone_internal()); }
+  virtual unique_ptr<TypeNode> clone() const { return make_unique<TypeNode>(clone_internal()); }
+  virtual string to_string() { return to_string_internal(); }
+  virtual string to_string() const { return to_string_internal(); }
+  virtual bool is_poly_type() = 0;
 
 protected:
-  virtual TypeNode* clone_internal() = delete;
-  virtual string    to_string() = delete;
+  virtual TypeNode* clone_internal() = 0;
+  virtual TypeNode* clone_internal() const = 0;
+  virtual string    to_string_internal() = 0;
+  virtual string    to_string_internal() const = 0;
 };
 
 enum class PrimitiveType {
@@ -618,15 +628,48 @@ class AtomicType : public TypeNode {
 
 public:
   AtomicType() : type(PrimitiveType::Undef) {}
-  AtomicType(PrimitiveType t, const Location& loc) : Ast(), type(t) {}
-  AtomicType(const AtomicType& rhs) : Ast(rhs.loc), type(rhs.type) {}
+  AtomicType(PrimitiveType t) : type(t) {}
+  AtomicType(const AtomicType& rhs) : type(rhs.type) {}
+
+  virtual bool is_poly_type() override
+  {
+    return type == PrimitiveType::Poly;
+  }
 
   virtual AtomicType* clone_internal() override
   {
     return new AtomicType(*this);
   }
 
+  virtual AtomicType* clone_internal() const override
+  {
+    return new AtomicType(*this);
+  }
+
   virtual string to_string_internal() override
+  {
+    switch(type) {
+      case PrimitiveType::Undef:
+        return "Undef";
+
+      case PrimitiveType::Nil:
+        return "Nil";
+
+      case PrimitiveType::Int:
+        return "Int";
+
+      case PrimitiveType::Bool:
+        return "Bool";
+
+      case PrimitiveType::Poly:
+        return "Poly";
+
+      default:
+        throw "malformed PrimitiveType tag";
+    }
+  }
+
+  virtual string to_string_internal() const override
   {
     switch(type) {
       case PrimitiveType::Undef:
@@ -657,19 +700,55 @@ class ProcType : public TypeNode
 
 public:
   ProcType() = delete;
-  ProcType(unique_ptr<TypeNode> lhs, unique_ptr<TypeNode> rhs, const Location& loc)
-    : Ast(loc), lhs(move(lhs)), rhs(move(rhs)) {}
+  ProcType(unique_ptr<TypeNode> lhs, unique_ptr<TypeNode> rhs)
+    : lhs(move(lhs)), rhs(move(rhs)) {}
 
   ProcType(const ProcType& rhs)
-    : Ast(rhs.loc), lhs(rhs.lhs->clone()), rhs(rhs.rhs->clone()) {}
+    : lhs(rhs.lhs->clone()), rhs(rhs.rhs->clone()) {}
 
 protected:
+    virtual bool is_poly_type() override
+    {
+      return lhs->is_poly_type() || rhs->is_poly_type();
+    }
+
     virtual ProcType* clone_internal() override
     {
       return new ProcType(*this);
     }
 
+    virtual ProcType* clone_internal() const override
+    {
+      return new ProcType(*this);
+    }
+
     virtual string to_string_internal() override
+    {
+      string result;
+      /*
+        we have to distinguish a procedure
+        appearing on the lhs of a type, otherwise
+        the fact that it is a procedure will
+        not be visually distinct, which changes
+        the meaning of the type.
+      */
+      if (dynamic_cast<ProcType*>(lhs.get()))
+      {
+        result = "(";
+        result += lhs->to_string();
+        result += ") -> ";
+        result += rhs->to_string();
+      }
+      else
+      {
+        result += lhs->to_string();
+        result += " -> ";
+        result += rhs->to_string();
+      }
+      return result;
+    }
+
+    virtual string to_string_internal() const override
     {
       string result;
       /*
@@ -763,6 +842,7 @@ protected:
   as an optimization, share the same closure/capture
   between the monomorphic instances.
 */
+/*
 class ProcedureNode {
 public:
   string          arg_id;
@@ -784,7 +864,7 @@ public:
     return *this;
   }
 };
-
+*/
 /*
   how do we solve the problem of multiple
   definition, which is what polymorphism and
@@ -809,6 +889,7 @@ public:
      polymorphic procedure acts as what c++ calls,
      partial template specialization))
 */
+/*
 class ProcSetNode {
 public:
   ProcedureNode def;
@@ -828,7 +909,161 @@ public:
     return *this;
   }
 };
+*/
 
+class ProcedureLiteral {
+public:
+  string arg_id;
+  unique_ptr<Ast> arg_type;
+  unique_ptr<Ast> body;
+
+  ProcedureLiteral() = default;
+  ProcedureLiteral(const string& str, unique_ptr<Ast> at, unique_ptr<Ast> b)
+    : arg_id(str), arg_type(move(at)), body(move(b)) {}
+
+  ProcedureLiteral(const ProcedureLiteral& p)
+    : arg_id(p.arg_id), arg_type(p.arg_type->clone()), body(p.body->clone()) {}
+
+  ~ProcedureLiteral() = default;
+
+  ProcedureLiteral& operator=(const ProcedureLiteral& rhs)
+  {
+    arg_id   = rhs.arg_id;
+    arg_type = rhs.arg_type->clone();
+    body     = rhs.body->clone();
+    return *this;
+  }
+
+  string to_string()
+  {
+    string result;
+    result  = "\\";
+    result += arg_id;
+    result += ": ";
+    result += arg_type->to_string();
+    result += " => ";
+    result += body->to_string();
+    return result;
+  }
+};
+
+class ProcedureDefinition {
+public:
+  ProcedureLiteral def;
+  list<ProcedureLiteral> set;
+  bool poly;
+
+
+  ProcedureDefinition() = default;
+  ProcedureDefinition(const ProcedureLiteral& def)
+    : def(def), set()
+  {
+     TypeNode* ProcLitArgType;
+     if ((ProcLitArgType = dynamic_cast<TypeNode*>(def.arg_type.get())))
+     {
+        if (ProcLitArgType->is_poly_type())
+        {
+          poly = true;
+        }
+        else
+        {
+          poly = false;
+        }
+      }
+      else
+      {
+        throw "bad procedure arg type pointer\n";
+      }
+    }
+  ProcedureDefinition(const ProcedureDefinition& ProcDef)
+    : def(ProcDef.def), set(ProcDef.set)
+  {
+    poly = ProcDef.poly;
+  }
+
+  ~ProcedureDefinition() = default;
+
+  ProcedureDefinition& operator=(const ProcedureDefinition& rhs)
+  {
+    def = rhs.def;
+    set = rhs.set;
+    poly = rhs.poly;
+    return *this;
+  }
+
+  string to_string()
+  {
+    string result;
+    result  = "\\";
+    result += def.arg_id;
+    result += ": ";
+    result += def.arg_type->to_string();
+    result += " => ";
+    result += def.body->to_string();
+    return result;
+  }
+
+  optional<ProcedureLiteral> HasInstance(const TypeNode* const target_type, SymbolTable* env);
+};
+
+
+class Procedure {
+public:
+  bool contains_literal;
+  union U {
+    ProcedureLiteral literal;
+    ProcedureDefinition definition;
+
+    U() : literal() {}
+    U(const ProcedureLiteral& rhs) : literal(rhs) {}
+    U(const ProcedureDefinition& rhs) : definition(rhs) {}
+    ~U() {};
+  }u;
+
+  Procedure() = default;
+  Procedure(const ProcedureLiteral& lit)
+    : contains_literal(true), u(lit) {}
+  Procedure(const ProcedureDefinition& def)
+    : contains_literal(false), u(def) {}
+
+  Procedure(const Procedure& rhs)
+  {
+    if (rhs.contains_literal)
+    {
+      u.literal = rhs.u.literal;
+    }
+    else
+    {
+      u.definition = rhs.u.definition;
+    }
+  }
+
+  Procedure& operator=(const Procedure& rhs)
+  {
+    if (rhs.contains_literal)
+    {
+      u.literal = rhs.u.literal;
+    }
+    else
+    {
+      u.definition = rhs.u.definition;
+    }
+    return *this;
+  }
+
+  string to_string()
+  {
+    if (contains_literal)
+    {
+      return u.literal.to_string();
+    }
+    else
+    {
+      return u.definition.to_string();
+    }
+  }
+
+};
 
 
 /*
@@ -840,21 +1075,26 @@ public:
   perspective, and values held within cells,
   when looking from an assembly perspective.
   again, this mental concept / language concept
-  alignment is important.
+  alignment is important, it is one of the
+  pilliars of Pink. this alignment i think
+  helps people learn the language.
 
   we use a tagged union approach because I want
   entities to represent each of the different
   'things in the language that can be acted upon'.
   as unifying this semnatic location, allows for
-  a clean separation between state and behavior.
+  a clean separation between state and behavior
+  nodes within the Abstract Syntax Tree.
 
   theoretically, we could have each of the
   members of the union be a derived class
   right? my brain is just balking and
   having to rethink the implementation logic
   that much during the rewite.
-  this way will look more like c, but i think
-  that could be a good refactor, maybe then,
+  this way will look more like c, to make
+  porting cognitively easier
+  but i think
+  that could be a good possible future refactor, maybe then,
   we gain some property that makes it easier
   to extend the language with more entities.
   i don't really know. I code to much in c to
@@ -863,21 +1103,13 @@ public:
   i don't want to change much from c in terms
   of implementation of this language, as the
   full brunt of OO and FP are not what we
-  are going for, we want a happy medium
+  are going for within the first kernel, we want a happy medium
   between C and ML, to begin.
-
-
-  so, we want entites to have LLVM types
-  which we will use to write the typechecker
-  and thusly, the internal evaluator.
-  this should make writing the translator
-  easier, because we can use the LLVM types
-  to direct the control flow, which is the
-  intended use of the LLVM types.
-
-  since types are uniqued behind the scenes
-  each entites type is represented
-  by a pointer to the actual type.
+  if you view object orientation as simply,
+  more complex rules about/surrounding
+  composite types. then we are object oriented.
+  which is to say, we are not object oriented.
+  we are simply borrowing ideas which fit.
 
 */
 
@@ -915,45 +1147,51 @@ public:
     char nil;
     int  integer;
     bool boolean;
-    ProcSetNode procedure;
+    Procedure procedure;
 
     U() : nil('\0') {}
     U(const char& c) : nil(c) {}
     U(const int&  i) : integer(i) {}
     U(const bool& b) : boolean(b) {}
-    U(const ProcSetNode& ps) : procedure(ps) {}
+    U(const Procedure& ps) : procedure(ps) {}
+    U(const ProcedureLiteral& pl) : procedure(pl) {}
+    U(const ProcedureDefinition& pd) : procedure(pd) {}
     ~U() {};
   } u;
 
   ~EntityNode() = default;
   EntityNode()
-    : Ast(), type(*(new AtomicType(PrimitiveType::Undef))), value_tag(EntityValueTag::Undef), u() {}
+    : Ast(), type(make_unique<TypeNode>(AtomicType(PrimitiveType::Undef))), value_tag(EntityValueTag::Undef), u(){}
 
+  EntityNode(const AtomicType& t, const Location& loc)
+    : Ast(loc), type(t.clone()), value_tag(EntityValueTag::Type) {}
+
+  EntityNode(const ProcType& t, const Location& loc)
+    : Ast(loc), type(t.clone()), value_tag(EntityValueTag::Type) {}
 
   EntityNode(const void* c, const Location& loc)
-    : Ast(loc), type(*(new AtomicType(PrimitiveType::Nil))), value_tag(EntityValueTag::Nil), u('\0') {}
+    : Ast(loc), type(make_unique<TypeNode>(AtomicType(PrimitiveType::Nil))), value_tag(EntityValueTag::Nil), u('\0')
+  {}
 
   EntityNode(const int& i, const Location& loc)
-    : Ast(loc), type(*(new AtomicType(PrimitiveType::Int))), value_tag(EntityValueTag::Int), u(i) {}
+    : Ast(loc), type(make_unique<TypeNode>(AtomicType(PrimitiveType::Int))), value_tag(EntityValueTag::Int), u(i)
+  {}
 
   EntityNode(const bool& b, const Location& loc)
-    : Ast(loc), type(*(new AtomicType(PrimitiveType::Bool))), value_tag(EntityValueTag::Bool), u(b) {}
+    : Ast(loc), type(make_unique<TypeNode>(AtomicType(PrimitiveType::Bool))), value_tag(EntityValueTag::Bool), u(b)
+  {}
 
-  EntityNode(const ProcedureNode& p, bool poly, const Location& loc)
-    : Ast(loc), type(*(new AtomicType(PrimitiveType::Undef))), value_tag(EntityValueTag::Proc), u((*(new ProcSetNode(p, poly))))
-  {
-    if (poly) {
-      type_tag = EntityTypeTag::Poly;
-    }
-  }
+  EntityNode(const Procedure& p, const Location& loc)
+    : Ast(loc), type(make_unique<TypeNode>(AtomicType(PrimitiveType::Undef))), value_tag(EntityValueTag::Proc), u(p)
+  {}
 
-  EntityNode(const ProcSetNode& p, const Location& loc)
-    : Ast(loc), type(*(new AtomicType(PrimitiveType::Undef))), value_tag(EntityValueTag::Proc), u(p)
-  {
-    if (p.polymorphic) {
-      type_tag = EntityTypeTag::Poly;
-    }
-  }
+  EntityNode(const ProcedureLiteral& p, const Location& loc)
+    : Ast(loc), type(make_unique<TypeNode>(AtomicType(PrimitiveType::Undef))), value_tag(EntityValueTag::Proc), u(p)
+  {}
+
+  EntityNode(const ProcedureDefinition& p, const Location& loc)
+    : Ast(loc), type(make_unique<TypeNode>(AtomicType(PrimitiveType::Undef))), value_tag(EntityValueTag::Proc), u(p)
+  {}
 
   EntityNode(const EntityNode& rhs)
     : Ast(rhs.loc), type(rhs.type->clone()), u()
@@ -987,7 +1225,7 @@ public:
       }
 
       default:
-        throw "malformed value_tag\n";
+        throw "bad entity value tag\n";
     }
   }
 
@@ -1003,77 +1241,7 @@ protected:
       }
 
       case EntityValueTag::Type: {
-        /*
-        nested switch statements, ew.
-        */
-        switch (type_tag) {
-          case EntityTypeTag::Undef: {
-            result = "Undef";
-            break;
-          }
-
-          case EntityTypeTag::Nil: {
-            result = "Nil";
-            break;
-          }
-
-          case EntityTypeTag::Int: {
-            result = "Int";
-            break;
-          }
-
-          case EntityTypeTag::Bool: {
-            result = "Bool";
-            break;
-          }
-
-          case EntityTypeTag::Poly: {
-            result = "Poly";
-            break;
-          }
-
-          case EntityTypeTag::Proc: {
-            auto l = dynamic_cast<EntityNode*>(ProcType.lhs.get());
-
-            if (l)
-            {
-              /*
-              since the '->' operator associates to the
-              right, we have to be explicit when the lhs
-              of some '->', is itself a procedure as well.
-              because the simple "to_string" logic would
-              output
-              type -> type -> type
-              for both:
-              (type -> type) -> type
-              and:
-              type -> type -> type
-              when in fact these two types are distinct.
-              */
-              if (l->type_tag == EntityTypeTag::Proc)
-              {
-                result  = "(";
-                result += ProcType.lhs->to_string();
-                result += ") -> ";
-                result += ProcType.rhs->to_string();
-                break;
-              }
-              else
-              {
-                result  = ProcType.lhs->to_string();
-                result += " -> ";
-                result += ProcType.rhs->to_string();
-              }
-            }
-            else
-            {
-              throw "procedure type only valid with a type as the lhs\n";
-            }
-          }
-
-          default:
-            throw "malformed type_tag\n";
-        }
+        result = type->to_string();
         break;
       }
 
@@ -1097,15 +1265,12 @@ protected:
       }
 
       case EntityValueTag::Proc: {
-        ProcSetNode& p = u.procedure;
-        result  = "\\ ";
-        result += p.def.arg_id;
-        result += " : ";
-        result += p.def.arg_type->to_string();
-        result += " => ";
-        result += p.def.body->to_string();
+        result = u.procedure.to_string();
         break;
       }
+
+      default:
+        throw "bad entity value tag\n";
     }
     return result;
   }

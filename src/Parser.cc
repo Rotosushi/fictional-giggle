@@ -517,21 +517,21 @@ unique_ptr<Ast> Parser::parse_primitive()
 
     case Token::TypeNil:
     {
-      lhs = unique_ptr<Ast>(new EntityNode(EntityTypeTag::Nil, lhsloc));
+      lhs = unique_ptr<Ast>(new EntityNode(AtomicType(PrimitiveType::Nil), lhsloc));
       nextok();
       break;
     }
 
     case Token::TypeInt:
     {
-      lhs = unique_ptr<Ast>(new EntityNode(EntityTypeTag::Int, lhsloc));
+      lhs = unique_ptr<Ast>(new EntityNode(AtomicType(PrimitiveType::Int), lhsloc));
       nextok();
       break;
     }
 
     case Token::TypeBool:
     {
-      lhs = unique_ptr<Ast>(new EntityNode(EntityTypeTag::Bool, lhsloc));
+      lhs = unique_ptr<Ast>(new EntityNode(AtomicType(PrimitiveType::Bool), lhsloc));
       nextok();
       break;
     }

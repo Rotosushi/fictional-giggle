@@ -15,9 +15,12 @@ using std::pair;
 optional<unique_ptr<Ast>> SymbolTable::operator[](const string& key)
 {
   auto symbol = symbs.find(key);
-  if (symbol == symbs.end()) {
+  if (symbol == symbs.end())
+  {
     return optional<unique_ptr<Ast>>();
-  } else {
+  }
+  else
+  {
     return optional<unique_ptr<Ast>>(get<1>(*symbol)->clone());
   }
 }

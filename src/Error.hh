@@ -28,6 +28,8 @@ class TypeError
   Location errloc;
   string errstr;
 public:
+  TypeError()
+    : errloc(), errstr("default constructed TypeError\n") {}
   TypeError(const Location& loc, const char* str)
     : errloc(loc), errstr(str) {}
 
