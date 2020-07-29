@@ -9,6 +9,8 @@ using std::move;
 #include <list>
 using std::list;
 using std::get;
+#include <optional>
+using std::optional;
 
 #include "llvm/IR/LLVMContext.h"
 using llvm::LLVMContext;
@@ -599,20 +601,20 @@ protected:
 
 class TypeNode {
 public:
-  TypeNode();
-  virtual ~TypeNode() = 0;
+  TypeNode() {};
+  virtual ~TypeNode() = default;
 
-  virtual unique_ptr<TypeNode> clone() { return make_unique<TypeNode>(clone_internal()); }
-  virtual unique_ptr<TypeNode> clone() const { return make_unique<TypeNode>(clone_internal()); }
+  virtual unique_ptr<TypeNode> clone() { return make_unique<TypeNode>(*clone_internal()); }
+  virtual unique_ptr<TypeNode> clone() const { return make_unique<TypeNode>(*clone_internal()); }
   virtual string to_string() { return to_string_internal(); }
   virtual string to_string() const { return to_string_internal(); }
-  virtual bool is_poly_type() = 0;
+  virtual bool is_poly_type() { return false; }
 
 protected:
-  virtual TypeNode* clone_internal() = 0;
-  virtual TypeNode* clone_internal() const = 0;
-  virtual string    to_string_internal() = 0;
-  virtual string    to_string_internal() const = 0;
+  virtual TypeNode* clone_internal() { return new TypeNode; }
+  virtual TypeNode* clone_internal() const { return new TypeNode; }
+  virtual string    to_string_internal() { return ""; }
+  virtual string    to_string_internal() const { return ""; }
 };
 
 enum class PrimitiveType {
@@ -624,9 +626,9 @@ enum class PrimitiveType {
 };
 
 class AtomicType : public TypeNode {
+public:
   PrimitiveType type;
 
-public:
   AtomicType() : type(PrimitiveType::Undef) {}
   AtomicType(PrimitiveType t) : type(t) {}
   AtomicType(const AtomicType& rhs) : type(rhs.type) {}
@@ -695,11 +697,11 @@ public:
 
 class ProcType : public TypeNode
 {
+public:
   unique_ptr<TypeNode> lhs;
   unique_ptr<TypeNode> rhs;
 
-public:
-  ProcType() = delete;
+  ProcType() {}
   ProcType(unique_ptr<TypeNode> lhs, unique_ptr<TypeNode> rhs)
     : lhs(move(lhs)), rhs(move(rhs)) {}
 
@@ -1003,9 +1005,45 @@ public:
     return result;
   }
 
-  optional<ProcedureLiteral> HasInstance(const TypeNode* const target_type, SymbolTable* env);
 };
 
+/*
+  HasInstance needs to live somewhere,
+  the issue is that is coallates
+  information from many different
+  sources. needs to convey information
+  to two distict use cases.
+
+  within the typechecker, we care about the
+  side-effect of HasInstance, where it
+  adds new valid instances to the ProcedureDefinition.
+  and we care about the return value being
+  filled or not. in order to judge if this
+  is or isn't some valid form of procedure application
+  at the call site.
+
+  and within the evaluator, we care about
+  the return value being filled, we also
+  need to use the returned value to
+  start the next step of evaluation,
+  we evaluate the body of the returned
+  procedure.
+
+  by these constraints, we can satisfy
+  characterizing success/failure with
+  an optional type. and in the filled
+  case we return the Procedure to be
+  evaluated. this satisfys most of the
+  above constraints.
+
+  in order to check if there is an instance,
+  we must utilize the typechecker.
+  there is not way around this, we must
+  typecheck the resulting instance if
+  polymorphic procedures in order to
+  confirm their validity.
+*/
+optional<ProcedureLiteral> HasInstance(Procedure* const procedure, const TypeNode* const target_type, SymbolTable* env);
 
 class Procedure {
 public:
@@ -1162,6 +1200,23 @@ public:
   ~EntityNode() = default;
   EntityNode()
     : Ast(), type(make_unique<TypeNode>(AtomicType(PrimitiveType::Undef))), value_tag(EntityValueTag::Undef), u(){}
+
+  EntityNode(TypeNode* t, const Location& loc)
+    : Ast(loc), value_tag(EntityValueTag::Type), u()
+  {
+    if (AtomicType* at = dynamic_cast<AtomicType*>(t); at != nullptr)
+    {
+      type = at->clone();
+    }
+    else if (ProcType* pt = dynamic_cast<ProcType*>(t); pt != nullptr)
+    {
+      type = pt->clone();
+    }
+    else
+    {
+      throw "bad type pointer\n";
+    }
+  }
 
   EntityNode(const AtomicType& t, const Location& loc)
     : Ast(loc), type(t.clone()), value_tag(EntityValueTag::Type) {}

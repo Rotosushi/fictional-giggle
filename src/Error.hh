@@ -9,6 +9,8 @@ class ParserError
   Location errloc;
   string errstr;
 public:
+  ParserError(const ParserError& rhs)
+    : errloc(rhs.errloc), errstr(rhs.errstr) {}
   ParserError(const Location& loc, const char* str)
     : errloc(loc), errstr(str) {}
 
@@ -30,6 +32,8 @@ class TypeError
 public:
   TypeError()
     : errloc(), errstr("default constructed TypeError\n") {}
+  TypeError(const TypeError& rhs)
+    : errloc(rhs.errloc), errstr(rhs.errstr) {}
   TypeError(const Location& loc, const char* str)
     : errloc(loc), errstr(str) {}
 

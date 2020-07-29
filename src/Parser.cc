@@ -1,3 +1,41 @@
+
+/*
+  the grammar so far
+
+  term := primary
+        | primary binop primary   # a binop
+
+  primary := primitive
+           | primitive primary    # a call
+           | unop primitive       # a unop
+
+  primitive := identifier         # a variable
+             | 'nil'              # various primitive types,
+             | 'Nil'              # and their associated Type Literals
+             | integer
+             | 'Int'
+             | 'true'
+             | 'false'
+             | 'Bool'
+             | '\\' identifier (: term)? => term
+             | 'if' term 'then' term 'else' term
+             | 'while' term' 'do' term
+
+  identifier := [a-zA-Z_][a-zA-Z0-9_]*
+  integer    := [0-9]+
+
+  binop := operator
+  unop  := operator
+
+  operator := [+-/*%<>:=&@!~|$^]+
+
+
+  the kernel includes
+    integer operators + - unop(-) * / %
+    type    operator  ->
+
+*/
+
 #include <iostream>
 using std::cout;
 #include <string>
@@ -28,6 +66,9 @@ using llvm::Type;
 #include "Kernel.hh"
 #include "Location.hh"
 #include "Error.hh"
+
+
+
 
 Parser::Parser(LLVMContext* c)
   : ctx(c)
@@ -753,7 +794,8 @@ unique_ptr<Ast> Parser::parse_procedure()
       }
       else
       {
-        type = unique_ptr<Ast>(new EntityNode(EntityTypeTag::Poly, Location()));
+        // if the type is left off, we assume polymorphic type.
+        type = unique_ptr<Ast>(new EntityNode(PrimitiveType::Poly, Location()));
         poly = true;
       }
 
@@ -767,7 +809,7 @@ unique_ptr<Ast> Parser::parse_procedure()
                          rhsloc.first_line,
                          rhsloc.first_column);
 
-        proc = unique_ptr<Ast>(new EntityNode({id, move(type), move(body)}, poly, procloc));
+        proc = make_unique<Ast>(EntityNode(ProcedureLiteral(id, move(type), move(body)), procloc));
       }
       else
       {

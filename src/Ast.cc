@@ -38,7 +38,7 @@ optional<ProcedureLiteral> ProcedureDefinition::HasInstance(const TypeNode* cons
   */
 
   // helper function for using find_if against the Procedure sets
-  auto equals_target_type = [target_type](const ProcedureLiteral& elem) -> bool
+  auto arg_type_equals_target_type = [target_type](const ProcedureLiteral& elem) -> bool
   {
     TypeNode* elem_type = dynamic_cast<TypeNode*>(elem.arg_type.get());
     // recall that equivalent returns a judgement,
@@ -49,7 +49,7 @@ optional<ProcedureLiteral> ProcedureDefinition::HasInstance(const TypeNode* cons
   // I factored out looking throughout the set,
   // given that it needs to happen first in either
   // case anyways.
-  auto instance = find_if(set.begin(), set.end(), equals_target_type);
+  auto instance = find_if(set.begin(), set.end(), arg_type_equals_target_type);
 
   if (instance != set.end())
   {
@@ -78,14 +78,14 @@ optional<ProcedureLiteral> ProcedureDefinition::HasInstance(const TypeNode* cons
       this destroys the TypeError present within
       the returned judgement.
     */
-    bind(def.arg_id, target_type->clone(), env);
+    env->bind(def.arg_id, make_unique<EntityNode>(target_type, Location()));
     Judgement result_type = Typechecker::getype(def.body.get(), env);
-    unbind(def.arg_id);
+    env->unbind(def.arg_id);
 
     if (result_type)
     {
-      set.emplace(Procedure(def.arg_id, target_type->clone(), def.body->clone()));
-      return optional<ProcedureLiteral>((def.arg_id, target_type->clone(), def.body->clone()));
+      set.emplace(set.begin(), ProcedureLiteral(def.arg_id, make_unique<EntityNode>(target_type, Location()), def.body->clone()));
+      return optional<ProcedureLiteral>(ProcedureLiteral(def.arg_id, make_unique<EntityNode>(target_type, Location()), def.body->clone()));
     }
     else
     {
@@ -102,7 +102,7 @@ optional<ProcedureLiteral> ProcedureDefinition::HasInstance(const TypeNode* cons
     if (!def_arg_type)
       throw "bad procedure arg type pointer\n";
 
-    if (equals_target_type(def_arg_type))
+    if (Typechecker::equivalent(target_type, def_arg_type))
     {
       return optional<ProcedureLiteral>(def);
     }

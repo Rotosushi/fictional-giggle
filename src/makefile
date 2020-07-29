@@ -6,7 +6,7 @@ Pink: Lexer
 	 `llvm-config-10 --cxxflags --ldflags --libs` -fexceptions  \
 	  -fstandalone-debug -g --std=c++17 --stdlib=libstdc++      \
 		Ast.cc Error.cc SymbolTable.cc OperatorTable.cc Kernel.cc \
-	  Lexer.cc Parser.cc Pink.cc -o Pink
+	  Typechecker.cc Lexer.cc Parser.cc Pink.cc -o Pink
 
 
 Lexer:

@@ -60,7 +60,20 @@ struct Judgement {
   Judgement(const AtomicType* const t) : succeeded(true), u(make_unique<EntityNode>(*t, Location())) {}
   Judgement(const ProcType* const t) : succeeded(true), u(make_unique<EntityNode>(*t, Location())) {}
   Judgement(const TypeError& err) : succeeded(false), u(err) {}
-  Judgement(const Location& loc, const string& str) : succeeded(false), u(TypeError(loc, str)) {}
+  Judgement(const Location& loc, const string& str) : succeeded(false), u(TypeError(loc, str.data())) {}
+  Judgement(const Judgemenet& rhs)
+    : succeeded(rhs.succeeded)
+  {
+    if (succeeded)
+    {
+      u.jdgmt = rhs.u.jdgmt->clone();
+    }
+    else
+    {
+      u.error = rhs.u.error;
+    }
+  }
+
 
   operator bool()
   {
@@ -70,21 +83,30 @@ struct Judgement {
 
 class Typechecker {
 public:
+  SymbolTable* env;
+  OperatorTable* binops;
+  OperatorTable* unops;
 
-  static Judgement equivalent(const TypeNode* t1, const TypeNode* t2);
+  Typechecker(SymbolTable* e, OperatorTable* b, OperatorTable* u)
+    : env(e), biops(b), unops(u) {}
 
-  static Judgement getype(const Ast* const a, SymbolTable* env);
-  static Judgement getype(const EmptyNode* const e, SymbolTable* env);
-  static Judgement getype(const VariableNode* const v, SymbolTable* env);
-  static Judgement getype(const CallNode* const c, SymbolTable* env);
-  static Judgement getype(const BindNode* const b, SymbolTable* env);
-  static Judgement getype(const BinopNode* const b, SymbolTable* env);
-  static Judgement getype(const UnopNode* const u, SymbolTable* env);
-  static Judgement getype(const CondNode* const c, SymbolTable* env);
-  static Judgement getype(const EntityNode* const e, SymbolTable* env);
-  static Judgement getype(const Procedure* const p, SymbolTable* env);
-  static Judgement getype(const TypeNode* const t, SymbolTable* env);
-  static Judgement getype(const AtomicType* const t, SymbolTable* env);
-  static Judgement getype(const ProcType* const t, SymbolTable* env);
+
+
+  Judgement equivalent(const TypeNode* t1, const TypeNode* t2);
+
+  Judgement getype(const Ast* const a, SymbolTable* env);
+  Judgement getype(const EmptyNode* const e, SymbolTable* env);
+  Judgement getype(const VariableNode* const v, SymbolTable* env);
+  Judgement getype(const CallNode* const c, SymbolTable* env);
+  Judgement getype(const BindNode* const b, SymbolTable* env);
+  Judgement getype(const BinopNode* const b, SymbolTable* env);
+  Judgement getype(const UnopNode* const u, SymbolTable* env);
+  Judgement getype(const CondNode* const c, SymbolTable* env);
+  Judgement getype(const WhileNode* const w, SymbolTable* env);
+  Judgement getype(const EntityNode* const e, SymbolTable* env);
+  Judgement getype(const Procedure* const p, SymbolTable* env);
+  Judgement getype(const TypeNode* const t, SymbolTable* env);
+  Judgement getype(const AtomicType* const t, SymbolTable* env);
+  Judgement getype(const ProcType* const t, SymbolTable* env);
 
 };

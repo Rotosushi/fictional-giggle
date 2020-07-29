@@ -9,6 +9,11 @@ using std::unordered_map;
 #include <utility>
 using std::optional;
 using std::pair;
+#include <tuple>
+using std::tuple;
+using std::make_tuple;
+
+class Ast;
 
 /* Associativity */
 enum class Assoc {
@@ -18,11 +23,12 @@ enum class Assoc {
 };
 
 class OperatorTable {
-  unordered_map<string, pair<int, Assoc>> ops;
+  unordered_map<string, tuple<int, Assoc, unique_ptr<Ast>>> ops;
 
 public:
-  void insert(const string& op, int precedence, Assoc associativity);
-  optional<pair<int, Assoc>> find(const string& op);
-  optional<int>   getPrecedence(const string& op);
-  optional<Assoc> getAssociativity(const string& op);
+  void insert(const string& op, int precedence, Assoc associativity, unique_ptr<Ast> body);
+  optional<tuple<int, Assoc, unique_ptr<Ast>>> find(const string& op);
+  optional<int>   findPrecedenceOf(const string& op);
+  optional<Assoc> findAssociativityOf(const string& op);
+  optional<unique_ptr<Ast>> findBodyOf(const string& op);
 };
