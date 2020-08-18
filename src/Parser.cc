@@ -10,16 +10,16 @@
            | unop primitive       # a unop
 
   primitive := identifier         # a variable
-             | 'nil'              # various primitive types,
-             | 'Nil'              # and their associated Type Literals
+             | 'nil'
+             | 'Nil'
              | integer
              | 'Int'
              | 'true'
              | 'false'
              | 'Bool'
-             | '\\' identifier (: term)? => term
-             | 'if' term 'then' term 'else' term
-             | 'while' term' 'do' term
+             | '\\' identifier (: term)? => term  # a procedure literal.
+             | 'if' term 'then' term 'else' term  # a conditional expression.
+             | 'while' term' 'do' term            # an interation.
 
   identifier := [a-zA-Z_][a-zA-Z0-9_]*
   integer    := [0-9]+
@@ -30,7 +30,7 @@
   operator := [+-/*%<>:=&@!~|$^]+
 
 
-  the kernel includes
+  the kernel so far includes
     integer operators + - unop(-) * / %
     type    operator  ->
 
@@ -70,8 +70,7 @@ using llvm::Type;
 
 
 
-Parser::Parser(LLVMContext* c)
-  : ctx(c)
+Parser::Parser()
 {
   init_binops(binops);
   init_unops(unops);
@@ -221,18 +220,23 @@ bool Parser::speculate(Token t)
   }
 }
 
-optional<unique_ptr<Ast>> Parser::parse(const string& text)
+optional<unique_ptr<Ast>> Parser::parse(const string& text, SymbolTable* top_scope)
 {
   optional<unique_ptr<Ast>> result;
   reset();
 
   lexer.set_buffer(text);
+  /*
+    we need to utilize a stack in order to
+    express the nesting of scopes naturally.
+  */
+  scopes.push(top_scope);
 
   gettok(1);
 
   if (curtok() == Token::End)
   {
-    return optional<unique_ptr<Ast>>(new EndNode());
+    return optional<unique_ptr<Ast>>(EmptyNode());
   }
 
   /*
@@ -326,22 +330,7 @@ unique_ptr<Ast> Parser::parse_term()
       with unary operators, we want them to bind
       tightly to the immediate next term, but
       we do not want them to parse a full term
-      afterwards. we want
-      a -b c -d
-      to parse as
-      (((a (-b)) c) (-d))
-      this is because we want programmers to easily
-      apply unary operations to procedure arguments,
-      and have those operations happen before we apply
-      the procedure. this allows programmers to trivially
-      pass the address of some variable, or any number
-      of other actions could occur.
-
-      we should recommend that
-      unary operators avoid symbolically
-      intersecting with binary operators.
-      if they do, be aware the grammar rules will select
-      the binary form of the operator every time.
+      afterwards.
 
       this is to avoid the reverse case of parsing
       [3 - 4] as [3 (-4)]
@@ -350,6 +339,33 @@ unique_ptr<Ast> Parser::parse_term()
       and hence, does not allow the programmer
       to even input an expression representing
       [3 - 4]
+
+      this means we cannot parse
+      a -b c -d
+      as
+      a (-b) c (-d)
+      we must parse it as
+      (a - b) (c - d)
+      so to apply unary operations within
+      a call expression, one must wrap
+      the operation within parenthesis.
+
+
+      additionally we should recommend that
+      unary operators avoid symbolically
+      intersecting with binary operators.
+      if they do, be aware the grammar rules will select
+      the binary form of the operator every time.
+
+      a - b
+      is never
+      a (-b)
+      it is always
+      a - b
+      this is also valid
+      a - -b
+
+
 
     */
     if (lhs)
@@ -405,7 +421,7 @@ unique_ptr<Ast> Parser::parse_term()
   }
   else if (is_ender(curtok()))
   {
-    lhs = unique_ptr<Ast>(new EmptyNode(lhsloc));
+    lhs = make_unique(EmptyNode(lhsloc));
   }
   else
   {
@@ -467,7 +483,7 @@ unique_ptr<Ast> Parser::parse_primary()
                                 rhsloc.first_line,
                                 rhsloc.first_column);
 
-    lhs = unique_ptr<Ast>(new CallNode(move(lhs), move(rhs), callloc));
+    lhs = make_unique(CallNode(move(lhs), move(rhs), callloc));
   }
 
   return move(lhs);
@@ -522,11 +538,11 @@ unique_ptr<Ast> Parser::parse_primitive()
                                     lhsloc.first_column,
                                     rhsloc.first_line,
                                     rhsloc.first_column);
-        lhs = unique_ptr<Ast>(new BindNode(id, move(rhs), bindloc));
+        lhs = make_unique(BindNode(id, move(rhs), bindloc));
       }
       else
       {
-        lhs = unique_ptr<Ast>(new VariableNode(id, lhsloc));
+        lhs = make_unique(VariableNode(id, lhsloc));
       }
       break;
     }
@@ -802,6 +818,23 @@ unique_ptr<Ast> Parser::parse_procedure()
       if (curtok() == Token::EqRarrow)
       {
         nextok();
+        // so, we push the scope while we are parsing the
+        // body, in the same way we would push the scope
+        // when typing, or evaluating the body.
+        // and since we have a procedure whose enclosing
+        // scope is the top of the stack, we can use that
+        // pointer to construct the procedure. we use the
+        // stack so that when we are done parsing/lexing/evaluating this
+        // term, we can pop the top element, and now we are looking
+        // up symbols in the correct outer environment, once we stop
+        // parsing/lexing/evaluating this term. this also handles
+        // procedure definitions within a procedure, because the
+        // enclosing scope of the first procedure is the top of the
+        // stack when we create and push the new scope for the
+        // inner procedure. this is similar functionality of an
+        // anonymous scope in c essentially. except we enter the
+        // scopes upon application.
+        scopes.push(new SymbolTable(scopes.top()));
         body = parse_term();
         Location&& rhsloc = curloc();
         Location procloc(lhsloc.first_line,
@@ -809,7 +842,8 @@ unique_ptr<Ast> Parser::parse_procedure()
                          rhsloc.first_line,
                          rhsloc.first_column);
 
-        proc = make_unique<Ast>(EntityNode(ProcedureLiteral(id, move(type), move(body)), procloc));
+        proc = make_unique<Ast>(EntityNode(ProcedureLiteral(id, move(type), move(body)), procloc, *(scopes.top())));
+        scopes.pop();
       }
       else
       {

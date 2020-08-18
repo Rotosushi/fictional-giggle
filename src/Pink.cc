@@ -19,7 +19,7 @@ using llvm::LLVMContext;
 int main()
 {
   /*
-  
+
   */
   LLVMContext context;
 
@@ -34,12 +34,12 @@ int main()
 
     auto ast = parser.parse(input);
 
-    if (ast) {
-      if (dynamic_cast<EndNode*>((*ast).get()))
-        break;
-
+    if (ast)
+    {
       cout << (*ast)->to_string() << endl;
-    } else {
+    }
+    else
+    {
       cout << "failed to parse input: " << input << "\n";
     }
   }

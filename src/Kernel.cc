@@ -3,24 +3,27 @@
 using std::string;
 #include <set>
 using std::set;
+#include <memory>
+using std::make_unique;
 #include <utility>
 using std::optional;
 using std::pair;
 using std::make_pair;
 using std::get;
 
-
+#include "Ast.hh"
 #include "OperatorTable.hh"
 #include "Kernel.hh"
 
 void init_binops(OperatorTable& binops)
 {
-  binops.insert("->", 5, Assoc::Right);
-  binops.insert("+", 5, Assoc::Left);
-  binops.insert("-", 5, Assoc::Left);
-  binops.insert("*", 6, Assoc::Left);
-  binops.insert("/", 6, Assoc::Left);
-  binops.insert("%", 6, Assoc::Left);
+  auto dummy_body = unique_ptr<EntityNode>();
+  binops.insert("->", 5, Assoc::Right, dummy_body->clone());
+  binops.insert("+", 5, Assoc::Left, dummy_body->clone());
+  binops.insert("-", 5, Assoc::Left, dummy_body->clone());
+  binops.insert("*", 6, Assoc::Left, dummy_body->clone());
+  binops.insert("/", 6, Assoc::Left, dummy_body->clone());
+  binops.insert("%", 6, Assoc::Left, dummy_body->clone());
   /*
   primitive binary operations:
 
@@ -36,7 +39,7 @@ void init_binops(OperatorTable& binops)
   */
 }
 
-void init_unops(set<string>& unops)
+void init_unops(OperatorTable& unops)
 {
   /*
   note: unary operators should avoid symbolically
@@ -63,5 +66,6 @@ void init_unops(set<string>& unops)
 
   language operators: & *
   */
-  unops.insert("-");
+  auto dummy_body = unique_ptr<EntityNode>();
+  unops.insert("-", 1, Assoc::None, dummy_body->clone());
 }

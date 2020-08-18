@@ -8,6 +8,8 @@ using std::move;
 using std::optional;
 using std::pair;
 using std::get;
+#include <stack>
+using std::stack;
 
 #include "llvm-10/llvm/IR/LLVMContext.h"
 
@@ -21,13 +23,25 @@ using std::get;
   results we care about.
   we care if the judgement fails or succeeds,
   and given failure or success we care about
-  either the failure (to report it to the user)
+  either the failure, to report it to the user;
   or the success, where we care about the type result.
 
   to support both of these control paths, we need to
-  combine these four peices of information into
-  the result type of the procedure which carries out
-  the typeing judgements.
+  combine these four peices of information
+  (success or failure, error message or result type.)
+  into the result type of the procedure
+  which carries out the typeing judgements.
+
+  an additional complication was the function
+  HasInstance, which needs to return a full on
+  Ast. in which types are not directly representable,
+  unless wrapped in an entity structure. but
+  given we just let HasInstance be unique, we
+  can store a TypeNode* directly, and then we get
+  to save on time and space within the typechecker,
+  as each judgement isn't the size of a procedure,
+  (my assumed largest union member, as it has so many
+  standard library data structure members.)
 */
 
 /*
@@ -39,29 +53,34 @@ using std::get;
   essentially acting as a two value
   enum, with true being mapped to type,
   and false being mapped to error.
-
+  so, the enum maps which elem is
+  currently active within the record.
 */
 struct Judgement {
   bool succeeded;
   union U {
-    unique_ptr<Ast> jdgmt;
+    unique_ptr<TypeNode> jdgmt;
     TypeError       error;
 
     U() : error() {}
-    U(unique_ptr<Ast> t) : jdgmt(move(t)) {}
-    U(PrimitiveType t) : jdgmt(make_unique<EntityNode>(AtomicType(t), Location())) {}
+    U(unique_ptr<TypeNode> t) : jdgmt(move(t)) {}
+    U(const TypeNode* const t) : jdgmt(t->clone()) {}
+    U(const AtomicType* const t) : jdgmt(t->clone()) {}
+    U(const ProcType* const t) : jdgmt(t->clone()) {}
+    U(PrimitiveType t) : jdgmt(make_unique<AtomicType>(AtomicType(t), Location())) {}
     U(const TypeError& err) : error(err) {}
     ~U() {}
   } u;
 
   Judgement() : succeeded(false), u(TypeError(Location(), "Default Constructed Judgement")) {}
-  Judgement(unique_ptr<Ast> t) : succeeded(true), u(move(t)) {}
+  Judgement(unique_ptr<TypeNode> t) : succeeded(true), u(move(t)) {}
   Judgement(PrimitiveType t) : succeeded(true), u(t) {}
-  Judgement(const AtomicType* const t) : succeeded(true), u(make_unique<EntityNode>(*t, Location())) {}
-  Judgement(const ProcType* const t) : succeeded(true), u(make_unique<EntityNode>(*t, Location())) {}
+  Judgement(const TypeNode* const t) : succeeded(true), u(t) {}
+  Judgement(const AtomicType* const t) : succeeded(true), u(t) {}
+  Judgement(const ProcType* const t) : succeeded(true), u(t) {}
   Judgement(const TypeError& err) : succeeded(false), u(err) {}
   Judgement(const Location& loc, const string& str) : succeeded(false), u(TypeError(loc, str.data())) {}
-  Judgement(const Judgemenet& rhs)
+  Judgement(const Judgement& rhs)
     : succeeded(rhs.succeeded)
   {
     if (succeeded)
@@ -82,31 +101,34 @@ struct Judgement {
 };
 
 class Typechecker {
-public:
-  SymbolTable* env;
+  stack<SymbolTable*> scopes;
   OperatorTable* binops;
   OperatorTable* unops;
 
+public:
+
   Typechecker(SymbolTable* e, OperatorTable* b, OperatorTable* u)
-    : env(e), biops(b), unops(u) {}
+    : binops(b), unops(u) {
+      scopes.push(e);
+    }
 
-
+  optional<ProcedureLiteral> GetInstanceOf(ProcedureDefinition* procDef, const TypeNode* const target_type);
 
   Judgement equivalent(const TypeNode* t1, const TypeNode* t2);
 
-  Judgement getype(const Ast* const a, SymbolTable* env);
-  Judgement getype(const EmptyNode* const e, SymbolTable* env);
-  Judgement getype(const VariableNode* const v, SymbolTable* env);
-  Judgement getype(const CallNode* const c, SymbolTable* env);
-  Judgement getype(const BindNode* const b, SymbolTable* env);
-  Judgement getype(const BinopNode* const b, SymbolTable* env);
-  Judgement getype(const UnopNode* const u, SymbolTable* env);
-  Judgement getype(const CondNode* const c, SymbolTable* env);
-  Judgement getype(const WhileNode* const w, SymbolTable* env);
-  Judgement getype(const EntityNode* const e, SymbolTable* env);
-  Judgement getype(const Procedure* const p, SymbolTable* env);
-  Judgement getype(const TypeNode* const t, SymbolTable* env);
-  Judgement getype(const AtomicType* const t, SymbolTable* env);
-  Judgement getype(const ProcType* const t, SymbolTable* env);
+  Judgement getype(const Ast* const a);
+  Judgement getype(const EmptyNode* const e);
+  Judgement getype(const VariableNode* const v);
+  Judgement getype(const CallNode* const c);
+  Judgement getype(const BindNode* const b);
+  Judgement getype(const BinopNode* const b);
+  Judgement getype(const UnopNode* const u);
+  Judgement getype(const CondNode* const c);
+  Judgement getype(const WhileNode* const w);
+  Judgement getype(const EntityNode* const e);
+  Judgement getype(const Procedure* const p);
+  Judgement getype(const TypeNode* const t);
+  Judgement getype(const AtomicType* const t);
+  Judgement getype(const ProcType* const t);
 
 };

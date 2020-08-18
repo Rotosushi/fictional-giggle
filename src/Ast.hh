@@ -20,8 +20,9 @@ using llvm::Type;
 using llvm::IntegerType;
 
 #include "Location.hh"
+#include "SymbolTable.hh"
 
-class SymbolTable;
+class Procedure;
 /*
   the abstract syntax tree is the main
   data structure of this program. each
@@ -93,27 +94,6 @@ protected:
 public:
   virtual unique_ptr<Ast> clone() { return unique_ptr<Ast>(clone_internal()); }
   virtual string to_string() { return to_string_internal(); }
-};
-
-/*
-  End, for when the user enters EOF.
-*/
-
-class EndNode : public Ast {
-public:
-  EndNode() {}
-  EndNode(const EndNode& e) {}
-
-protected:
-  virtual EndNode* clone_internal() override
-  {
-    return new EndNode(*this);
-  }
-
-  virtual string to_string_internal() override
-  {
-    return "";
-  }
 };
 
 /*
@@ -598,7 +578,10 @@ protected:
     }
 };
 
-
+// it's confusing to call this a TypeNode
+// when it isn't an Ast. so, maybe just
+// Type? the issue with that is the name
+// conflict with LLVM.
 class TypeNode {
 public:
   TypeNode() {};
@@ -638,6 +621,7 @@ public:
     return type == PrimitiveType::Poly;
   }
 
+protected:
   virtual AtomicType* clone_internal() override
   {
     return new AtomicType(*this);
@@ -708,12 +692,12 @@ public:
   ProcType(const ProcType& rhs)
     : lhs(rhs.lhs->clone()), rhs(rhs.rhs->clone()) {}
 
-protected:
     virtual bool is_poly_type() override
     {
       return lhs->is_poly_type() || rhs->is_poly_type();
     }
 
+protected:
     virtual ProcType* clone_internal() override
     {
       return new ProcType(*this);
@@ -918,13 +902,18 @@ public:
   string arg_id;
   unique_ptr<Ast> arg_type;
   unique_ptr<Ast> body;
+  SymbolTable     scope;
 
   ProcedureLiteral() = default;
-  ProcedureLiteral(const string& str, unique_ptr<Ast> at, unique_ptr<Ast> b)
-    : arg_id(str), arg_type(move(at)), body(move(b)) {}
+  ProcedureLiteral(const string& str, unique_ptr<Ast> at, unique_ptr<Ast> b, SymbolTable s)
+    : arg_id(str), arg_type(move(at)), body(move(b)) {
+      scope = s;
+    }
 
   ProcedureLiteral(const ProcedureLiteral& p)
-    : arg_id(p.arg_id), arg_type(p.arg_type->clone()), body(p.body->clone()) {}
+    : arg_id(p.arg_id), arg_type(p.arg_type->clone()), body(p.body->clone()) {
+      scope = p.scope;
+    }
 
   ~ProcedureLiteral() = default;
 
@@ -933,6 +922,7 @@ public:
     arg_id   = rhs.arg_id;
     arg_type = rhs.arg_type->clone();
     body     = rhs.body->clone();
+    scope    = rhs.scope;
     return *this;
   }
 
@@ -954,7 +944,6 @@ public:
   ProcedureLiteral def;
   list<ProcedureLiteral> set;
   bool poly;
-
 
   ProcedureDefinition() = default;
   ProcedureDefinition(const ProcedureLiteral& def)
@@ -1043,7 +1032,7 @@ public:
   polymorphic procedures in order to
   confirm their validity.
 */
-optional<ProcedureLiteral> HasInstance(Procedure* const procedure, const TypeNode* const target_type, SymbolTable* env);
+
 
 class Procedure {
 public:

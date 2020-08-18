@@ -13,6 +13,8 @@ public:
     : errloc(rhs.errloc), errstr(rhs.errstr) {}
   ParserError(const Location& loc, const char* str)
     : errloc(loc), errstr(str) {}
+  ParserError(const Location& loc, const string& str)
+    : errloc(loc), errstr(str) {}
 
   const Location& location() const
   {
@@ -36,6 +38,9 @@ public:
     : errloc(rhs.errloc), errstr(rhs.errstr) {}
   TypeError(const Location& loc, const char* str)
     : errloc(loc), errstr(str) {}
+  TypeError(const Location& loc, const string& str)
+    : errloc(loc), errstr(str) {}
+
 
   const Location& location() const
   {

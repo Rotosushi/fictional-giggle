@@ -1,0 +1,441 @@
+
+functions and variables work together
+over the symbol-table data structure
+to provide abstraction to the language.
+
+operations and values work together
+over the operator-table data structure
+to provide expressions to the language.
+
+binops are operations over two values
+unops  are operations over one value
+later postops are operations over two values
+      but they are generally formed with two
+      lexemes, one immediately postfixed to
+      the first argument, and the second
+      lexeme as the ending token of the
+      term describing the second argument.
+
+types connect these two constructs,
+abstraction and expression, and allow
+programmers to combine the two nearly
+indiscriminately.
+
+types, therefore are what mainly manages
+the composition of language constructs.
+
+also, funnily enough, primitive values
+plus operations also allow you to describe
+types as a kind of binary expression.
+
+type := Nil
+      | Int
+      | Bool
+      | type '->' type
+      | '(' type ')'
+
+and i can imagine
+      | type '+' type
+      | type '|' type
+
+these of course all follow the
+same grammatical pattern
+[type binary-operator type]
+which means that type constructors
+can be considered primitive language
+operations. which tracks.
+this also allows for a direct meaning
+of typenames, they can work exactly the
+same as variables, allowing for a type
+term/tree to be saved and used to construct
+further types. recursive types will still
+need to be handled by some language mechanism.
+perhaps, out of order declarations? we allow
+some leeway in using a name before we can find
+a declaration.
+in the case of a recursive definition, we always
+find ourselves within the body of the definition
+when we encounter the error of not being able to
+lookup the name, given we are currently defining
+said name, however we can imagine solid semantics
+of recursive names in both data structures, namely
+recursive references. and within algorithms, namely
+recursive calls. we can imagine solid semantics for
+these things within the language. namely, a pointer
+which has the same referent type as the type of the
+containing structure, and this is probably a list,
+or tree, or graph.
+or a recursive algorithm, which, can be supported naturally
+in a stack based execution environment.
+
+----------------------------------------------------------
+in an attempt to give some coarse language,
+i find language which varies alongside the
+varying levels of scale in any given problem
+introduces a lot of the logical footholds needed
+to talk about things within that scale but also
+between scales, to the abstractions which are daily
+used in programming, we must first define something
+basic, scales themselves!
+given a program, essentially we talk about abstractions
+which operate at some scale. composing together
+abstractions which operate at different scales to
+compose new abstractions. this may sound weird but
+its just a useful conceptual shorthand really.
+
+scale scale:
+      at the bottom: nothing/zero/nada
+      i.e. we are talking at the scale of nothing.
+
+      then:   one thing
+      i.e. we are talking at the scale of one thing.
+
+              n things
+      i.e. we are talking at the scale of some fixed
+           and known number of things.
+
+              f(n) things
+      i.e. we are talking at the scale of some
+           computable number of things.
+
+              countably infinite things
+      i.e. we are talking at the scale of a
+           countably infinite number of things.
+
+              uncountably infinite things
+      i.e. we are talking at the scale of a
+          uncountably infinite number of things.
+
+
+in a program, variables act as names for things.
+sometimes they act as a name for nothing,
+sometimes they act as a name for one thing,
+sometimes they act as a name for a collection of things,
+sometimes they act as a name for an infinite number of things.
+
+
+
+
+----------------------------------------------------------
+
+
+#! binops and currying/closures
+
+a binop is a two argument procedure.
+so, we need a set of binary procedures
+against which we can lookup the op,
+to retrieve a procedure, in the same
+way that we name regular procedures and
+can lookup the procedure to find
+it's definition.
+
+this raises an issue however,
+given that procedures only take a single
+argument, how do we propose to define
+binary operators in terms of single argument
+procedures?
+
+add := \x => \y => x + y
+
+or, in the presence of tuples
+add := \(x, y) => x + y
+this means implementing tuples.
+i mean, it goes a long way toward
+implementing structs/records.
+
+
+
+to me, it would be nice if operators were
+identical to procedures, it just so happens
+that their name must be made up of a subset
+of characters, and they have a precedence
+and associativity associated with their
+definition.
+
+so, we need a symboltable
+which is specifically for operators?
+i mean, there isn't any reason why
+we couldn't use the same table.
+other than the binop definition
+object not inheriting from Ast.
+
+we would need to store a binops definition
+along with it's precedence and associativity.
+ would this have implications
+on the ast structure storing binops?
+i feel like we can have a separate
+definition structure. but we can store
+it in the same table, and use the same string
+lookup.
+ does this imply that the op-prec parser
+ looks up the entire binop definition?
+
+
+and do we provide some sort of
+half-applied procedure object, which
+would support partial application of
+both procedures and operators?
+
+by partial application, i really mean
+currying. the order of arguments matters,
+as conceptually, multiple arguments
+are a tuple. if we call a procedure
+with less than the normal number of
+arguments, (keeping in mind order matters)
+we can store the resulting
+object as a closure, with the previously
+given set of arguments stored somehow
+and passed into the procedure via the
+associated parameters, with the unfilled
+arguments making up the argument list
+of the resulting object. if that makes sense.
+
+
+
+
+inc := add 1
+
+in the interpretive environment, with
+the currect execution schema, we
+support closures naturally, as the tree
+itself gets the closed over information
+spliced in as a local copy
+inc ==>> \y => (1) + y
+
+but this makes no sense from an assembly
+perspective, as there is no tree to
+dynamically express the procedure.
+instead we have a procedure body
+represented in assembly. and each
+individual argument represented in
+assembly.
+a partially applied procedure seems
+to require a possibly infinite number
+of procedure definitions, one for each
+specific argument value. however,
+if instead we use the same procedure
+body, and instead store precisely the
+curried arguments until such time as the
+entire argument list is provided.
+essentially, delaying the procedure application
+until we are provided the final argument.
+we can define this procedure 'inc'
+as a call to the procedure add, where
+the first argument is always the value
+one. the compiler can thusly choose to
+construct a new procedure body, with
+the sigle variable of some type, replaced
+by a literal value in the same location
+(according to however that value is stored
+ when passed as an argument.)
+or, we can utilize the exact same procedure
+body, and implement every application of
+the inc procedure as precisely a call to
+add with the first argument filled in by
+the literal value 1.
+this seems to follow for any given type that
+can be stored as a local value. we can store
+the 'saved' value in memory, and store the
+closure as a procedure address and a pointer
+to the closed over values. then when the
+compiler wants to emit a procedure call
+it can use the closure values to fill in
+the missing arguments, use the call site
+provided arguments to fill in the rest of
+the argument list, and invoke the procedure.
+inc  ==>> \(x : Int = 1, y) => x + y
+
+int 2 ==>> \(x = 1, y = 2) => 1 + 2
+      => 3
+
+in effect, inc is a wrapper around a
+call to add, where the first argument
+is bound to the definition of the wrapper
+within an object I called the closure, (formally
+the closure is this data in addition to a pointer to
+the function.)
+if the closed over name is a variable and
+not a constant, then the closure will need
+to live at least on the stack, to be
+available for modification, per instance of the
+call to the closure. if this wrapper/closure is returned
+by some callee, then it's closure must live in
+the heap, and be deallocated when we no longer
+have a refrence to the closure object. (it's name
+falls out of scope)
+
+
+
+#! refrences
+
+this is the best example I can think of,
+to start this discussion.
+when we consider a type reference as a subclass
+of the referent type. the relationship between
+reference type, and referent type, is to say
+that a reference type is-a referent type.
+T is-a T^
+we can extract values from a reference type
+with the same symbol (the dot operator)
+as we would extract from
+the referent type. (this saves the programmer
+from having to explicitly direct, or indirect
+a variable or pointer value syntactically.
+with the compiler essentially allowed to infer
+a single layer of indirection with any name.)
+
+so, it is not technically accurate to say that
+references are equivalent to their referent type,
+as the computer must preform a different sequence
+of instructions to extract a subfield of the
+referent type, that from a refrence type. (the
+compiler must wrap or unwrap the type with
+a step of computation essentially.)
+this is a pattern with the optional type as well.
+we want to simultaneously think of the name
+as being
+A) implicitly convertable to a boolean,
+  with true implying that the optional is filled
+  with some type T
+B) implicitly convertable to a T, and
+  when we use an optional name as we would
+  some T, we can apply those operations
+  directly to the storage representing said
+  T.
+
+in this way, we want the syntax around using
+refrences to be as unobtrusive as possible.
+because having to be exactly explicit and correct
+about each particular low-level step to verify
+constraints becomes tedious, error-prone, and
+gets in the way of putting ideas into reality.
+
+we can think of the reference type as being a
+supertype of every type, because everything that
+is typeable has an address. as that is precisely
+how the compiler associates syntax with memory.
+
+in the same way as references, we can validly imagine
+wrapping any type in an optional type. and thusly
+the name is both a optional type and a regular type T.
+simultaneously. this seems to imply that is-a
+relationship to me.
+these two things feel analagous to functional monad
+abstractions
+
+#! monads
+the monad is a design pattern
+that follows three rules.
+
+left identity:
+  a value of some type T wrapped in a monad,
+  passed as an argument to some function f
+  taking a monad containing said type T
+  and returning a monad containing the
+  same type T or another type T',
+
+  is equivalent to passing the type
+  T in a call to a function f taking
+  some type T and returning the same
+  type T or another type T'.
+
+  to say this another way, if you
+  have two procedures, with identical
+  bodies, except for the fact that
+  one of them unwraps the type before
+  performing the action. then these
+  procedures are left identical.
+
+  the type is predictably the same, just
+  wrapped or unwrapped.
+
+  right identity:
+    the monad containing some type T,
+    when called against some function
+    f which returns the monad bound to
+    it's argument, that same type T,
+    it is equivalent to the identity
+    operation. which is to say, a no-op.
+
+  associativity.
+  if the monad type is associative,
+  then this statement holds:
+  if you apply function f to the monad
+  containing type T, and subsequently
+  apply the resulting monad to the
+  function g,
+  that is the same as applying the
+  function g to the monad containing
+  type T, and subsequently applying
+  the resulting monad to the function
+  f.
+
+a monad is three things:
+-- generic type M
+such that we can store
+a type T within the M.
+  M(T)
+
+-- the function wrap
+  with-type: T -> M(T)
+essentially, a constructor.
+
+-- the operation to apply some procedure
+    to the contained value, returning a
+    monad. allowing for chaining of actions.
+combinator/binary function bind
+  with-type: M(T) -> (T -> M(T')) -> M(T')
+
+essentially, unwap the T,
+apply procedure to the T,
+return the result of the procedure
+  wrapped in a monad. (the wrapped
+  type T can change, in the same way
+  that a procedure can take some
+  T and produce T')
+
+
+to be a full mathematical monad
+wrap needs to be the left-identity of bind
+wrap needs to be the right-identity of bind
+and the combinator needs to be associative
+
+every unary operation valid upon some type T
+is a valid operation to bind to the monad
+storing type T.
+
+we could imagine a unique_ptr<T>
+as representing the semantics of owning
+references in pink.
+with the assumption that
+the destructor of every name that isn't
+returned is called at the end of
+the defining scope of the name.
+
+we have references, they are valid upon
+every type T, we can imagine having
+a type T stored in any reference.
+as the monad wrap or unwrapped states
+could correspond with
+taking the address,
+and retrieving the type.
+
+wrap/take-reference &T
+(packages type in a reference)
+T -> R(T)
+bind could be the procedure which
+unwraps the bound value/follow the indirection to the data.
+and applies procedure f upon it.
+R(T) -> (T -> R(T')) -> R(T')
+
+we don't usually think of references
+in this way, they are usually used
+like a unique type within the type
+hierarchy. but if we consider them
+like this, do we gain any interesting
+properties?
+
+we could imagine single argument
+procedures, which operate upon
+type T's, we can always bind these
+to monads holding type T's.

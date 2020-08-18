@@ -55,7 +55,7 @@ enum class Token {
 class Lexer;
 
 class Parser {
-  LLVMContext* ctx;
+  stack<SymbolTable*> scopes
   stack<int, vector<int>> marks;
   vector<Token>    tokbuf;
   vector<string>   txtbuf;
@@ -66,9 +66,9 @@ class Parser {
   int              curidx;
 
 public:
-  Parser(LLVMContext* c);
+  Parser();
 
-  optional<unique_ptr<Ast>> parse(const string& text);
+  optional<unique_ptr<Ast>> parse(const string& text, const SymbolTable* top_scope);
 
 private:
   void reset();
