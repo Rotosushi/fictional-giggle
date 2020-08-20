@@ -25,15 +25,15 @@ void BinopTable::insert(const string& op, Binop binop)
   ops.insert(make_pair(op, binop));
 }
 
-optional<Binop&> BinopTable::find(const string& op)
+optional<Binop> BinopTable::find(const string& op)
 {
   auto cursor = ops.find(op);
   if (cursor == ops.end())
   {
-    return optional<Binop&>();
+    return optional<Binop>();
   }
   else
   {
-    return optional<Binop&>(get<1>(*cursor))
+    return optional<Binop>(get<1>(*cursor))
   }
 }

@@ -830,7 +830,8 @@ unique_ptr<Ast> Parser::parse_procedure()
   unique_ptr<Ast> proc, type, body;
   Location&& lhsloc = curloc();
 
-  auto parse_arg = [&poly, &id, &type](){
+  auto parse_arg = [&poly, &id, &type]()
+  {
     if (curtok() != Token::Id)
     {
       id = curtxt();
@@ -961,12 +962,12 @@ unique_ptr<Ast> Parser::parse_infix(unique_ptr<Ast> lhs, int precedence)
   many peaks into the rhs, and many identical
   precedence operations into the lhs.
   */
-  optional<pair<int, Assoc>> lopPrec;
+  optional<Binop> lookahead;
 
-  while ((lopPrec = binops.find(curtxt())) && get<int>(*lopPrec) >= precedence)
+  while ((lookahead = binops.find(curtxt())) && lookahead.precedence >= precedence)
   {
     string&& optxt = curtxt();
-    auto       op = lopPrec;
+    auto       op  = lookahead;
 
     nextok();
 
@@ -988,11 +989,11 @@ unique_ptr<Ast> Parser::parse_infix(unique_ptr<Ast> lhs, int precedence)
          rhs   rhs'
 
     */
-    while ((lopPrec = binops.find(curtxt()))
-           &&   (get<int>(*lopPrec) > get<int>(*op)
-             || (get<int>(*lopPrec) == get<int>(*op) && get<Assoc>(*lopPrec) == Assoc::Right)))
+    while ((lookahead = binops.find(curtxt()))
+           &&   (lookahead.precedence > op.precedence
+             || (lookahead.precedence == op.precedence && lookahead.associativity == Assoc::Right)))
     {
-      rhs = move(parse_infix(move(rhs), get<int>(*lopPrec)));
+      rhs = move(parse_infix(move(rhs), lookahead.precedence));
     }
 
     /*

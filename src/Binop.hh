@@ -46,6 +46,7 @@ typedef unique_ptr<Ast> (*binop_eliminator)(const Ast* const, const Ast* const);
 
 class Binop {
 public:
+  string optxt;
   int precedence;
   Assoc associativity;
   /*
@@ -66,10 +67,19 @@ public:
 
   Binop() = default;
   ~Binop() = default;
-  Binop(int prec, Assoc assoc, vector<pair<unique_ptr<TypeNode>, binop_eliminator>> prim_elims, vector<ProcedureLiteral> comp_elims)
-    : precedence(prec), associativity(assoc), composite_eliminators(move(comp_elims))
+  Binop(string txt, int prec, Assoc assoc, vector<pair<unique_ptr<TypeNode>, binop_eliminator>> prim_elims, vector<ProcedureLiteral> comp_elims)
+    : optxt(txt), precedence(prec), associativity(assoc), composite_eliminators(comp_elims)
   {
     for (auto&& prim_pair : prim_elims)
+    {
+      primitive_eliminators.push_back(make_pair(make_unique(get<0>(prim_pair)->clone()), get<1>(prim_pair)));
+    }
+  }
+
+  Binop(const Binop& rhs)
+    : optxt(rhs.optxt), precedence(rhs.precedence), associativity(rhs.associativity),
+  {
+    for (auto&& prim_pair : rhs.primitive_eliminators)
     {
       primitive_eliminators.push_back(make_pair(make_unique(get<0>(prim_pair)->clone()), get<1>(prim_pair)));
     }
