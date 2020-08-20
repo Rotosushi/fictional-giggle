@@ -1,4 +1,37 @@
+#! use before definition
 
+// technically during parsing, typeing, and evaluation
+// of a procedures body,
+// the names of the argument list are available for use
+// within the body of a procedure.
+// however we (eventually) want to parse terms which may use
+// names before they have a definition. either the name is
+// recursive, or mutually recursive with another name.
+// recursion and especially mutual recursion are useful.
+// this means we do not want to introduce a dependency
+// on names within the parser. so that it is easier
+// to provide usage before definition, which makes
+// the programmers job easier with respect to
+// forward declarations. and module inclusion in
+// general. we simply conside the set of names which
+// are explicitly exported by each module in the program
+// to be the complete set of globally available names.
+// and until such time as we have fully parsed every module
+// we cannot assume to have the definition of each of these
+// names. therefore, when we parse one of the modules from
+// the set of known modules, we can construct a set of terms
+// module-definitions which are incomplete due to the lack
+// of a definition for one of the names used within the term.
+// then when we complete the parsing of a module we can retry
+// each of the terms in each of the modules incomplete definition
+// set, to hopefully define some of the names. this can continue
+// until we have parsed every available module.
+// at such time we need to check if any of the modules still have
+// incomplete definitions, and then only after fully collecting
+// all of the source text can we for sure say that the undefined
+// names are actually fully not present within the source text.
+
+------------------------------------------------------------------
 functions and variables work together
 over the symbol-table data structure
 to provide abstraction to the language.

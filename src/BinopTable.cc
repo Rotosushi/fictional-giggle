@@ -17,20 +17,20 @@ using std::tuple;
 using std::make_tuple;
 
 
-#include "OperatorTable.hh"
+#include "BinopTable.hh"
 #include "Ast.hh"
 
-void OperatorTable::insert(const string& op, int precedence, Assoc associativity, unique_ptr<Ast> body)
+void BinopTable::insert(const string& op, Binop binop)
 {
-  ops.insert(make_pair(op, tuple<int, Assoc, unique_ptr<Ast>>(precedence, associativity, move(body))));
+  ops.insert(make_pair(op, binop));
 }
 
-optional<tuple<int, Assoc, unique_ptr<Ast>>> OperatorTable::find(const string& op)
+optional<Binop> BinopTable::find(const string& op)
 {
   auto cursor = ops.find(op);
   if (cursor == ops.end())
   {
-    return optional<tuple<int, Assoc, unique_ptr<Ast>>>();
+    return optional<Binop>();
   }
   else
   {
@@ -45,7 +45,7 @@ optional<tuple<int, Assoc, unique_ptr<Ast>>> OperatorTable::find(const string& o
   }
 }
 
-optional<int>  OperatorTable::findPrecedenceOf(const string& op)
+optional<int>  BinopTable::findPrecedenceOf(const string& op)
 {
   auto cursor = ops.find(op);
   if (cursor == ops.end())
@@ -59,7 +59,7 @@ optional<int>  OperatorTable::findPrecedenceOf(const string& op)
   }
 }
 
-optional<Assoc> OperatorTable::findAssociativityOf(const string& op)
+optional<Assoc> BinopTable::findAssociativityOf(const string& op)
 {
   auto cursor = ops.find(op);
   if (cursor == ops.end())
@@ -73,7 +73,7 @@ optional<Assoc> OperatorTable::findAssociativityOf(const string& op)
   }
 }
 
-optional<unique_ptr<Ast>> OperatorTable::findBodyOf(const string& op)
+optional<unique_ptr<Ast>> BinopTable::findBodyOf(const string& op)
 {
   auto cursor = ops.find(op);
   if (cursor == ops.end())

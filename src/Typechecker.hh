@@ -16,7 +16,8 @@ using std::stack;
 #include "Ast.hh"
 #include "Error.hh"
 #include "SymbolTable.hh"
-#include "OperatorTable.hh"
+
+class BinopTable;
 
 /*
   A typing judgement has two possible
@@ -100,21 +101,21 @@ struct Judgement {
   }
 };
 
+Judgement equivalent(const TypeNode* t1, const TypeNode* t2);
+
 class Typechecker {
   stack<SymbolTable*> scopes;
-  OperatorTable* binops;
-  OperatorTable* unops;
+  BinopTable* binops;
+  BinopTable* unops;
 
 public:
 
-  Typechecker(SymbolTable* e, OperatorTable* b, OperatorTable* u)
+  Typechecker(SymbolTable* e, BinopTable* b, BinopTable* u)
     : binops(b), unops(u) {
       scopes.push(e);
     }
 
   optional<ProcedureLiteral> GetInstanceOf(ProcedureDefinition* procDef, const TypeNode* const target_type);
-
-  Judgement equivalent(const TypeNode* t1, const TypeNode* t2);
 
   Judgement getype(const Ast* const a);
   Judgement getype(const EmptyNode* const e);

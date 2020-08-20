@@ -16,7 +16,7 @@ using std::optional;
 #include "OperatorTable.hh"
 #include "Typechecker.hh"
 
-Judgement Typechecker::equivalent(const TypeNode* t1, const TypeNode* t2)
+Judgement equivalent(const TypeNode* t1, const TypeNode* t2)
 {
   /*
     we use structural equivalence here.
@@ -737,8 +737,8 @@ ENV |- fn (op) : T1 -> T2 -> T3, lhs : T1, rhs : T2
     and implementer-definitions.
     a.k.a. composite vs. primitive operations.
     namely, how do we best implement typechecking
-    agains both primitive and composite operations.
-    because the primitive operations are going to
+    against both primitive and composite operations.
+    primitive operations are going to
     be implemented in terms of the Ast, interpretively,
     and composite operations are going to be implemented
     atop regular procedure application.
@@ -750,7 +750,7 @@ ENV |- fn (op) : T1 -> T2 -> T3, lhs : T1, rhs : T2
     of primitive operations being in terms of the Ast,
     they will be some series of assembly instrctions
     operating over memory cells, and composite operations
-    will be built atop the assembly function call semantics.
+    will be built atop function call semantics.
     )
 
     but, the typeing judgement is identical given either
@@ -804,6 +804,24 @@ ENV |- fn (op) : T1 -> T2 -> T3, lhs : T1, rhs : T2
       can instead treat the term like a procedure call
       with the left and right hand sides as the arguments
       to the procedure.
+
+      the unop semantics are identical,
+      except for the number of arguments.
+
+      so perhaps we can store a pointer to a procedure
+      which can be used to eliminate primitive binops
+      and return the resulting value, within the structure
+      which saves binops, and in the case of a composite
+      binop we instead store a pointer to the user
+      defined procedure which can be used to eliminate the
+      user defined operation, and return the resulting value.
+
+      this isn't stored in the ast however. the Ast should
+      remain the same, what needs to be added is a binop
+      record which saves these things and can be looked
+      up by the regular lookup mechanisms. then the
+      elimination mechanisms should be able to be unifyed
+      around these two abstractions.
   */
 }
 

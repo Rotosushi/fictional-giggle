@@ -225,6 +225,59 @@ protected:
   }
 };
 
+
+class TupleNode : public Ast {
+public:
+    vector<unique_ptr<Ast>> members;
+
+    TupleNode() {}
+    TupleNode(vector<unique_ptr<Ast>>& membs)
+    {
+      auto len = membs.size();
+      for (int i = 0; i < len; i++)
+      {
+        members[i] = move(membs[i]);
+      }
+    }
+    TupleNode(const TupleNode& rhs)
+    {
+      auto len = rhs.members.size();
+      for (int i = 0; i < len; i++)
+      {
+        members[i] = rhs.members[i]->clone();
+      }
+    }
+
+protected:
+    virtual TupleNode* clone_internal() override
+    {
+      return new TupleNode(*this);
+    }
+
+    virtual string to_string_internal() override
+    {
+      string result;
+      result = "(";
+      if (members.size() != 0)
+      {
+        for (int i = 0; i < members.size(); i++)
+        {
+          if (i < (members.size() - 1))
+          {
+            result += members[i]->to_string();
+            result += ", ";
+          }
+          else
+          {
+            result += members[i]->to_string();
+          }
+        }
+      }
+      result += ")";
+      return result;
+    }
+};
+
 /*
  a binop is one component of
  affix/infix expressions, which
@@ -296,6 +349,7 @@ protected:
     return result;
   }
 };
+
 
 /*
 
@@ -761,6 +815,95 @@ protected:
     }
 };
 
+class TupleType {
+public:
+    vector<unique_ptr<TypeNode>> members;
+
+    TupleType() {}
+    TupleType(vector<unique_ptr<TypeNode>>& rhs)
+    {
+      for (auto&& mem : rhs.members)
+        members.push_back(mem.clone());
+    }
+    TupleType(const TupleType& rhs)
+    {
+      for (auto&& mem : rhs.members)
+        members.push_back(mem.clone());
+    }
+
+    virtual bool is_poly_type() override
+    {
+      if (members.size > 0)
+      {
+        for (auto&& mem : members)
+          if (mem.is_poly_type())
+            return true;
+      }
+
+      return false;
+    }
+
+protected:
+    virtual TupleType* clone_internal() override
+      { return new TupleType(*this); }
+
+    virtual TupleType* clone_internal() const override
+      { return new TupleType(*this); }
+
+    virtual string to_string_internal() override
+    {
+      /*
+      valid tuples:
+        ()
+        (type, type)
+        (type, ..., type)
+
+      */
+      string result;
+      result = "(";
+      if (members.size() != 0)
+      {
+        for (int i = 0; i < members.size(); i++)
+        {
+          if (i < (members.size() - 1))
+          {
+            result += members[i]->to_string();
+            result += ", ";
+          }
+          else
+          {
+            result += members[i]->to_string();
+          }
+        }
+      }
+      result += ")";
+      return result;
+    }
+
+    virtual string to_string_internal() const override
+    {
+      string result;
+      result = "(";
+      if (members.size() != 0)
+      {
+        for (int i = 0; i < members.size(); i++)
+        {
+          if (i < (members.size() - 1))
+          {
+            result += members[i]->to_string();
+            result += ", ";
+          }
+          else
+          {
+            result += members[i]->to_string();
+          }
+        }
+      }
+      result += ")";
+      return result;
+    }
+};
+
 
 /*
   procedures:
@@ -899,19 +1042,29 @@ public:
 
 class ProcedureLiteral {
 public:
-  string arg_id;
-  unique_ptr<Ast> arg_type;
+  vector<pair<string, unique_ptr<Ast>>> args;
   unique_ptr<Ast> body;
   SymbolTable     scope;
 
   ProcedureLiteral() = default;
-  ProcedureLiteral(const string& str, unique_ptr<Ast> at, unique_ptr<Ast> b, SymbolTable s)
-    : arg_id(str), arg_type(move(at)), body(move(b)) {
+  ProcedureLiteral(const string& str, unique_ptr<Ast> at, unique_ptr<Ast> b, SymbolTable& s)
+    : args(make_pair(str, move(at))), body(move(b)) {
       scope = s;
     }
 
+  ProcedureLiteral(vector<pair<string, unique_ptr<Ast>>> as, unique_ptr<Ast> b, SymbolTable& s)
+    : body(move(b))
+  {
+    for (auto&& arg : as)
+    {
+      args.push_back(make_pair(get<0>(arg), get<1>(arg)->clone()));
+    }
+    scope = s;
+  }
+
   ProcedureLiteral(const ProcedureLiteral& p)
-    : arg_id(p.arg_id), arg_type(p.arg_type->clone()), body(p.body->clone()) {
+    : body(p.body->clone()) {
+      // args = rhs.args.clone()
       scope = p.scope;
     }
 
@@ -1091,6 +1244,8 @@ public:
   }
 
 };
+
+
 
 
 /*

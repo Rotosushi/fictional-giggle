@@ -7,10 +7,10 @@ using std::set;
 #include <memory>
 using std::unique_ptr;
 
-#include "OperatorTable.hh"
+#include "BinopTable.hh"
 
-void init_binops(OperatorTable& binops);
-void init_unops(OperatorTable& unops);
+void init_binops(BinopTable& binops);
+void init_unops(set<string>& unops);
 
 
 /*

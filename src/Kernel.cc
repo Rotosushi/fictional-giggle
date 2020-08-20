@@ -12,10 +12,10 @@ using std::make_pair;
 using std::get;
 
 #include "Ast.hh"
-#include "OperatorTable.hh"
+#include "BinopTable.hh"
 #include "Kernel.hh"
 
-void init_binops(OperatorTable& binops)
+void init_binops(BinopTable& binops)
 {
   auto dummy_body = unique_ptr<EntityNode>();
   binops.insert("->", 5, Assoc::Right, dummy_body->clone());
@@ -39,7 +39,7 @@ void init_binops(OperatorTable& binops)
   */
 }
 
-void init_unops(OperatorTable& unops)
+void init_unops(set<string>& unops)
 {
   /*
   note: unary operators should avoid symbolically

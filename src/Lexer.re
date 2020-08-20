@@ -106,6 +106,7 @@ Token Lexer::yylex()
             "\\"       { update_location(); return Token::Backslash;   }
             "("        { update_location(); return Token::LParen;      }
             ")"        { update_location(); return Token::RParen;      }
+            ","        { update_location(); return Token::Comma;       }
             ":"        { update_location(); return Token::Colon;       }
             ":="       { update_location(); return Token::ColonEquals; }
             "=>"       { update_location(); return Token::EqRarrow;    }

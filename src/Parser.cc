@@ -62,7 +62,7 @@ using llvm::Type;
 #include "Parser.hh"
 #include "Ast.hh"
 #include "Lexer.hh"
-#include "OperatorTable.hh"
+#include "BinopTable.hh"
 #include "Kernel.hh"
 #include "Location.hh"
 #include "Error.hh"
@@ -199,7 +199,7 @@ bool Parser::is_ender(Token t)
     case Token::RParen: case Token::End:
     case Token::NewLn: case Token::EqRarrow:
     case Token::Then: case Token::Else:
-    case Token::Do:
+    case Token::Do: case Token::Comma:
       return true;
     default:
       return false;
@@ -646,21 +646,58 @@ unique_ptr<Ast> Parser::parse_primitive()
       break;
     }
 
+    /*
+    could be parsing a tuple
+    or a parenthesized term.
+    */
     case Token::LParen:
     {
       nextok();
 
+      // is this an empty tuple?
+      if (curtok() == Token::RParen)
+      {
+        nextok();
+        lhs = unique_ptr<Ast>(new TupleNode());
+        break;
+      }
+
+      // parse first subterm
       lhs = parse_term();
 
       if (curtok() == Token::RParen)
       {
         nextok();
-        // good term
+        // good parenthesized term
+      }
+      else if (curtok() == Token::Comma)
+      {
+        // this is a tuple declaration.
+        vector<unique_ptr<Ast>> tuple_members;
+
+        do {
+          nextok();
+
+          tuple_members.push_back(move(lhs));
+
+          lhs = parse_term();
+
+        } while (curtok() == Token::Comma);
+
+        if (curtok() == Token::RParen)
+        {
+          nextok();
+          // good tuple term
+          lhs = unique_ptr<Ast>(new TupleNode(tuple_members));
+        }
+        else
+        {
+          // error: missing closing paren
+        }
       }
       else
       {
-
-        // error: missing closing right parenthesis.
+          // error: missing closing paren;
       }
       break;
     }
@@ -791,71 +828,91 @@ unique_ptr<Ast> Parser::parse_while()
 unique_ptr<Ast> Parser::parse_procedure()
 {
   bool poly = false;
+  string id;
+  vector<pair<string, unique_ptr<Ast>>> args;
   unique_ptr<Ast> proc, type, body;
   Location&& lhsloc = curloc();
-  if (curtok() == Token::Backslash)
-  {
-    nextok();
 
-    if (curtok() == Token::Id)
+  auto parse_arg = [&poly, &id, &type](){
+    if (curtok() != Token::Id)
     {
-      string&& id = curtxt();
+      id = curtxt();
       nextok();
 
-      // parse the optional type annotation
       if (curtok() == Token::Colon)
       {
         nextok();
         type = parse_term();
+        poly = false;
       }
       else
       {
-        // if the type is left off, we assume polymorphic type.
+        // if the type annotation is missing, we assume polymorphic type.
         type = unique_ptr<Ast>(new EntityNode(PrimitiveType::Poly, Location()));
         poly = true;
       }
 
-      if (curtok() == Token::EqRarrow)
-      {
-        nextok();
-        // so, we push the scope while we are parsing the
-        // body, in the same way we would push the scope
-        // when typing, or evaluating the body.
-        // and since we have a procedure whose enclosing
-        // scope is the top of the stack, we can use that
-        // pointer to construct the procedure. we use the
-        // stack so that when we are done parsing/lexing/evaluating this
-        // term, we can pop the top element, and now we are looking
-        // up symbols in the correct outer environment, once we stop
-        // parsing/lexing/evaluating this term. this also handles
-        // procedure definitions within a procedure, because the
-        // enclosing scope of the first procedure is the top of the
-        // stack when we create and push the new scope for the
-        // inner procedure. this is similar functionality of an
-        // anonymous scope in c essentially. except we enter the
-        // scopes upon application.
-        scopes.push(new SymbolTable(scopes.top()));
-        body = parse_term();
-        Location&& rhsloc = curloc();
-        Location procloc(lhsloc.first_line,
-                         lhsloc.first_column,
-                         rhsloc.first_line,
-                         rhsloc.first_column);
-
-        proc = make_unique<Ast>(EntityNode(ProcedureLiteral(id, move(type), move(body)), procloc, *(scopes.top())));
-        scopes.pop();
-      }
-      else
-      {
-        // error: expecting '=>' to predict function body
-      }
-
+      return make_pair(id, move(type));
     }
-    else
+    throw "unexpected bad arg after speculation.";
+  }
+
+  if (curtok() != Token::Backslash)
+    throw "unexpected missing backslash after speculation.";
+
+  nextok();
+
+  if (curtok() == Token::Id)
+  {
+    // parse a single argument
+    args.push_back(parse_arg());
+  }
+  else if (curtok() == Token::LParen)
+  {
+    // parse an argument list.
+    nextok();
+
+    args.push_back(parse_arg());
+
+    if (curtok() == Token::Comma)
     {
-      // error: expecting Id immediately after '\\'
+      do {
+        nextok();
+        args.push_back(parse_arg());
+      } while (curtok() == Token::Comma);
     }
   }
+  else
+  {
+    throw "unexpected missing argument after speculation.";
+  }
+
+  if (curtok() != Token::EqRarrow)
+    throw "unexpected missing \"=>\" after speculation.";
+
+  nextok();
+
+  // while we parse the body of this procedure,
+  // the procedures scope is the new enclosing
+  // scope/top-of-the-scope-stack.
+  // this line does double duty,
+  // 1) it constructs the new scope with a reference to
+  //      the old enclosing scope as it's enclosing scope.
+  // 2) it pushes this new scope onto the scope stack in
+  //      order to make it the new enclosing scope.
+  scopes.push(new SymbolTable(scopes.top()));
+
+  body = parse_term();
+
+  Location&& rhsloc = curloc();
+  Location procloc(lhsloc.first_line,
+                   lhsloc.first_column,
+                   rhsloc.first_line,
+                   rhsloc.first_column);
+
+  proc = make_unique<Ast>(EntityNode(ProcedureLiteral(args, move(body)), procloc, *(scopes.top())));
+  scopes.pop();
+
   return proc;
 }
 
@@ -1027,13 +1084,34 @@ optional<ParserError> Parser::speculate_primitive()
       conversion of the None shape is false.
     */
     result = speculate_term();
-    if (!result && speculate(Token::RParen))
+    if (!result)
     {
-      ;
+      // we saw a valid term
+      if (speculate(Token::RParen));
+      else if (speculate(Token::Comma))
+      {
+        // this is a tuple, which could contain
+        // any number of terms.
+        do {
+          result = speculate_term();
+        } while (!result && speculate(Token::Comma));
+
+        if (speculate(Token::RParen))
+          ;
+        else {
+          result  = optional<ParserError>({curloc(), "missing closing ) after valid tuple"});
+        }
+      }
+      else
+      {
+        // we saw one valid term, but then it wasn't
+        // followed by an RParen or a Comma.
+        result = optional<ParserError>({curloc(), "missing closing ) or , after valid term"});
+      }
     }
     else
     {
-      result = optional<ParserError>({curloc(), "missing closing parenthesis"});
+      // we didn't see a valid term, the reason is in result;
     }
   }
   else if (speculate(Token::Operator)) {
@@ -1107,29 +1185,55 @@ optional<ParserError> Parser::speculate_if()
 optional<ParserError> Parser::speculate_procedure()
 {
   optional<ParserError> result;
-  if (speculate(Token::Backslash)) {
+
+  auto speculate_arg = [&result]()
+  {
     if (speculate(Token::Id)) {
+      // type annotations are optional.
       if (speculate(Token::Colon)) {
         result = speculate_term();
-      }
-
-      if (!result && speculate(Token::EqRarrow)) {
-        result = speculate_term();
-      }
-      else
-      {
-        result = optional<ParserError>({curloc(), "missing '=>'"});
       }
     }
     else
     {
-      result = optional<ParserError>({curloc(), "missing procedure identifier"});
+      result = optional<ParserError>({curloc(), "expected the id of the argument"});
     }
   }
-  else
-  {
-    result = optional<ParserError>({curloc(), "missing '\\'"});
+
+  // start parsing the procedure literal.
+  if (speculate(Token::Backslash)) {
+    // parse the argument, or argument list
+    if (curtok() == Token::Id) {
+        speculate_arg();
+    }
+    else if (speculate (Token::LParen))
+    {
+      do {
+        speculate_arg();
+      } while (speculate(Token::Comma));
+
+      if (speculate(Token::RParen))
+        ;
+      else
+        result = optional<ParserError>({curloc(), "missing closing ) after argument list"});
+    }
+    else
+    {
+      result = optional<ParserError>({curloc(), "missing argument or argument list following \\"});
+    }
+
+    // parse the body
+    if (speculate(Token::EqRarrow))
+    {
+      result = speculate_term();
+    }
+    else
+    {
+      result = optional<ParserError>({curloc(), "missing \"=>\" after argument(s)"});
+    }
+
   }
+
   return result;
 }
 

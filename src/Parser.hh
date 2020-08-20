@@ -17,7 +17,7 @@ using std::optional;
 
 #include "Ast.hh"
 #include "Lexer.hh"
-#include "OperatorTable.hh"
+#include "BinopTable.hh"
 #include "Kernel.hh"
 #include "Location.hh"
 #include "Error.hh"
@@ -43,6 +43,7 @@ enum class Token {
   Id,
   LParen,
   RParen,
+  Comma,
   Colon,
   ColonEquals,
   Backslash,
@@ -55,13 +56,16 @@ enum class Token {
 class Lexer;
 
 class Parser {
+  // in order to build scopes in a nested fashion
+  // we utilize a stack. this is identical to the
+  // usage of scopes in typeing and evaluation.
   stack<SymbolTable*> scopes
   stack<int, vector<int>> marks;
   vector<Token>    tokbuf;
   vector<string>   txtbuf;
   vector<Location> locbuf;
   Lexer            lexer;
-  OperatorTable    binops;
+  BinopTable       binops;
   set<string>      unops;
   int              curidx;
 
