@@ -141,6 +141,10 @@ Judgement Typechecker::getype(const Ast* const a)
   if (!a)
     throw "bad ast node";
 
+  /*
+  oh wow, this code seems awfully repetitive,
+  I wonder if there is some way to automate it's generation...
+  */
   if (const EmptyNode* e = dynamic_cast<const EmptyNode*>(a); e != nullptr)
   {
     return getype(e);
@@ -241,6 +245,23 @@ Judgement Typechecker::getype(const CallNode* const c)
   ENV |- term1 : type1 -> type2, term2 : type1
   --------------------------------------------
           ENV |- term1 term2 : type2
+
+
+  also observe that given any length call expression,
+  the top of the tree's right hand side will contain
+  the rightmost argument in the application site.
+  and the left hand side will be a pointer to the
+  rest of the call expression.
+  the rest of the call expression is always one of two
+  cases; either:
+    a) the node's right hand side contains a pointer to the next argument
+        and the left hand side a pointer to the rest of the expression.
+    b) the node's right hand side contains the leftmost argument,
+        and the node's left hand side contains something which
+        can be called (it's a literal procedure, or a variable
+        which has been bound to a procedure, or its a memory
+        cell containing the address of a procedure, or the like.)
+
   */
   if (!c)
     throw "bad call node\n";
@@ -293,14 +314,15 @@ Judgement Typechecker::getype(const CallNode* const c)
           is, by way of HasInstance, going to be typechecked again.
           at the time when this polymorphic name is being bound to
           some other type. given this knowledge, we choose to delay
-          the actual typeing of this expression. (for we cannot really
+          the actual typing of this expression. (for we cannot really
           compare Poly == Mono sensibly)
           this sort-of allows the programmer to sneak whatever code they
           want past the interpreter as long as it is polymorphic.
           but, once they go to execute said polymorphic procedure,
           unless they themselves introduced a type which satisfys
-          the type constraints present in the subexpression, they
+          the type constraints present in the expression, they
           will encounter a type error. a static type error, in fact.
+
         */
         return Judgement(PrimitiveType::Poly);
       }

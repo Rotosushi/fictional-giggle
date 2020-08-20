@@ -9,18 +9,11 @@ using std::unordered_map;
 using std::optional;
 using std::pair;
 using std::get;
-#include <list>
-using std::list;
+#include <vector>
+using std::vector;
 
 #include "Ast.hh"
-
-typedef unique_ptr<Ast> (*unop_eliminator)(const Ast* const, const Ast* const);
-
-class Unop {
-public:
-  list<pair<unique_ptr<TypeNode>, unop_eliminator>> primitive_eliminators;
-  Procedure composite_eliminators;
-};
+#include "Unop.hh"
 
 class UnopTable {
   unordered_map<string, Unop> ops;

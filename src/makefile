@@ -5,7 +5,8 @@ Pink: Lexer
 	clang++ -I/usr/include/llvm-10 -I/usr/include/llvm-c-10     \
 	 `llvm-config-10 --cxxflags --ldflags --libs` -fexceptions  \
 	  -fstandalone-debug -g --std=c++17 --stdlib=libstdc++      \
-		Ast.cc Error.cc SymbolTable.cc OperatorTable.cc Kernel.cc \
+		Ast.cc Binop.cc BinopTable.cc Unop.cc UnopTable.cc \
+		Error.cc SymbolTable.cc OperatorTable.cc Kernel.cc \
 	  Typechecker.cc Lexer.cc Parser.cc Pink.cc -o Pink
 
 

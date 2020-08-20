@@ -60,19 +60,19 @@ class Parser {
   // we utilize a stack. this is identical to the
   // usage of scopes in typeing and evaluation.
   stack<SymbolTable*> scopes
+  BinopTable*         binops;
+  UnopTable*          unops;
+  Lexer               lexer;
   stack<int, vector<int>> marks;
   vector<Token>    tokbuf;
   vector<string>   txtbuf;
   vector<Location> locbuf;
-  Lexer            lexer;
-  BinopTable       binops;
-  set<string>      unops;
   int              curidx;
 
 public:
-  Parser();
+  Parser(const SymbolTable* const top, const BinopTable* const binops, const UnopTable* const Unops);
 
-  optional<unique_ptr<Ast>> parse(const string& text, const SymbolTable* top_scope);
+  optional<unique_ptr<Ast>> parse(const string& text);
 
 private:
   void reset();

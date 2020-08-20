@@ -63,17 +63,19 @@ using llvm::Type;
 #include "Ast.hh"
 #include "Lexer.hh"
 #include "BinopTable.hh"
-#include "Kernel.hh"
 #include "Location.hh"
 #include "Error.hh"
 
 
-
-
-Parser::Parser()
+Parser::Parser(const SymbolTable* const top, const BinopTable* const binops, const UnopTable* const Unops)
+  : binops(binops), unops(unops)
 {
-  init_binops(binops);
-  init_unops(unops);
+  /*
+    we need to utilize a stack in order to
+    express the nesting of scopes naturally.
+  */
+  scopes.push(top);
+  reset();
 }
 
 void Parser::reset()
@@ -220,17 +222,12 @@ bool Parser::speculate(Token t)
   }
 }
 
-optional<unique_ptr<Ast>> Parser::parse(const string& text, SymbolTable* top_scope)
+optional<unique_ptr<Ast>> Parser::parse(const string& text)
 {
   optional<unique_ptr<Ast>> result;
   reset();
 
   lexer.set_buffer(text);
-  /*
-    we need to utilize a stack in order to
-    express the nesting of scopes naturally.
-  */
-  scopes.push(top_scope);
 
   gettok(1);
 

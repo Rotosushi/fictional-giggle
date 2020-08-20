@@ -62,11 +62,11 @@ public:
     of four ints. i.e. close in size to a Location struct.
   */
   vector<pair<unique_ptr<TypeNode>, binop_eliminator>> primitive_eliminators;
-  unique_ptr<ProcedureDefinition> composite_eliminators;
+  vector<ProcedureLiteral> composite_eliminators;
 
   Binop() = default;
   ~Binop() = default;
-  Binop(int prec, Assoc assoc, vector<pair<unique_ptr<TypeNode>, binop_eliminator>> prim_elims, unique_ptr<ProcedureDefinition> comp_elims)
+  Binop(int prec, Assoc assoc, vector<pair<unique_ptr<TypeNode>, binop_eliminator>> prim_elims, vector<ProcedureLiteral> comp_elims)
     : precedence(prec), associativity(assoc), composite_eliminators(move(comp_elims))
   {
     for (auto&& prim_pair : prim_elims)
