@@ -115,7 +115,7 @@ public:
       scopes.push(e);
     }
 
-  optional<ProcedureLiteral> GetInstanceOf(ProcedureDefinition* procDef, const TypeNode* const target_type);
+  optional<ProcedureLiteral> GetInstanceOf(Procedure* procDef, const TypeNode* const target_type);
 
   Judgement getype(const Ast* const a);
   Judgement getype(const EmptyNode* const e);

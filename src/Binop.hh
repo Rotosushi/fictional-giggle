@@ -63,7 +63,7 @@ public:
     of four ints. i.e. close in size to a Location struct.
   */
   vector<pair<unique_ptr<TypeNode>, binop_eliminator>> primitive_eliminators;
-  vector<ProcedureLiteral> composite_eliminators;
+  ProcedureDefinition composite_eliminator;
 
   Binop() = default;
   ~Binop() = default;
@@ -83,5 +83,18 @@ public:
     {
       primitive_eliminators.push_back(make_pair(make_unique(get<0>(prim_pair)->clone()), get<1>(prim_pair)));
     }
+  }
+
+  Binop& operator=(const Binop& rhs)
+  {
+    optxt = rhs.optxt;
+    precedence = rhs.precedence;
+    associativity = rhs.associativity;
+    primitive_eliminators.clear();
+    for (auto&& prim_pair : rhs.primitive_eliminators)
+    {
+      primitive_eliminators.push_back(make_pair(make_unique(get<0>(prim_pair)->clone()), get<1>(prim_pair)));
+    }
+    composite_eliminators = rhs.composite_eliminators;
   }
 };

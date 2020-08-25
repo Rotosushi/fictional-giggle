@@ -9,6 +9,8 @@ using std::move;
 #include <list>
 using std::list;
 using std::get;
+#include <vector>
+using std::vector;
 #include <optional>
 using std::optional;
 
@@ -632,26 +634,272 @@ protected:
     }
 };
 
-// it's confusing to call this a TypeNode
-// when it isn't an Ast. so, maybe just
-// Type? the issue with that is the name
-// conflict with LLVM.
-class TypeNode {
-public:
-  TypeNode() {};
-  virtual ~TypeNode() = default;
+enum class AtomicType {
+  Undef,
+  Poly,
+  Nil,
+  Bool,
+  Int,
+};
 
-  virtual unique_ptr<TypeNode> clone() { return make_unique<TypeNode>(*clone_internal()); }
-  virtual unique_ptr<TypeNode> clone() const { return make_unique<TypeNode>(*clone_internal()); }
-  virtual string to_string() { return to_string_internal(); }
-  virtual string to_string() const { return to_string_internal(); }
-  virtual bool is_poly_type() { return false; }
+enum class TypeTag {
+  Undef,
+  Atomic,
+  Procedure,
+  Tuple,
+};
+
+/*
+  a type is either:
+    and atomic type
+    a polymorphic type
+    a procedure type
+    a tuple type
+*/
+class TypeNode : public Ast {
+public:
+  TypeTag tag;
+  union U {
+    AtomicType atomictype;
+    struct {
+      unique_ptr<TypeNode> lhs;
+      unique_ptr<TypeNode> rhs;
+    } proctype;
+    vector<unique_ptr<TypeNode>> tupletype;
+
+    U() { atomictype = AtomicTag::Undef; }
+    ~U() {}
+    U(AtomicType tag) { atomictype = tag; }
+    U(unique_ptr<TypeNode> l, unique_ptr<TypeNode> r)
+    {
+      proctype.lhs = move(l);
+      proctype.rhs = move(r);
+    }
+    U(vector<unique_ptr<TypeNode>> rhs)
+    {
+      for (auto&& memb : rhs.tupletype)
+      {
+        tupletype.push_back(memb->clone());
+      }
+    }
+  } u;
+
+  TypeNode() : Ast(), tag(TypeTag::Undef), u() {}
+  ~TypeNode() {}
+
+  TypeNode(AtomicType atomictype, const Location& loc)
+    : Ast(loc), tag(TypeTag::Monomorphic), u(atomictype) {}
+
+  TypeNode(unique_ptr<TypeNode> l, unique_ptr<TypeNode> r, const Location& loc)
+    : Ast(loc), tag(TypeTag::Procedure), u({l, r}) {}
+
+  TypeNode(vector<unique_ptr<TypeNode>> tpl, const Location& loc)
+    : Ast(loc), tag(TypeTag::Tuple), u(tpl) {}
+
+  TypeNode(const TypeNode& rhs)
+    : Ast(rhs.loc), tag(rhs.tag)
+  {
+    switch(tag)
+    {
+      case TypeTag::Undef:
+        break;
+
+      case TypeTag::Atomic:
+        u.atomictype = rhs.atomictype;
+        break;
+
+      case TypeTag::Procedure:
+        u.proctype.lhs = rhs.u.proctype.lhs->clone();
+        u.proctype.rhs = rhs.u.proctype.rhs->clone();
+        break;
+
+      case TypeTag::Tuple:
+        for (auto&& memb : rhs.u.tupletype)
+          u.tupletype.push_back(memb->clone());
+        break;
+
+      default:
+        throw "bad type tag";
+    }
+  }
+
+  bool is_poly_type()
+  {
+    switch(tag)
+    {
+      case TypeTag::Undef:
+        return false;
+
+      case TypeTag::Atomic:
+        if (u.atomictype == AtomicTag::Poly)
+          return true;
+        else
+          return false;
+
+      case TypeTag::Procedure:
+        return u.proctype.lhs->is_poly_type() || u.proctype.rhs->is_poly_type();
+
+      case TypeTag::Tuple: {
+        for (auto&& memb : u.tupletype)
+          if (memb->is_poly_type())
+            return true;
+
+        return false;
+      }
+      default:
+        throw "bad type tag";
+    }
+  }
 
 protected:
-  virtual TypeNode* clone_internal() { return new TypeNode; }
-  virtual TypeNode* clone_internal() const { return new TypeNode; }
-  virtual string    to_string_internal() { return ""; }
-  virtual string    to_string_internal() const { return ""; }
+  virtual TypeNode* clone_internal() override
+  {
+    return new TypeNode(*this);
+  }
+
+  virtual TypeNode* clone_internal() const override
+  {
+    return new TypeNode(*this);
+  }
+
+  virtual string to_string_internal() override
+  {
+    switch (tag)
+    {
+      case TypeTag::Undef:
+        return "Undef";
+
+      case TypeTag::Atomic:
+      {
+        switch(atomictype)
+        {
+          case AtomicTag::Undef:
+            return "Undef";
+          case AtomicTag::Poly:
+            return "Poly";
+          case AtomicTag::Nil:
+            return "Nil";
+          case AtomicTag::Int:
+            return "Int";
+          case AtomicTag::Bool:
+            return "Bool";
+          default:
+            throw "bad atomic type";
+        }
+      }
+
+      case TypeTag::Procedure:
+      {
+        string result;
+        if (u.proctype.lhs->tag == TypeTag::Procedure)
+        {
+          result = "(";
+          result += u.proctype.lhs->to_string();
+          result += ")"
+        }
+        else
+        {
+          result = u.proctype.lhs->to_string();
+        }
+        result += " -> ";
+        result += u.proctype.rhs->to_string();
+        return result;
+      }
+
+      case TypeTag::Tuple:
+      {
+        string result;
+        result += "(";
+        int len = u.tupletype.size();
+        for (int i = 0; i < len; i++)
+        {
+          if (i < (len - 1))
+          {
+            result += u.tupletype[i]->to_string();
+            result += ", ";
+          }
+          else
+          {
+            result += u.tupletype[i]->to_string();
+          }
+        }
+        result += ")";
+        return result;
+      }
+      default:
+        throw "bad type tag";
+    }
+  }
+
+  virtual string to_string_internal() const override
+  {
+    switch (tag)
+    {
+      case TypeTag::Undef:
+        return "Undef";
+
+      case TypeTag::Atomic:
+      {
+        switch(atomictype)
+        {
+          case AtomicTag::Undef:
+            return "Undef";
+          case AtomicTag::Poly:
+            return "Poly";
+          case AtomicTag::Nil:
+            return "Nil";
+          case AtomicTag::Int:
+            return "Int";
+          case AtomicTag::Bool:
+            return "Bool";
+          default:
+            throw "bad atomic type";
+        }
+      }
+
+      case TypeTag::Procedure:
+      {
+        string result;
+        if (u.proctype.lhs->tag == TypeTag::Procedure)
+        {
+          result = "(";
+          result += u.proctype.lhs->to_string();
+          result += ")"
+        }
+        else
+        {
+          result = u.proctype.lhs->to_string();
+        }
+        result += " -> ";
+        result += u.proctype.rhs->to_string();
+        return result;
+      }
+
+      case TypeTag::Tuple:
+      {
+        string result;
+        result += "(";
+        int len = u.tupletype.size();
+        for (int i = 0; i < len; i++)
+        {
+          if (i < (len - 1))
+          {
+            result += u.tupletype[i]->to_string();
+            result += ", ";
+          }
+          else
+          {
+            result += u.tupletype[i]->to_string();
+          }
+        }
+        result += ")";
+        return result;
+      }
+      default:
+        throw "bad type tag";
+    }
+  }
+
 };
 
 enum class PrimitiveType {
@@ -970,31 +1218,7 @@ protected:
   but in the case of polymorphs we can,
   as an optimization, share the same closure/capture
   between the monomorphic instances.
-*/
-/*
-class ProcedureNode {
-public:
-  string          arg_id;
-  unique_ptr<Ast> arg_type;
-  unique_ptr<Ast> body;
 
-  ProcedureNode() {}
-  ProcedureNode(const string& str, unique_ptr<Ast> at, unique_ptr<Ast> b)
-    : arg_id(str), arg_type(move(at)), body(move(b)) {}
-
-  ProcedureNode(const ProcedureNode& p)
-    : arg_id(p.arg_id), arg_type(p.arg_type->clone()), body(p.body->clone()) {}
-
-  ProcedureNode& operator=(const ProcedureNode& rhs)
-  {
-    arg_id   = rhs.arg_id;
-    arg_type = rhs.arg_type->clone();
-    body     = rhs.body->clone();
-    return *this;
-  }
-};
-*/
-/*
   how do we solve the problem of multiple
   definition, which is what polymorphism and
   overloading both require. well, instead of
@@ -1017,27 +1241,7 @@ public:
    ((and, explicit monomorphic overloads of a
      polymorphic procedure acts as what c++ calls,
      partial template specialization))
-*/
-/*
-class ProcSetNode {
-public:
-  ProcedureNode def;
-  list <ProcedureNode> set;
-  bool polymorphic;
 
-  ProcSetNode() {};
-  ProcSetNode(const ProcedureNode& p, bool poly) : def(p), set(), polymorphic(poly) {}
-  ProcSetNode(const ProcedureNode& p, bool poly, const Location& loc) : def(p), set(), polymorphic(poly) {}
-  ProcSetNode(const ProcSetNode& ps) : def(ps.def), set(ps.set), polymorphic(ps.polymorphic) {}
-
-  ProcSetNode& operator=(const ProcSetNode& rhs)
-  {
-    def = rhs.def;
-    set = rhs.set;
-    polymorphic = rhs.polymorphic;
-    return *this;
-  }
-};
 */
 
 class ProcedureLiteral {
@@ -1095,7 +1299,7 @@ public:
 class ProcedureDefinition {
 public:
   ProcedureLiteral def;
-  list<ProcedureLiteral> set;
+  vector<ProcedureLiteral> set;
   bool poly;
 
   ProcedureDefinition() = default;
@@ -1153,7 +1357,7 @@ public:
   HasInstance needs to live somewhere,
   the issue is that is coallates
   information from many different
-  sources. needs to convey information
+  sources and needs to convey information
   to two distict use cases.
 
   within the typechecker, we care about the
@@ -1181,7 +1385,7 @@ public:
   in order to check if there is an instance,
   we must utilize the typechecker.
   there is not way around this, we must
-  typecheck the resulting instance if
+  typecheck the resulting instance of
   polymorphic procedures in order to
   confirm their validity.
 */
@@ -1259,7 +1463,10 @@ public:
   again, this mental concept / language concept
   alignment is important, it is one of the
   pilliars of Pink. this alignment i think
-  helps people learn the language.
+  helps people learn the language. it also
+  goes deeper, and lets people grok why certain
+  sequences of assembly represent peices of
+  algorithms and data structures.
 
   we use a tagged union approach because I want
   entities to represent each of the different

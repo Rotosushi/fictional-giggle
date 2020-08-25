@@ -3,23 +3,30 @@
   the grammar so far
 
   term := primary
-        | primary binop primary   # a binop
+        | primary binop primary
 
-  primary := primitive
-           | primitive primary    # a call
-           | unop primitive       # a unop
+  primary := type
+           | atom
+           | atom atom
+           | unop atom
 
-  primitive := identifier         # a variable
-             | 'nil'
-             | 'Nil'
-             | integer
-             | 'Int'
-             | 'true'
-             | 'false'
-             | 'Bool'
-             | '\\' identifier (: term)? => term  # a procedure literal.
-             | 'if' term 'then' term 'else' term  # a conditional expression.
-             | 'while' term' 'do' term            # an interation.
+  atom := identifier
+        | identifier := term
+        | nil
+        | integer
+        | true
+        | false
+        | \ identifier (: term)? => term
+        | 'if' term 'then' term 'else' term
+        | 'while' term 'do' term
+        | '(' term ')'
+        | '(' term (',' term)+ ')'
+
+  type := Nil
+        | Int
+        | Bool
+        | type -> type
+        | '(' type (',' type)+ ')'
 
   identifier := [a-zA-Z_][a-zA-Z0-9_]*
   integer    := [0-9]+
@@ -111,10 +118,20 @@ void Parser::gettok(int i)
   {
     int n = (curidx + i) - tokbuf.size(); // how many tokens do we need?
 
-    for (int j = 0; j < n; j++)
+    for (int j = 0; j < n; j++) // fill in that many more tokens
     {
-      // without string here,
+      // without the type string here,
       // gdb cannot print strings...
+      // what a strange requirement,
+      // constidering the string header
+      // is included in the source code
+      // of this executable, or at the
+      // very least dynamically linked in,
+      // in which case a link to the header
+      // still exists in the binary!
+      // does C treat each source file
+      // completely independant of eachother
+      // until exactly linkage/dynamic-linkage time?
       auto    tok = lexer.yylex();
       string* str = lexer.yytxt();
       auto    loc = lexer.yyloc();
@@ -153,8 +170,8 @@ Location Parser::curloc()
 
 bool Parser::is_unop(const string& op)
 {
-  auto unop = unops.find(op);
-  if (unop != unops.end())
+  optional<Unop> unop = unops.find(op);
+  if (unop)
   {
     return true;
   }
@@ -166,7 +183,7 @@ bool Parser::is_unop(const string& op)
 
 bool Parser::is_binop(const string& op)
 {
-  auto binop = binops.find(op);
+  optional<Binop> binop = binops.find(op);
   if (binop)
   {
     return true;
@@ -261,6 +278,17 @@ optional<unique_ptr<Ast>> Parser::parse(const string& text)
   */
   if (err_or)
   {
+    /*
+      and look, given we return the error message
+      as the result of an error occuring within
+      speculation, we now have a clean location
+      to bring together the tree peices of
+      information needed,
+      1) a string describing what went wrong
+      2) a location describing where it went wrong
+      3) the input text so we can pinpoint to
+          the user where we found the error.
+    */
     cout << buildErrStr(*err_or, text);
     result = optional<unique_ptr<Ast>>();
   }
@@ -278,22 +306,28 @@ unique_ptr<Ast> Parser::parse_term()
   term := primary
         | primary binop primary
 
-  primary := atom
+  primary := type
+           | atom
            | atom atom
            | unop atom
 
   atom := identifier
         | identifier := term
-        | Nil
         | nil
-        | Int
         | [0-9]+
-        | Bool
         | true
         | false
         | \ identifier (: term)? => term
-        | if term then term else term
-        |
+        | 'if' term 'then' term 'else' term
+        | 'while' term 'do' term
+        | '(' term ')'
+        | '(' term (',' term)+ ')'
+
+  type := Nil
+        | Int
+        | Bool
+        | type -> type
+        | '(' type (',' type)+ ')'
   */
 
   /*
@@ -329,7 +363,12 @@ unique_ptr<Ast> Parser::parse_term()
       we do not want them to parse a full term
       afterwards.
 
-      this is to avoid the reverse case of parsing
+      from the beginning we wanted expressions like
+      a b c - f g h
+      to parse as
+      (a b c) - (f g h)
+
+      this is nessecary to avoid the reverse case of parsing
       [3 - 4] as [3 (-4)]
       and yeah, you are reading that correctly,
       it's a call expression...
@@ -353,14 +392,31 @@ unique_ptr<Ast> Parser::parse_term()
       intersecting with binary operators.
       if they do, be aware the grammar rules will select
       the binary form of the operator every time.
+      this means that if the operator is both a unop
+      and a binop, the expression
+      a op b will always be the operation taking
+      arguments a and b. whereas if the operator
+      is only a unop, then the expression
+      a op b will be call a passing in the result
+      of applying op to b.
 
-      a - b
+      TLDR:
+      [a - b]
       is never
-      a (-b)
+      [a (-b)]
       it is always
-      a - b
+      [a - b]
       this is also valid
-      a - -b
+      [-a - -b]
+      this means that when the programmer
+      wants to apply an operation directly
+      to the argument to a procedure, they
+      -must- wrap that operation in parens
+      in order for the entire expression
+      to parse as a call expression, otherwise
+      we switch to parsing a binary operation,
+      but only if the operator itself is a binop.
+
 
 
 
@@ -368,7 +424,7 @@ unique_ptr<Ast> Parser::parse_term()
     if (lhs)
     {
       /*
-        there may be more expressions past the first
+        there may be more expression past the first
         primary term.
       */
       if (curtok() == Token::Operator && is_binop(curtxt()))
@@ -569,27 +625,6 @@ unique_ptr<Ast> Parser::parse_primitive()
     of parsing subroutines.
     */
 
-    case Token::TypeNil:
-    {
-      lhs = unique_ptr<Ast>(new EntityNode(AtomicType(PrimitiveType::Nil), lhsloc));
-      nextok();
-      break;
-    }
-
-    case Token::TypeInt:
-    {
-      lhs = unique_ptr<Ast>(new EntityNode(AtomicType(PrimitiveType::Int), lhsloc));
-      nextok();
-      break;
-    }
-
-    case Token::TypeBool:
-    {
-      lhs = unique_ptr<Ast>(new EntityNode(AtomicType(PrimitiveType::Bool), lhsloc));
-      nextok();
-      break;
-    }
-
     case Token::Nil:
     {
       lhs = unique_ptr<Ast>(new EntityNode((void*)nullptr, lhsloc));
@@ -644,6 +679,24 @@ unique_ptr<Ast> Parser::parse_primitive()
     }
 
     /*
+      a type is explicitly considered
+      within the grammar now, so we no
+      longer consider '->' to be subsumed
+      by operator parsing.
+      it is now a fully fledged lexeme.
+      additionally, we notice that all
+      type expressions are started by a
+      type literal, and composed from there.
+    */
+    case Token::TypeNil:
+    case Token::TypeInt:
+    case Token::TypeBool:
+    {
+      lhs = parse_type();
+      break;
+    }
+
+    /*
     could be parsing a tuple
     or a parenthesized term.
     */
@@ -655,7 +708,8 @@ unique_ptr<Ast> Parser::parse_primitive()
       if (curtok() == Token::RParen)
       {
         nextok();
-        lhs = unique_ptr<Ast>(new TupleNode());
+        // the empty tuple '()' is equivalent to the value 'nil'
+        lhs = unique_ptr<Ast>(new EntityNode((void*)nullptr, lhsloc));
         break;
       }
 
@@ -755,6 +809,55 @@ unique_ptr<Ast> Parser::parse_primitive()
       throw "unexpected token in primitive position.";
   }
   return lhs;
+}
+
+unique_ptr<Ast> Parer::parse_type()
+{
+  Location& lhsloc = curloc();
+  unique_ptr<Ast> type, rhs;
+
+  auto parse_type_atom = [lhsloc]()
+  {
+    unique_ptr<Ast> type;
+    if (curtok() == Token::TypeNil)
+    {
+      type = TypeNode(AtomicType::Nil, curloc());
+    }
+    else if (curtok() == Token::TypeInt)
+    {
+      type = TypeNode(AtomicType::Int, curloc());
+    }
+    else if (curtok() == Token::TypeBool)
+    {
+      type = TypeNode(AtomicType::Bool, curloc());
+    }
+    else
+    {
+      /*
+        bad type atom
+      */
+    }
+
+    return type;
+  }
+
+  type = parse_type_atom();
+
+  if (type && curtok() == Token::Rarrow)
+  {
+    /*
+      type := Nil
+            | Int
+            | Bool
+            | type '->' type
+            | '(' type (',' type)+ ')'
+    */
+    do {
+
+    } while (type && curtok() == Token::Rarrow);
+  }
+
+  return type;
 }
 
 unique_ptr<Ast> Parser::parse_if()
@@ -964,10 +1067,10 @@ unique_ptr<Ast> Parser::parse_infix(unique_ptr<Ast> lhs, int precedence)
   */
   optional<Binop> lookahead;
 
-  while ((lookahead = binops.find(curtxt())) && lookahead.precedence >= precedence)
+  while ((lookahead = binops.find(curtxt())) && lookahead->precedence >= precedence)
   {
     string&& optxt = curtxt();
-    auto       op  = lookahead;
+    optional<Binop> op(lookahead);
 
     nextok();
 
@@ -985,13 +1088,13 @@ unique_ptr<Ast> Parser::parse_infix(unique_ptr<Ast> lhs, int precedence)
     lhs  rhs
 
         op
-    lhs     op
+    lhs     op'
          rhs   rhs'
 
     */
     while ((lookahead = binops.find(curtxt()))
-           &&   (lookahead.precedence > op.precedence
-             || (lookahead.precedence == op.precedence && lookahead.associativity == Assoc::Right)))
+           &&   (lookahead->precedence > op->precedence
+             || (lookahead->precedence == op->precedence && lookahead.associativity == Assoc::Right)))
     {
       rhs = move(parse_infix(move(rhs), lookahead.precedence));
     }
@@ -1000,7 +1103,7 @@ unique_ptr<Ast> Parser::parse_infix(unique_ptr<Ast> lhs, int precedence)
        op
     lhs  rhs
 
-          op
+          op'
        op    rhs'
     lhs  rhs
     */
@@ -1069,12 +1172,15 @@ optional<ParserError> Parser::speculate_primitive()
   else if (speculate(Token::True));
   else if (speculate(Token::False));
   else if (speculate(Token::TypeBool));
-  else if (speculate(Token::Id)) {
-    if (speculate(Token::ColonEquals)) {
+  else if (speculate(Token::Id))
+  {
+    if (speculate(Token::ColonEquals))
+    {
       result = speculate_term();
     }
   }
-  else if (speculate(Token::LParen)) {
+  else if (speculate(Token::LParen))
+  {
     /*
       remember that we are using the None
       shape of the optional type to signal
@@ -1096,7 +1202,8 @@ optional<ParserError> Parser::speculate_primitive()
 
         if (speculate(Token::RParen))
           ;
-        else {
+        else
+        {
           result  = optional<ParserError>({curloc(), "missing closing ) after valid tuple"});
         }
       }
@@ -1112,23 +1219,56 @@ optional<ParserError> Parser::speculate_primitive()
       // we didn't see a valid term, the reason is in result;
     }
   }
-  else if (speculate(Token::Operator)) {
+  else if (speculate(Token::Operator))
+  {
     result = speculate_primary();
   }
-  else if (speculate(Token::While)) {
+  else if (curtok() == Token::TypeNil
+        || curtok() == Token::TypeInt
+        || curtok() == Token::TypeBool)
+  {
+    result = speculate_type();
+  }
+  else if (speculate(Token::While))
+  {
     result = speculate_while();
   }
-  else if (curtok() == Token::If) {
+  else if (curtok() == Token::If)
+  {
     result = speculate_if();
   }
-  else if (curtok() == Token::Backslash) {
+  else if (curtok() == Token::Backslash)
+  {
     result = speculate_procedure();
   }
-  else if (is_ender(curtok()));
-  else {
+  else if (is_ender(curtok()))
+  ;
+  else
+  {
     // error: no valid primitive term to parse.
     result = optional<ParserError>({curloc(), "unknown primitive"});
   }
+
+  return result;
+}
+
+optional<ParserError> Parser::speculate_type()
+{
+  optional<ParserError> result;
+
+  do {
+    // the body of this loop needs to parse
+    // a type atom, which are then composed by
+    // operations.
+    if (speculate(Token::TypeNil));
+    else if (speculate(Token::TypeInt));
+    else if (speculate(Token::TypeBool));
+    else {
+      result = optional<ParserError>({curloc(), "expected to parse a type primitive here."});
+    }
+    // this condition needs to check against
+    // every possible type composition operation
+  } while (!result && speculate(Token::Rarrow));
 
   return result;
 }

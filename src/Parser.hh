@@ -47,6 +47,7 @@ enum class Token {
   Colon,
   ColonEquals,
   Backslash,
+  Rarrow,
   EqRarrow,
   Operator,
 };
@@ -97,6 +98,7 @@ private:
   unique_ptr<Ast> parse_term();
   unique_ptr<Ast> parse_primary();
   unique_ptr<Ast> parse_primitive();
+  unique_ptr<Ast> parse_type();
   unique_ptr<Ast> parse_if();
   unique_ptr<Ast> parse_while();
   unique_ptr<Ast> parse_procedure();
@@ -106,6 +108,7 @@ private:
   optional<ParserError> speculate_term();
   optional<ParserError> speculate_primary();
   optional<ParserError> speculate_primitive();
+  optional<ParserError> speculate_type();
   optional<ParserError> speculate_if();
   optional<ParserError> speculate_while();
   optional<ParserError> speculate_procedure();

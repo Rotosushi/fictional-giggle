@@ -15,10 +15,21 @@ using std::get;
 #include "BinopTable.hh"
 #include "Kernel.hh"
 
+unique_ptr<Ast> TypeArrow(const Ast* const lhs, const Ast* const rhs);
+
+unique_ptr<Ast> IntAddition(const Ast* const lhs, const Ast* const rhs);
+unique_ptr<Ast> IntSubtraction(const Ast* const lhs, const Ast* const rhs);
+unique_ptr<Ast> IntMultiplication(const Ast* const lhs, const Ast* const rhs);
+unique_ptr<Ast> IntDivision(const Ast* const lhs, const Ast* const rhs);
+unique_ptr<Ast> IntModulus(const Ast* const lhs, const Ast* const rhs);
+
 void init_binops(BinopTable& binops)
 {
-  auto dummy_body = unique_ptr<EntityNode>();
-  binops.insert("->", 5, Assoc::Right, dummy_body->clone());
+  vector<pair<unique_ptr<TypeNode>, binop_eliminator>> rarrow_prim_elims;
+  rarrow_prim_elims.push_back();
+  binops.insert("->", Binop("->", 5, Assoc::Right, ));
+
+
   binops.insert("+", 5, Assoc::Left, dummy_body->clone());
   binops.insert("-", 5, Assoc::Left, dummy_body->clone());
   binops.insert("*", 6, Assoc::Left, dummy_body->clone());
@@ -39,7 +50,7 @@ void init_binops(BinopTable& binops)
   */
 }
 
-void init_unops(set<string>& unops)
+void init_unops(UnopTable& unops)
 {
   /*
   note: unary operators should avoid symbolically

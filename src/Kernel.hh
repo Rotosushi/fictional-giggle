@@ -8,9 +8,10 @@ using std::set;
 using std::unique_ptr;
 
 #include "BinopTable.hh"
+#include "UnopTable.hh"
 
 void init_binops(BinopTable& binops);
-void init_unops(set<string>& unops);
+void init_unops(UnopTable& unops);
 
 
 /*
