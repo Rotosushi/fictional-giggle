@@ -15,29 +15,35 @@ Just enough to say what is interesting
   -> document how/why it works
   -> pay off technical debt
   -> make it work better or
-  -> make it do another thing
+  -> make it do another thing or
+  -> improve the documentation
   -> loop/iterate/recur
 
-
-  events/captures -> analysis/reasoning -> views/storage
+ -> events/input-output <-> analysis/reasoning <-> state/storage <-> view/context <-
 
 -------------------------------------------------------------------------------
 
 #! out-of-order definitions/usage before definition
 simply put:
 we need to associate each name with a unique definition.
-this is however be context dependent.
+this needs to maintain the defining context.
 if the programmer defines some name,
 and then another version of the name in the same
 visibility level as the previous definition, (i.e.
 both at global scope, both as local variables, etc.)
-this is an error, as each name needs to be unique.
-however if the programmer redefines the name
+is a re-declaration error, as each name needs to be unique.
+however if the programmer redefines some name
 at a lower scope, i.e. there is a global with name
 X, and X is given another definition within a module,
 or a procedure, the new definition instead shadows the
 older definition. ditto for the case of a local procedure.
-this is already the case for procedure arguments,
+this is the default behavior for procedure arguments,
+so why not make it the same for the local context as well.
+the only consideration is that then we may want to look at
+some ways of have 'true-names' of things which can allow
+the programmer to specify the outer shadowed name should they
+need to. something like having the program exist within some
+namespace would be a great solution. global::*(::*)*
 we want this behavior as,
 it allows for programmers to use a common set of
 names for basic actions, such as loop iteration, or
@@ -252,7 +258,7 @@ is to me. if we consider the expressive power
 of infix expressions plus function application.
 we have arrived at some percentage of the
 expressive power of both imperitive and functional languages.
-this core is extended with subtyping, polymorphism,
+this core is extended with polymorphism,
 modules/abstract types, concurrency, and more. but
 the basic materia of a program are it's variables,
 primitive operations, the ability to compose operations into expressions,
@@ -275,8 +281,8 @@ programmer. it needs to be composed.
 (which primitives are available has a
  profound effect on the shape of programs
  written in the language.)
-(i say sort of, because the api surrounding operating
-system primitives rides the defining line here)
+(i say sort of, because the surrounding operating
+system primitives ride the defining line here)
 expressions and function application are the
 basic units of composition. by restricting
 definitions to be known/computable at compile time
@@ -292,8 +298,9 @@ it essentially defines the sandbox and the toolbox all in one.
 now, we don't want to make a turing tar-pit.
 so, we will have some standard library.
 when something is a kernel feature vs a library one is a question
-that still needs answering.
-
+that still needs answering. where any program begins and the
+operating system ends is also another question.
+(that has been fairly solidly answered admittedly)
 
 types and the type system is what maintains
 the alignment between what expressions can validly

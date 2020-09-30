@@ -1,0 +1,70 @@
+
+why rewrite in c++?
+
+well, the parametric polymorphism is attractive,
+but it requires so much syntax and is only
+available on a single argument anyways.
+which needs to be set up in the sideways way
+of defining each alternative to the polymorphic
+argument as a subclass. this makes it feel like
+it takes at least as much work setting up the
+feature to then use it only in a restricted
+fashion. and c++ isn't expressive enough to
+factor the handrolled dispatch code
+for typechecking and evaluation that i thought
+having some amount of polymorphism would
+write for me. but alas, this is not even close
+to the case. to make use of polymorphic dispatch
+of the typechecking algorithm such that i could
+call a single typeof procedure and retrieve the
+type annotation describing the term without having
+to write the dispatch over the Ast term type
+myself, would factor each typeing judgement into the
+Ast class itself. then I could say,
+"term, what is your type?"
+or
+"term, what is your value?"
+
+this distributes the algorithm throughout the Ast class itself,
+increasing the complexity of each Ast node considerably.
+in fact, each individual node would need to contain both
+the typeing and evaluation rules within it's body.
+
+the reason i did not go for this implementation first is that it
+seems to break a rule of OOP, which is separation of concerns.
+it makes sense to group the typeing judgements into a single
+class, such that we can consider the typeing algorithm as a whole.
+but this forces the dispatch code into code i have to write.
+which means it's code i have to maintain, which means it's a
+possible bug each time we extend the program.
+with the distributed version we instead have to provide the typeing
+judgements associated with the class it is typeing, and homomorphically
+/similarly with the value jugements (evaluation rules)
+this however raises an interesting question, where is the symbol table
+association stored? both types and values are dependant upon context.
+hint: it is now a parameter to the procedures.
+so now, instead of there being a separation of concerns whereby
+we separate the via the distinct actions we can take on entities,
+and instead we separate out our concerns by entity.
+in the end, why not now reconsider the program.
+how about, the parser is now a producer to the
+typechecker and evaluation which act as consumers of the
+terms produced by the parser. (homomorphically for the
+translator unit.)
+the typechecker has a signature like
+  ast-term, env -> type-signature
+the evaluator has a signature like
+  ast-term, env -> ast-term
+and we have a pair of string conversion
+procedures which allows turning a string into an
+ast-term and back to a string.
+  ast-term -> string
+  string -> ast-term
+
+
+and we restructure the program such that each entity is
+a pair of files, and we have a 'entities' header which
+includes each of them so that other files can include
+everything easily. we still will have other concerns
+in other files. (symboltable, error, parser, and lexer
+to start.)

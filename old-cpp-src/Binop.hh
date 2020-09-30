@@ -52,18 +52,44 @@ public:
   /*
     together the primitive and composite eliminators
     are considered the binops overload set.
+    (i.e. the union of both is the complete overload
+     set, and we perform work in order to maintain
+     both sets as if they were a single set.)
 
     also, both members are pointers in order to reduce
-    the size of the Binop object. as this object is
+    the size of the Binop object itself. as this object is
     used within the parser for the above peices of
     information, and we don't want to construct a
     heavy ProcedureDefinition or a large array of
     pointers every time we parse the binop. so
     instead the object is probably around the size
     of four ints. i.e. close in size to a Location struct.
+    the other way I could envision binops be implemented
+    would be to separate the eliminators and the other
+    datum into two lookup structures. this has the benefit
+    of the parser not even having to consider the storage
+    requirements of the eliminators, and the parser can
+    lookup a structure which only holds the precedence and
+    associativity. and the evaluator can deal with only
+    the eliminators, both hinging on the string representing
+    the operator. this however adds the additional layer of
+    complication that is having two lookup tables for different
+    data associated with the same operator string. which means
+    that the validity of both peices of information needs to
+    be checked and cross-checked over two separate textual locations.
+    this is an optimization which makes sense, and could be double
+    checked against this implementation, which uses additional overhead
+    in order to provide conveinent interaction with the
+    binop 'thing/entity/abstraction'.
+
+    and it is a vector of pairs where the first is the
+    type of the procedure within the eliminator, expressed
+    as a language entity. this means it is always some
+    [type -> type -> type] even though we only store a single
+    TypeNode ptr.
   */
   vector<pair<unique_ptr<TypeNode>, binop_eliminator>> primitive_eliminators;
-  ProcedureDefinition composite_eliminator;
+  Procedure composite_eliminator;
 
   Binop() = default;
   ~Binop() = default;

@@ -48,6 +48,8 @@ class Procedure;
 
   this should allow more conveinent
   syntax within traversal actions.
+  because of the single argument which
+  can be polymorphic.
 
   formally, we have nodes to capture
   each of the main language grammar terms,
@@ -74,15 +76,13 @@ protected:
   we use the "clone" pattern. whereby we deep-copy
   unique_ptrs, then we get a new copy of the entire
   tree. we absolutely do not want to use shared_ptrs
-  for evaluation or typechecking.
+  for evaluation or typechecking. (i think...)
 
   basically, when we call clone on some arbitrary
   Ast, we dispatch to the clone of the right
-  derived class, which deep copies, then returns
-  the copy through the auto return type..
-  when we later copy constructors, we
-  get a deep-copy of the tree instead of
-  a shared refrence. (this function "clone_interal"
+  derived class, which calls the copy constructor, then returns
+  the copy through the Ast return type..
+  (this function "clone_interal"
   is extended through covariance, as it's
   return type can vary by derived class.
   and that is okay precisely because it is
@@ -90,7 +90,7 @@ protected:
   every return type is an Ast,
   and each differing return type is unique to
   it's class, each of which can have only one
-  overriding definition.)
+  overriding definition, per each derived class.)
 
   */
 public:
@@ -195,8 +195,8 @@ protected:
 
 // a bind expression is an essential component
 // in making the lambda calculus usable.
-// it is innate in the definition of the
-// calculus, however it has traditionally
+// it is secretly innate in the definition of the
+// calculus; however it has traditionally been
 // considered a 'meta-operation' to be
 // performed by the human-computer evaluating
 // the mathematical expression of the lambda calculus.
@@ -227,7 +227,7 @@ protected:
   }
 };
 
-
+/*
 class TupleNode : public Ast {
 public:
     vector<unique_ptr<Ast>> members;
@@ -279,7 +279,7 @@ protected:
       return result;
     }
 };
-
+*/
 /*
  a binop is one component of
  affix/infix expressions, which
@@ -303,7 +303,7 @@ protected:
  "should" be done in that way and no other.
  in fact, as we consider scaling, clarity of
  design and of communication become paramount
- in my opinion,.),
+ in my opinion.),
  we must be given some other abstraction for
  specifying expressions to then subsequently
  abstract over. now, given the complicated
@@ -426,7 +426,7 @@ protected:
   some postfix procedure call.
 
   we may be able to write the postfix operator
-  parser subroutine by way of a map. whereby
+  parser subroutine atop a multimap. whereby
   we can associate the beginning string denoting
   some binary operation with the ending string
   denoting the end of the term by looking up the
@@ -435,20 +435,84 @@ protected:
   we could use a multimap and set the keys to be
   the beginning and end tokens, but why not
   make it a map from the beginning token to the
-  ending token? then the procedure can 'parse' against
-  the ending token, regardless of what the text associated
-  with the operator is. which is what allows for extension.
+  ending token + the rest of the important information?
+  then the postfix procedure can 'parse' against
+  the ending token, regardless of what specific text is associated
+  with the operator is. which is precisely what allows for extension.
   (we then also need a way to lookup the operation,
    so which name do we use? maybe we do the c++ way, and
    the name of the postfix operation is the beginning and
    ending tokens concatenated together?)
 
    something to note is that postfix operators take precedence
-   over binary operators, which to me means that we want to
+   over unary operators, such that postfix operators retrieve
+   values within some structure of types, which is then passed
+   into the unop procedure to be acted upon.
+
+   (the argument being based on the 'gut-check'
+    evaluation of a statement like (-array[index])
+    which presumably returns the negation of the
+    index'th cell within array.
+    procedure application doesn't look like it
+    does in regular languages, so it isn't a
+    postfix operation, like in c where f(x)
+    is procedure application. instead pink
+    spells it f x. to parse c style application
+    we could parse application as a postfix operation.
+    with '(' ')' being the begin and end tokens.
+    and the list of arguments appearing as a literal
+    comma separated list of names, instead of
+    pink's application which simply acts over
+    adjacent terms.
+    instead of '[' ']'. these are the only procedure
+    postfix operations I can think of?
+    although... if we consider the actions that
+    [] gives us, we could instead provide those
+    actions via an overloaded '.' operator.)
+    {data-type} '.' {integer-term}
+    can serve as tuple and array lookup.
+    {data-type} '.' {identifier}
+    can serve as record lookup
+    and:
+    {data-type} '.' {string-term}
+    can serve as hash-table lookup, and such.
+    however, notice how the '.' operator is not
+    a postfix operator, but a binary operator.
+    with it's single token, and two terms being
+    acted upon. which according to language
+    precedence rules would apply the unop to
+    the first term before applying the injection
+    operation. this breaks the nice semantic meaning
+    of a statement like
+    'unop' {data-term} '.' {injection-argument}
+    meaning apply the unary operation to some submember of
+    this data according to the argument.
+    which we do have, if the injection is done via
+    'unop' {data-term} '[' {injection-argument} ']'
+
+   which to me means that we want to
    ensure that we query against the set of postfix operations
    before we look for the next binary operation when we
    parse some given primary. which is the essence of
    higher precedence.
+   in this way, if the beginning token of some postfix
+   operation is also a member of the binary operators,
+   the parser will always assume that the token
+   predicts a postfix operation first, and then
+   would need to backtrack if we found that not
+   to be the case. (because we have to unparse the
+   term between the predictive operator token and
+   whatever token occurred to falsify this result.
+   in order to predict a
+   different path from the beginning. this is because
+   we cannot know if this is a valid postfix operation
+   until we either parse the ending token, or we fail
+   to see the ending token. if you start to nest
+   the postfix operations, this gets hairy. which is
+   why they currently remain unimplemented.)
+   additionally yes, like block comments and scopes,
+   this parsing strategy greedily puts all tokens
+   after the beginning token into the same term.
 */
 class UnopNode : public Ast {
 public:
@@ -481,12 +545,15 @@ protected:
   (assignment does most of the heavy lifting
    in getting to turing-completeness)
   iteration and recursion are two sides
-  of the same coin.
+  of the same coin, though it is a funky coin.
+  as they aren't mirrors of each other.
   these primitive abstractions, I think
   are expressive enough to grow alongside
   the rest of the language. this allows
   for functional programming alongside
   imperitive programming.
+  this is part of the essence of ML, we
+  are just making it the main focus.
   simply choice plus assignment
   is turing complete, the lambda calculus
   is turing complete. and infix expressions
@@ -507,16 +574,19 @@ protected:
   different parts of the basic affix expression.
   when we consider a body of executable code, we
   consider at some level, sequencing, selection,
-  and iteration over basic entities in the language.
+  and iteration over basic entities
+  in the language.
   we then have ways of composing and decomposing
   entities from/into their consituent parts.
-  subtyping seems to interfere with overloading,
+  subtyping interferes with overloading,
   but if some object of a subtype is valid
   in all instances of where its supertype is valid,
   as subtyping would seem to imply to me, does it
   not make sense to simply pass the subtype to
   some function expecting a supertype?
-  because the only manipulations
+  or does each subtype need it's own procedure
+  instance.
+  the only manipulations
   which exist (by this i mean the set of things
   that can be done to some type or done with more
   than one of some type),
@@ -552,6 +622,9 @@ protected:
   a warning or an error to the programmer, and
   we can do it for each procedure which is valid
   upon the supertype but not yet the subtype.
+  essentially using one set of procedure overloads
+  to infer the set of procedure overloads that need
+  to be generated for a given subtype.
 
   in this same way, we can allow interoperation
   between program code and handrolled assembly,
@@ -646,7 +719,7 @@ enum class TypeTag {
   Undef,
   Atomic,
   Procedure,
-  Tuple,
+  //Tuple,
 };
 
 /*
@@ -662,26 +735,32 @@ public:
   union U {
     AtomicType atomictype;
     struct {
-      unique_ptr<TypeNode> lhs;
-      unique_ptr<TypeNode> rhs;
+      vector<unique_ptr<TypeNode>> args;
+      unique_ptr<TypeNode> result_type;
     } proctype;
-    vector<unique_ptr<TypeNode>> tupletype;
+    //vector<unique_ptr<TypeNode>> tupletype;
 
     U() { atomictype = AtomicTag::Undef; }
     ~U() {}
     U(AtomicType tag) { atomictype = tag; }
-    U(unique_ptr<TypeNode> l, unique_ptr<TypeNode> r)
+    U(vector<unique_ptr<TypeNode>> as, unique_ptr<TypeNode> r)
     {
-      proctype.lhs = move(l);
-      proctype.rhs = move(r);
+      int length = as.length();
+      for (int i = 0; i < length; i++)
+      {
+        proctype.args[i] = move(as[i]);
+      }
+      proctype.result_type = move(r);
     }
+    /*
     U(vector<unique_ptr<TypeNode>> rhs)
     {
       for (auto&& memb : rhs.tupletype)
       {
-        tupletype.push_back(memb->clone());
+        tupletype.push_back(move(memb));
       }
     }
+    */
   } u;
 
   TypeNode() : Ast(), tag(TypeTag::Undef), u() {}
@@ -690,11 +769,11 @@ public:
   TypeNode(AtomicType atomictype, const Location& loc)
     : Ast(loc), tag(TypeTag::Monomorphic), u(atomictype) {}
 
-  TypeNode(unique_ptr<TypeNode> l, unique_ptr<TypeNode> r, const Location& loc)
-    : Ast(loc), tag(TypeTag::Procedure), u({l, r}) {}
+  TypeNode(vector<unique_ptr<TypeNode>> as, unique_ptr<TypeNode> r, const Location& loc)
+    : Ast(loc), tag(TypeTag::Procedure), u({as, r}) {}
 
-  TypeNode(vector<unique_ptr<TypeNode>> tpl, const Location& loc)
-    : Ast(loc), tag(TypeTag::Tuple), u(tpl) {}
+  //TypeNode(vector<unique_ptr<TypeNode>> tpl, const Location& loc)
+  //  : Ast(loc), tag(TypeTag::Tuple), u(tpl) {}
 
   TypeNode(const TypeNode& rhs)
     : Ast(rhs.loc), tag(rhs.tag)
@@ -709,15 +788,19 @@ public:
         break;
 
       case TypeTag::Procedure:
-        u.proctype.lhs = rhs.u.proctype.lhs->clone();
-        u.proctype.rhs = rhs.u.proctype.rhs->clone();
+        for (auto&& arg : rhs.u.proctype.args)
+        {
+          u.proctype.args[i] = make_pair(get<0>(arg), get<1>(arg)->clone());
+        }
+        u.proctype.result_type = rhs.u.proctype.result_type->clone();
         break;
 
+      /*
       case TypeTag::Tuple:
         for (auto&& memb : rhs.u.tupletype)
           u.tupletype.push_back(memb->clone());
         break;
-
+      */
       default:
         throw "bad type tag";
     }
@@ -737,15 +820,29 @@ public:
           return false;
 
       case TypeTag::Procedure:
-        return u.proctype.lhs->is_poly_type() || u.proctype.rhs->is_poly_type();
+      {
+        for (auto&& arg : u.proctype.args)
+        {
+          if (get<unique_ptr<TypeNode>>(arg)->is_poly_type())
+            return true;
+        }
+        if (u.proctype.result_type->is_poly_type())
+          return true;
+        else
+          return false;
+      }
 
-      case TypeTag::Tuple: {
+      /*
+      case TypeTag::Tuple:
+      {
         for (auto&& memb : u.tupletype)
           if (memb->is_poly_type())
             return true;
 
         return false;
       }
+      */
+
       default:
         throw "bad type tag";
     }
@@ -791,21 +888,21 @@ protected:
       case TypeTag::Procedure:
       {
         string result;
-        if (u.proctype.lhs->tag == TypeTag::Procedure)
+        int length = u.proctype.args.length();
+        /* ex:
+        (\x : int, y: int => x + y * 2)
+          : int -> int -> int
+        */
+        for (int i = 0; i < length; i++)
         {
-          result = "(";
-          result += u.proctype.lhs->to_string();
-          result += ")"
+          result += (get<unique_ptr<TypeNode>>(u.proctype.args[i]))->to_string();
+          result += " -> ";
         }
-        else
-        {
-          result = u.proctype.lhs->to_string();
-        }
-        result += " -> ";
-        result += u.proctype.rhs->to_string();
+        result += u.proctype.result_type->to_string();
         return result;
       }
 
+      /*
       case TypeTag::Tuple:
       {
         string result;
@@ -813,6 +910,12 @@ protected:
         int len = u.tupletype.size();
         for (int i = 0; i < len; i++)
         {
+
+          (t1, t2, t3, ..., tn-1, tn)
+
+          every element of the tuple except the
+          last needs to have a comma afterwards.
+
           if (i < (len - 1))
           {
             result += u.tupletype[i]->to_string();
@@ -826,6 +929,7 @@ protected:
         result += ")";
         return result;
       }
+      */
       default:
         throw "bad type tag";
     }
@@ -860,21 +964,21 @@ protected:
       case TypeTag::Procedure:
       {
         string result;
-        if (u.proctype.lhs->tag == TypeTag::Procedure)
+        int length = u.proctype.args.length();
+        /* ex:
+        (\x : int, y: int => x + y * 2)
+          : int -> int -> int
+        */
+        for (int i = 0; i < length; i++)
         {
-          result = "(";
-          result += u.proctype.lhs->to_string();
-          result += ")"
+          result += (get<unique_ptr<TypeNode>>(u.proctype.args[i]))->to_string();
+          result += " -> ";
         }
-        else
-        {
-          result = u.proctype.lhs->to_string();
-        }
-        result += " -> ";
-        result += u.proctype.rhs->to_string();
+        result += u.proctype.result_type->to_string();
         return result;
       }
 
+      /*
       case TypeTag::Tuple:
       {
         string result;
@@ -895,261 +999,12 @@ protected:
         result += ")";
         return result;
       }
+      */
       default:
         throw "bad type tag";
     }
   }
 
-};
-
-enum class PrimitiveType {
-  Undef,
-  Nil,
-  Bool,
-  Int,
-  Poly,
-};
-
-class AtomicType : public TypeNode {
-public:
-  PrimitiveType type;
-
-  AtomicType() : type(PrimitiveType::Undef) {}
-  AtomicType(PrimitiveType t) : type(t) {}
-  AtomicType(const AtomicType& rhs) : type(rhs.type) {}
-
-  virtual bool is_poly_type() override
-  {
-    return type == PrimitiveType::Poly;
-  }
-
-protected:
-  virtual AtomicType* clone_internal() override
-  {
-    return new AtomicType(*this);
-  }
-
-  virtual AtomicType* clone_internal() const override
-  {
-    return new AtomicType(*this);
-  }
-
-  virtual string to_string_internal() override
-  {
-    switch(type) {
-      case PrimitiveType::Undef:
-        return "Undef";
-
-      case PrimitiveType::Nil:
-        return "Nil";
-
-      case PrimitiveType::Int:
-        return "Int";
-
-      case PrimitiveType::Bool:
-        return "Bool";
-
-      case PrimitiveType::Poly:
-        return "Poly";
-
-      default:
-        throw "malformed PrimitiveType tag";
-    }
-  }
-
-  virtual string to_string_internal() const override
-  {
-    switch(type) {
-      case PrimitiveType::Undef:
-        return "Undef";
-
-      case PrimitiveType::Nil:
-        return "Nil";
-
-      case PrimitiveType::Int:
-        return "Int";
-
-      case PrimitiveType::Bool:
-        return "Bool";
-
-      case PrimitiveType::Poly:
-        return "Poly";
-
-      default:
-        throw "malformed PrimitiveType tag";
-    }
-  }
-};
-
-class ProcType : public TypeNode
-{
-public:
-  unique_ptr<TypeNode> lhs;
-  unique_ptr<TypeNode> rhs;
-
-  ProcType() {}
-  ProcType(unique_ptr<TypeNode> lhs, unique_ptr<TypeNode> rhs)
-    : lhs(move(lhs)), rhs(move(rhs)) {}
-
-  ProcType(const ProcType& rhs)
-    : lhs(rhs.lhs->clone()), rhs(rhs.rhs->clone()) {}
-
-    virtual bool is_poly_type() override
-    {
-      return lhs->is_poly_type() || rhs->is_poly_type();
-    }
-
-protected:
-    virtual ProcType* clone_internal() override
-    {
-      return new ProcType(*this);
-    }
-
-    virtual ProcType* clone_internal() const override
-    {
-      return new ProcType(*this);
-    }
-
-    virtual string to_string_internal() override
-    {
-      string result;
-      /*
-        we have to distinguish a procedure
-        appearing on the lhs of a type, otherwise
-        the fact that it is a procedure will
-        not be visually distinct, which changes
-        the meaning of the type.
-      */
-      if (dynamic_cast<ProcType*>(lhs.get()))
-      {
-        result = "(";
-        result += lhs->to_string();
-        result += ") -> ";
-        result += rhs->to_string();
-      }
-      else
-      {
-        result += lhs->to_string();
-        result += " -> ";
-        result += rhs->to_string();
-      }
-      return result;
-    }
-
-    virtual string to_string_internal() const override
-    {
-      string result;
-      /*
-        we have to distinguish a procedure
-        appearing on the lhs of a type, otherwise
-        the fact that it is a procedure will
-        not be visually distinct, which changes
-        the meaning of the type.
-      */
-      if (dynamic_cast<ProcType*>(lhs.get()))
-      {
-        result = "(";
-        result += lhs->to_string();
-        result += ") -> ";
-        result += rhs->to_string();
-      }
-      else
-      {
-        result += lhs->to_string();
-        result += " -> ";
-        result += rhs->to_string();
-      }
-      return result;
-    }
-};
-
-class TupleType {
-public:
-    vector<unique_ptr<TypeNode>> members;
-
-    TupleType() {}
-    TupleType(vector<unique_ptr<TypeNode>>& rhs)
-    {
-      for (auto&& mem : rhs.members)
-        members.push_back(mem.clone());
-    }
-    TupleType(const TupleType& rhs)
-    {
-      for (auto&& mem : rhs.members)
-        members.push_back(mem.clone());
-    }
-
-    virtual bool is_poly_type() override
-    {
-      if (members.size > 0)
-      {
-        for (auto&& mem : members)
-          if (mem.is_poly_type())
-            return true;
-      }
-
-      return false;
-    }
-
-protected:
-    virtual TupleType* clone_internal() override
-      { return new TupleType(*this); }
-
-    virtual TupleType* clone_internal() const override
-      { return new TupleType(*this); }
-
-    virtual string to_string_internal() override
-    {
-      /*
-      valid tuples:
-        ()
-        (type, type)
-        (type, ..., type)
-
-      */
-      string result;
-      result = "(";
-      if (members.size() != 0)
-      {
-        for (int i = 0; i < members.size(); i++)
-        {
-          if (i < (members.size() - 1))
-          {
-            result += members[i]->to_string();
-            result += ", ";
-          }
-          else
-          {
-            result += members[i]->to_string();
-          }
-        }
-      }
-      result += ")";
-      return result;
-    }
-
-    virtual string to_string_internal() const override
-    {
-      string result;
-      result = "(";
-      if (members.size() != 0)
-      {
-        for (int i = 0; i < members.size(); i++)
-        {
-          if (i < (members.size() - 1))
-          {
-            result += members[i]->to_string();
-            result += ", ";
-          }
-          else
-          {
-            result += members[i]->to_string();
-          }
-        }
-      }
-      result += ")";
-      return result;
-    }
 };
 
 
@@ -1286,10 +1141,24 @@ public:
   string to_string()
   {
     string result;
+    int length = args.length();
     result  = "\\";
-    result += arg_id;
-    result += ": ";
-    result += arg_type->to_string();
+    for (int i = 0; i < length; i++)
+    {
+      if (i < (length - 1))
+      {
+        result += get<string>(args[i]);
+        result += ": ";
+        result += (get<unique_ptr<Ast>>(args[i]))->to_string();
+        result += ", ";
+      }
+      else
+      {
+        result += get<string>(args[i]);
+        result += ": ";
+        result += (get<unique_ptr<Ast>>(args[i]))->to_string();
+      }
+    }
     result += " => ";
     result += body->to_string();
     return result;
@@ -1306,23 +1175,28 @@ public:
   ProcedureDefinition(const ProcedureLiteral& def)
     : def(def), set()
   {
-     TypeNode* ProcLitArgType;
-     if ((ProcLitArgType = dynamic_cast<TypeNode*>(def.arg_type.get())))
-     {
-        if (ProcLitArgType->is_poly_type())
-        {
-          poly = true;
-        }
-        else
-        {
-          poly = false;
-        }
+    // if any type in the procedures signature is polymorphic,
+    // the entire term is polymorphic.
+    bool p = false;
+    for (auto&& arg : def.args)
+    {
+      TypeNode* arg_type = dynamic_cast<TypeNode*>(*(get<1>(arg)));
+      if (arg_type != nullptr)
+      {
+        if (arg_type->is_poly_type())
+          p = true;
       }
       else
       {
-        throw "bad procedure arg type pointer\n";
+        throw "bad type ptr";
       }
     }
+
+    if (def.result_type->is_poly_type())
+      p = true;
+
+    poly = p;
+  }
   ProcedureDefinition(const ProcedureDefinition& ProcDef)
     : def(ProcDef.def), set(ProcDef.set)
   {
@@ -1342,12 +1216,7 @@ public:
   string to_string()
   {
     string result;
-    result  = "\\";
-    result += def.arg_id;
-    result += ": ";
-    result += def.arg_type->to_string();
-    result += " => ";
-    result += def.body->to_string();
+    result = def.to_string();
     return result;
   }
 
@@ -1418,7 +1287,8 @@ public:
     }
     else
     {
-      u.definition = rhs.u.definition;
+      u.definition = rhs.u.definiti
+      caon;
     }
   }
 
@@ -1602,7 +1472,6 @@ public:
   EntityNode(const EntityNode& rhs)
     : Ast(rhs.loc), type(rhs.type->clone()), u()
   {
-
     // Undef, Type, Nil, Int, Bool
     value_tag = rhs.value_tag;
     switch(value_tag) {

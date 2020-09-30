@@ -454,13 +454,27 @@ Judgement Typechecker::getype(const CallNode* const c)
 Judgement Typechecker::getype(const BindNode* const b)
 {
     /*
-      ENV |- term2 : type2
-  ---------------------------------
-    ENV |- id := term2 : type2
+  ENV |- id is-not-currently-bound-in-env, term2 : type2
+        ------------------------------------------
+              ENV |- id := term2 : type2
     */
-    Judgement type2 = getype(b->rhs.get());
+    SymbolTable* env = scopes.top();
 
-    return type2;
+    auto sym = env->lookupInLocalScopeOnly(b->id);
+
+    if (sym)
+    {
+      return Judgement(b->loc, "id [" + b->id + "] is already bound to [" + b->rhs->to_string() + "]");
+    }
+    else
+    {
+      // recal that judgements track their own failure
+      // state, so it need not be explicitly mentioned
+      // that this call can fail here.
+      Judgement type2 = getype(b->rhs.get());
+
+      return type2;
+    }
 }
 
 
@@ -481,31 +495,32 @@ Judgement Typechecker::getype(const CondNode* const c)
     so we arbitrarily select the first)
   */
 
-  Judgement testtype = getype(c->test.get());
+  Judgement testExpressionsType = getype(c->test.get());
 
-  if (!testtype)
-    return testtype;
+  if (!testExpressionsType)
+    return testExpressionsType;
 
-  unique_ptr<TypeNode> booltype = make_unique<AtomicType>(AtomicType(PrimitiveType::Bool), Location());
 
-  Judgement test1 = equivalent(dynamic_cast<TypeNode*>(testtype.u.jdgmt.get()), booltype.get());
+  unique_ptr<TypeNode> boolType = make_unique<AtomicType>(AtomicType(PrimitiveType::Bool), Location());
 
-  if (!test1)
-    return test1;
+  Judgement testExpressionHasBoolType = equivalent(dynamic_cast<TypeNode*>(testExpressionsType.u.jdgmt.get()), boolType.get());
 
-  Judgement firsttype = getype(c->first.get());
+  if (!testExpressionHasBoolType)
+    return testExpressionHasBoolType;
 
-  if (!firsttype)
-    return firsttype;
 
-  Judgement secondtype = getype(c->second.get());
+  Judgement firstExpressionsType = getype(c->first.get());
 
-  if (!secondtype)
-    return secondtype;
+  if (!firstExpressionsType)
+    return firstExpressionsType;
 
-  Judgement test2 = equivalent(dynamic_cast<TypeNode*>(firsttype.u.jdgmt.get()), dynamic_cast<TypeNode*>(secondtype.jdgmt.get()));
 
-  return test2;
+  Judgement secondExpressionsType = getype(c->second.get());
+
+  if (!secondExpressionsType)
+    return secondExpressionsType;
+
+  return equivalent(dynamic_cast<TypeNode*>(firstExpressionsType.u.jdgmt.get()), dynamic_cast<TypeNode*>(secondExpressionsType.jdgmt.get()));
 }
 
 Judgement Typechecker::getype(const WhileNode* const w)
@@ -844,6 +859,28 @@ ENV |- fn (op) : T1 -> T2 -> T3, lhs : T1, rhs : T2
       up by the regular lookup mechanisms. then the
       elimination mechanisms should be able to be unifyed
       around these two abstractions.
+  */
+
+  /*
+    given some [lhs_term op rhs_term]
+    we first lookup op in the binop
+    table, then we look through the
+    primitive definitions for a matching
+    eliminator. then we look through
+    the composite definitions for a matching
+    eliminator, if we find an eliminator
+    whose argument types match the actual types
+    we return the result type of the matching
+    eliminator.
+
+    what is the cannonical binop procedure in pink?
+    well, the main issue is that a binop requires
+    two arguments, and our procedures only work with
+    a single argument.
+    from my perspective we have two choices.
+    cannonical-binop := \lhs => \rhs => lhs op rhs
+    or
+    cannonical-binop := \lhs, rhs => lhs op rhs
   */
 }
 

@@ -1,0 +1,264 @@
+okay, so here it is, the basics of this language.
+
+you have variables, which stand like variables of
+a regular programming language. and all names live
+in some scope, either the global scope or within
+some local scope. variables are immutable
+by default, in order to give assignment semantics,
+we will borrow a page from ML and only
+allow assignment to references. this restricts
+assignment, and the semantic headaches that it can
+give to one feature of the language. albeit a very
+powerful feature like references.
+
+
+ex:
+
+x := 10
+
+y := x * 2
+
+y = 20
+
+z := (10, 4)
+
+a := z.1 + z.2
+
+a = 14
+
+// should we allow this?
+// shouldn't this require an explicit type
+// declaration?
+b := (fst := 42, snd := 7)
+// like
+b := pair(fst := 42, snd := 7)
+// where pair has a definition like:
+// (arbitrary syntax is arbitrary)
+define-type pair { fst, snd }
+
+c := b.fst - b.snd
+
+c = 35
+
+
+
+the bind operation, binds a name to the result of some
+computation. commonly it is used to name an intermediary
+result to facilitate clearer programming intent, or
+to facilitate a breakpoint within the debugger at a midpoint
+within the larger computation. within these two usages of
+a variable the immutability is immaterial. in fact, if
+all the procedure needs to do is read from the variable,
+then the immutability is immaterial/isomorphic to the computation.
+in other words; if the procedure only needs to inspect the state of
+some memory cell, it need not use anything other than
+immutable names and injection procedures to inspect the state of
+any type. if we encounter a situation in which we need to
+read and write some to some cell, well, that is always done by way
+of references to said cell. such that the programmer explicitly
+constructs some type dynamically, passes it into a procedure
+which expects a reference type, and that procedure can thusly perform any
+reads/writes it needs to. (we expect a level of indirection
+to get to the type, so we could make the accessor the same for
+a local composite type and a dynamic composite type, i.e. both
+use '.' a-la Python instead of c's '.' for locals and '->' for
+references.)
+
+
+and you have procedures which
+introduce and bind variables into a new scope.
+
+\ x => x * x
+
+
+
+procedures are special in a few ways however, for one
+they allow the bound variable to range over any one
+of it's particular instances during any given call to
+the function. so in a round-about way they get around
+the immutability of the variable, and allow the variable
+to take many forms.
+
+the other way in which procedures are special is that they
+are polymorphic by default. if you consider the procedure
+
+\ x => x * x
+
+what is the type of x?
+written x : type
+
+well, Poly.
+
+exactly because it was left unspecified.
+
+this means that the variable doesn't have a type
+per-say. it would almost be more accurate to say
+that it has a type variable instead. which is to
+say that this variable is going to be bound to some
+type. luckily, we are in a static language, and as such
+require that any argument to a procedure have some type
+itself, we can then notice that the programmer is
+going to have to, by definition, provide some argument
+to the procedure in order to apply said procedure.
+and by another argument, we can say that any uncalled
+procedure is 'dead-code', and does not really need to
+exist. (a-la c++). thusly, we can always say that a
+polymorphic procedure is well typed. because by
+it's very polymorphic nature it isn't statically typeable.
+and will be removed from the executable should it not be called.
+(just because we can make a similar argument for any uncalled
+ monotyped procedure, doesn't imply polymorphism, it implies
+ 'dead-code'-edness.)
+but, in order to remedy the now broken point of a type system,
+(i.e. that any term we say is well typed is actually confirmed
+to be well typed, we don't skip the actual checking, and you kinda allow
+any form allowed by the grammar to be the body of a procedure
+which trivially allows for the language to be broken entirely.
+precisely because you don't check right?)
+we instead notice that we require at each call point
+that any actual argument type, which is/becomes bound
+to the formal argument's type variable,
+allows for the body of the procedure to typecheck.
+thusly, we have the crucial missing piece of information that
+was needed in order to type the polymorphic procedure, which
+is precisely, what monomorphic types will 'actually' be applied.
+and do those 'actual' monomorphic types maintain well-formedness?
+
+we cannot have a static representation of a polymorphic type.
+we can however have a selector/dispatcher which can call one
+of a set of monomorphic procedures whose bodies are identical
+to the polymorphic procedure, except that the types of each
+argument is bound to some monotype. (and the body in the
+assembly representation can also be changed in accordance
+to the monotype that is bound.)
+
+
+
+and the next peice of the language is something
+which has already been used to showcase the previous
+features, operators.
+
+
+binary, unary, and postfix operators are the next language
+feature which is central to the language. so, literally,
+operators are no different than functions. they encapsulate
+some manipulation upon state and provide an interface
+through which we can apply that manipulation to many
+different containers holding said state. this is the
+essence of both functions and operators. where the
+two differ is that operators compose in a different syntactic
+way than pure procedures. and that cognitively,
+at least for me, where functions encapsulate larger/coarser
+ideas, operators encapsulate the building blocks, the
+basic actions. the primal materia with which larger
+flows of computation are wrought.
+and, given their ubiquity in programming languages,
+they at least provide a secondary vehicle for composing
+computation, which the human mind i think, benefits from.
+
+  giving the programmer the tools to extend the known set
+of operators from the very inception of the language,
+gives the language time to select operators for basic
+actions and hopefully, make those operators as attached
+to their action conceptually as the + symbol is to addition.
+I think that having a language that has different ways of
+speaking when we are talking about/on different scales of
+information, i think gives some unconscious/semi-consious
+logical footholds which helps the legibility of the program
+as a whole, in a similar way to keeping the (now sort of metaphorical)
+meaning of the operator and the actions it performs aligned.
+
+  for instance we can imagine the + operator as valid on both numbers,
+where it stands for good old addition, or we can imagine
+a valid operation on two strings, where the result is
+the concatenation of the two strings; metaphorically 'adding'
+the two strings together. (notice how we could also
+take the more literal metaphor and sum the characters comprising
+both strings and then adds the resulting values,
+which quite literally adds the strings,
+but that version has less -usefullness- which is the
+far more important attribute.)
+
+  this is also similar to the idea of the 'sum' type.
+whereby we concatenate two types, and thusly concatenate
+the memory/storage/cells required to hold the now
+composite type. this meaning, of the sum action, can be
+metaphorically applied to many different kinds of thing.
+this is what I consider 'well-formed' overloading.
+
+  if we instead consider another common set of operations
+(at least at the systems layer) is that of logical and
+bitwise operations. (for the example we select 'or', but the
+argument is the same for 'and' and 'xor')
+logical or is an operation upon two truth values, (or, by
+way of abstraction, two terms whose results are truth values)
+whereas bitwise or is an operation upon the literal memory itself.
+going so far as to be explicit about the state of each bit of
+memory. (a very low-level operation indeed).
+actually, my point is being undermined by the fact that bitwise
+operations break the abstraction of having a language in the
+first place. which is to say, this is the first of the locations
+within the language which i predicted i would see, namely
+where the reality of running on a physical machine gets in the
+way of the clean abstraction which is the language.
+you see, types can operate within 'memory-cells' which are
+themselves an abstraction over the actual memory of the machine.
+within which it is easiest to get by with word addressing
+and references are really the way to get to memory at all.
+
+  bitwise operations break this notion of a memory cell, and
+exposes that the memory cell is nothing more than a
+somewhat arbitrary sequence of electrical bits which can
+be turned on and off to represent different state.
+and we want to preform an operation which observes the bits
+in two different memory-cells and arrange the bits of a third
+cell to be some sequence which can be derived from the state
+of the first two cells. (a sequence of English sentences which
+seem to encapsulate every operation which a computer performs.)
+
+  these two operations must never be part of the same overload
+set, on grounds that they belong to two distinct classes of
+operation, which act at different levels of abstraction within
+our programming language. the two ideas/meanings we give to
+each pair of operators we give the same name, are so distinct,
+that we should not have given them the same name, because
+fundamentally they are different operations. (even though
+they are the same operation, applied at different levels
+of abstraction.)
+
+  if a program contains an operator, and that
+operator is overloaded for two or more distinct kinds of thing.
+then the meaning (metaphorically) must remain constant across
+those two or more kinds of thing. this maintains the alignment
+of the idea which is being expressed by the operator. which
+again, i feel improves the legibility of programs.
+(the reason that i think the designers of every programming
+language understand this, albeit intuitively, is that bitwise
+and logical operators are always distinct symbols. the 'overloading'
+/metaphor is that syntactically bitwise ops are || and logical are |
+which is probably mostly an homage to the fact that both are 'or's).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+------------------------------------------------------------------------

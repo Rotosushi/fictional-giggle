@@ -16,6 +16,8 @@ using std::stack;
 #include "Ast.hh"
 #include "Error.hh"
 #include "SymbolTable.hh"
+#include "BinopTable.hh"
+#include "UnopTable.hh"
 
 class BinopTable;
 
@@ -106,7 +108,7 @@ Judgement equivalent(const TypeNode* t1, const TypeNode* t2);
 class Typechecker {
   stack<SymbolTable*> scopes;
   BinopTable* binops;
-  BinopTable* unops;
+  UnopTable* unops;
 
 public:
 
@@ -115,7 +117,10 @@ public:
       scopes.push(e);
     }
 
-  optional<ProcedureLiteral> GetInstanceOf(Procedure* procDef, const TypeNode* const target_type);
+  optional<ProcedureLiteral> GetInstanceOf(Procedure* proc_def, const TypeNode* const target_type);
+
+  bool ValidBinopArgTypes(TypeNode* binop_elim_type, TypeNode* lhs_type, TypeNode* rhs_type);
+  bool ValidUnopArgType(TypeNode* unop_elim_type, TypeNode* rhs_type);
 
   Judgement getype(const Ast* const a);
   Judgement getype(const EmptyNode* const e);

@@ -13,16 +13,16 @@
 // to provide usage before definition, which makes
 // the programmers job easier with respect to
 // forward declarations. and module inclusion in
-// general. we simply conside the set of names which
+// general. we simply union the sets of names which
 // are explicitly exported by each module in the program
 // to be the complete set of globally available names.
 // and until such time as we have fully parsed every module
 // we cannot assume to have the definition of each of these
 // names. therefore, when we parse one of the modules from
-// the set of known modules, we can construct a set of terms
+// the set of known modules, we can construct a set of terms/
 // module-definitions which are incomplete due to the lack
 // of a definition for one of the names used within the term.
-// then when we complete the parsing of a module we can retry
+// then in order to complete the parsing of the module we can retry
 // each of the terms in each of the modules incomplete definition
 // set, to hopefully define some of the names. this can continue
 // until we have parsed every available module.
@@ -30,6 +30,19 @@
 // incomplete definitions, and then only after fully collecting
 // all of the source text can we for sure say that the undefined
 // names are actually fully not present within the source text.
+if you imagine each set of exported names from each module,
+firstly, we don't allow redefinition. secondly each name is known
+before it's term is when we read the header of said module and
+declare the set of names to be exported. we could imagine a procedure
+which operates over a multimap of names to terms, which names are
+mapped to the same term? well, how about each of the names within
+the term which were undefined/not-lookup-able at time of typechecking?
+then later when we encounter a names definition we can use the multimap
+perhaps to retreive the undefined term, given that we just defined a new
+name, perhaps the old term is now typeable under the new context within
+which the name has a definition, and thus a type, and thus operations
+continue normally from that point.
+
 
 ------------------------------------------------------------------
 functions and variables work together

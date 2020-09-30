@@ -395,10 +395,8 @@ unique_ptr<Ast> Parser::parse_term()
       this means that if the operator is both a unop
       and a binop, the expression
       a op b will always be the operation taking
-      arguments a and b. whereas if the operator
-      is only a unop, then the expression
-      a op b will be call a passing in the result
-      of applying op to b.
+      arguments a and b.
+
 
       TLDR:
       [a - b]
@@ -408,6 +406,8 @@ unique_ptr<Ast> Parser::parse_term()
       [a - b]
       this is also valid
       [-a - -b]
+      as is
+      [-a - b]
       this means that when the programmer
       wants to apply an operation directly
       to the argument to a procedure, they
@@ -416,10 +416,6 @@ unique_ptr<Ast> Parser::parse_term()
       to parse as a call expression, otherwise
       we switch to parsing a binary operation,
       but only if the operator itself is a binop.
-
-
-
-
     */
     if (lhs)
     {

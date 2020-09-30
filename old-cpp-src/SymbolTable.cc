@@ -34,8 +34,8 @@ optional<unique_ptr<Ast>> SymbolTable::operator[](const string& key)
   unordered_map::iterator symbol = symbs.find(key);
   if (symbol == symbs.end())
   {
-    // given that all scopes form a weird sort of
-    // tree, we want to traverse that tree to find
+    // given that all scopes form a list
+    // we want to traverse that list to find
     // the symbol being referred to. we start with
     // the innermost scope, as part of the reason
     // that we have name shadowing semantics.

@@ -28,4 +28,11 @@ void init_unops(UnopTable& unops);
 
   what if the programmer overrides a primitive
   operation?
+
+  well, in both of the cases we store programmer definitions
+  as Procedures. which means that binops inherit overloading
+  and theoretically polymorphism via each Procedure,
+  and HasInstance as the procedure to extract individual
+  executable procedure literals.
+
 */
