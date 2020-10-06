@@ -7,6 +7,17 @@ using std::shared_ptr;
 class Type;
 #include "TypeError.hpp"
 
+/*
+  a type judgement encapsulates the success or failure
+  aspect of typeability. if the judgement is constructed
+  around a type, then it is a successful judgement
+  if it constructed around a TypeError, then it's a
+  failed judgement. in both cases we need to return
+  information to the caller alongside the success
+  or failure. this allows each typeing procedure to share
+  the exact same return type.
+*/
+
 class TypeJudgement
 {
 public:
@@ -23,13 +34,12 @@ public:
       : error(err) {}
   } u;
 
-  TypeJudgement() ; success(false), u() {}
+  TypeJudgement() : success(false), u() {}
   TypeJudgement(shared_ptr<Type> jdgmt)
     : success(true), u(jdgmt) {}
   TypeJudgement(TypeError err)
     : success(false), u(err) {}
 
   bool succeeded() { return success; }
-
   operator bool()  { return success; }
 };

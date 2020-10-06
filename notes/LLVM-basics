@@ -29,6 +29,30 @@ taken care of by the compiler, instead
 of having to write the switch statement
 ourselves. (as we did in the c implementation)
 
+this is a design which takes poor advantage
+of cpp's polymorphism.
+
+in order to actually make use of object oriented
+polymorphism, the objects which are being dispatched
+over must themselves be descriptions of the source
+text. the Ast as it were, has been subsumed by the
+Entities themselves. this follows with Object Oriented
+style, in that now, instead of having to define a
+set of procedures taking each kind of Ast node,
+each Ast node is instead associated with it's
+typing and evaluation procedures directly. and
+the dispatch is handled by the single argument
+of polymorphic type allowed in cpp.
+to emulate the same behavior in c, we could store
+a constant function pointer within the
+Ast, and always call that procedure when typing
+or evaluating that specific Ast. thus each node
+would correctly call the right procedure. and
+by keeping the arguments to pointers, we could
+work to maintain some semblance of generality.
+also, we are trying a shared_ptr approach to the
+implementation instead of doing the work required
+with unique_ptr.
 
 so,
 getting to LLVM,
@@ -54,7 +78,7 @@ this is the primitive operation upon which
 we act to build up the assembly translation
 of all the source text.
 
-we can consider an interpretive
+if we consider an interpretive
 environment which can translate pieces of
 itself into LLVM. it is then, that we can
 consider the processes of compilation.
@@ -85,8 +109,51 @@ to be distinct from one another, as we cannot
 treat a global constant name as two separate
 anythings. but we can allow procedures to share
 names as long they differ by number or type of
-arguments.
-
+arguments. (commonly called overloading)
+we can allow name shadowing, by allowing a name
+to be defined if it doesn't exist within the
+local scope. instead of forcing all names
+to be unique across all scopes within the
+program. (this would be super inconvenient
+for programmers however)
+however, name shadowing introduces an issue,
+how do we then refer to either name explicitly,
+such that i can access either the local name
+or the shadowed name should i desire. it would
+seem that we lose the ability to access the
+outer name once the inner name is defined.
+a solution which is extensible is namespaces,
+we could say, global_scope::global_name
+a-la cpp. given this though, what is to stop
+an upper scope from accessing some procedures
+local-value? this just doesn't make sense and
+shouldn't be allowed. the only names which
+can be accessed which are technically 'local'
+variables are the data-members of records, unions,
+and pointers.
+we can and should allow for an inner scope to
+access names of outer scopes. this is well defined
+in all situations, the procedure call is the
+downward name boundary. (as in, names in the local
+namespace stop being visible in the new scope,
+even though it is technically a 'lower' scope.)
+there is no upwards name boundary however,
+every procedure will have access to module local variables
+and global variables. or if it is a procedure local
+lambda, then it will have visibility of the surrounding
+scope. (formal procedures never have this 'dynamic scope')
+this is because we can be sure that a lambda defined
+and applied on within the scope of another procedure
+will always exist in the correct circumstances such
+that the dynamic names will be alive. this can turn out
+not to be the case if the lambda is returned as the result
+of evaluating the procedure. in this case, the names
+that are used 'dynamically' within the lamdba, must be
+captured by-value on the heap, and a pointer to this
+structure is stored alongside a pointer to the
+definition of the returned procedure. then, that procedure
+can be called at a later point, and the dynamic values
+are still alive in the program.
 
 starting from a set of
 source files, and a function which can

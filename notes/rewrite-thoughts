@@ -60,7 +60,9 @@ procedures which allows turning a string into an
 ast-term and back to a string.
   ast-term -> string
   string -> ast-term
-
+and we say that the programming language is a collection
+of entities, such that each entity has this set of
+procedures defined upon it.
 
 and we restructure the program such that each entity is
 a pair of files, and we have a 'entities' header which
@@ -68,3 +70,11 @@ includes each of them so that other files can include
 everything easily. we still will have other concerns
 in other files. (symboltable, error, parser, and lexer
 to start.)
+
+oh, my, god. apparently this is the standard interpreter
+design pattern...
+
+well, at least I rediscovered something of quality.
+
+it's just, with all the programming languages
+books I have read, how did I miss this pattern?

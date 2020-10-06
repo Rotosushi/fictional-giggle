@@ -1,44 +1,24 @@
 #pragma once
 #include <string>
 using std::string;
-#include
+#include <memory>
+using std::shared_ptr;
 
-#include "Entity.hpp"
+#include "Ast.hpp"
 #include "SymbolTable.hpp"
 
-class Variable : public Entity
+class Variable : public Ast
 {
 public:
   string id;
 
   Variable(const string& str, const Location& loc)
-    : Entity(loc), id(str) {}
+    : Ast(loc), id(str) {}
   Variable(const Variable& other)
-    : Entity(other.loc), id(other.id) {}
+    : Ast(other.loc), id(other.id) {}
 
 protected:
-  virtual string to_string_internal() override
-  {
-    return id;
-  }
-
-  virtual TypeJudgement getype_internal(SymbolTable* env)
-  {
-    /*
-        id is-a-member-of env
-    ---------------------------
-    env |- (id : type = value) : type
-    */
-    optional<shared_ptr<Entity>> bound_term = (*env)[id];
-
-    if (bound_term)
-    {
-      TypeJudgement bound_type = (*bound_term)->getype(env);
-      return bound_type;
-    }
-    else
-    {
-      return Judgement(location, "variable [" + id + "] not defined in environment.");
-    }
-  }
+  virtual string to_string_internal() override;
+  virtual TypeJudgement getype_internal(SymbolTable* env) override;
+  virtual EvalJudgement evaluate_internal(SymbolTable* env) override;
 };

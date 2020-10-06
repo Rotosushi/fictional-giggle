@@ -1,3 +1,20 @@
+#! Multiple Dispatch and multi argument procedures
+
+later versions of this programming language are going
+to have multi dispatch along with the ability to
+pass a list of arguments. by this mechanism binary
+operations are going to be built. until i can figure out
+mutiple arguments (and i kind of want a working
+version sooner than that would allow) single arguments
+are the implementation. this gives rise to a problem,
+namely, how do we have binops at all?
+well, i guess, to start there will only be primitive
+operations, and those are going to be handled in a
+different way than composite binops.
+
+
+
+
 #! use before definition
 
 // technically during parsing, typeing, and evaluation
@@ -114,6 +131,9 @@ or tree, or graph.
 or a recursive algorithm, which, can be supported naturally
 in a stack based execution environment.
 
+this is no longer possible due to rewriting all of
+the parts. we solve this problem differently now.
+
 ----------------------------------------------------------
 in an attempt to give some coarse language,
 i find language which varies alongside the
@@ -130,7 +150,7 @@ compose new abstractions. this may sound weird but
 its just a useful conceptual shorthand really.
 
 scale scale:
-      at the bottom: nothing/zero/nada
+      at the bottom: nothing/zero/nada/nil
       i.e. we are talking at the scale of nothing.
 
       then:   one thing
@@ -149,7 +169,7 @@ scale scale:
            countably infinite number of things.
 
               uncountably infinite things
-      i.e. we are talking at the scale of a
+      i.e. we are talking at the scale of an
           uncountably infinite number of things.
 
 
@@ -158,7 +178,12 @@ sometimes they act as a name for nothing,
 sometimes they act as a name for one thing,
 sometimes they act as a name for a collection of things,
 sometimes they act as a name for an infinite number of things.
+variables are thusly, scale independent.
 
+procedure application sites are highly scale
+dependant, where each call site needs both
+a specific n things, and those things need to
+be specific things (have some specific type).
 
 
 
@@ -189,6 +214,13 @@ this means implementing tuples.
 i mean, it goes a long way toward
 implementing structs/records.
 
+or, if we define procedures such that
+they can take lists of arguments
+add := \x, y => x + y
+
+which means thinking about multiple dispatch.
+because we were previously thinking about
+single dispatch only.
 
 
 to me, it would be nice if operators were
@@ -485,3 +517,168 @@ we could imagine single argument
 procedures, which operate upon
 type T's, we can always bind these
 to monads holding type T's.
+
+
+
+
+
+
+  (var: type (',' var: type)*) -> type
+
+  okay, here's a thought, all of this is great.
+  and useful and on the right track. but at this
+  point, it is starting to become too big to tackle
+  all at once. so, how about for this early version
+  functions are only one argument. and we put a pin
+  in true multiple dispatch. well then, we still have
+  a problem, what the heck are binops?
+
+
+  this argument list becomes essential, and
+  the method with which we dispatch and
+  disambiguate will more than likely create the
+  particular peculiarities that live in
+  language standards.
+
+  fn proc (a: int, b: int) => ...
+  fn proc (a: int, b: double) => ...
+  fn proc (a: double, b: int) => ...
+  fn proc (a: double, b: double) => ...
+
+  then application sites can look like:
+  proc 1 2
+  proc 1 3.2
+  proc 3.14 5
+  proc 2.1 5.6
+
+  which will dispatch to the most specific member
+  of the procedure set.
+
+  essentially, a procedures name has a single zero argument
+  possible overload.
+  a set of single argument overloads
+  a set of two argument overloads
+  a set of three argument overloads
+  and so on to
+  a set of n argument overloads
+
+  if there isn't a user defined
+  overload of some number of arguments
+  then the compiler cannot infer a body.
+  so, there isn't a single dispatch method
+  per procedure, which covers all the cases,
+  there is a single dispatch method per set of
+  overloads, and the compiler selects which one
+  based on the shape of the call site.
+  maybe that sounds a little weak actually.
+  each call site is represented within the
+  syntax as some finite number of arguments,
+  so doesn't it make sense to rely on the number?
+  what about variable lengths of arguments?
+  to support a printf style structure? well,
+  that's really just a standardized vector
+  of the arguments as the last argument to printf.
+  called va_start. meaning we can provide a wrapper
+  around the c function once our language supports
+  vectors.
+
+  how do we handle overloading the number of arguments
+  with polymorphism? well, i suppose that a poly
+  argument is something which can act like a base
+  <object> argument type for a given procedure.
+  meaning, if you provide any given number of arguments,
+  as long as there is an overload set which has the same
+  number of arguments as are provided, and each argument
+  type either matches, or when we find a poly formal
+  argument, we know we need to generate a new concrete body
+  with the matching type, and the body is assumed to be
+  the body of the procedure with the same number of
+  arguments, not just any body appearing within the overload
+  set. during the interpretive phase, this dispatch is
+  carried out on the fly, but when we are compiling code
+  there are sublty different constraints. this selection
+  algorithm needs to be cognizant of both use cases.
+  but that puts the cart before the horse information wise.
+
+  proc (_:<type>, _:<poly>)
+
+  single dispatch over the runtime type of the second
+  arguments sure,
+  and also, each application site tells the compiler to infer
+  another concrete instance with the argument bound to
+  some specific type. this then becomes the concrete instance
+  which is dispatched too.
+
+  proc (_:<type1>, _:<type2>)
+
+  now, this is a user specified overload of the
+  instance within the overload set. now instead
+  of the compiler inferring a new body when it
+  encounters an application site providing the
+  corresponding types.
+
+  this then makes it cloudy what a funtion pointer
+  even means. would i have a function pointer to
+  each overload set. truly, the argument list seems to
+  be a tuple.
+
+
+  so, instead of multiple dispatch procedures, we need to
+  contend with nesting the dispatch I think.
+  so, the outermost switch could be on the number
+  of arguments. and then each sub-switch would
+  be based on the type of the first argument. then
+  another switch with the type of the second argument, and so on.
+  the only time we consider code generation is precisely
+  when arguments have polymorphic type. in this case only,
+  when the dispatch procedure fails to find a suitable
+  alternative procedure body with a matching type the
+  compiler is allowed to generate a new body, (a copy of
+  the body associated with this polymorphic parameter)
+  (if the language spec allowed for on-the-fly code generation
+  one could imagine being able to provide this polymorphic
+  code generation capability all the time, such that any new
+  type could work when passed into a procedure with a body
+  that was applicable to the new type.)
+
+  of course all of this dispatching is only over exactly
+  which procedure bodies are provided explicitly by the
+  programmer.
+  so, if the programmer defines a procedure such as:
+
+  fn proc (_:<type1>)
+  fn proc (_:<type2>)
+  fn proc (_:<type3>, _:<type1>)
+  fn proc (_:<type3>, _:<type2>)
+
+  the switch could be
+  switch (actual_args.length()) {
+  case 1: {
+    switch(actual_args[0].type) {
+      case type1:
+        ...
+      case type2:
+        ...
+      default:
+        report error
+
+    }
+  }
+  case 2: {
+    switch(actual_args[0].type) {
+        case type3: {
+          switch(actual_args[1].type) {
+            case type1:
+              ...
+            case type2:
+              ...
+            default:
+              report error
+          }
+        }
+        default:
+          report error
+    }
+  }
+
+  }
