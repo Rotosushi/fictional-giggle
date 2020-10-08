@@ -11,8 +11,8 @@ public:
   TypeError(const Location& loc, const string& str)
     : Error({loc, str}) {}
 
-  virtual char* what() override
+  virtual string what() override
   {
-    return "Type Error: " + str;
+    return "Type Error: " + dsc;
   }
 };

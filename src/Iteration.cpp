@@ -1,4 +1,4 @@
-#pragma once
+
 #include <string>
 using std::string;
 #include <memory>
@@ -49,7 +49,7 @@ TypeJudgement Iteration::getype_internal(SymbolTable* env)
   else
   {
     string errdsc = "conditional expression doesn't have type Bool"
-                  + "instead has type ["
+                  + " instead has type ["
                   + condtype->to_string()
                   + "]\n";
     return TypeJudgement(location, errdsc);

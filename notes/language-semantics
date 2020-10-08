@@ -12,7 +12,48 @@ well, i guess, to start there will only be primitive
 operations, and those are going to be handled in a
 different way than composite binops.
 
+#! optimizations
 
+a monomorphic procedure has the ability to
+apply monotyped procedures exclusively.
+how is this you ask? doesn't this language
+have polymorphic procedures? well,
+since the types of the arguments are monomorphic
+even if this procedure were to call a polymorphic
+procedure, this procedure is only able to pass
+monotyped arguments into that polymorphic procedure,
+by definition, this will uniquely dispatch to one of
+the instances of that polymorphic procedure, and given
+that the types are monomorphic, by definition, this makes
+the application site reducable/optimizable to a direct call to the
+instance of the polymorphic procedure, right?
+
+sure we could apply more than one call, but each application
+site is itself monomorphic. this just repeats the above
+argument, but for some given set of monomorphic types.
+
+in the reverse case, a polymorphic procedure
+calling another polymorphic procedure implies that both
+polymorphic procedures are valid given the exact same
+set of types. to call one passing in some monomorph,
+by definition, implies that the other polymorphic procedure
+must be valid for that same monotype, (or not if the programmer
+doesn't pass the polytype argument into the poly procedure.)
+
+to repeat:
+a monotyped procedure applies another monotyped procedure
+within it's body, this results in a monotyped application
+site.
+extending this into the four cases i can think of:
+mono -> mono => mono
+mono -> poly => mono
+poly -> mono => mono
+poly -> poly => poly
+
+if you were to write procedures which only had polymorphic type,
+and you only ever called procedures with polymorphic type.
+(by definition never introducing a monotyped anything)
+you would be saying a lot of nothing.
 
 
 #! use before definition

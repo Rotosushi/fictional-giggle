@@ -24,8 +24,8 @@ public:
   Type() = delete;
   virtual ~Type() {};
 
-  string to_string() { return to_string_internal(); }
-  bool   is_polymorphic() { return is_poly_internal(); }
+  virtual string to_string() { return to_string_internal(); }
+  virtual bool   is_polymorphic() { return is_poly_internal(); }
 protected:
   virtual string to_string_internal() = delete;
   virtual bool   is_poly_internal() = delete;

@@ -27,6 +27,7 @@ public:
     shared_ptr<Type> judgement;
     TypeError        error;
 
+    ~U() {}
     U() : error({Location(), "Default Judgement"}) {}
     U(shared_ptr<Type> jdgmt)
       : judgement(jdgmt) {}

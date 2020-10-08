@@ -13,14 +13,8 @@ using std::unique_ptr;
 #include <utility>
 using std::optional;
 
-#include "llvm-10/llvm/IR/LLVMContext.h"
-
-#include "Ast.hh"
-#include "Lexer.hh"
-#include "BinopTable.hh"
-#include "Kernel.hh"
-#include "Location.hh"
-#include "Error.hh"
+#include "Ast.hpp"
+#include "SymbolTable.hpp"
 
 
 enum class Token {
@@ -60,10 +54,10 @@ class Parser {
   // in order to build scopes in a nested fashion
   // we utilize a stack. this is identical to the
   // usage of scopes in typeing and evaluation.
-  stack<SymbolTable*> scopes
-  BinopTable*         binops;
-  UnopTable*          unops;
-  Lexer               lexer;
+  stack<SymbolTable*>   scopes
+  BinopPrecedenceTable* binops;
+  UnopTable*            unops;
+  Lexer                 lexer;
   stack<int, vector<int>> marks;
   vector<Token>    tokbuf;
   vector<string>   txtbuf;

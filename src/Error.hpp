@@ -6,13 +6,13 @@ using std::string;
 
 class Error
 {
+public:
   Location loc;
   string   dsc;
 
-public:
   Error(const Location& l, const string& str)
     : loc(l), dsc(str) {}
 
   virtual Location location() { return loc; }
-  virtual char*    what()     { return dsc; }
+  virtual string   what()     { return dsc; }
 };

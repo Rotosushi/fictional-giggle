@@ -1,4 +1,4 @@
-#pragma once
+
 #include <string>
 using std::string;
 #include <memory>
@@ -35,5 +35,5 @@ TypeJudgement Variable::getype_internal(SymbolTable* env)
 
 EvalJudgement Variable::evaluate_internal(SymbolTable* env)
 {
-  
+
 }

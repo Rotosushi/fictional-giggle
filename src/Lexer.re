@@ -54,9 +54,9 @@ string Lexer::yytxt()
         (and are pointing into the buffer of characters
         to lex.)
 
-        so here we emulate said behavior by copying
+        so here we emulate said behavior of copying
         the series of characters from token until cursor
-        we utilize the string constructor defined
+        by utilizing the string constructor defined
         with two string iterators to achieve the same
         result.
     */

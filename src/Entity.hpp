@@ -63,6 +63,11 @@ protected:
   virtual TypeJudgement getype_internal(SymbolTable* env) override;
 };
 
+/*
+  I think if you do a replacement of
+  Entity for Object, this language would
+  start to sound object oriented.
+*/
 class Entity : public Ast
 {
 public:

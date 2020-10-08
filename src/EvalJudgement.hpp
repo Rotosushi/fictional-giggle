@@ -16,6 +16,7 @@ public:
     shared_ptr<Ast> judgement;
     EvalError          error;
 
+    ~U() {}
     U() : error(Location(), "Default Judgement") {}
     U(shared_ptr<Ast> jdgmt)
       : judgement(jdgmt) {}

@@ -132,11 +132,11 @@ void Parser::gettok(int i)
       // does C treat each source file
       // completely independant of eachother
       // until exactly linkage/dynamic-linkage time?
-      auto    tok = lexer.yylex();
-      string* str = lexer.yytxt();
-      auto    loc = lexer.yyloc();
+      auto   tok = lexer.yylex();
+      string str = lexer.yytxt();
+      auto   loc = lexer.yyloc();
       tokbuf.push_back(tok);
-      txtbuf.push_back(*str);
+      txtbuf.push_back(str);
       locbuf.push_back(loc);
     }
   }
@@ -618,7 +618,10 @@ unique_ptr<Ast> Parser::parse_primitive()
     disambiguate between subterms here based
     on tokens after the first token, then
     that would require a more sophisticated set
-    of parsing subroutines.
+    of parsing subroutines. (the dispatch from
+    here would need to occur on the shared predictor,
+    and the function called would be in charge of
+    disambiguation.)
     */
 
     case Token::Nil:
@@ -655,7 +658,9 @@ unique_ptr<Ast> Parser::parse_primitive()
 
     an operator in primary position
     is always considered to be a unary operation
-    by the parser.
+    by the parser. (what is primary position?
+    well, primary tokens are! so here is the
+    primary position.)
     */
     case Token::Operator:
     {
@@ -680,7 +685,7 @@ unique_ptr<Ast> Parser::parse_primitive()
       longer consider '->' to be subsumed
       by operator parsing.
       it is now a fully fledged lexeme.
-      additionally, we notice that all
+      additionally, we note that all
       type expressions are started by a
       type literal, and composed from there.
     */
@@ -717,7 +722,7 @@ unique_ptr<Ast> Parser::parse_primitive()
         nextok();
         // good parenthesized term
       }
-      else if (curtok() == Token::Comma)
+      /*else if (curtok() == Token::Comma)
       {
         // this is a tuple declaration.
         vector<unique_ptr<Ast>> tuple_members;
@@ -741,7 +746,7 @@ unique_ptr<Ast> Parser::parse_primitive()
         {
           // error: missing closing paren
         }
-      }
+      }*/
       else
       {
           // error: missing closing paren;
@@ -774,10 +779,11 @@ unique_ptr<Ast> Parser::parse_primitive()
       (as in, our conception of what this
       programming language is).
 
-      (while <something> do <empty>)
+
       Empty is sometimes useful.
+      (while <something> do <empty>)
       mostly for syntactic conveinence, but
-      from the point-of-view of the theorist,
+      from the point-of-view of some hardcore theorists
       everything past turing completeness is
       syntactic conveinence, so i don't hold
       much stock in that counter-argument.
@@ -812,7 +818,7 @@ unique_ptr<Ast> Parer::parse_type()
   Location& lhsloc = curloc();
   unique_ptr<Ast> type, rhs;
 
-  auto parse_type_atom = [lhsloc]()
+  auto parse_type_atom = []()
   {
     unique_ptr<Ast> type;
     if (curtok() == Token::TypeNil)

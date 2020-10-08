@@ -13,7 +13,7 @@ using std::shared_ptr;
 /*
   an Ast could be defined as anything
   in the programming language which can be
-  said to have Type and evaluation.
+  said to participate in Typeing and evaluation.
 */
 
 
