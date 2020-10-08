@@ -15,6 +15,7 @@ using std::optional;
 
 #include "Ast.hpp"
 #include "SymbolTable.hpp"
+#include "BinopPrecedenceTable.hpp"
 
 
 enum class Token {
@@ -65,7 +66,7 @@ class Parser {
   int              curidx;
 
 public:
-  Parser(const SymbolTable* const top, const BinopTable* const binops, const UnopTable* const Unops);
+  Parser(const SymbolTable* const top, const BinopPrecedenceTable* const binops, const UnopTable* const Unops);
 
   optional<unique_ptr<Ast>> parse(const string& text);
 

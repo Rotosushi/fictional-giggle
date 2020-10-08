@@ -15,7 +15,7 @@ string Integer::to_string_internal()
   return string(value);
 }
 
-TypeJudgement Integer::getype_internal(SymbolTable* env)
+TypeJudgement Integer::getype_internal(SymbolTable* env, BinopSet* binops)
 {
   return TypeJudgement(MonoType(AtomicType::Int));
 }
@@ -25,7 +25,7 @@ string Boolean::to_string_internal()
   return string(value);
 }
 
-TypeJudgement Boolean::getype_internal(SymbolTable* env)
+TypeJudgement Boolean::getype_internal(SymbolTable* env, BinopSet* binops)
 {
   return TypeJudgement(MonoType(AtomicType::Bool));
 }
@@ -42,7 +42,7 @@ string Lambda::to_string_internal()
   return result;
 }
 
-TypeJudgement Lambda::getype_internal(SymbolTable* env)
+TypeJudgement Lambda::getype_internal(SymbolTable* env, BinopSet* binops)
 {
   /*
         ENV |- id : type1, term : type2
@@ -51,7 +51,7 @@ TypeJudgement Lambda::getype_internal(SymbolTable* env)
   */
 
   this->scope.bind(this->arg_id, this->arg_type);
-  TypeJudgement type2 = body->getype(&(this->scope));
+  TypeJudgement type2 = body->getype(&(this->scope), binops);
   this->scope.unbind(this->arg_id);
 
   if (type2)
@@ -64,7 +64,7 @@ TypeJudgement Lambda::getype_internal(SymbolTable* env)
   }
 }
 
-optional<Lambda> Lambda::HasInstance(shared_ptr<Type> target_type)
+optional<Lambda> Lambda::HasInstance(shared_ptr<Type> target_type, SymbolTable* env, BinopSet* binops)
 {
   /*
   the only way to introduce a polymorphic

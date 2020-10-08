@@ -13,7 +13,7 @@ string Variable::to_string_internal()
   return id;
 }
 
-TypeJudgement Variable::getype_internal(SymbolTable* env)
+TypeJudgement Variable::getype_internal(SymbolTable* env, BinopSet* binops)
 {
   /*
       id is-a-member-of env
@@ -24,7 +24,7 @@ TypeJudgement Variable::getype_internal(SymbolTable* env)
 
   if (bound_term)
   {
-    TypeJudgement bound_type = (*bound_term)->getype(env);
+    TypeJudgement bound_type = (*bound_term)->getype(env, binops);
     return bound_type;
   }
   else
@@ -33,7 +33,7 @@ TypeJudgement Variable::getype_internal(SymbolTable* env)
   }
 }
 
-EvalJudgement Variable::evaluate_internal(SymbolTable* env)
+EvalJudgement Variable::evaluate_internal(SymbolTable* env, BinopSet* binops)
 {
 
 }

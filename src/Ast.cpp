@@ -15,12 +15,12 @@ string Ast::to_string()
   return to_string_internal();
 }
 
-TypeJudgement Ast::getype(SymbolTable* env)
+TypeJudgement Ast::getype(SymbolTable* env, BinopSet* binops)
 {
-  return getype_internal(env);
+  return getype_internal(env, binops);
 }
 
-EvalJudgement Ast::evaluate(SymbolTable* env)
+EvalJudgement Ast::evaluate(SymbolTable* env, BinopSet* binops)
 {
-  return evaluate_internal(env);
+  return evaluate_internal(env, binops);
 }

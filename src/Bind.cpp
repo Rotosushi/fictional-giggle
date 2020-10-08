@@ -18,7 +18,7 @@ string Bind::to_string_internal()
   return result;
 }
 
-TypeJudgement Bind::getype_internal(SymbolTable* env)
+TypeJudgement Bind::getype_internal(SymbolTable* env, BinopSet* binops)
 {
   /*
 ENV |- id is-not-currently-bound-in-local-scope, term2 : type2
@@ -41,12 +41,12 @@ ENV |- id is-not-currently-bound-in-local-scope, term2 : type2
     // recal that judgements track their own failure
     // state, so it need not be explicitly mentioned
     // that this call can fail here.
-    TypeJudgement rhstype = rhs->getype(env);
+    TypeJudgement rhstype = rhs->getype(env, binops);
     return rhstype;
   }
 }
 
-EvalJudgement Bind::evaluate_internal(SymbolTable* env)
+EvalJudgement Bind::evaluate_internal(SymbolTable* env, BinopSet* binops)
 {
 
 }

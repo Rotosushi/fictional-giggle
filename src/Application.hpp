@@ -21,7 +21,7 @@ public:
 
 protected:
   virtual string to_string_internal() override;
-  virtual TypeJudgement getype_internal(SymbolTable* env) override;
-  virtual EvalJudgement evaluate_internal(SymbolTable* env) override;
+  virtual TypeJudgement getype_internal(SymbolTable* env, BinopSet* binops) override;
+  virtual EvalJudgement evaluate_internal(SymbolTable* env, BinopSet* binops) override;
 
 };

@@ -19,7 +19,7 @@ string Iteration::to_string_internal()
   return result;
 }
 
-TypeJudgement Iteration::getype_internal(SymbolTable* env)
+TypeJudgement Iteration::getype_internal(SymbolTable* env, BinopSet* binops)
 {
   /*
   ENV |- 'while' t1 : T1 'do' t2 : T2,
@@ -33,7 +33,7 @@ TypeJudgement Iteration::getype_internal(SymbolTable* env)
   is the final body value. i don't
   see an initial argument against this?
   */
-  TypeJudgement condjdgmt = cond->getype(env);
+  TypeJudgement condjdgmt = cond->getype(env, binops);
 
   if (!condjdgmt)
     return condjdgmt;
@@ -43,7 +43,7 @@ TypeJudgement Iteration::getype_internal(SymbolTable* env)
 
   if (TypesEquivalent(condtype, booltype))
   {
-    TypeJudgement bodyjdgmt = body->getype(env);
+    TypeJudgement bodyjdgmt = body->getype(env, binops);
     return bodyjdgmt;
   }
   else
@@ -56,7 +56,7 @@ TypeJudgement Iteration::getype_internal(SymbolTable* env)
   }
 }
 
-EvalJudgement Iteration::evaluate_internal(SymbolTable* env)
+EvalJudgement Iteration::evaluate_internal(SymbolTable* env, BinopSet* binops)
 {
 
 }

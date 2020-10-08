@@ -13,11 +13,11 @@ class Literal
 {
 public:
   string to_string() { return to_string_internal(); }
-  TypeJudgement getype(SymbolTable* env) { return getype_internal(env); }
+  TypeJudgement getype(SymbolTable* env, BinopSet* binops) { return getype_internal(env); }
 
 protected:
   virtual string to_string_internal() = delete;
-  virtual TypeJudgement getype_internal(SymbolTable* env) = delete;
+  virtual TypeJudgement getype_internal(SymbolTable* env, BinopSet* binops) = delete;
 };
 
 class Integer : public Literal
@@ -27,7 +27,7 @@ public:
 
 protected:
   virtual string to_string_internal() override;
-  virtual TypeJudgement getype_internal(SymbolTable* env) override;
+  virtual TypeJudgement getype_internal(SymbolTable* env, BinopSet* binops) override;
 };
 
 class Boolean : public Literal
@@ -37,7 +37,7 @@ public:
 
 protected:
   virtual string to_string_internal() override;
-  virtual TypeJudgement getype_internal(SymbolTable* env) override;
+  virtual TypeJudgement getype_internal(SymbolTable* env, BinopSet* binops) override;
 };
 
 class Lambda : public Literal
@@ -56,11 +56,11 @@ public:
   Lambda(const Lambda& other)
     : arg_id(other.arg_id), arg_type(other.arg_type), scope(other.scope), body(other.body), alternatives(other.alternatives) {}
 
-  optional<Lambda> HasInstance(shared_ptr<Type> target_type);
+  optional<Lambda> HasInstance(shared_ptr<Type> target_type, SymbolTable* env, BinopSet* binops);
 
 protected:
   virtual string to_string_internal() override;
-  virtual TypeJudgement getype_internal(SymbolTable* env) override;
+  virtual TypeJudgement getype_internal(SymbolTable* env, BinopSet* binops) override;
 };
 
 /*
@@ -88,12 +88,12 @@ protected:
     return literal->to_string();
   }
 
-  virtual TypeJudgement getype_internal(SymbolTable* env) override
+  virtual TypeJudgement getype_internal(SymbolTable* env, BinopSet* binops) override
   {
-    return literal->getype(env);
+    return literal->getype(env, binops);
   }
 
-  virtual EvalJudgement evaluate_internal(SymbolTable* env) override
+  virtual EvalJudgement evaluate_internal(SymbolTable* env, BinopSet* binops) override
   {
     return EvalJudgement(*this);
   }

@@ -9,6 +9,7 @@ using std::unordered_map;
 using std::optional;
 
 class Ast;
+#include "BinopEliminators.hpp"
 
 class SymbolTable {
 private:

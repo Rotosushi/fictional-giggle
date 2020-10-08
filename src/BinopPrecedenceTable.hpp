@@ -21,5 +21,5 @@ public:
   BinopPrecedenceTable();
 
   void RegisterBinopPrecAndAssoc(const string& op, int prec, Associativity assoc);
-  optional<pair<int,int>> FindPrecAndAssoc(const string& key);
+  optional<pair<int,Associativity>> FindPrecAndAssoc(const string& key);
 };

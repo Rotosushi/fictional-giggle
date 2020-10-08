@@ -21,7 +21,7 @@ string Application::to_string_internal()
   return result;
 }
 
-TypeJudgement Application::getype_internal(SymbolTable* env)
+TypeJudgement Application::getype_internal(SymbolTable* env, BinopSet* binops)
 {
   /*
   ENV |- lhs : type1 -> type2, rhs : type1
@@ -32,7 +32,7 @@ TypeJudgement Application::getype_internal(SymbolTable* env)
   lhs type must be equal to the type of the rhs
   of the application.
   */
-  TypeJudgement typeA = lhs->getype(env);
+  TypeJudgement typeA = lhs->getype(env, binops);
 
   if (typeA)
   {
@@ -45,7 +45,7 @@ TypeJudgement Application::getype_internal(SymbolTable* env)
       }
       else
       {
-        TypeJudgement typeB = rhs->getype(env);
+        TypeJudgement typeB = rhs->getype(env, binops);
 
         if (typeB)
         {
@@ -117,7 +117,7 @@ TypeJudgement Application::getype_internal(SymbolTable* env)
 }
 
 
-EvalJudgement Application::evaluate_internal(SybolTable* env)
+EvalJudgement Application::evaluate_internal(SybolTable* env, BinopSet* binops)
 {
 
 }

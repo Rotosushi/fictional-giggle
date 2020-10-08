@@ -21,7 +21,7 @@ string Conditional::to_string_internal()
   return result;
 }
 
-TypeJudgement Conditional::getype_internal(SymbolTable* env)
+TypeJudgement Conditional::getype_internal(SymbolTable* env, BinopSet* binops)
 {
   /*
     ENV |- 'if' t1 : T1 'then' t2 : T2 'else' t3 : T3,
@@ -36,7 +36,7 @@ TypeJudgement Conditional::getype_internal(SymbolTable* env)
     the alternative expressions (which are the same type,
     so we arbitrarily select the first)
   */
-  TypeJudgement condtype = cond->getype(env);
+  TypeJudgement condtype = cond->getype(env, binops);
 
   if (condtype)
   {
@@ -45,12 +45,12 @@ TypeJudgement Conditional::getype_internal(SymbolTable* env)
 
     if (TypesEquivalent(ct, booltype.get()))
     {
-      TypeJudgement fstjdgmt = fst->getype(env);
+      TypeJudgement fstjdgmt = fst->getype(env, binops);
 
       if (!fstjdgmt)
         return fstjdgmt;
 
-      TypeJudgement sndjdgmt = snd->getype(env);
+      TypeJudgement sndjdgmt = snd->getype(env, binops);
 
       if (!sndjdgmt)
         return sndjdgmt;
@@ -88,7 +88,7 @@ TypeJudgement Conditional::getype_internal(SymbolTable* env)
   }
 }
 
-EvalJudgement Conditional::evaluate_internal(SymbolTable* env)
+EvalJudgement Conditional::evaluate_internal(SymbolTable* env, BinopSet* binops)
 {
 
 }

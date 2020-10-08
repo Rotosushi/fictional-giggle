@@ -11,6 +11,7 @@ using std::make_tuple;
 #include <optional>
 using std::optional;
 
+#include "Ast.hpp"
 //#include "Entity.hpp"
 
 typedef shared_ptr<Ast> (*primitive_eliminator)(const Ast* const, const Ast* const);
@@ -25,7 +26,7 @@ typedef shared_ptr<Ast> (*primitive_eliminator)(const Ast* const, const Ast* con
   if yes, call it and return the result.
   if no, report the error.
 */
-class Eliminator
+class BinopEliminator
 {
   /*
   eventually, like the Judgements
@@ -37,23 +38,42 @@ class Eliminator
 
   then, the operator() code can
   apply the passed arguments to either
-  depending.
+  depending. presumably, this eliminator
+  will be the dispatched procedure. as in,
+  the assembly subroutine that would be called if this
+  was a translation into assembly, corresponding to
+  one of: a direct application of a primitive operation,
+  a call to the dispatch procedure of a polymorph
+  procedure, or i think lastly, a direct call to
+  a monomorph procedure, either a monomorphic procedure
+  or an optimized call directly of an instance of a
+  polymorph procedure.
   */
   primitive_eliminator eliminator;
 
 public:
-  Eliminator(primitive_eliminator elim)
+  BinopEliminator(primitive_eliminator elim)
     : eliminator(elim) {}
 
   shared_ptr<Ast> operator()(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs);
 };
 
 
-class BinopEliminatorSet : public Ast
+class BinopEliminatorSet
 {
   list<tuple<shared_ptr<Type>, shared_ptr<Type>, primitive_eliminator>> primitive_eliminators;
   // Lambda composite_eliminators
 public:
 void RegisterPrimitiveEliminator(shared_ptr<Type> ltype, shared_ptr<Type> rtype, binop_eliminator elim);
-optional<Eliminator> HasEliminator(shared_ptr<Type> ltype, shared_ptr<Type> rtype);
+// void RegisterCompositeEliminator(Lambda composite_eliminators);
+optional<BinopEliminator> HasEliminator(shared_ptr<Type> ltype, shared_ptr<Type> rtype);
+};
+
+class BinopSet
+{
+  list<pair<string, shared_ptr<BinopEliminatorSet>>> set;
+
+public:
+  void RegisterBinopEliminatorSet(const string& op, shared_ptr<BinopEliminatorSet> set);
+  optional<shared_ptr<BinopEliminatorSet>> FindEliminatorSet(const string& op);
 };

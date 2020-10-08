@@ -9,10 +9,13 @@ using std::cout;
 using std::endl;
 
 #include "Ast.hpp"
+#include "Entity.hpp"
 #include "Parser.hpp"
 #include "SymbolTable.hpp"
 #include "TypeJudgement.hpp"
 #include "EvalJudgement.hpp"
+#include "Binop.hpp"
+#include "BinopEliminators.hpp"
 
 
 /*
@@ -62,9 +65,11 @@ using std::endl;
   is multiple dispatch.
 */
 
+
 int main(int argc, char** argv)
 {
   SymbolTable top;
+
   Parser parser(&top, );
 }
 
