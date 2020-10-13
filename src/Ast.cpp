@@ -9,18 +9,24 @@ using std::shared_ptr;
 #include "TypeJudgement.hpp"
 #include "EvalJudgement.hpp"
 #include "SymbolTable.hpp"
+#include "OperatorTable.hpp"
+
+shared_ptr<Ast> Ast::clone()
+{
+  return clone_interal();
+}
 
 string Ast::to_string()
 {
   return to_string_internal();
 }
 
-TypeJudgement Ast::getype(SymbolTable* env, BinopSet* binops)
+TypeJudgement Ast::getype(SymbolTable* env, OperatorTable* ops)
 {
-  return getype_internal(env, binops);
+  return getype_internal(env, ops);
 }
 
-EvalJudgement Ast::evaluate(SymbolTable* env, BinopSet* binops)
+EvalJudgement Ast::evaluate(SymbolTable* env, OperatorTable* ops)
 {
-  return evaluate_internal(env, binops);
+  return evaluate_internal(env, ops);
 }

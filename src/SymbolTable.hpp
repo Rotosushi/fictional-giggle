@@ -28,7 +28,13 @@ private:
 
   SymbolTable(SymbolTable* scope) : symbs(), enclosing_scope(scope) {}
   SymbolTable(const SybolTable& other)
-    : symbs(other.symbs), enclosing_scope(other.enclosing_scope) {}
+    : enclosing_scope(other.enclosing_scope)
+  {
+    for (auto&& sym : other.symbs)
+    {
+      symbs.insert(make_pair(get<string>(*sym), get<shared_ptr<Ast>>(*sym)->clone()));
+    }
+  }
 
 public:
   optional<shared_ptr<Ast>> lookupInLocalScopeOnly(const string& key);

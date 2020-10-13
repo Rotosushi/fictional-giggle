@@ -10,6 +10,11 @@ using std::shared_ptr;
 #include "SymbolTable.hpp"
 #include "Entity.hpp"
 
+shared_ptr<Literal> Integer::clone_interal()
+{
+  return make_shared(Integer(value));
+}
+
 string Integer::to_string_internal()
 {
   return string(value);
@@ -20,6 +25,11 @@ TypeJudgement Integer::getype_internal(SymbolTable* env, BinopSet* binops)
   return TypeJudgement(MonoType(AtomicType::Int));
 }
 
+shared_ptr<Literal> Boolean::clone_interal()
+{
+  return make_shared(Boolean(value));
+}
+
 string Boolean::to_string_internal()
 {
   return string(value);
@@ -28,6 +38,11 @@ string Boolean::to_string_internal()
 TypeJudgement Boolean::getype_internal(SymbolTable* env, BinopSet* binops)
 {
   return TypeJudgement(MonoType(AtomicType::Bool));
+}
+
+shared_ptr<Literal> Lambda::clone_interal()
+{
+  return make_shared(Lambda(arg_id, arg_type->clone(), scope, body->clone(), location));
 }
 
 string Lambda::to_string_internal()
@@ -42,7 +57,7 @@ string Lambda::to_string_internal()
   return result;
 }
 
-TypeJudgement Lambda::getype_internal(SymbolTable* env, BinopSet* binops)
+TypeJudgement Lambda::getype_internal(SymbolTable* env, OperatorTable* ops)
 {
   /*
         ENV |- id : type1, term : type2
@@ -51,7 +66,7 @@ TypeJudgement Lambda::getype_internal(SymbolTable* env, BinopSet* binops)
   */
 
   this->scope.bind(this->arg_id, this->arg_type);
-  TypeJudgement type2 = body->getype(&(this->scope), binops);
+  TypeJudgement type2 = body->getype(&(this->scope), ops);
   this->scope.unbind(this->arg_id);
 
   if (type2)
@@ -64,7 +79,7 @@ TypeJudgement Lambda::getype_internal(SymbolTable* env, BinopSet* binops)
   }
 }
 
-optional<Lambda> Lambda::HasInstance(shared_ptr<Type> target_type, SymbolTable* env, BinopSet* binops)
+optional<Lambda> PolyLambda::HasInstance(shared_ptr<Type> target_type, SymbolTable* env, OperatorTable* ops)
 {
   /*
   the only way to introduce a polymorphic
@@ -94,4 +109,29 @@ optional<Lambda> Lambda::HasInstance(shared_ptr<Type> target_type, SymbolTable* 
       of the lambda to be evaluated.
     */
   }
+}
+
+shared_ptr<Literal> PolyLambda::clone_internal()
+{
+  return make_shared(PolyLambda(*this));
+}
+
+shared_ptr<Ast> Entity::clone_interal()
+{
+  return make_shared(Entity(literal->clone()));
+}
+
+string Entity::to_string_internal()
+{
+  return literal->to_string();
+}
+
+TypeJudgement Entity::getype_internal(SymbolTable* env, OperatorTable* ops)
+{
+  return literal->getype(env, ops);
+}
+
+EvalJudgement Entity::evaluate_internal(SymbolTable* env, OperatorTable* ops)
+{
+  return EvalJudgement(*this);
 }

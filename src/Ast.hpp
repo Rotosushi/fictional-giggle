@@ -9,8 +9,7 @@ using std::shared_ptr;
 #include "TypeJudgement.hpp"
 #include "EvalJudgement.hpp"
 #include "SymbolTable.hpp"
-#include "BinopEliminators.hpp"
-#include "BinopPrecedenceTable.hpp"
+#include "OperatorTable.hpp"
 
 /*
   an Ast could be defined as anything
@@ -24,14 +23,17 @@ class Ast
 public:
   Location location;
   Ast() = delete;
-  Ast(const Location& loc) : loc(loc) {}
+  Ast(const Location& loc) : location(loc) {}
+  Ast(const Ast& other) : location(other.location) {}
   virtual ~Ast() = default;
 
+  virtual shared_ptr<Ast> clone();
   virtual string to_string();
-  virtual TypeJudgement getype(SymbolTable* env, BinopSet* binops);
-  virtual EvalJudgement evaluate(SymbolTable* env, BinopSet* binops);
+  virtual TypeJudgement getype(SymbolTable* env, OperatorTable* ops);
+  virtual EvalJudgement evaluate(SymbolTable* env, OperatorTable* ops);
 protected:
+  virtual shared_ptr<Ast> clone_interal() = delete;
   virtual string to_string_internal() = delete;
-  virtual TypeJudgement getype_internal(SymbolTable* env, BinopSet* binops) = delete;
-  virtual EvalJudgement evaluate_internal(SymbolTable* env, BinopSet* binops) = delete;
+  virtual TypeJudgement getype_internal(SymbolTable* env, OperatorTable* ops) = delete;
+  virtual EvalJudgement evaluate_internal(SymbolTable* env, OperatorTable* ops) = delete;
 };

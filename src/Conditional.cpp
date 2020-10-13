@@ -3,11 +3,18 @@
 using std::string;
 #include <memory>
 using std::shared_ptr;
+using std::make_shared;
 
 #include "Ast.hpp"
 #include "SymbolTable.hpp"
+#include "OperatorTable.hpp"
 #include "TypeJudgement.hpp"
 #include "Conditional.hpp"
+
+shared_ptr<Ast> Conditional::clone_interal()
+{
+  return make_shared(Conditional(cond->clone(), fst->clone(), snd->clone(), location));
+}
 
 string Conditional::to_string_internal()
 {
@@ -21,7 +28,7 @@ string Conditional::to_string_internal()
   return result;
 }
 
-TypeJudgement Conditional::getype_internal(SymbolTable* env, BinopSet* binops)
+TypeJudgement Conditional::getype_internal(SymbolTable* env, OperatorTable* ops)
 {
   /*
     ENV |- 'if' t1 : T1 'then' t2 : T2 'else' t3 : T3,
@@ -36,7 +43,7 @@ TypeJudgement Conditional::getype_internal(SymbolTable* env, BinopSet* binops)
     the alternative expressions (which are the same type,
     so we arbitrarily select the first)
   */
-  TypeJudgement condtype = cond->getype(env, binops);
+  TypeJudgement condtype = cond->getype(env, ops);
 
   if (condtype)
   {
@@ -45,12 +52,12 @@ TypeJudgement Conditional::getype_internal(SymbolTable* env, BinopSet* binops)
 
     if (TypesEquivalent(ct, booltype.get()))
     {
-      TypeJudgement fstjdgmt = fst->getype(env, binops);
+      TypeJudgement fstjdgmt = fst->getype(env, ops);
 
       if (!fstjdgmt)
         return fstjdgmt;
 
-      TypeJudgement sndjdgmt = snd->getype(env, binops);
+      TypeJudgement sndjdgmt = snd->getype(env, ops);
 
       if (!sndjdgmt)
         return sndjdgmt;
@@ -60,6 +67,10 @@ TypeJudgement Conditional::getype_internal(SymbolTable* env, BinopSet* binops)
 
       if (TypesEquivalent(fsttype, sndtype))
       {
+        /*
+          since these types are equivalent
+          returning either is a valid option.
+        */
         return fstjdgmt;
       }
       else
@@ -78,7 +89,7 @@ TypeJudgement Conditional::getype_internal(SymbolTable* env, BinopSet* binops)
       string errdsc = "Test expression"
                     + " has type ["
                     + ct->to_string()
-                    + "] not Bool\n";
+                    + "] not the expected type [Bool]\n";
       return TypeJudgement(location, errdsc);
     }
   }
@@ -88,7 +99,7 @@ TypeJudgement Conditional::getype_internal(SymbolTable* env, BinopSet* binops)
   }
 }
 
-EvalJudgement Conditional::evaluate_internal(SymbolTable* env, BinopSet* binops)
+EvalJudgement Conditional::evaluate_internal(SymbolTable* env, OperatorTable* ops)
 {
 
 }

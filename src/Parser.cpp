@@ -55,27 +55,27 @@ using std::vector;
 #include <set>
 using std::set;
 #include <memory>
-using std::unique_ptr;
+using std::shared_ptr;
+using std::make_shared;
 using std::move;
 #include <utility>
 using std::optional;
 using std::pair;
 using std::get;
 
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Type.h"
-using llvm::Type;
+#include "Ast.hpp"
+#include "Variable.hpp"
+#include "Application.hpp"
+#include "Entity.hpp"
+#include "Bind.hpp"
+#include "Iteration.hpp"
+#include "Conditional.hpp"
+#include "SymbolTable.hpp"
+#include "OperatorTable.hpp"
 
-#include "Parser.hh"
-#include "Ast.hh"
-#include "Lexer.hh"
-#include "BinopTable.hh"
-#include "Location.hh"
-#include "Error.hh"
 
-
-Parser::Parser(const SymbolTable* const top, const BinopTable* const binops, const UnopTable* const Unops)
-  : binops(binops), unops(unops)
+Parser::Parser(SymbolTable* top, OperatorTable* ops)
+  : ops(ops)
 {
   /*
     we need to utilize a stack in order to

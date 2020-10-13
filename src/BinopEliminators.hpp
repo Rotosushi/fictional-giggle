@@ -14,7 +14,25 @@ using std::optional;
 #include "Ast.hpp"
 //#include "Entity.hpp"
 
-typedef shared_ptr<Ast> (*primitive_eliminator)(const Ast* const, const Ast* const);
+/*
+  function pointers seem usefull,
+  but also, what does a function
+  pointer even mean for a polymorphic
+  function? i suppose a pointer to
+  the dispatch procedure, but, really
+  with the way dynamic dispatch works
+  in the language how could we type the
+  function pointer as anything other
+  than poly -> poly? which implies that
+  the programmer can apply a function
+  pointer using any argument list that is
+  available to a caller of the procedure.
+  what is the true difference between two
+  function pointers? which particular function
+  address is stored within itself.
+
+*/
+typedef shared_ptr<Ast> (*primitive_binop_eliminator)(const Ast* const, const Ast* const);
 
 /*
   eventually, this class will encapsulate
@@ -49,10 +67,10 @@ class BinopEliminator
   or an optimized call directly of an instance of a
   polymorph procedure.
   */
-  primitive_eliminator eliminator;
+  primitive_binop_eliminator eliminator;
 
 public:
-  BinopEliminator(primitive_eliminator elim)
+  BinopEliminator(primitive_binop_eliminator elim)
     : eliminator(elim) {}
 
   shared_ptr<Ast> operator()(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs);
@@ -61,10 +79,10 @@ public:
 
 class BinopEliminatorSet
 {
-  list<tuple<shared_ptr<Type>, shared_ptr<Type>, primitive_eliminator>> primitive_eliminators;
+  list<tuple<shared_ptr<Type>, shared_ptr<Type>, primitive_binop_eliminator>> primitive_eliminators;
   // Lambda composite_eliminators
 public:
-void RegisterPrimitiveEliminator(shared_ptr<Type> ltype, shared_ptr<Type> rtype, binop_eliminator elim);
+void RegisterPrimitiveEliminator(shared_ptr<Type> ltype, shared_ptr<Type> rtype, primitive_binop_eliminator elim);
 // void RegisterCompositeEliminator(Lambda composite_eliminators);
 optional<BinopEliminator> HasEliminator(shared_ptr<Type> ltype, shared_ptr<Type> rtype);
 };

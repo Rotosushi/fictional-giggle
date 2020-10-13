@@ -6,6 +6,7 @@ using std::shared_ptr;
 
 #include "Ast.hpp"
 #include "SymbolTable.hpp"
+#include "OperatorTable.hpp"
 #include "TypeJudgement.hpp"
 
 class Bind : public Ast
@@ -21,7 +22,8 @@ public:
     : Ast(other.location), id(other.id), rhs(other.rhs) {}
 
 protected:
+    virtual shared_ptr<Ast> clone_internal() override;
     virtual string to_string_internal() override;
-    virtual TypeJudgement getype_internal(SymbolTable* env, BinopSet* binops) override;
-    virtual EvalJudgement evaluate_internal(SymbolTable* env, BinopSet* binops) override;
+    virtual TypeJudgement getype_internal(SymbolTable* env, OperatorTable* ops) override;
+    virtual EvalJudgement evaluate_internal(SymbolTable* env, OperatorTable* ops) override;
 };

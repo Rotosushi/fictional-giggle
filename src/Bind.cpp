@@ -3,11 +3,17 @@
 using std::string;
 #include <memory>
 using std::shared_ptr;
+using std::make_shared;
 
 #include "Ast.hpp"
 #include "SymbolTable.hpp"
 #include "TypeJudgement.hpp"
 #include "Bind.hpp"
+
+shared_ptr<Ast> Bind::clone_internal()
+{
+  return make_shared(Bind(op, rhs->clone(), location));
+}
 
 string Bind::to_string_internal()
 {
@@ -18,7 +24,7 @@ string Bind::to_string_internal()
   return result;
 }
 
-TypeJudgement Bind::getype_internal(SymbolTable* env, BinopSet* binops)
+TypeJudgement Bind::getype_internal(SymbolTable* env, OperatorTable* ops)
 {
   /*
 ENV |- id is-not-currently-bound-in-local-scope, term2 : type2
@@ -46,7 +52,7 @@ ENV |- id is-not-currently-bound-in-local-scope, term2 : type2
   }
 }
 
-EvalJudgement Bind::evaluate_internal(SymbolTable* env, BinopSet* binops)
+EvalJudgement Bind::evaluate_internal(SymbolTable* env, OperatorTable* ops)
 {
 
 }

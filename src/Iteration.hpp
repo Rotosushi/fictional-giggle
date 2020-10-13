@@ -6,6 +6,7 @@ using std::shared_ptr;
 
 #include "Ast.hpp"
 #include "SymbolTable.hpp"
+#include "OperatorTable.hpp"
 #include "TypeJudgement.hpp"
 
 class Iteration : public Ast
@@ -22,7 +23,7 @@ public:
 
 protected:
   virtual string to_string_internal() override;
-  virtual TypeJudgement getype_internal(SymbolTable* env) override;
-  virtual EvalJudgement evaluate_internal(SymbolTable* env) override;
+  virtual TypeJudgement getype_internal(SymbolTable* env, OperatorTable* ops) override;
+  virtual EvalJudgement evaluate_internal(SymbolTable* env, OperatorTable* ops) override;
 
 };

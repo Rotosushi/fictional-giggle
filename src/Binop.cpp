@@ -3,10 +3,17 @@
 using std::string;
 #include <memory>
 using std::shared_ptr;
+using std::make_shared;
 
+#include "SymbolTable.hpp"
+#include "OperatorTable.hpp"
 #include "TypeJudgement.hpp"
 #include "EvalJudgement.hpp"
 
+shared_ptr<Ast> Binop::clone_internal()
+{
+  return make_shared(Binop(op, lhs->clone(), rhs->clone(), location));
+}
 
 string Binop::to_string_internal()
 {
@@ -19,7 +26,7 @@ string Binop::to_string_internal()
   return result;
 }
 
-TypeJudgement Binop::getype_internal(SymbolTable* env, BinopSet* binops)
+TypeJudgement Binop::getype_internal(SymbolTable* env, OperatorTable* ops)
 {
   /*
     we find the Binop Eliminator via the BinopSet
@@ -30,10 +37,10 @@ TypeJudgement Binop::getype_internal(SymbolTable* env, BinopSet* binops)
     procedure. if this happens then this term is
     well formed. otherwise this term is untypable.
   */
-  
+
 }
 
-EvalJudgement Binop::evaluate_internal(SymbolTable* env, BinopSet* binops)
+EvalJudgement Binop::evaluate_internal(SymbolTable* env, OperatorTable* ops)
 {
 
 }

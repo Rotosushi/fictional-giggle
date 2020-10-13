@@ -13,6 +13,8 @@ public:
   Error(const Location& l, const string& str)
     : loc(l), dsc(str) {}
 
-  virtual Location location() { return loc; }
-  virtual string   what()     { return dsc; }
+  virtual ~Error() {}
+
+  Location location();
+  virtual string   what();
 };

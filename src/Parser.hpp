@@ -9,13 +9,14 @@ using std::vector;
 #include <set>
 using std::set;
 #include <memory>
-using std::unique_ptr;
+using std::shared_ptr;
 #include <utility>
 using std::optional;
 
 #include "Ast.hpp"
+#include "Lexer.hpp"
 #include "SymbolTable.hpp"
-#include "BinopPrecedenceTable.hpp"
+#include "OperatorTable.hpp"
 
 
 enum class Token {
@@ -47,17 +48,34 @@ enum class Token {
   Operator,
 };
 
+class ParserJudgement
+{
+public:
+  bool success;
+  union U {
+    ParserError err;
+    shared_ptr<Ast> term;
 
+    U() : err("Default ParserJudgement", Location()) {}
+    U(const ParserError& err) : err(err) {}
+    U(const shared_ptr<Ast>& term) : term(term) {}
+  } u;
 
-class Lexer;
+  ParserJudgement() {}
+  ParserJudgement(const ParserError& err) : success(false), u(err) {}
+  ParserJudgement(const shared_ptr<Ast>& term) : success(true), u(term) {}
+
+  bool succeeded() { return success; }
+  operator bool()  { return success; }
+};
+
 
 class Parser {
   // in order to build scopes in a nested fashion
-  // we utilize a stack. this is identical to the
+  // we utilize a stack. this is to support the
   // usage of scopes in typeing and evaluation.
   stack<SymbolTable*>   scopes
-  BinopPrecedenceTable* binops;
-  UnopTable*            unops;
+  OperatorTable*        ops;
   Lexer                 lexer;
   stack<int, vector<int>> marks;
   vector<Token>    tokbuf;
@@ -66,9 +84,9 @@ class Parser {
   int              curidx;
 
 public:
-  Parser(const SymbolTable* const top, const BinopPrecedenceTable* const binops, const UnopTable* const Unops);
+  Parser(const SymbolTable* const top, OperatorTable* ops);
 
-  optional<unique_ptr<Ast>> parse(const string& text);
+  ParserJudgement parse(const string& text);
 
 private:
   void reset();
@@ -90,14 +108,14 @@ private:
   bool is_type_primitive(Token t);
   bool is_ender(Token t);
 
-  unique_ptr<Ast> parse_term();
-  unique_ptr<Ast> parse_primary();
-  unique_ptr<Ast> parse_primitive();
-  unique_ptr<Ast> parse_type();
-  unique_ptr<Ast> parse_if();
-  unique_ptr<Ast> parse_while();
-  unique_ptr<Ast> parse_procedure();
-  unique_ptr<Ast> parse_infix(unique_ptr<Ast> lhs, int precedence);
+  shared_ptr<Ast> parse_term();
+  shared_ptr<Ast> parse_primary();
+  shared_ptr<Ast> parse_primitive();
+  shared_ptr<Ast> parse_type();
+  shared_ptr<Ast> parse_if();
+  shared_ptr<Ast> parse_while();
+  shared_ptr<Ast> parse_procedure();
+  shared_ptr<Ast> parse_infix(shared_ptr<Ast> lhs, int precedence);
 
   bool speculate(Token t);
   optional<ParserError> speculate_term();

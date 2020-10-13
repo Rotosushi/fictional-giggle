@@ -12,11 +12,20 @@ using std::endl;
 #include "Entity.hpp"
 #include "Parser.hpp"
 #include "SymbolTable.hpp"
+#include "OperatorTable.hpp"
 #include "TypeJudgement.hpp"
 #include "EvalJudgement.hpp"
-#include "Binop.hpp"
-#include "BinopEliminators.hpp"
+#include "PinkKernel.hpp"
 
+/*
+  this is a very early version of this
+  language, and as such each of the elements
+  are in a very literal form, which is wholly
+  unoptimized. this will change, but only after
+  the exact semantics are nailed down, and
+  therefore, we have a stable api to optimize
+  against.
+*/
 
 /*
   a binop will have two distinct places which need
@@ -62,15 +71,24 @@ using std::endl;
   are built. this will allow me to get much
   of the language stood up and working before
   I have to figure out the hard problem that
-  is multiple dispatch.
+  is multiple dispatch. for now, the language
+  has essentially single-dispatch.
+  this is a direct consequence of procedures
+  only ever having one argument.
 */
 
 
 int main(int argc, char** argv)
 {
   SymbolTable top;
+  OperatorTable ops;
 
-  Parser parser(&top, );
+  RegisterPrimitiveBinops(&ops);
+  RegisterPrimitiveUnops(&ops);
+
+  Parser parser(&top, &ops);
+
+  
 }
 
 

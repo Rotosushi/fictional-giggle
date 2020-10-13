@@ -6,6 +6,7 @@ using std::shared_ptr;
 
 #include "Ast.hpp"
 #include "SymbolTable.hpp"
+#include "OperatorTable.hpp"
 #include "TypeJudgement.hpp"
 #include "Iteration.hpp"
 
@@ -19,7 +20,7 @@ string Iteration::to_string_internal()
   return result;
 }
 
-TypeJudgement Iteration::getype_internal(SymbolTable* env, BinopSet* binops)
+TypeJudgement Iteration::getype_internal(SymbolTable* env, OperatorTable* ops)
 {
   /*
   ENV |- 'while' t1 : T1 'do' t2 : T2,
@@ -33,7 +34,7 @@ TypeJudgement Iteration::getype_internal(SymbolTable* env, BinopSet* binops)
   is the final body value. i don't
   see an initial argument against this?
   */
-  TypeJudgement condjdgmt = cond->getype(env, binops);
+  TypeJudgement condjdgmt = cond->getype(env, ops);
 
   if (!condjdgmt)
     return condjdgmt;
@@ -43,7 +44,7 @@ TypeJudgement Iteration::getype_internal(SymbolTable* env, BinopSet* binops)
 
   if (TypesEquivalent(condtype, booltype))
   {
-    TypeJudgement bodyjdgmt = body->getype(env, binops);
+    TypeJudgement bodyjdgmt = body->getype(env, ops);
     return bodyjdgmt;
   }
   else

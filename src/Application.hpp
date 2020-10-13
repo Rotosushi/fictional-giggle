@@ -6,6 +6,8 @@ using std::shared_ptr;
 using std::make_shared;
 
 #include "Ast.hpp"
+#include "SymbolTable.hpp"
+#include "OperatorTable.hpp"
 
 class Application : public Ast
 {
@@ -20,8 +22,9 @@ public:
     : Ast(other.loc), lhs(other.lhs), rhs(other.rhs) {}
 
 protected:
+  virtual shared_ptr<Ast> clone_interal() override;
   virtual string to_string_internal() override;
-  virtual TypeJudgement getype_internal(SymbolTable* env, BinopSet* binops) override;
-  virtual EvalJudgement evaluate_internal(SymbolTable* env, BinopSet* binops) override;
+  virtual TypeJudgement getype_internal(SymbolTable* env, OperatorTable* ops) override;
+  virtual EvalJudgement evaluate_internal(SymbolTable* env, OperatorTable* ops) override;
 
 };

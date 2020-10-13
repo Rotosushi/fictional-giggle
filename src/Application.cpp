@@ -10,6 +10,11 @@ using std::make_shared;
 #include "Ast.hpp"
 #include "Application.hpp"
 
+shared_ptr<Ast> Application::clone_interal()
+{
+  return make_shared(Application(lhs->clone(), rhs->clone(), location));
+}
+
 string Application::to_string_internal()
 {
   string result;
@@ -21,7 +26,7 @@ string Application::to_string_internal()
   return result;
 }
 
-TypeJudgement Application::getype_internal(SymbolTable* env, BinopSet* binops)
+TypeJudgement Application::getype_internal(SymbolTable* env, OperatorTable* ops)
 {
   /*
   ENV |- lhs : type1 -> type2, rhs : type1
@@ -32,7 +37,7 @@ TypeJudgement Application::getype_internal(SymbolTable* env, BinopSet* binops)
   lhs type must be equal to the type of the rhs
   of the application.
   */
-  TypeJudgement typeA = lhs->getype(env, binops);
+  TypeJudgement typeA = lhs->getype(env, ops);
 
   if (typeA)
   {
@@ -45,7 +50,7 @@ TypeJudgement Application::getype_internal(SymbolTable* env, BinopSet* binops)
       }
       else
       {
-        TypeJudgement typeB = rhs->getype(env, binops);
+        TypeJudgement typeB = rhs->getype(env, ops);
 
         if (typeB)
         {
@@ -117,7 +122,7 @@ TypeJudgement Application::getype_internal(SymbolTable* env, BinopSet* binops)
 }
 
 
-EvalJudgement Application::evaluate_internal(SybolTable* env, BinopSet* binops)
+EvalJudgement Application::evaluate_internal(SybolTable* env, OperatorTable* ops)
 {
 
 }

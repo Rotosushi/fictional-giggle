@@ -11,8 +11,5 @@ public:
   EvalError(const Location& l, const string& s)
     : Error({l, s}) {}
 
-  virtual string what() override
-  {
-    return "Evaluation Error: " + dsc;
-  }
+  virtual string what() override;
 };
