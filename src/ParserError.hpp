@@ -2,13 +2,13 @@
 #include <string>
 using std::string;
 
-#include "Error.hpp"
+#include "PinkError.hpp"
 
-class ParserError : public Error
+class ParserError : public PinkError
 {
 public:
   ParserError(const string& err, const Location& loc)
-    : Error({err, loc}) {}
+    : PinkError(loc, err) {}
 
   virtual string what() override;
-}
+};

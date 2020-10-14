@@ -41,6 +41,6 @@ public:
   TypeJudgement(TypeError err)
     : success(false), u(err) {}
 
-  bool succeeded() { return success; }
-  operator bool()  { return success; }
+  bool succeeded();
+  operator bool();
 };

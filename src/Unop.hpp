@@ -21,9 +21,10 @@ public:
     : Ast(loc), op(op), rhs(rhs) {}
 
   Unop(const Unop& other)
-    : Ast(other.loc), op(other.op), rhs(other.rhs) {}
+    : Ast(other.location), op(other.op), rhs(other.rhs) {}
 
 protected:
+  virtual shared_ptr<Ast> clone_internal() override;
   virtual string to_string_internal() override;
   virtual TypeJudgement getype_internal(SymbolTable* env, OperatorTable* ops) override;
   virtual EvalJudgement evaluate_internal(SymbolTable* env, OperatorTable* ops) override;

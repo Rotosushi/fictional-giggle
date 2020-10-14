@@ -11,6 +11,15 @@ using std::optional;
 #include "Ast.hpp"
 #include "SymbolTable.hpp"
 
+SymbolTable::SymbolTable(const SymbolTable& other)
+  : enclosing_scope(other.enclosing_scope)
+{
+  for (auto&& sym : other.symbs)
+  {
+    symbs.insert(make_pair(get<0>(sym), get<1>(sym)->clone()));
+  }
+}
+
 optional<shared_ptr<Ast>> SymbolTable::lookupInLocalScopeOnly(const string& key)
 {
   unordered_map::iterator sym = symbs.find(key);

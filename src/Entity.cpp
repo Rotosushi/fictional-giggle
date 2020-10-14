@@ -5,12 +5,50 @@ using std::string;
 using std::vector;
 #include <memory>
 using std::shared_ptr;
+using std::unique_ptr;
+using std::make_shared;
+using std::make_unique;
 
 #include "Ast.hpp"
 #include "SymbolTable.hpp"
+#include "OperatorTable.hpp"
 #include "Entity.hpp"
 
-shared_ptr<Literal> Integer::clone_interal()
+shared_ptr<Object> Object::clone()
+{
+  return clone_internal();
+}
+
+string Object::to_string()
+{
+  return to_string_internal();
+}
+
+TypeJudgement Object::getype(SymbolTable* env, OperatorTable* ops)
+{
+  return getype_internal(env, ops);
+}
+
+/* ------------------------------------------------------------------------- */
+
+shared_ptr<Object> Nil::clone_internal()
+{
+  return make_shared(Nil(*this));
+}
+
+string Nil::to_string_internal()
+{
+  return "nil";
+}
+
+TypeJudgement Nil::getype_internal(SymbolTable* env, OperatorTable* env)
+{
+  return TypeJudgement(make_shared(MonoType(AtomicType::Nil)));
+}
+
+/* ------------------------------------------------------------------------- */
+
+shared_ptr<Object> Integer::clone_interal()
 {
   return make_shared(Integer(value));
 }
@@ -25,7 +63,9 @@ TypeJudgement Integer::getype_internal(SymbolTable* env, BinopSet* binops)
   return TypeJudgement(MonoType(AtomicType::Int));
 }
 
-shared_ptr<Literal> Boolean::clone_interal()
+/* ------------------------------------------------------------------------- */
+
+shared_ptr<Object> Boolean::clone_interal()
 {
   return make_shared(Boolean(value));
 }
@@ -40,7 +80,9 @@ TypeJudgement Boolean::getype_internal(SymbolTable* env, BinopSet* binops)
   return TypeJudgement(MonoType(AtomicType::Bool));
 }
 
-shared_ptr<Literal> Lambda::clone_interal()
+/* ------------------------------------------------------------------------- */
+
+shared_ptr<Object> Lambda::clone_interal()
 {
   return make_shared(Lambda(arg_id, arg_type->clone(), scope, body->clone(), location));
 }
@@ -79,6 +121,8 @@ TypeJudgement Lambda::getype_internal(SymbolTable* env, OperatorTable* ops)
   }
 }
 
+/* ------------------------------------------------------------------------- */
+
 optional<Lambda> PolyLambda::HasInstance(shared_ptr<Type> target_type, SymbolTable* env, OperatorTable* ops)
 {
   /*
@@ -111,10 +155,12 @@ optional<Lambda> PolyLambda::HasInstance(shared_ptr<Type> target_type, SymbolTab
   }
 }
 
-shared_ptr<Literal> PolyLambda::clone_internal()
+shared_ptr<Object> PolyLambda::clone_internal()
 {
   return make_shared(PolyLambda(*this));
 }
+
+/* ------------------------------------------------------------------------- */
 
 shared_ptr<Ast> Entity::clone_interal()
 {

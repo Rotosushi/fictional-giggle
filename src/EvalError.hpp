@@ -3,13 +3,13 @@
 using std::string;
 
 #include "Location.hpp"
-#include "Error.hpp"
+#include "PinkError.hpp"
 
-class EvalError : public Error
+class EvalError : public PinkError
 {
 public:
   EvalError(const Location& l, const string& s)
-    : Error({l, s}) {}
+    : PinkError(l, s) {}
 
   virtual string what() override;
 };

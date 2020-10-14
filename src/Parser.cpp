@@ -34,7 +34,7 @@
   binop := operator
   unop  := operator
 
-  operator := [+-/*%<>:=&@!~|$^]+
+  operator := [*+-/%<>:=&@!~|$^]+
 
 
   the kernel so far includes
@@ -64,14 +64,20 @@ using std::pair;
 using std::get;
 
 #include "Ast.hpp"
+#include "Empty.hpp"
 #include "Variable.hpp"
 #include "Application.hpp"
+#include "Binop.hpp"
+#include "Unop.hpp"
 #include "Entity.hpp"
 #include "Bind.hpp"
 #include "Iteration.hpp"
 #include "Conditional.hpp"
 #include "SymbolTable.hpp"
 #include "OperatorTable.hpp"
+#include "ParserError.hpp"
+#include "ParserJudgement.hpp"
+#include "Parser.hpp"
 
 
 Parser::Parser(SymbolTable* top, OperatorTable* ops)
@@ -170,7 +176,7 @@ Location Parser::curloc()
 
 bool Parser::is_unop(const string& op)
 {
-  optional<Unop> unop = unops.find(op);
+  optional<shared_ptr<UnopEliminatorSet>> unop = ops->unops.FindUnop(op);
   if (unop)
   {
     return true;
@@ -183,7 +189,7 @@ bool Parser::is_unop(const string& op)
 
 bool Parser::is_binop(const string& op)
 {
-  optional<Binop> binop = binops.find(op);
+  optional<shared_ptr<BinopEliminatorSet>> binop = ops->binops.FindBinop(op);
   if (binop)
   {
     return true;
@@ -239,9 +245,8 @@ bool Parser::speculate(Token t)
   }
 }
 
-optional<unique_ptr<Ast>> Parser::parse(const string& text)
+ParserJudgement Parser::parse(const string& text)
 {
-  optional<unique_ptr<Ast>> result;
   reset();
 
   lexer.set_buffer(text);
@@ -250,7 +255,7 @@ optional<unique_ptr<Ast>> Parser::parse(const string& text)
 
   if (curtok() == Token::End)
   {
-    return optional<unique_ptr<Ast>>(EmptyNode());
+    return ParserJudgement(make_shared(Empty(curloc())));
   }
 
   /*
@@ -278,29 +283,17 @@ optional<unique_ptr<Ast>> Parser::parse(const string& text)
   */
   if (err_or)
   {
-    /*
-      and look, given we return the error message
-      as the result of an error occuring within
-      speculation, we now have a clean location
-      to bring together the tree peices of
-      information needed,
-      1) a string describing what went wrong
-      2) a location describing where it went wrong
-      3) the input text so we can pinpoint to
-          the user where we found the error.
-    */
-    cout << buildErrStr(*err_or, text);
-    result = optional<unique_ptr<Ast>>();
+    return ParserJudgement(err_or);
   }
   else
-    result = optional<unique_ptr<Ast>>(move(parse_term()));
-
-  return result;
+  {
+    return ParserJudgement(parse_term());
+  }
 }
 
-unique_ptr<Ast> Parser::parse_term()
+shared_ptr<Ast> Parser::parse_term()
 {
-  unique_ptr<Ast> lhs, rhs;
+  shared_ptr<Ast> lhs, rhs;
 
   /*
   term := primary
@@ -417,7 +410,7 @@ unique_ptr<Ast> Parser::parse_term()
       we switch to parsing a binary operation,
       but only if the operator itself is a binop.
     */
-    if (lhs)
+    if (lhs != nullptr)
     {
       /*
         there may be more expression past the first
@@ -425,7 +418,7 @@ unique_ptr<Ast> Parser::parse_term()
       */
       if (curtok() == Token::Operator && is_binop(curtxt()))
       {
-        lhs = parse_infix(move(lhs), 0);
+        lhs = parse_infix(lhs, 0);
       }
       /*
         we could also validly see
@@ -470,18 +463,18 @@ unique_ptr<Ast> Parser::parse_term()
   }
   else if (is_ender(curtok()))
   {
-    lhs = make_unique(EmptyNode(lhsloc));
+    lhs = make_shared(Empty(lhsloc));
   }
   else
   {
     // error: unknown token, not primary, or an ending token.
   }
-  return move(lhs);
+  return lhs;
 }
 
-unique_ptr<Ast> Parser::parse_primary()
+shared_ptr<Ast> Parser::parse_primary()
 {
-  unique_ptr<Ast> lhs, rhs;
+  shared_ptr<Ast> lhs, rhs;
   auto lhsloc = curloc();
   lhs = parse_primitive();
 
@@ -532,15 +525,15 @@ unique_ptr<Ast> Parser::parse_primary()
                                 rhsloc.first_line,
                                 rhsloc.first_column);
 
-    lhs = make_unique(CallNode(move(lhs), move(rhs), callloc));
+    lhs = make_shared(Application(lhs, rhs, callloc));
   }
 
-  return move(lhs);
+  return lhs;
 }
 
-unique_ptr<Ast> Parser::parse_primitive()
+shared_ptr<Ast> Parser::parse_primitive()
 {
-  unique_ptr<Ast> lhs;
+  shared_ptr<Ast> lhs;
   Location&& lhsloc = curloc();
   switch(curtok())
   {
@@ -571,8 +564,9 @@ unique_ptr<Ast> Parser::parse_primitive()
       the bindings to reach the 100?)
 
     */
-    case Token::Id: {
-      string&& id = curtxt();
+    case Token::Id:
+    {
+      string id = curtxt();
       nextok(); // eat Id
 
       if (curtok() == Token::ColonEquals)
@@ -581,17 +575,17 @@ unique_ptr<Ast> Parser::parse_primitive()
 
         // parse_term is responsible for consuming
         // the correct amount of tokens
-        unique_ptr<Ast> rhs = parse_term();
+        shared_ptr<Ast> rhs = parse_term();
         Location&& rhsloc = curloc();
         Location bindloc = Location(lhsloc.first_line,
                                     lhsloc.first_column,
                                     rhsloc.first_line,
                                     rhsloc.first_column);
-        lhs = make_unique(BindNode(id, move(rhs), bindloc));
+        lhs = make_shared(Bind(id, rhs, bindloc));
       }
       else
       {
-        lhs = make_unique(VariableNode(id, lhsloc));
+        lhs = make_shared(Variable(id, lhsloc));
       }
       break;
     }
@@ -626,7 +620,7 @@ unique_ptr<Ast> Parser::parse_primitive()
 
     case Token::Nil:
     {
-      lhs = unique_ptr<Ast>(new EntityNode((void*)nullptr, lhsloc));
+      lhs = unique_ptr<Ast>(new Entity((void*)nullptr, lhsloc));
       nextok();
       break;
     }

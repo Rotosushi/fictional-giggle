@@ -78,3 +78,49 @@ well, at least I rediscovered something of quality.
 
 it's just, with all the programming languages
 books I have read, how did I miss this pattern?
+
+
+
+okay, following this pattern, plus the *Judgement pattern
+has added so many more files than the other versions
+of this project. that isn't really that bad, as it has
+sort of alleviated the problem of the extra long files
+like the c version of the Ast structure, which is a
+1000 lines on it's own. or the c version of the parser,
+typechecker, and evaluator, each over 1500 lines.
+instead the most cluttered file in the project is
+Entity, which is currently encapsulating the
+entire primitive object herarchy/representation
+as well as declaring the Ast node which holds Objects.
+(Entities themselves.) ((Object and the Object hierarchy
+are going to be split into their own source files
+however this is going to happen after i cleanup the
+source code folder itself to add some more folders
+and then i have to edit each include to have the right
+path, which is going to be a pain across 58+ files.))
+and both files are less than 200 lines each.
+though, it hasn't really made it less code. there is
+still a sizeable amount of code in each file.
+(note: in each case the source of the lexer is around
+~1500 lines, but this is generated from a ~120 line source file.)
+
+the old c source works at 23 files, more than five files approaching/at 1000 lines
+the old cpp source i abandoned at 27 files, some files approaching 1000 lines
+the new cpp source is at 58 files, no individual file breaking 200 lines.
+  and the majority of the files cannot be scrolled at 100% view.
+  i will say that the PinkKernel file, and the Entity file are both
+  places where we can expect much more growth before the language is
+  complete.
+
+the thing that really brought the source code file size down was breaking
+up the large 'stages' into their individual components spread across
+each nodes defining file. of course, the same semantics need to exist
+so this hasn't reduced the code size overall, as now there are many more
+files with smaller files sizes. this is in fact more organized than
+before, and I spend less time searching the codebase (but honestly
+not by much.) this in fact has also had the effect of localizing
+the complexity of each of the components of the stages, as the
+nodes stage code need focus only on what is important about the node.
+
+also this is probably the most cannonical interpretation of things,
+and as such is probably very unoptimized. but that comes after it works.

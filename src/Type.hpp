@@ -12,6 +12,7 @@ using std::string;
 
 enum class AtomicType
 {
+  None,
   Poly,
   Nil,
   Int,
@@ -21,169 +22,54 @@ enum class AtomicType
 class Type
 {
 public:
+  Location location;
   Type() = delete;
+  Type(const Location& loc) : location(loc) {}
   virtual ~Type() {};
 
-  virtual string to_string() { return to_string_internal(); }
-  virtual bool   is_polymorphic() { return is_poly_internal(); }
+  virtual shared_ptr<Type> clone();
+  virtual string to_string();
+  virtual bool   is_polymorphic();
 protected:
-  virtual string to_string_internal() = delete;
-  virtual bool   is_poly_internal() = delete;
+  virtual shared_ptr<Type> clone_internal() = 0;
+  virtual string to_string_internal() = 0;
+  virtual bool   is_poly_internal() = 0;
 };
 
-class MonoType
+class MonoType : public Type
 {
 public:
   AtomicType tag;
 
-  MonoType(AtomicType t) : tag(t) {}
+  MonoType(AtomicType t, const Location& loc)
+    : Type(loc), tag(t) {}
   MonoType(const MonoType& other)
-    : tag(other.tag) {}
+    : Type(other.location), tag(other.tag) {}
   ~MonoType() {};
 
 protected:
-  virtual string to_string_internal() override
-  {
-    switch (tag)
-    {
-      case AtomicType::Poly:
-        return "Poly";
-      case AtomicType::Nil:
-        return "Nil";
-      case AtomicType::Int:
-        return "Int";
-      case AtomicType::Bool:
-        return "Bool";
-      default:
-        throw "bad AtomicType tag.";
-    }
-  }
-
-  virtual bool is_poly_internal() override
-  {
-    switch (tag)
-    {
-      case AtomicType::Poly:
-        return true;
-      case AtomicType::Nil:
-        return false;
-      case AtomicType::Int:
-        return false;
-      case AtomicType::Bool:
-        return false;
-      default:
-        throw "bad AtomicType tag.";
-    }
-  }
+  virtual shared_ptr<Type> clone_internal() override;
+  virtual string to_string_internal() override;
+  virtual bool is_poly_internal() override;
 };
 
-class ProcType
+class ProcType : public Type
 {
 public:
   shared_ptr<Type> lhs;
   shared_ptr<Type> rhs;
 
-  ProcType(shared_ptr<Type> l, shared_ptr<Type> r)
-    : lhs(l), rhs(r) {}
+  ProcType(shared_ptr<Type> l, shared_ptr<Type> r, const Location& loc)
+    : Type(loc), lhs(l), rhs(r) {}
   ProcType(const ProcType& other)
-    : lhs(other.lhs), rhs(other.rhs) {}
+    : Type(other.location), lhs(other.lhs), rhs(other.rhs) {}
   ~ProcType() {}
 
 protected:
-  virtual to_string_internal() override
-  {
-    string result;
-    result  = lhs->to_string();
-    result += " -> ";
-    result += rhs->to_string();
-    return result;
-  }
-
-  virtual is_poly_internal() override
-  {
-    return lhs->is_polymorphic() || rhs->is_polymorphic();
-  }
+  virtual shared_ptr<Type> clone_internal() override;
+  virtual string to_string_internal() override;
+  virtual bool is_poly_internal() override;
 };
 
 
-TypeJudgement TypesEquivalent(const Type* t1, const Type* t2)
-{
-  MonoType* mt1 = dynamic_cast<MonoType*>(t1);
-  MonoType* mt2 = dynamic_cast<MonoType*>(t2);
-
-  if (mt1 != nullptr)
-  {
-    if (mt2 != nullptr)
-    {
-      if (mt1->tag == mt2->tag)
-      {
-        return Judgement(t1);
-      }
-      else
-      {
-        string errdsc = "Atomic Types t1:["
-                      + t1->to_string()
-                      + "] t2:["
-                      + t2->to_string()
-                      + "] not equal\n";
-        TypeError typeerror(Location(), errdsc);
-        return Judgement(typeerror);
-      }
-    }
-    else
-    {
-      string errdsc = "cannot compare atomic type t1:["
-                    + t1->to_string()
-                    + "] to non-atomic type t2:["
-                    + t2->to_string()
-                    + "] not equal\n";
-      TypeError typeerror(Location(), errdsc);
-      return Judgement(typeerror);
-    }
-  }
-  else
-  {
-    ProcType* pt1 = dynamic_cast<ProcType*>(t1);
-    ProcType* pt2 = dynamic_cast<ProcType*>(t2);
-
-    if (pt1 != nullptr)
-    {
-      if (pt2 != nullptr)
-      {
-        Judgement j1 = equivalent(pt1->lhs, pt2->lhs);
-
-        if (j1.succeeded())
-        {
-          Judgement j2 = equivalent(pt2->rhs, pt2->rhs);
-
-          if (j2.succeeded())
-          {
-            return Judgement(t1);
-          }
-          else
-          {
-            return j2;
-          }
-        }
-        else
-        {
-          return j1;
-        }
-      }
-      else
-      {
-        string errdsc = "cannot compare proc type t1:["
-                      + t1->to_string();
-                      + "] to non-proc type t2:["
-                      + t2->to_string();
-                      + "]";
-        TypeError typeerror(Location(), errdsc);
-        return Judgement(typeerror);
-      }
-    }
-    else
-    {
-      throw "bad type node";
-    }
-  }
-}
+TypeJudgement TypesEquivalent(Type* t1, Type* t2);

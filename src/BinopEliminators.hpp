@@ -10,6 +10,8 @@ using std::tuple;
 using std::make_tuple;
 #include <optional>
 using std::optional;
+#include <utility>
+using std::pair;
 
 #include "Ast.hpp"
 //#include "Entity.hpp"
@@ -67,11 +69,11 @@ class BinopEliminator
   or an optimized call directly of an instance of a
   polymorph procedure.
   */
-  primitive_binop_eliminator eliminator;
+  primitive_binop_eliminator primitive_eliminator;
 
 public:
   BinopEliminator(primitive_binop_eliminator elim)
-    : eliminator(elim) {}
+    : primitive_eliminator(elim) {}
 
   shared_ptr<Ast> operator()(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs);
 };
@@ -92,6 +94,6 @@ class BinopSet
   list<pair<string, shared_ptr<BinopEliminatorSet>>> set;
 
 public:
-  void RegisterBinopEliminatorSet(const string& op, shared_ptr<BinopEliminatorSet> set);
-  optional<shared_ptr<BinopEliminatorSet>> FindEliminatorSet(const string& op);
+  void RegisterBinop(const string& op, shared_ptr<BinopEliminatorSet> set);
+  optional<shared_ptr<BinopEliminatorSet>> FindBinop(const string& op);
 };

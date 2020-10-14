@@ -1,6 +1,7 @@
 
 #include <string>
 using std::string;
+using std::getline;
 #include <memory>
 using std::shared_ptr;
 #include <iostream>
@@ -15,7 +16,9 @@ using std::endl;
 #include "OperatorTable.hpp"
 #include "TypeJudgement.hpp"
 #include "EvalJudgement.hpp"
+#include "PinkError.hpp"
 #include "PinkKernel.hpp"
+
 
 /*
   this is a very early version of this
@@ -80,6 +83,7 @@ using std::endl;
 
 int main(int argc, char** argv)
 {
+  string input_text;
   SymbolTable top;
   OperatorTable ops;
 
@@ -88,7 +92,61 @@ int main(int argc, char** argv)
 
   Parser parser(&top, &ops);
 
-  
+  cout << "Welcome to Pink! v0.0.2\n"
+       << "press ctrl+c to exit.\n";
+
+  do {
+    cout << ":> ";
+    getline (input_text, cin);
+
+    ParserJudgement term = parser.parse(input_text);
+
+    /*
+    so theoretically we can flatten this
+    if tree by testing for the terms being
+    unsuccessful, which then a continue
+    allows us to skip the unneeded portions
+    of the loop. I dunno which is better
+    considering this isn't a very big tree.
+    */
+    if (term.succeeded())
+    {
+      shared_ptr<Ast> ast = term.u.term;
+      TypeJudgement ast_type = ast->getype(&top, &ops);
+
+      if (ast_type.succeeded())
+      {
+        cout << "\ntype:[" + ast_type.u.judgement->to_string() + "]" << endl;
+        /*
+        evaluation is the farthest unit from working,
+        but once it does, this is the expected usecase
+        of the evaluate() procedure.
+
+        EvalJudgement eval_term = ast->evaluate(&top, &ops);
+
+        if (eval_term.succeeded())
+        {
+          cout << ":=> " << eval_term.u.judgement->to_string() << endl;
+        }
+        else
+        {
+          cout << buildErrStr(eval_term.u.err) << endl;
+        }
+        */
+        // here is where it is safe to do cleanup
+        // before the next iteration of the R.E.P.L.
+        input_text.clear();
+      }
+      else
+      {
+        cout << buildErrStr(ast_type.u.err) << endl;
+      }
+    }
+    else
+    {
+        cout << buildErrStr(term.u.err) << endl;
+    }
+  } while ();
 }
 
 

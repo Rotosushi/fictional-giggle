@@ -5,26 +5,23 @@ using std::string;
 using std::shared_ptr;
 
 #include "Ast.hpp"
+#include "TypeJudgement.hpp"
+#include "EvalJudgement.hpp"
 #include "SymbolTable.hpp"
 #include "OperatorTable.hpp"
-#include "TypeJudgement.hpp"
 
-class Iteration : public Ast
+class Empty : public Ast
 {
 public:
-  shared_ptr<Ast> cond;
-  shared_ptr<Ast> body;
+  Empty(const Location& loc)
+    : Ast(loc) {}
 
-  Iteration(shared_ptr<Ast> c, shared_ptr<Ast> b, const Location& l)
-    : Ast(l), cond(c), body(b) {}
-
-  Iteration(const Iteration& other)
-    : Ast(other.location), cond(other.cond), body(other.body) {}
+  Empty(const Empty& other)
+    : Ast(other.location) {}
 
 protected:
   virtual shared_ptr<Ast> clone_internal() override;
   virtual string to_string_internal() override;
   virtual TypeJudgement getype_internal(SymbolTable* env, OperatorTable* ops) override;
   virtual EvalJudgement evaluate_internal(SymbolTable* env, OperatorTable* ops) override;
-
 };

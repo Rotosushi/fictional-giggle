@@ -5,4 +5,4 @@ enum class Associativity
   None,
   Left,
   Right,
-}
+};

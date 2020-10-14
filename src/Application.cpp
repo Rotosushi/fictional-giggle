@@ -10,7 +10,7 @@ using std::make_shared;
 #include "Ast.hpp"
 #include "Application.hpp"
 
-shared_ptr<Ast> Application::clone_interal()
+shared_ptr<Ast> Application::clone_internal()
 {
   return make_shared(Application(lhs->clone(), rhs->clone(), location));
 }

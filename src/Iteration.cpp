@@ -10,6 +10,11 @@ using std::shared_ptr;
 #include "TypeJudgement.hpp"
 #include "Iteration.hpp"
 
+shared_ptr<Ast> Iteration::clone_internal()
+{
+  return make_shared(Iteration(cond->clone(), body->clone(), location));
+}
+
 string Iteration::to_string_internal()
 {
   string result;

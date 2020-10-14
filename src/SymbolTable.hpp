@@ -7,6 +7,7 @@ using std::shared_ptr;
 using std::unordered_map;
 #include <utility>
 using std::optional;
+using std::get;
 
 class Ast;
 #include "BinopEliminators.hpp"
@@ -26,17 +27,10 @@ private:
   // with restricted visibility.
   SymbolTable* enclosing_scope;
 
-  SymbolTable(SymbolTable* scope) : symbs(), enclosing_scope(scope) {}
-  SymbolTable(const SybolTable& other)
-    : enclosing_scope(other.enclosing_scope)
-  {
-    for (auto&& sym : other.symbs)
-    {
-      symbs.insert(make_pair(get<string>(*sym), get<shared_ptr<Ast>>(*sym)->clone()));
-    }
-  }
-
 public:
+  SymbolTable(SymbolTable* scope) : symbs(), enclosing_scope(scope) {}
+  SymbolTable(const SymbolTable& other);
+
   optional<shared_ptr<Ast>> lookupInLocalScopeOnly(const string& key);
   optional<shared_ptr<Ast>> operator[](const string& key);
   SymbolTable& operator=(const SymbolTable& rhs);

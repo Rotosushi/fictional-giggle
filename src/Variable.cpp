@@ -8,6 +8,11 @@ using std::shared_ptr;
 #include "SymbolTable.hpp"
 #include "Variable.hpp"
 
+shared_ptr<Ast> Variable::clone_internal()
+{
+  return make_shared(Variable(op, location));
+}
+
 string Variable::to_string_internal()
 {
   return id;

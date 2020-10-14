@@ -1,8 +1,8 @@
 #include <string>
 using std::string;
 
-#include "Ast.hh"
-#include "Parser.hh"
+#include "Ast.hpp"
+#include "Parser.hpp"
 
 string dstr;
 
@@ -60,7 +60,7 @@ string Lexer::yytxt()
         with two string iterators to achieve the same
         result.
     */
-    return new string(token, cursor);
+    return string(token, cursor);
 }
 
 Location& Lexer::yyloc()

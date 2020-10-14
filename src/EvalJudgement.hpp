@@ -32,4 +32,4 @@ public:
 
   bool succeeded() { return success; }
   operator bool()  { return success; }
-}
+};

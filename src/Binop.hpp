@@ -25,7 +25,7 @@ public:
     : Ast(loc), op(op), lhs(lhs), rhs(rhs) {}
 
   Binop(const Binop& other)
-    : Ast(other.loc), op(other.op), lhs(other.lhs), rhs(other.rhs) {}
+    : Ast(other.location), op(other.op), lhs(other.lhs), rhs(other.rhs) {}
 
 protected:
   virtual shared_ptr<Ast> clone_internal() override;

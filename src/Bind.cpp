@@ -44,9 +44,11 @@ ENV |- id is-not-currently-bound-in-local-scope, term2 : type2
   }
   else
   {
-    // recal that judgements track their own failure
+    // recall that judgements track their own failure
     // state, so it need not be explicitly mentioned
-    // that this call can fail here.
+    // that this call can fail here. as such
+    // it is a prime candidate to be a one-liner,
+    // however, that isn't debugger friendly.
     TypeJudgement rhstype = rhs->getype(env, binops);
     return rhstype;
   }

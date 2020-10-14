@@ -17,7 +17,7 @@ using std::optional;
 #include "Lexer.hpp"
 #include "SymbolTable.hpp"
 #include "OperatorTable.hpp"
-
+#include "ParserJudgement.hpp"
 
 enum class Token {
   Error,
@@ -48,33 +48,12 @@ enum class Token {
   Operator,
 };
 
-class ParserJudgement
-{
-public:
-  bool success;
-  union U {
-    ParserError err;
-    shared_ptr<Ast> term;
-
-    U() : err("Default ParserJudgement", Location()) {}
-    U(const ParserError& err) : err(err) {}
-    U(const shared_ptr<Ast>& term) : term(term) {}
-  } u;
-
-  ParserJudgement() {}
-  ParserJudgement(const ParserError& err) : success(false), u(err) {}
-  ParserJudgement(const shared_ptr<Ast>& term) : success(true), u(term) {}
-
-  bool succeeded() { return success; }
-  operator bool()  { return success; }
-};
-
 
 class Parser {
   // in order to build scopes in a nested fashion
   // we utilize a stack. this is to support the
   // usage of scopes in typeing and evaluation.
-  stack<SymbolTable*>   scopes
+  stack<SymbolTable*>   scopes;
   OperatorTable*        ops;
   Lexer                 lexer;
   stack<int, vector<int>> marks;
@@ -84,7 +63,7 @@ class Parser {
   int              curidx;
 
 public:
-  Parser(const SymbolTable* const top, OperatorTable* ops);
+  Parser(SymbolTable* top, OperatorTable* ops);
 
   ParserJudgement parse(const string& text);
 
@@ -108,6 +87,15 @@ private:
   bool is_type_primitive(Token t);
   bool is_ender(Token t);
 
+  /*
+  do we want the actual parse algorithm to
+  work on a return type which captures the
+  success/failure if we are already manually
+  separating the failure into failure of the
+  speculation, and the actual parsing expects
+  to be given something which already speculates
+  i.e. is a valid term in the grammar.
+  */
   shared_ptr<Ast> parse_term();
   shared_ptr<Ast> parse_primary();
   shared_ptr<Ast> parse_primitive();

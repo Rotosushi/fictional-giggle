@@ -19,10 +19,10 @@ public:
     : Ast(loc), lhs(l), rhs(r) {}
 
   Application(const Application& other)
-    : Ast(other.loc), lhs(other.lhs), rhs(other.rhs) {}
+    : Ast(other.location), lhs(other.lhs), rhs(other.rhs) {}
 
 protected:
-  virtual shared_ptr<Ast> clone_interal() override;
+  virtual shared_ptr<Ast> clone_internal() override;
   virtual string to_string_internal() override;
   virtual TypeJudgement getype_internal(SymbolTable* env, OperatorTable* ops) override;
   virtual EvalJudgement evaluate_internal(SymbolTable* env, OperatorTable* ops) override;

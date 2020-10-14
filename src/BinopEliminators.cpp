@@ -10,6 +10,9 @@ using std::tuple;
 using std::make_tuple;
 #include <optional>
 using std::optional;
+#include <utility>
+using std::pair;
+using std::make_pair;
 
 #include "Ast.hpp"
 #include "Type.hpp"
@@ -26,7 +29,13 @@ shared_ptr<Ast> BinopEliminator::operator()(shared_ptr<Ast> lhs, shared_ptr<Ast>
     disambiguate between which eliminator
     to call. and further, we only ever
     have the ability to construct the
-    eliminator holding a primitive eliminator.
+    eliminator holding a single primitive eliminator.
+    (in the future case of having to select between
+      which alternative to apply, the language lambda
+      or the primitive function, this code is going
+      to become an
+      [if primitive then apply primitive else apply composite]
+       block.)
   */
   return this->eliminator(lhs.get(), rhs.get());
 }
@@ -62,9 +71,28 @@ optional<BinopEliminator> BinopEliminatorSet::HasEliminator(shared_ptr<Type> lty
 
   for (auto&& elim_tuple : primitive_eliminators)
   {
-    if (eliminator_arguments_match(*elim_tuple, ltype, rtype))
+    if (eliminator_arguments_match(elim_tuple, ltype, rtype))
     {
-      return make_optional(BinopEliminator(get<primitive_binop_eliminator>(*elim_tuple));
+      return make_optional(BinopEliminator(get<primitive_binop_eliminator>(elim_tuple));
     }
   }
+  return optional<BinopEliminator>();
+}
+
+void BinopSet::RegisterBinop(const string& op, shared_ptr<BinopEliminatorSet> set)
+{
+  set.push_back(make_pair(op, set));
+}
+
+optional<shared_ptr<BinopEliminatorSet>> BinopSet::FindBinop(const string& op)
+{
+  for (auto&& binop : set)
+  {
+    if (get<string>(binop) == op)
+    {
+      return make_optional(get<shared_ptr<BinopEliminatorSet>>(binop));
+    }
+  }
+
+  return optional<shared_ptr<BinopEliminatorSet>>();
 }
