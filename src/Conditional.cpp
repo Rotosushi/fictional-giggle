@@ -28,7 +28,7 @@ string Conditional::to_string_internal()
   return result;
 }
 
-TypeJudgement Conditional::getype_internal(SymbolTable* env, OperatorTable* ops)
+TypeJudgement Conditional::getype_internal(Environment env)
 {
   /*
     ENV |- 'if' t1 : T1 'then' t2 : T2 'else' t3 : T3,
@@ -43,12 +43,12 @@ TypeJudgement Conditional::getype_internal(SymbolTable* env, OperatorTable* ops)
     the alternative expressions (which are the same type,
     so we arbitrarily select the first)
   */
-  TypeJudgement condtype = cond->getype(env, ops);
+  TypeJudgement condjdgmt = cond->getype(env);
 
-  if (condtype)
+  if (condjdgmt)
   {
     shared_ptr<Type> booltype = make_shared(MonoType(AtomicType::Bool));
-    Type* ct = condtype.u.judgement.get();
+    Type* ct = condjdgmt.u.jdgmt.get();
 
     if (TypesEquivalent(ct, booltype.get()))
     {
@@ -62,8 +62,8 @@ TypeJudgement Conditional::getype_internal(SymbolTable* env, OperatorTable* ops)
       if (!sndjdgmt)
         return sndjdgmt;
 
-      Type* fsttype = fstjdgmt.u.judgment.get();
-      Type* sndtype = sndjdgmt.u.judgment.get();
+      Type* fsttype = fstjdgmt.u.jdgmt.get();
+      Type* sndtype = sndjdgmt.u.jdgmt.get();
 
       if (TypesEquivalent(fsttype, sndtype))
       {
@@ -95,7 +95,7 @@ TypeJudgement Conditional::getype_internal(SymbolTable* env, OperatorTable* ops)
   }
   else
   {
-    return condtype;
+    return condjdgmt;
   }
 }
 

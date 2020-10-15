@@ -70,21 +70,24 @@ class BinopEliminator
   polymorph procedure.
   */
   primitive_binop_eliminator primitive_eliminator;
+  // Lambda                  composite_eliminator;
+  shared_ptr<Type>           result_type;
 
 public:
-  BinopEliminator(primitive_binop_eliminator elim)
-    : primitive_eliminator(elim) {}
+  BinopEliminator(primitive_binop_eliminator elim, shared_ptr<Type> restype)
+    : primitive_eliminator(elim), result_type(restype) {}
 
   shared_ptr<Ast> operator()(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs);
+  shared_ptr<Type> result_type();
 };
 
 
 class BinopEliminatorSet
 {
-  list<tuple<shared_ptr<Type>, shared_ptr<Type>, primitive_binop_eliminator>> primitive_eliminators;
+  list<tuple<shared_ptr<Type>, shared_ptr<Type>, shared_ptr<Type>, primitive_binop_eliminator>> primitive_eliminators;
   // Lambda composite_eliminators
 public:
-void RegisterPrimitiveEliminator(shared_ptr<Type> ltype, shared_ptr<Type> rtype, primitive_binop_eliminator elim);
+void RegisterPrimitiveEliminator(shared_ptr<Type> ltype, shared_ptr<Type> rtype, shared_ptr<Type> restype, primitive_binop_eliminator elim);
 // void RegisterCompositeEliminator(Lambda composite_eliminators);
 optional<BinopEliminator> HasEliminator(shared_ptr<Type> ltype, shared_ptr<Type> rtype);
 };

@@ -73,21 +73,20 @@ using std::get;
 #include "Bind.hpp"
 #include "Iteration.hpp"
 #include "Conditional.hpp"
-#include "SymbolTable.hpp"
-#include "OperatorTable.hpp"
+#include "Environment.hpp"
 #include "ParserError.hpp"
 #include "ParserJudgement.hpp"
 #include "Parser.hpp"
 
 
-Parser::Parser(SymbolTable* top, OperatorTable* ops)
-  : ops(ops)
+Parser::Parser(Environment environment)
+  : env(environment)
 {
   /*
     we need to utilize a stack in order to
     express the nesting of scopes naturally.
   */
-  scopes.push(top);
+  scopes.push(env.scope.get());
   reset();
 }
 
@@ -628,21 +627,21 @@ shared_ptr<Ast> Parser::parse_primitive()
     case Token::Int:
     {
       int value = stoi(curtxt());
-      lhs = unique_ptr<Ast>(new EntityNode(value, lhsloc));
+      lhs = unique_ptr<Ast>(new Entity(value, lhsloc));
       nextok();
       break;
     }
 
     case Token::True:
     {
-      lhs = unique_ptr<Ast>(new EntityNode(true, lhsloc));
+      lhs = unique_ptr<Ast>(new Entity(true, lhsloc));
       nextok();
       break;
     }
 
     case Token::False:
     {
-      lhs = unique_ptr<Ast>(new EntityNode(false, lhsloc));
+      lhs = unique_ptr<Ast>(new Entity(false, lhsloc));
       nextok();
       break;
     }
@@ -669,7 +668,7 @@ shared_ptr<Ast> Parser::parse_primitive()
                        rhsloc.first_line,
                        rhsloc.first_column);
 
-      lhs = unique_ptr<Ast>(new UnopNode(op, move(rhs), unoploc));
+      lhs = unique_ptr<Ast>(new Unop(op, move(rhs), unoploc));
       break;
     }
 

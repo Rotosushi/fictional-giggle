@@ -24,13 +24,13 @@ public:
   bool success;
   union U
   {
-    shared_ptr<Type> judgement;
+    shared_ptr<Type> jdgmt;
     TypeError        error;
 
     ~U() {}
     U() : error({Location(), "Default Judgement"}) {}
     U(shared_ptr<Type> jdgmt)
-      : judgement(jdgmt) {}
+      : jdgmt(jdgmt) {}
     U(TypeError err)
       : error(err) {}
   } u;

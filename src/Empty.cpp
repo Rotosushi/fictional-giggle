@@ -22,12 +22,12 @@ string Empty::to_string_internal()
   return "";
 }
 
-TypeJudgement Empty::getype_internal(SymbolTable* env, OperatorTable* ops)
+TypeJudgement Empty::getype_internal(Environment env)
 {
   return TypeJudgement(MonoType(AtomicType::None));
 }
 
-EvalJudgement Empty::evaluate_internal(SymbolTable* env, OperatorTable* ops)
+EvalJudgement Empty::evaluate_internal(Environment env)
 {
   return EvalJudgement(make_shared(Empty(*this)));
 }

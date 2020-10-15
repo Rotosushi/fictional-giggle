@@ -15,11 +15,11 @@ using std::optional;
 
 #include "Ast.hpp"
 #include "Lexer.hpp"
-#include "SymbolTable.hpp"
-#include "OperatorTable.hpp"
+#include "Environment.hpp"
 #include "ParserJudgement.hpp"
 
-enum class Token {
+enum class Token
+{
   Error,
   End,
   More,
@@ -49,21 +49,22 @@ enum class Token {
 };
 
 
-class Parser {
+class Parser
+{
   // in order to build scopes in a nested fashion
   // we utilize a stack. this is to support the
   // usage of scopes in typeing and evaluation.
-  stack<SymbolTable*>   scopes;
-  OperatorTable*        ops;
-  Lexer                 lexer;
+  stack<SymbolTable*>     scopes;
+  Environment             env;
+  Lexer                   lexer;
   stack<int, vector<int>> marks;
-  vector<Token>    tokbuf;
-  vector<string>   txtbuf;
-  vector<Location> locbuf;
-  int              curidx;
+  vector<Token>           tokbuf;
+  vector<string>          txtbuf;
+  vector<Location>        locbuf;
+  int                     curidx;
 
 public:
-  Parser(SymbolTable* top, OperatorTable* ops);
+  Parser(Environment env);
 
   ParserJudgement parse(const string& text);
 

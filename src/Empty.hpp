@@ -22,6 +22,6 @@ public:
 protected:
   virtual shared_ptr<Ast> clone_internal() override;
   virtual string to_string_internal() override;
-  virtual TypeJudgement getype_internal(SymbolTable* env, OperatorTable* ops) override;
-  virtual EvalJudgement evaluate_internal(SymbolTable* env, OperatorTable* ops) override;
+  virtual TypeJudgement getype_internal(Environment env) override;
+  virtual EvalJudgement evaluate_internal(Environment env) override;
 };

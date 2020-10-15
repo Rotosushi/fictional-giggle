@@ -4,13 +4,13 @@ Pink: Lexer
 	clang++ -fstandalone-debug -g -std=c++17 \
 	--stdlib=libstdc++ Ast.cpp Lexer.cpp Parser.cpp Type.cpp \
 	PinkError.cpp ParserError.cpp TypeError.cpp EvalError.cpp  \
-	ParserJudgement.hpp TypeJudgement.hpp EvalJudgement.hpp \
-	Binop.cpp Unop.cpp \
-	BinopPrecedenceTable.cpp BinopEliminators.cpp
-	UnopEliminators.cpp OperatorTable.hpp \
-	SymbolTable.cpp Location.cpp Variable.cpp \
+	ParserJudgement.cpp TypeJudgement.cpp EvalJudgement.cpp \
+	Binop.cpp Unop.cpp SymbolTable.cpp \
+	BinopPrecedenceTable.cpp BinopEliminators.cpp \
+	UnopEliminators.cpp Environment.hpp PinkKernel.cpp \
+	Location.cpp Variable.cpp \
 	Bind.cpp Application.cpp Conditional.cpp Iteration.cpp \
-	Entity.cpp PinkKernel.cpp Pink.cpp -o Pink
+	Entity.cpp Pink.cpp -o Pink
 
 
 Lexer:

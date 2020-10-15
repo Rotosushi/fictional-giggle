@@ -40,15 +40,20 @@ shared_ptr<Ast> BinopEliminator::operator()(shared_ptr<Ast> lhs, shared_ptr<Ast>
   return this->eliminator(lhs.get(), rhs.get());
 }
 
-void BinopEliminatorSet::RegisterPrimitiveEliminator(shared_ptr<Type> ltype, shared_ptr<Type> rtype, primitive_binop_eliminator prim_elim)
+shared_ptr<Type> BinopEliminator::result_type()
 {
-  primitive_eliminators.push_front(make_tuple(ltype, rtype, prim_elim));
+  return result_type;
+}
+
+void BinopEliminatorSet::RegisterPrimitiveEliminator(shared_ptr<Type> ltype, shared_ptr<Type> rtype, shared_ptr<Type> restype, primitive_binop_eliminator prim_elim)
+{
+  primitive_eliminators.push_front(make_tuple(ltype, rtype, restype, prim_elim));
 }
 
 optional<BinopEliminator> BinopEliminatorSet::HasEliminator(shared_ptr<Type> ltype, shared_ptr<Type> rtype)
 {
   auto eliminator_arguments_match =
-    [](tuple<shared_ptr<Type>, shared_ptr<Type>, primitive_binop_eliminator> eliminator, shared_ptr<Type> ltype, shared_ptr<Type> rtype) -> bool
+    [](tuple<shared_ptr<Type>, shared_ptr<Type>, shared_ptr<Type>, primitive_binop_eliminator> eliminator, shared_ptr<Type> ltype, shared_ptr<Type> rtype) -> bool
   {
     bool result;
     if (TypesEquivalent((get<0>(eliminator)).get(), ltype.get()))
@@ -73,7 +78,7 @@ optional<BinopEliminator> BinopEliminatorSet::HasEliminator(shared_ptr<Type> lty
   {
     if (eliminator_arguments_match(elim_tuple, ltype, rtype))
     {
-      return make_optional(BinopEliminator(get<primitive_binop_eliminator>(elim_tuple));
+      return make_optional(BinopEliminator(get<3>(elim_tuple), get<2>(elim_tuple));
     }
   }
   return optional<BinopEliminator>();

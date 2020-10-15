@@ -77,40 +77,42 @@ shared_ptr<Ast> PercentBinopModulusInts(const Ast* lhs, const Ast* rhs)
   return make_shared(Entity(lent->literal->value % rent->literal->value));
 }
 
-void RegisterPrimitiveBinops(OperatorTable* ops)
+void RegisterPrimitiveBinops(Environment env)
 {
   auto IntegerType = make_shared(MonoType(AtomicType::Int));
 
   auto EqualsBinop = make_shared(BinopEliminatorSet());
-  EqualsBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, EqualsBinopEquivalentInts);
-  ops->binops.RegisterBinopEliminatorSet("=", EqualsBinop);
-  ops->precedences.RegisterBinopPrecAndAssoc("=", 1, Associativity::Left);
+  EqualsBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, IntegerType, EqualsBinopEquivalentInts);
+  env.binops->RegisterBinopEliminatorSet("=", EqualsBinop);
+  env.precedences->RegisterBinopPrecAndAssoc("=", 1, Associativity::Left);
 
   auto PlusBinop = make_shared(BinopEliminatorSet());
-  PlusBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, PlusBinopAddInts);
-  ops->binops.RegisterBinopEliminatorSet("+", PlusBinop);
-  ops->precedences.RegisterBinopPrecAndAssoc("+", 5, Associativity::Left);
+  PlusBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, IntegerType, PlusBinopAddInts);
+  env.binops->RegisterBinopEliminatorSet("+", PlusBinop);
+  env.precedences->RegisterBinopPrecAndAssoc("+", 5, Associativity::Left);
 
   auto HyphenBinop = make_shared(BinopEliminatorSet());
-  HyphenBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, HyphenBinopSubtractInts);
-  ops->binops.RegisterBinopEliminatorSet("-", HyphenBinop);
-  ops->precedences.RegisterBinopPrecAndAssoc("-", 5, Associativity::Left);
+  HyphenBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, IntegerType, HyphenBinopSubtractInts);
+  env.binops->RegisterBinopEliminatorSet("-", HyphenBinop);
+  env.precedences->RegisterBinopPrecAndAssoc("-", 5, Associativity::Left);
 
   auto FSlashBinop = make_shared(BinopEliminatorSet());
-  FSlashBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, FSlashBinopDivideInts);
-  ops->binops.RegisterBinopEliminatorSet("/", FSlashBinop);
-  ops->precedences.RegisterBinopPrecAndAssoc("/", 6, Associativity::Left);
+  FSlashBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, IntegerType, FSlashBinopDivideInts);
+  env.binops->RegisterBinopEliminatorSet("/", FSlashBinop);
+  env.precedences->RegisterBinopPrecAndAssoc("/", 6, Associativity::Left);
 
   auto StarBinop = make_shared(BinopEliminatorSet());
-  StarBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, StarBinopMultiplyInts);
-  ops->binops.RegisterBinopEliminatorSet("*", StarBinop);
-  ops->precedences.RegisterBinopPrecAndAssoc("*", 6, Associativity::Left);
+  StarBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, IntegerType, StarBinopMultiplyInts);
+  env.binops->RegisterBinopEliminatorSet("*", StarBinop);
+  env.precedences->RegisterBinopPrecAndAssoc("*", 6, Associativity::Left);
 
   auto PercentBinop = make_shared(BinopEliminatorSet());
-  PercentBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, );
+  PercentBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, IntegerType, PercentBinopModulusInts);
+  env.binops->RegisterBinopEliminatorSet("%", PercentBinop);
+  env.precedences->RegisterBinopPrecAndAssoc("%", 6, Associativity::Left);
 }
 
-void RegisterPrimitiveUnops(OperatorTable* ops)
+void RegisterPrimitiveUnops(Environment ops)
 {
 
 }

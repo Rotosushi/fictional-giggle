@@ -26,7 +26,7 @@ string Application::to_string_internal()
   return result;
 }
 
-TypeJudgement Application::getype_internal(SymbolTable* env, OperatorTable* ops)
+TypeJudgement Application::getype_internal(Environment env)
 {
   /*
   ENV |- lhs : type1 -> type2, rhs : type1
@@ -37,20 +37,20 @@ TypeJudgement Application::getype_internal(SymbolTable* env, OperatorTable* ops)
   lhs type must be equal to the type of the rhs
   of the application.
   */
-  TypeJudgement typeA = lhs->getype(env, ops);
+  TypeJudgement typeA = lhs->getype(env);
 
   if (typeA)
   {
-    ProcType* pt = dynamic_cast<ProcType*>(typeA.u.judgement.get());
+    ProcType* pt = dynamic_cast<ProcType*>(typeA.u.jdgmt.get());
     if (pt)
     {
-      if (typeA.u.judgement.get()->is_polymorphic())
+      if (typeA.u.jdgmt.get()->is_polymorphic())
       {
         return TypeJudgement(make_shared(MonoType(AtomicType::Poly)));
       }
       else
       {
-        TypeJudgement typeB = rhs->getype(env, ops);
+        TypeJudgement typeB = rhs->getype(env);
 
         if (typeB)
         {
@@ -95,7 +95,7 @@ TypeJudgement Application::getype_internal(SymbolTable* env, OperatorTable* ops)
     }
     else
     {
-      Type*     tA = typeA.u.judgement.get();
+      Type*     tA = typeA.u.jdgmt.get();
       MonoType* mt = dynamic_cast<MonoType*>(tA);
 
       if (mt == nullptr)
@@ -104,6 +104,36 @@ TypeJudgement Application::getype_internal(SymbolTable* env, OperatorTable* ops)
       }
       else if (tA->is_polymorphic())
       {
+        /*
+          recall that the only way in which a poly
+          type can be created is when the type annotation
+          of a lambda argument is left off. this means
+          that to be here, we by definition are observing
+          the type of a variable appearing as the leftmost
+          term in an application term; which is also
+          by definition appearing as a subterm of said
+          PolyLambda object, given that we
+          are currently observing a term which is
+          supposed to be substituted with another
+          term of polymorphic type at some later time
+          than right now during typechecking,
+          we have absolutely no way of inferring any
+          information on the possible return type
+          of this polymorphic term could be,
+          except of course, that the term itself
+          is going to be polymorphic, which means
+          that we type the entire expression
+          as polymorphic. this can be thought
+          of as infecting the rest of the expression
+          outwards, as many of the other judgements around
+          polymorphism are the same, when we encounter
+          a point of non-determinism, we can only call it
+          what it is, only when it comes to trying
+          to retrieve a deterministic point are we
+          forced to 'dispatch' to the point of
+          determinism. (or we fail, for some
+          reason or another (which is, of course, reported.))
+        */
         return TypeJudgement(make_shared(MonoType(AtomicType::Poly)));
       }
       else
@@ -122,7 +152,7 @@ TypeJudgement Application::getype_internal(SymbolTable* env, OperatorTable* ops)
 }
 
 
-EvalJudgement Application::evaluate_internal(SybolTable* env, OperatorTable* ops)
+EvalJudgement Application::evaluate_internal(Environment env)
 {
 
 }

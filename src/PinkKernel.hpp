@@ -1,4 +1,6 @@
 #pragma once
 
-void RegisterPrimitiveBinops(OperatorTable* ops);
-void RegisterPrimitiveUnops(OperatorTable* ops);
+#include "Environment.hpp"
+
+void RegisterPrimitiveBinops(Environment ops);
+void RegisterPrimitiveUnops(Environment ops);

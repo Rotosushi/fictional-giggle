@@ -28,6 +28,7 @@ private:
   SymbolTable* enclosing_scope;
 
 public:
+  SymbolTable() : symbs(), enclosing_scope(nullptr) {}
   SymbolTable(SymbolTable* scope) : symbs(), enclosing_scope(scope) {}
   SymbolTable(const SymbolTable& other);
 

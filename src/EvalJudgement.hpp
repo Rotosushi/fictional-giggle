@@ -13,13 +13,13 @@ public:
   bool success;
   union U
   {
-    shared_ptr<Ast> judgement;
-    EvalError          error;
+    shared_ptr<Ast> jdgmt;
+    EvalError       error;
 
     ~U() {}
     U() : error(Location(), "Default Judgement") {}
     U(shared_ptr<Ast> jdgmt)
-      : judgement(jdgmt) {}
+      : jdgmt(jdgmt) {}
     U(EvalError err)
       : error(err) {}
   } u;
@@ -30,6 +30,6 @@ public:
   EvalJudgement(EvalError err)
     : success(false), u(err) {}
 
-  bool succeeded() { return success; }
-  operator bool()  { return success; }
+  bool succeeded();
+  operator bool();
 };

@@ -99,7 +99,7 @@ string Lambda::to_string_internal()
   return result;
 }
 
-TypeJudgement Lambda::getype_internal(SymbolTable* env, OperatorTable* ops)
+TypeJudgement Lambda::getype_internal(Environment env)
 {
   /*
         ENV |- id : type1, term : type2
@@ -108,7 +108,7 @@ TypeJudgement Lambda::getype_internal(SymbolTable* env, OperatorTable* ops)
   */
 
   this->scope.bind(this->arg_id, this->arg_type);
-  TypeJudgement type2 = body->getype(&(this->scope), ops);
+  TypeJudgement type2 = body->getype(Environment(this->scope, env->precedences, env->binops, env->unops));
   this->scope.unbind(this->arg_id);
 
   if (type2)
@@ -172,12 +172,19 @@ string Entity::to_string_internal()
   return literal->to_string();
 }
 
-TypeJudgement Entity::getype_internal(SymbolTable* env, OperatorTable* ops)
+TypeJudgement Entity::getype_internal(Environment env)
 {
-  return literal->getype(env, ops);
+  return literal->getype(env);
 }
 
-EvalJudgement Entity::evaluate_internal(SymbolTable* env, OperatorTable* ops)
+EvalJudgement Entity::evaluate_internal(Environment env)
 {
+  /*
+    so, honestly, we might seriously consider
+    deleting this procedure, just to ensure that
+    we never even attempt to evaluate objects.
+    but, with the way that i want to write the
+    main evaluate method, i doubt it will matter.
+  */
   return EvalJudgement(*this);
 }

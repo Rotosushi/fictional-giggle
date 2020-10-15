@@ -9,21 +9,19 @@ using std::unique_ptr;
 using std::make_unique;
 
 #include "Ast.hpp"
-
-class SymbolTable;
-class OperatorTable;
+#include "Environment.hpp"
 
 class Object
 {
 public:
   virtual shared_ptr<Object> clone();
   virtual string to_string();
-  virtual TypeJudgement getype(SymbolTable* env, OperatorTable* ops);
+  virtual TypeJudgement getype(Environment env);
 
 protected:
   virtual shared_ptr<Object> clone_internal() = 0;
   virtual string to_string_internal() = 0;
-  virtual TypeJudgement getype_internal(SymbolTable* env, OperatorTable* ops) = 0;
+  virtual TypeJudgement getype_internal(Environment env) = 0;
 };
 
 class Nil : public Object
@@ -35,7 +33,7 @@ public:
 protected:
   virtual shared_ptr<Object> clone_internal() override;
   virtual string to_string_internal() override;
-  virtual TypeJudgement getype_internal(SymbolTable* env, OperatorTable* ops) override;
+  virtual TypeJudgement getype_internal(Environment env) override;
 };
 
 class Integer : public Object
@@ -48,7 +46,7 @@ public:
 protected:
   virtual shared_ptr<Object> clone_internal() override;
   virtual string to_string_internal() override;
-  virtual TypeJudgement getype_internal(SymbolTable* env, OperatorTable* ops) override;
+  virtual TypeJudgement getype_internal(Environment env) override;
 };
 
 class Boolean : public Object
@@ -61,7 +59,7 @@ public:
 protected:
   virtual shared_ptr<Object> clone_internal() override;
   virtual string to_string_internal() override;
-  virtual TypeJudgement getype_internal(SymbolTable* env, OperatorTable* ops) override;
+  virtual TypeJudgement getype_internal(Environment env) override;
 };
 
 class Lambda : public Object
@@ -70,10 +68,10 @@ public:
   //vector<pair<string,Type>> args;
   string arg_id;
   shared_ptr<Type> arg_type;
-  SymbolTable scope;
+  shared_ptr<SymbolTable> scope;
   shared_ptr<Ast> body;
 
-  Lambda(const string& a_id, const shared_ptr<Type>& a_type, SymbolTable* enclosing_scope, const shared_ptr<Ast>& bd)
+  Lambda(const string& a_id, const shared_ptr<Type>& a_type, shared_ptr<SymbolTable> enclosing_scope, const shared_ptr<Ast>& bd)
     : arg_id(a_id), arg_type(a_type), scope(enclosing_scope), body(bd) {}
 
   Lambda(const Lambda& other)
@@ -83,7 +81,7 @@ public:
 protected:
   virtual shared_ptr<Object> clone_internal() override;
   virtual string to_string_internal() override;
-  virtual TypeJudgement getype_internal(SymbolTable* env, OperatorTable* ops) override;
+  virtual TypeJudgement getype_internal(Environment env) override;
 };
 
 class PolyLambda : public Object
@@ -103,7 +101,7 @@ public:
 protected:
   virtual shared_ptr<Object> clone_internal() override;
   virtual string to_string_internal() override;
-  virtual TypeJudgement getype_internal(SymbolTable* env, OperatorTable* ops) override;
+  virtual TypeJudgement getype_internal(Environment env) override;
 };
 
 /*
@@ -115,6 +113,9 @@ class Entity : public Ast
 {
 public:
   unique_ptr<Object> literal;
+
+  Entity(void* v, const Location& loc)
+    : Ast(loc), literal((new Nil())) {}
 
   Entity(int i, const Location& loc)
     : Ast(loc), literal((new Integer(i))) {}
@@ -131,6 +132,6 @@ public:
 protected:
   virtual shared_ptr<Ast> clone_internal() override;
   virtual string to_string_internal() override;
-  virtual TypeJudgement getype_internal(SymbolTable* env, OperatorTable* ops) override;
-  virtual EvalJudgement evaluate_internal(SymbolTable* env, OperatorTable* ops) override;
+  virtual TypeJudgement getype_internal(Environment env) override;
+  virtual EvalJudgement evaluate_internal(Environment env) override;
 };

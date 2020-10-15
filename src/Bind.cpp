@@ -24,14 +24,14 @@ string Bind::to_string_internal()
   return result;
 }
 
-TypeJudgement Bind::getype_internal(SymbolTable* env, OperatorTable* ops)
+TypeJudgement Bind::getype_internal(Environment env)
 {
   /*
 ENV |- id is-not-currently-bound-in-local-scope, term2 : type2
       ------------------------------------------
             ENV |- id := term2 : type2
   */
-  optional<shared_ptr<Ast>> sym = env->lookupInLocalScopeOnly(id);
+  optional<shared_ptr<Ast>> sym = env.scope->lookupInLocalScopeOnly(id);
 
   if (sym)
   {
@@ -49,8 +49,9 @@ ENV |- id is-not-currently-bound-in-local-scope, term2 : type2
     // that this call can fail here. as such
     // it is a prime candidate to be a one-liner,
     // however, that isn't debugger friendly.
-    TypeJudgement rhstype = rhs->getype(env, binops);
-    return rhstype;
+
+    TypeJudgement symjdgmt = (*sym)->getype(env);
+    return symjdgmt;
   }
 }
 

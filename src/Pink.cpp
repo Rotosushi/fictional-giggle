@@ -12,8 +12,10 @@ using std::endl;
 #include "Ast.hpp"
 #include "Entity.hpp"
 #include "Parser.hpp"
-#include "SymbolTable.hpp"
-#include "OperatorTable.hpp"
+#include "BinopEliminators.hpp"
+#include "BinopPrecedenceTable.hpp"
+#include "UnopEliminators.hpp"
+#include "Environment.hpp"
 #include "TypeJudgement.hpp"
 #include "EvalJudgement.hpp"
 #include "PinkError.hpp"
@@ -83,14 +85,18 @@ using std::endl;
 
 int main(int argc, char** argv)
 {
-  string input_text;
-  SymbolTable top;
-  OperatorTable ops;
+  string             input_text;
+  auto top_scope   = make_shared(SymbolTable());
+  auto precedences = make_shared(BinopPrecedenceTable());
+  auto binops      = make_shared(BinopSet());
+  auto unops       = make_shared(UnopSet());
 
-  RegisterPrimitiveBinops(&ops);
-  RegisterPrimitiveUnops(&ops);
+  Environment environment(top_scope, precedences, binops, unops);
 
-  Parser parser(&top, &ops);
+  RegisterPrimitiveBinops(environment);
+  RegisterPrimitiveUnops(environment);
+
+  Parser parser(environment);
 
   cout << "Welcome to Pink! v0.0.2\n"
        << "press ctrl+c to exit.\n";
@@ -99,7 +105,7 @@ int main(int argc, char** argv)
     cout << ":> ";
     getline (input_text, cin);
 
-    ParserJudgement term = parser.parse(input_text);
+    ParserJudgement termjdgmt = parser.parse(input_text);
 
     /*
     so theoretically we can flatten this
@@ -109,14 +115,14 @@ int main(int argc, char** argv)
     of the loop. I dunno which is better
     considering this isn't a very big tree.
     */
-    if (term.succeeded())
+    if (termjdgmt.succeeded())
     {
-      shared_ptr<Ast> ast = term.u.term;
-      TypeJudgement ast_type = ast->getype(&top, &ops);
+      shared_ptr<Ast> ast = termjdgmt.u.jdgmt;
+      TypeJudgement astjdgmt = ast->getype(env);
 
-      if (ast_type.succeeded())
+      if (astjdgmt.succeeded())
       {
-        cout << "\ntype:[" + ast_type.u.judgement->to_string() + "]" << endl;
+        cout << "\ntype:[" + astjdgmt.u.judgement->to_string() + "]" << endl;
         /*
         evaluation is the farthest unit from working,
         but once it does, this is the expected usecase
@@ -139,7 +145,7 @@ int main(int argc, char** argv)
       }
       else
       {
-        cout << buildErrStr(ast_type.u.err) << endl;
+        cout << buildErrStr(astjdgmt.u.err) << endl;
       }
     }
     else

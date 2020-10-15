@@ -19,6 +19,11 @@ shared_ptr<Ast> UnopEliminator::operator()(shared_ptr<Ast> rhs)
   return primitive_eliminator(rhs);
 }
 
+shared_ptr<Type> UnopEliminator::result_type()
+{
+  return result_type;
+}
+
 void UnopEliminatorSet::RegisterPrimitiveEliminator(shared_ptr<Type> rtype, primitive_unop_eliminator elim)
 {
   primitive_eliminators.push_back(make_pair(rtype, elim));

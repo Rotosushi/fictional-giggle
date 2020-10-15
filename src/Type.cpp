@@ -31,6 +31,8 @@ string MonoType::to_string_internal()
 {
   switch (tag)
   {
+    case AtomicType::None:
+      return "";
     case AtomicType::Poly:
       return "Poly";
     case AtomicType::Nil:
@@ -48,6 +50,8 @@ bool MonoType::is_poly_internal()
 {
   switch (tag)
   {
+    case AtomicType::None:
+      return false;
     case AtomicType::Poly:
       return true;
     case AtomicType::Nil:

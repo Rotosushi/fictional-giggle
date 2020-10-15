@@ -750,30 +750,50 @@ Ast* evaluate_call(Ast* call, Symboltable* env)
 
 
 
+/*
+  okay, so like, we can't really define this
+  function as a polymorphic method within
+  the class heirarchy right?
 
+  first thing we would do would be to make the
+  polymorphic argument (term) and as an additional
+  argument we add a shared_ptr<Ast>* term.
+  this allows us to factor the switch away, and
+  into the virtual call to the different implementations
+  of the substitution method across the ast terms.
+
+  now, we absolutely cannot reassign the term
+  that we are polymorphically calling against
+  because the (this) pointer is an rvalue term.
+  (think; the literal value, like 3.1415...
+   it doesn't make sense to assign a number to
+   a number, it does make sense to assign a
+   cell which stores numbers a new number however.)
+  and for precisely this reason we need to add the
+  additional shared_ptr<Ast>* argument, this is
+  a pointer to the term we just polymorphically
+  called against right? so if in the case of
+  us reassigning the pointer; which, ostensibly
+  points to a variable node which contains the
+  name we are searching for. meaning we need to
+  reassign that child node to the new term.
+  now, observing the signature of this procedure
+  and the actions of each node, it is clear that
+  we need to delete the node we are replacing.
+  since this is via a shared pointer we must reassign
+  the contents of that specific pointer,
+  however this is a pointer to the exact
+  node we just polymorphically called the
+  substitution method against, which means that
+  the (this) pointer may or may not be valid
+  anymore, does this cause a runtime error?
+  or do we just need to place a return immediately
+  afterwards and try not to think about it?
+
+*/
 void substitute(char* name, Ast** term, Ast* value, Symboltable* env)
 {
-  /*
-    so, the term we are observing to potentially replace
-    is only accessable via a pointer. since this pointer
-    is itself always stored within the parent node to the
-    node being observed, if we want to be sure we are replacing
-    the right node, AND define this procedure from the
-    perspective of each node defining substitution in a
-    mutually recursive fashion, we must have a pointer to
-    the pointer to the term, so that we can potentially assign
-    a new term to the parent pointer. (this is the exact pointer
-    we will have a pointer too, and each mutual recursion will
-    set up the correct parent pointer to be potentially replaced.)
 
-    also, i am observing that this procedure is also defined
-    within a switch statement over Ast objects. meaning we need
-    to define substitution as a virtual method of Ast's themselves.
-
-    additionally, in only one case do we ever perform the replacement
-    itself, and that is if we are observing a variable which
-    has the same id as the argument we are replacing for.
-  */
   if (name == NULL || term == NULL || *term == NULL || value == NULL)
     return;
   /* substitute {name} for {value} within {term} */

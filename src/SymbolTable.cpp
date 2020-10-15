@@ -29,7 +29,7 @@ optional<shared_ptr<Ast>> SymbolTable::lookupInLocalScopeOnly(const string& key)
   }
   else
   {
-    return optional<shared_ptr<Ast>>(get<shared_ptr<Ast>>(*sym));
+    return optional<shared_ptr<Ast>>((get<shared_ptr<Ast>>(*sym))->clone());
   }
 }
 
@@ -49,7 +49,7 @@ optional<shared_ptr<Ast>> SymbolTable::operator[](const string& key)
   }
   else
   {
-    return optional<shared_ptr<Ast>>(get<shared_ptr<Ast>>(*sym));
+    return optional<shared_ptr<Ast>>((get<shared_ptr<Ast>>(*sym))->clone());
   }
 }
 
