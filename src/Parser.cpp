@@ -86,7 +86,7 @@ Parser::Parser(Environment environment)
     we need to utilize a stack in order to
     express the nesting of scopes naturally.
   */
-  scopes.push(env.scope.get());
+  scopes.push(env.scope);
   reset();
 }
 
@@ -175,7 +175,7 @@ Location Parser::curloc()
 
 bool Parser::is_unop(const string& op)
 {
-  optional<shared_ptr<UnopEliminatorSet>> unop = ops->unops.FindUnop(op);
+  optional<shared_ptr<UnopEliminatorSet>> unop = env.unops->FindUnop(op);
   if (unop)
   {
     return true;
@@ -188,7 +188,7 @@ bool Parser::is_unop(const string& op)
 
 bool Parser::is_binop(const string& op)
 {
-  optional<shared_ptr<BinopEliminatorSet>> binop = ops->binops.FindBinop(op);
+  optional<shared_ptr<BinopEliminatorSet>> binop = env.binops->FindBinop(op);
   if (binop)
   {
     return true;
@@ -254,7 +254,7 @@ ParserJudgement Parser::parse(const string& text)
 
   if (curtok() == Token::End)
   {
-    return ParserJudgement(make_shared(Empty(curloc())));
+    return ParserJudgement(shared_ptr<Ast>(new Empty(curloc())));
   }
 
   /*
@@ -282,7 +282,7 @@ ParserJudgement Parser::parse(const string& text)
   */
   if (err_or)
   {
-    return ParserJudgement(err_or);
+    return ParserJudgement(*err_or);
   }
   else
   {
@@ -462,7 +462,7 @@ shared_ptr<Ast> Parser::parse_term()
   }
   else if (is_ender(curtok()))
   {
-    lhs = make_shared(Empty(lhsloc));
+    lhs = shared_ptr<Ast>(new Empty(lhsloc));
   }
   else
   {
@@ -524,7 +524,7 @@ shared_ptr<Ast> Parser::parse_primary()
                                 rhsloc.first_line,
                                 rhsloc.first_column);
 
-    lhs = make_shared(Application(lhs, rhs, callloc));
+    lhs = shared_ptr<Ast>(new Application(lhs, rhs, callloc));
   }
 
   return lhs;
@@ -580,11 +580,13 @@ shared_ptr<Ast> Parser::parse_primitive()
                                     lhsloc.first_column,
                                     rhsloc.first_line,
                                     rhsloc.first_column);
-        lhs = make_shared(Bind(id, rhs, bindloc));
+        lhs = shared_ptr<Ast>(new Bind(id, rhs, bindloc));
       }
       else
       {
-        lhs = make_shared(Variable(id, lhsloc));
+        // the variable we parsed has already
+        // been consumed at this point.
+        lhs = shared_ptr<Ast>(new Variable(id, lhsloc));
       }
       break;
     }
@@ -598,8 +600,8 @@ shared_ptr<Ast> Parser::parse_primitive()
     other text in the program. in this sense
     their types are Atomic. (or Primitive if you like)
     these types are what we are talking about when
-    we say "constituent parts of data structures
-    and algorithms". they are the building blocks
+    we say "constituent parts of data structures".
+    they are the building blocks
     which we use to construct programs. and each
     of which can be parsed by extending the definition
     of the parser right here (and in the lexer of course).
@@ -619,30 +621,30 @@ shared_ptr<Ast> Parser::parse_primitive()
 
     case Token::Nil:
     {
-      lhs = unique_ptr<Ast>(new Entity((void*)nullptr, lhsloc));
-      nextok();
+      lhs = shared_ptr<Ast>(new Entity((void*)nullptr, lhsloc));
+      nextok(); // eat "nil"
       break;
     }
 
     case Token::Int:
     {
       int value = stoi(curtxt());
-      lhs = unique_ptr<Ast>(new Entity(value, lhsloc));
-      nextok();
+      lhs = shared_ptr<Ast>(new Entity(value, lhsloc));
+      nextok(); // eat int
       break;
     }
 
     case Token::True:
     {
-      lhs = unique_ptr<Ast>(new Entity(true, lhsloc));
-      nextok();
+      lhs = shared_ptr<Ast>(new Entity(true, lhsloc));
+      nextok(); // eat 'true'
       break;
     }
 
     case Token::False:
     {
-      lhs = unique_ptr<Ast>(new Entity(false, lhsloc));
-      nextok();
+      lhs = shared_ptr<Ast>(new Entity(false, lhsloc));
+      nextok(); // eat 'false'
       break;
     }
 
@@ -652,7 +654,7 @@ shared_ptr<Ast> Parser::parse_primitive()
     an operator in primary position
     is always considered to be a unary operation
     by the parser. (what is primary position?
-    well, primary tokens are! so here is the
+    well, primary tokens are! so, here, is the
     primary position.)
     */
     case Token::Operator:
@@ -660,7 +662,8 @@ shared_ptr<Ast> Parser::parse_primitive()
       string&& op = curtxt();
       nextok();
       // unops bind to their immediate next
-      // term only.
+      // term only. (just like the token ':='
+      // for bind terms)
       auto rhs    = parse_primitive();
       auto rhsloc = curloc();
       Location unoploc(lhsloc.first_line,
@@ -668,7 +671,7 @@ shared_ptr<Ast> Parser::parse_primitive()
                        rhsloc.first_line,
                        rhsloc.first_column);
 
-      lhs = unique_ptr<Ast>(new Unop(op, move(rhs), unoploc));
+      lhs = shared_ptr<Ast>(new Unop(op, move(rhs), unoploc));
       break;
     }
 
@@ -677,11 +680,11 @@ shared_ptr<Ast> Parser::parse_primitive()
       within the grammar now, so we no
       longer consider '->' to be subsumed
       by operator parsing.
-      it is now a fully fledged lexeme.
+      it is now a fully fledged grapheme.
       additionally, we note that all
       type expressions are started by a
       type literal, and composed from there.
-    */
+
     case Token::TypeNil:
     case Token::TypeInt:
     case Token::TypeBool:
@@ -689,6 +692,11 @@ shared_ptr<Ast> Parser::parse_primitive()
       lhs = parse_type();
       break;
     }
+
+    having types be first class is probably
+    not a static language feature. at least
+    for sure in the first version.
+    */
 
     /*
     could be parsing a tuple
@@ -703,7 +711,7 @@ shared_ptr<Ast> Parser::parse_primitive()
       {
         nextok();
         // the empty tuple '()' is equivalent to the value 'nil'
-        lhs = unique_ptr<Ast>(new EntityNode((void*)nullptr, lhsloc));
+        lhs = shared_ptr<Ast>(new Entity((void*)nullptr, lhsloc));
         break;
       }
 
@@ -806,25 +814,29 @@ shared_ptr<Ast> Parser::parse_primitive()
   return lhs;
 }
 
-unique_ptr<Ast> Parer::parse_type()
+shared_ptr<Type> Parser::parse_type_annotation()
 {
-  Location& lhsloc = curloc();
-  unique_ptr<Ast> type, rhs;
+  Location&& lhsloc = curloc();
+  shared_ptr<Type> type, rhs;
 
-  auto parse_type_atom = []()
+  auto parse_type_atom = [this]()
   {
-    unique_ptr<Ast> type;
+    shared_ptr<Type> type;
     if (curtok() == Token::TypeNil)
     {
-      type = TypeNode(AtomicType::Nil, curloc());
+      type = shared_ptr<Type>(new MonoType(AtomicType::Nil, curloc()));
     }
     else if (curtok() == Token::TypeInt)
     {
-      type = TypeNode(AtomicType::Int, curloc());
+      type = shared_ptr<Type>(new MonoType(AtomicType::Int, curloc()));
     }
     else if (curtok() == Token::TypeBool)
     {
-      type = TypeNode(AtomicType::Bool, curloc());
+      type = shared_ptr<Type>(new MonoType(AtomicType::Bool, curloc()));
+    }
+    else if (curtok() == Token::TypePoly)
+    {
+      type = shared_ptr<Type>(new MonoType(AtomicType::Poly, curloc()));
     }
     else
     {
@@ -834,7 +846,7 @@ unique_ptr<Ast> Parer::parse_type()
     }
 
     return type;
-  }
+  };
 
   type = parse_type_atom();
 
@@ -845,20 +857,26 @@ unique_ptr<Ast> Parer::parse_type()
             | Int
             | Bool
             | type '->' type
-            | '(' type (',' type)+ ')'
-    */
-    do {
+            //| '(' type (',' type)+ ')'
 
-    } while (type && curtok() == Token::Rarrow);
+      this recursive call should enact the
+      right associative nature of the '->'
+      type operator
+    */
+
+    shared_ptr<Type> rhstype = parse_type_annotation();
+    Location&& rhsloc = curloc();
+    Location typeloc(lhsloc.first_line, lhsloc.first_column, rhsloc.last_line, rhsloc.last_column);
+    type = shared_ptr<Type>(new ProcType(type, rhstype, typeloc));
   }
 
   return type;
 }
 
-unique_ptr<Ast> Parser::parse_if()
+shared_ptr<Ast> Parser::parse_if()
 {
   Location&& lhsloc = curloc();
-  unique_ptr<Ast> cond, test, first, second;
+  shared_ptr<Ast> cond, test, first, second;
   if (curtok() == Token::If)
   {
     nextok();
@@ -880,7 +898,7 @@ unique_ptr<Ast> Parser::parse_if()
                                               lhsloc.first_column,
                                               rhsloc.first_line,
                                               rhsloc.first_column);
-        cond = unique_ptr<Ast>(new CondNode(move(test), move(first), move(second), condloc));
+        cond = shared_ptr<Ast>(new Conditional(test, first, second, condloc));
       }
       else
       {
@@ -895,9 +913,9 @@ unique_ptr<Ast> Parser::parse_if()
   return cond;
 }
 
-unique_ptr<Ast> Parser::parse_while()
+shared_ptr<Ast> Parser::parse_while()
 {
-  unique_ptr<Ast> loop, test, body;
+  shared_ptr<Ast> loop, test, body;
   Location&& lhsloc = curloc();
 
   if (curtok() == Token::While)
@@ -914,44 +932,19 @@ unique_ptr<Ast> Parser::parse_while()
                                             rhsloc.last_line,
                                             rhsloc.last_column);
 
-      loop = unique_ptr<Ast>(new WhileNode(move(test), move(body), looploc));
+      loop = shared_ptr<Ast>(new Iteration(test, body, looploc));
     }
   }
   return loop;
 }
 
-unique_ptr<Ast> Parser::parse_procedure()
+shared_ptr<Ast> Parser::parse_procedure()
 {
   bool poly = false;
   string id;
-  vector<pair<string, unique_ptr<Ast>>> args;
-  unique_ptr<Ast> proc, type, body;
+  shared_ptr<Type> type;
+  shared_ptr<Ast> proc, body;
   Location&& lhsloc = curloc();
-
-  auto parse_arg = [&poly, &id, &type]()
-  {
-    if (curtok() != Token::Id)
-    {
-      id = curtxt();
-      nextok();
-
-      if (curtok() == Token::Colon)
-      {
-        nextok();
-        type = parse_term();
-        poly = false;
-      }
-      else
-      {
-        // if the type annotation is missing, we assume polymorphic type.
-        type = unique_ptr<Ast>(new EntityNode(PrimitiveType::Poly, Location()));
-        poly = true;
-      }
-
-      return make_pair(id, move(type));
-    }
-    throw "unexpected bad arg after speculation.";
-  }
 
   if (curtok() != Token::Backslash)
     throw "unexpected missing backslash after speculation.";
@@ -960,22 +953,20 @@ unique_ptr<Ast> Parser::parse_procedure()
 
   if (curtok() == Token::Id)
   {
-    // parse a single argument
-    args.push_back(parse_arg());
-  }
-  else if (curtok() == Token::LParen)
-  {
-    // parse an argument list.
+    id = curtxt();
     nextok();
 
-    args.push_back(parse_arg());
-
-    if (curtok() == Token::Comma)
+    if (curtok() == Token::Colon)
     {
-      do {
-        nextok();
-        args.push_back(parse_arg());
-      } while (curtok() == Token::Comma);
+      nextok();
+      type = parse_type_annotation();
+      poly = type->is_polymorphic();
+    }
+    else
+    {
+      // if the type annotation is missing, we assume polymorphic type.
+      type = shared_ptr<Type>(new MonoType(AtomicType::Poly, Location()));
+      poly = true;
     }
   }
   else
@@ -996,7 +987,7 @@ unique_ptr<Ast> Parser::parse_procedure()
   //      the old enclosing scope as it's enclosing scope.
   // 2) it pushes this new scope onto the scope stack in
   //      order to make it the new enclosing scope.
-  scopes.push(new SymbolTable(scopes.top()));
+  scopes.push(shared_ptr<SymbolTable>(new SymbolTable(scopes.top().get())));
 
   body = parse_term();
 
@@ -1006,14 +997,14 @@ unique_ptr<Ast> Parser::parse_procedure()
                    rhsloc.first_line,
                    rhsloc.first_column);
 
-  proc = make_unique<Ast>(EntityNode(ProcedureLiteral(args, move(body)), procloc, *(scopes.top())));
+  proc = shared_ptr<Ast>(new Entity(Lambda(id, type, scopes.top(), body), procloc));
   scopes.pop();
 
   return proc;
 }
 
 
-unique_ptr<Ast> Parser::parse_infix(unique_ptr<Ast> lhs, int precedence)
+shared_ptr<Ast> Parser::parse_infix(shared_ptr<Ast> lhs, int precedence)
 {
   /*
   this is an implementation of an operator precedence parser.
@@ -1068,7 +1059,7 @@ unique_ptr<Ast> Parser::parse_infix(unique_ptr<Ast> lhs, int precedence)
   many peaks into the rhs, and many identical
   precedence operations into the lhs.
   */
-  optional<Binop> lookahead;
+  optional<pair<int, Associativity>> lookahead;
 
   /*
     this first test is of the shape of
@@ -1077,10 +1068,10 @@ unique_ptr<Ast> Parser::parse_infix(unique_ptr<Ast> lhs, int precedence)
     case get executed, which avoids a
     possible runtime error.
   */
-  while ((lookahead = binops.find(curtxt())) && lookahead->precedence >= precedence)
+  while ((lookahead = env.precedences->FindPrecAndAssoc(curtxt())) && get<0>(*lookahead) >= precedence)
   {
     string&& optxt = curtxt();
-    optional<Binop> op(lookahead);
+    optional<pair<int, Associativity>> curop(lookahead);
 
     nextok();
 
@@ -1102,11 +1093,11 @@ unique_ptr<Ast> Parser::parse_infix(unique_ptr<Ast> lhs, int precedence)
          rhs   rhs'
 
     */
-    while ((lookahead = binops.find(curtxt()))
-           &&   (lookahead->precedence > op->precedence
-             || (lookahead->precedence == op->precedence && lookahead.associativity == Assoc::Right)))
+    while ((lookahead = env.precedences->FindPrecAndAssoc(curtxt()))
+           &&   (get<0>(*lookahead) > get<0>(*curop)
+             || (get<0>(*lookahead) == get<0>(*curop) && get<1>(*lookahead) == Associativity::Right)))
     {
-      rhs = move(parse_infix(move(rhs), lookahead.precedence));
+      rhs = parse_infix(move(rhs), get<0>(*lookahead));
     }
 
     /*
@@ -1117,11 +1108,11 @@ unique_ptr<Ast> Parser::parse_infix(unique_ptr<Ast> lhs, int precedence)
        op    rhs'
     lhs  rhs
     */
-    Location binoploc(lhs->loc.first_line,
-                      lhs->loc.first_column,
+    Location binoploc(lhs->location.first_line,
+                      lhs->location.first_column,
                       rhstermloc.first_line,
                       rhstermloc.first_column);
-    lhs = unique_ptr<Ast>(new BinopNode(optxt, move(lhs), move(rhs), binoploc));
+    lhs = shared_ptr<Ast>(new Binop(optxt, lhs, rhs, binoploc));
   }
   return lhs;
 }
@@ -1156,7 +1147,7 @@ optional<ParserError> Parser::speculate_term()
   }
   else
   {
-     result = optional<ParserError>({curloc(), "unknown token in primary position"});
+     result = optional<ParserError>({"unknown grapheme in primary position: [" + curtxt() + "]", curloc()});
   }
   return result;
 }
@@ -1165,7 +1156,7 @@ optional<ParserError> Parser::speculate_primary()
 {
   optional<ParserError> result;
   while ((curtok() != Token::Operator && is_primary(curtok()))
-      || (curtok() == Token::Operator && !is_binop(curtxt())))
+      || (curtok() == Token::Operator && is_unop(curtxt())))
   {
     result = speculate_primitive();
   }
@@ -1207,7 +1198,7 @@ optional<ParserError> Parser::speculate_primitive()
       {
         // we saw one valid term, but then it wasn't
         // followed by an RParen or a Comma.
-        result = optional<ParserError>({curloc(), "missing closing ) or , after valid term"});
+        result = optional<ParserError>({"missing closing ) or , after valid term", curloc()});
       }
     }
     else
@@ -1242,7 +1233,7 @@ optional<ParserError> Parser::speculate_primitive()
   else
   {
     // error: no valid primitive term to parse.
-    result = optional<ParserError>({curloc(), "unknown primitive"});
+    result = optional<ParserError>({"unknown primitive grapheme: [" + curtxt() + "]", curloc()});
   }
 
   return result;
@@ -1260,10 +1251,10 @@ optional<ParserError> Parser::speculate_type()
     else if (speculate(Token::TypeInt));
     else if (speculate(Token::TypeBool));
     else {
-      result = optional<ParserError>({curloc(), "expected to parse a type primitive here."});
+      result = optional<ParserError>({"expected to parse a type primitive here.", curloc()});
     }
     // this condition needs to check against
-    // every possible type composition operation
+    // every possible type composition operator
   } while (!result && speculate(Token::Rarrow));
 
   return result;
@@ -1272,19 +1263,21 @@ optional<ParserError> Parser::speculate_type()
 optional<ParserError> Parser::speculate_while()
 {
   optional<ParserError> result;
-  if (speculate(Token::While)) {
+  if (speculate(Token::While))
+  {
     result = speculate_term();
-    if (!result && speculate(Token::Do)) {
+    if (!result && speculate(Token::Do))
+    {
       result = speculate_term();
     }
     else
     {
-      result = optional<ParserError>({curloc(), "missing 'do'"});
+      result = optional<ParserError>({"missing 'do'", curloc()});
     }
   }
   else
   {
-    result = optional<ParserError>({curloc(), "missing 'while'"});
+    result = optional<ParserError>({"missing 'while'", curloc()});
   }
   return result;
 }
@@ -1292,26 +1285,25 @@ optional<ParserError> Parser::speculate_while()
 optional<ParserError> Parser::speculate_if()
 {
   optional<ParserError> result;
-  if (speculate(Token::If)) {
+  if (speculate(Token::If))
+  {
       result = speculate_term();
-      if (!result && speculate(Token::Then)) {
+      if (!result && speculate(Token::Then))
+      {
           result = speculate_term();
-          if (!result && speculate(Token::Else)) {
+          if (!result && speculate(Token::Else))
+          {
             result = speculate_term();
           }
           else
           {
-            result = optional<ParserError>({curloc(), "missing 'else'"});
+            result = optional<ParserError>({"missing 'else'", curloc()});
           }
       }
       else
       {
-        result = optional<ParserError>({curloc(), "missing 'then'"});
+        result = optional<ParserError>({"missing 'then'", curloc()});
       }
-  }
-  else
-  {
-    result = optional<ParserError>({curloc(), "missing 'if'"});
   }
   return result;
 }
@@ -1320,42 +1312,35 @@ optional<ParserError> Parser::speculate_procedure()
 {
   optional<ParserError> result;
 
-  auto speculate_arg = []()
-  {
-    optional<ParserError> result;
-    if (speculate(Token::Id)) {
-      // type annotations are optional.
-      if (speculate(Token::Colon)) {
-        result = speculate_term();
-      }
-    }
-    else
-    {
-      result = optional<ParserError>({curloc(), "expected the id of the argument"});
-    }
-    return result;
-  }
-
   // start parsing the procedure literal.
-  if (speculate(Token::Backslash)) {
+  if (speculate(Token::Backslash))
+  {
     // parse the argument, or argument list
-    if (curtok() == Token::Id) {
-        result = speculate_arg();
+    if (speculate(Token::Id))
+    {
+        // type annotations are optional.
+        if (speculate(Token::Colon))
+        {
+          result = speculate_term();
+        }
     }
     else
     {
-      result = optional<ParserError>({curloc(), "missing argument following '\\'"});
+      result = optional<ParserError>({"missing argument following '\\'", curloc()});
     }
 
     // parse the body
-    if (speculate(Token::EqRarrow))
+    if (!result && speculate(Token::EqRarrow))
     {
       result = speculate_term();
     }
-    else
+    else if (!result)
     {
-      result = optional<ParserError>({curloc(), "missing \"=>\" after argument"});
+      result = optional<ParserError>({"missing \"=>\" after argument", curloc()});
     }
+    else
+      ; // in this case we want to preserve
+        // the previous error message
 
   }
 

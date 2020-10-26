@@ -41,6 +41,19 @@ public:
   TypeJudgement(TypeError err)
     : success(false), u(err) {}
 
+  TypeJudgement(const TypeJudgement&& other)
+    : success(other.success)
+    {
+      if (success)
+      {
+        u.jdgmt = other.u.jdgmt;
+      }
+      else
+      {
+        u.error = other.u.error;
+      }
+    }
+
   bool succeeded();
   operator bool();
 };

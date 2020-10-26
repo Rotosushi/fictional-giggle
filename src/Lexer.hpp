@@ -3,10 +3,9 @@
 #include <string>
 using std::string;
 
-#include "Ast.hpp"
+#include "Location.hpp"
+#include "Token.hpp"
 
-
-enum class Token;
 
 class Lexer {
   string buf;

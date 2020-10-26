@@ -128,15 +128,15 @@ int main(int argc, char** argv)
         but once it does, this is the expected usecase
         of the evaluate() procedure.
 
-        EvalJudgement eval_term = ast->evaluate(&top, &ops);
+        EvalJudgement evaljdgmt = ast->evaluate(env);
 
-        if (eval_term.succeeded())
+        if (evaljdgmt.succeeded())
         {
-          cout << ":=> " << eval_term.u.judgement->to_string() << endl;
+          cout << "~> " << evaljdgmt.u.jdgmt->to_string() << endl;
         }
         else
         {
-          cout << buildErrStr(eval_term.u.err) << endl;
+          cout << buildErrStr(evaljdgmt.u.err, input_text) << endl;
         }
         */
         // here is where it is safe to do cleanup
@@ -145,12 +145,12 @@ int main(int argc, char** argv)
       }
       else
       {
-        cout << buildErrStr(astjdgmt.u.err) << endl;
+        cout << buildErrStr(astjdgmt, input_text) << endl;
       }
     }
     else
     {
-        cout << buildErrStr(term.u.err) << endl;
+        cout << buildErrStr(termjdgmt, input_text) << endl;
     }
   } while ();
 }

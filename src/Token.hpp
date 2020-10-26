@@ -1,0 +1,32 @@
+#pragma once
+
+enum class Token
+{
+  Error,
+  End,
+  More,
+  NewLn,
+  TypePoly,
+  Nil,
+  TypeNil,
+  Int,
+  TypeInt,
+  True,
+  False,
+  TypeBool,
+  While,
+  Do,
+  If,
+  Then,
+  Else,
+  Id,
+  LParen,
+  RParen,
+  Comma,
+  Colon,
+  ColonEquals,
+  Backslash,
+  Rarrow,
+  EqRarrow,
+  Operator,
+};

@@ -15,9 +15,9 @@ public:
 
   virtual ~PinkError() {}
 
-  Location location();
+  Location& location();
   virtual string what();
 };
 
-string buildErrStr(const Location& loc, const string& errdesc, const string& errtext);
-string buildErrStr(const PinkError& err, const string& errtxt);
+string buildErrStr(Location loc, string errdesc, string errtext);
+string buildErrStr(PinkError err, string errtxt);

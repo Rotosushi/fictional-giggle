@@ -12,7 +12,7 @@ using std::shared_ptr;
 
 shared_ptr<Ast> Unop::clone_internal()
 {
-  return make_shared(Unop(op, rhs->clone(), location));
+  return shared_ptr<Ast>(new Unop(op, rhs->clone(), location));
 }
 
 string Unop::to_string_internal()
@@ -24,11 +24,11 @@ string Unop::to_string_internal()
   return result;
 }
 
-TypeJudgement Unop:getype_internal(Environment env)
+TypeJudgement Unop::getype_internal(Environment env)
 {
-  auto UnopEliminators = env.unops->FindUnops(op);
+  auto UnopEliminators = env.unops->FindUnop(op);
 
-  if (UnopELiminators)
+  if (UnopEliminators)
   {
     auto rhsjdgmt = rhs->getype(env);
 
@@ -37,11 +37,11 @@ TypeJudgement Unop:getype_internal(Environment env)
 
     shared_ptr<Type> rhstype = rhsjdgmt.u.jdgmt;
 
-    auto eliminator = UnopEliminators->HasEliminator(rhstype);
+    auto eliminator = (*UnopEliminators)->HasEliminator(rhstype);
 
     if (eliminator)
     {
-      return TypeJudgement(eliminator->result_type());
+      return TypeJudgement(eliminator->GetResultType());
     }
     else
     {
@@ -51,7 +51,7 @@ TypeJudgement Unop:getype_internal(Environment env)
                     + "] for actual argument type ["
                     + rhs->to_string()
                     + "]\n";
-      return TypeJudgement(location, errdsc);
+      return TypeJudgement(TypeError(location, errdsc));
     }
   }
   else
@@ -60,7 +60,7 @@ TypeJudgement Unop:getype_internal(Environment env)
     string errdsc = "No unop found for symbol ["
                   + op
                   + "]\n";
-    return TypeJudgement(location, errdsc);
+    return TypeJudgement(TypeError(location, errdsc));
   }
 }
 

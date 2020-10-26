@@ -1,4 +1,3 @@
-#pragma once
 #include <string>
 using std::string;
 #include <memory>
@@ -10,6 +9,7 @@ using std::tuple;
 using std::make_tuple;
 #include <optional>
 using std::optional;
+using std::make_optional;
 #include <utility>
 using std::pair;
 using std::make_pair;
@@ -37,10 +37,10 @@ shared_ptr<Ast> BinopEliminator::operator()(shared_ptr<Ast> lhs, shared_ptr<Ast>
       [if primitive then apply primitive else apply composite]
        block.)
   */
-  return this->eliminator(lhs.get(), rhs.get());
+  return this->primitive_eliminator(lhs.get(), rhs.get());
 }
 
-shared_ptr<Type> BinopEliminator::result_type()
+shared_ptr<Type> BinopEliminator::GetResultType()
 {
   return result_type;
 }
@@ -56,9 +56,9 @@ optional<BinopEliminator> BinopEliminatorSet::HasEliminator(shared_ptr<Type> lty
     [](tuple<shared_ptr<Type>, shared_ptr<Type>, shared_ptr<Type>, primitive_binop_eliminator> eliminator, shared_ptr<Type> ltype, shared_ptr<Type> rtype) -> bool
   {
     bool result;
-    if (TypesEquivalent((get<0>(eliminator)).get(), ltype.get()))
+    if (TypesEquivalent((get<0>(eliminator)), ltype))
     {
-      if (TypesEquivalent((get<1>(eliminator)).get(), rtype.get()))
+      if (TypesEquivalent((get<1>(eliminator)), rtype))
       {
         result = true;
       }
@@ -69,24 +69,49 @@ optional<BinopEliminator> BinopEliminatorSet::HasEliminator(shared_ptr<Type> lty
     }
     else
     {
-      resut = false;
+      result = false;
     }
     return result;
+  };
+
+  /*
+  the point of pink is to make this body look more like:
+
+  eliminator_arguments_match :=
+    (\elim_tuple, ltype, rtype =>
+        if (TypesEquivalent(elim_tuple.0, ltype))
+        {
+          if (TypesEquivalent(elim_tuple.1, rtype))
+          {
+            return true;
+          }
+          return false;
+        }
+        return false;
+     );
+
+  for (elim_tuple : primitive_eliminators)
+  {
+    if (eliminator_arguments_match(elim_tuple, lhstype, rhstype))
+    {
+      return optional(BinopEliminator(elim_tuple.3, elim_tuple.2));
+    }
   }
+  */
 
   for (auto&& elim_tuple : primitive_eliminators)
   {
     if (eliminator_arguments_match(elim_tuple, ltype, rtype))
     {
-      return make_optional(BinopEliminator(get<3>(elim_tuple), get<2>(elim_tuple));
+      return make_optional(BinopEliminator(get<3>(elim_tuple), get<2>(elim_tuple)));
     }
   }
   return optional<BinopEliminator>();
 }
 
-void BinopSet::RegisterBinop(const string& op, shared_ptr<BinopEliminatorSet> set)
+void BinopSet::RegisterBinop(const string& op, shared_ptr<BinopEliminatorSet> BinSet)
 {
-  set.push_back(make_pair(op, set));
+  set.push_back(make_pair(op, BinSet));
 }
 
 optional<shared_ptr<BinopEliminatorSet>> BinopSet::FindBinop(const string& op)

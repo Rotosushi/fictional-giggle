@@ -72,4 +72,4 @@ protected:
 };
 
 
-TypeJudgement TypesEquivalent(Type* t1, Type* t2);
+TypeJudgement TypesEquivalent(shared_ptr<Type> t1, shared_ptr<Type> t2);

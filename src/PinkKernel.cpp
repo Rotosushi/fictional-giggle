@@ -77,12 +77,27 @@ shared_ptr<Ast> PercentBinopModulusInts(const Ast* lhs, const Ast* rhs)
   return make_shared(Entity(lent->literal->value % rent->literal->value));
 }
 
+shared_ptr<Ast> EqualsBinopEquivalentInts(const Ast* lhs, const Ast* rhs)
+{
+  Entity* lent = dynamic_cast<Entity*>(lhs);
+  Entity* rent = dynamic_cast<Entity*>(rhs);
+
+  if (!lent)
+    throw "Bad Rhs Ast\n";
+
+  if (!rent)
+    throw "Bad Lhs Ast\n";
+
+  return make_shared(Entity(lent->literal->value == rent->literal->value));
+}
+
 void RegisterPrimitiveBinops(Environment env)
 {
   auto IntegerType = make_shared(MonoType(AtomicType::Int));
+  auto BooleanType = make_shared(MonoType(AtomicType::Bool));
 
   auto EqualsBinop = make_shared(BinopEliminatorSet());
-  EqualsBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, IntegerType, EqualsBinopEquivalentInts);
+  EqualsBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, BooleanType, EqualsBinopEquivalentInts);
   env.binops->RegisterBinopEliminatorSet("=", EqualsBinop);
   env.precedences->RegisterBinopPrecAndAssoc("=", 1, Associativity::Left);
 

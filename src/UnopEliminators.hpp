@@ -11,8 +11,8 @@ using std::make_tuple;
 #include <optional>
 using std::optional;
 
-#include "Ast.hpp"
-
+class Ast;
+class Type;
 
 typedef shared_ptr<Ast> (*primitive_unop_eliminator)(shared_ptr<Ast> rhs);
 
@@ -38,11 +38,11 @@ class UnopEliminator
   shared_ptr<Type>          result_type;
 
 public:
-    UnopEliminator(primitive_unop_eliminator elim)
-      : primitive_eliminator(elim) {}
+    UnopEliminator(primitive_unop_eliminator elim, shared_ptr<Type> restype)
+      : primitive_eliminator(elim), result_type(restype) {}
 
     shared_ptr<Ast> operator()(shared_ptr<Ast> rhs);
-    shared_ptr<Type> result_type();
+    shared_ptr<Type> GetResultType();
 };
 
 class UnopEliminatorSet

@@ -24,16 +24,16 @@ string Object::to_string()
   return to_string_internal();
 }
 
-TypeJudgement Object::getype(SymbolTable* env, OperatorTable* ops)
+TypeJudgement Object::getype(Environment env)
 {
-  return getype_internal(env, ops);
+  return getype_internal(env);
 }
 
 /* ------------------------------------------------------------------------- */
 
 shared_ptr<Object> Nil::clone_internal()
 {
-  return make_shared(Nil(*this));
+  return shared_ptr(new Nil(*this));
 }
 
 string Nil::to_string_internal()
@@ -41,16 +41,16 @@ string Nil::to_string_internal()
   return "nil";
 }
 
-TypeJudgement Nil::getype_internal(SymbolTable* env, OperatorTable* env)
+TypeJudgement Nil::getype_internal(Environment env)
 {
-  return TypeJudgement(make_shared(MonoType(AtomicType::Nil)));
+  return TypeJudgement(MonoType(AtomicType::Nil)));
 }
 
 /* ------------------------------------------------------------------------- */
 
 shared_ptr<Object> Integer::clone_interal()
 {
-  return make_shared(Integer(value));
+  return shared_ptr<Object>(new Integer(value));
 }
 
 string Integer::to_string_internal()
@@ -58,7 +58,7 @@ string Integer::to_string_internal()
   return string(value);
 }
 
-TypeJudgement Integer::getype_internal(SymbolTable* env, BinopSet* binops)
+TypeJudgement Integer::getype_internal(Environment env)
 {
   return TypeJudgement(MonoType(AtomicType::Int));
 }
@@ -67,7 +67,7 @@ TypeJudgement Integer::getype_internal(SymbolTable* env, BinopSet* binops)
 
 shared_ptr<Object> Boolean::clone_interal()
 {
-  return make_shared(Boolean(value));
+  return shared_ptr<Object>(new Boolean(value));
 }
 
 string Boolean::to_string_internal()
@@ -75,7 +75,7 @@ string Boolean::to_string_internal()
   return string(value);
 }
 
-TypeJudgement Boolean::getype_internal(SymbolTable* env, BinopSet* binops)
+TypeJudgement Boolean::getype_internal(Environment env)
 {
   return TypeJudgement(MonoType(AtomicType::Bool));
 }
@@ -84,7 +84,7 @@ TypeJudgement Boolean::getype_internal(SymbolTable* env, BinopSet* binops)
 
 shared_ptr<Object> Lambda::clone_interal()
 {
-  return make_shared(Lambda(arg_id, arg_type->clone(), scope, body->clone(), location));
+  return shared_ptr<Object>(new Lambda(arg_id, arg_type->clone(), scope, body->clone(), location));
 }
 
 string Lambda::to_string_internal()
@@ -123,7 +123,7 @@ TypeJudgement Lambda::getype_internal(Environment env)
 
 /* ------------------------------------------------------------------------- */
 
-optional<Lambda> PolyLambda::HasInstance(shared_ptr<Type> target_type, SymbolTable* env, OperatorTable* ops)
+optional<Lambda> PolyLambda::HasInstance(shared_ptr<Type> target_type, Environment env)
 {
   /*
   the only way to introduce a polymorphic
@@ -157,14 +157,14 @@ optional<Lambda> PolyLambda::HasInstance(shared_ptr<Type> target_type, SymbolTab
 
 shared_ptr<Object> PolyLambda::clone_internal()
 {
-  return make_shared(PolyLambda(*this));
+  return shared_ptr<Object>(new PolyLambda(*this));
 }
 
 /* ------------------------------------------------------------------------- */
 
 shared_ptr<Ast> Entity::clone_interal()
 {
-  return make_shared(Entity(literal->clone()));
+  return shared_ptr<Ast>(new Entity(literal->clone()));
 }
 
 string Entity::to_string_internal()
@@ -181,7 +181,7 @@ EvalJudgement Entity::evaluate_internal(Environment env)
 {
   /*
     so, honestly, we might seriously consider
-    deleting this procedure, just to ensure that
+    = deleting this procedure, just to ensure that
     we never even attempt to evaluate objects.
     but, with the way that i want to write the
     main evaluate method, i doubt it will matter.

@@ -92,6 +92,7 @@ Token Lexer::yylex()
             *          { update_location(); return Token::Error;       }
             $          { update_location(); return Token::End;         }
             [ \t\n]    { update_location(); continue;                  }
+            "Poly"     { update_location(); return Token::TypePoly;    }
             "nil"      { update_location(); return Token::Nil;         }
             "Nil"      { update_location(); return Token::TypeNil;     }
             "Int"      { update_location(); return Token::TypeInt;     }

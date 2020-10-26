@@ -7,7 +7,7 @@ Pink: Lexer
 	ParserJudgement.cpp TypeJudgement.cpp EvalJudgement.cpp \
 	Binop.cpp Unop.cpp SymbolTable.cpp \
 	BinopPrecedenceTable.cpp BinopEliminators.cpp \
-	UnopEliminators.cpp Environment.hpp PinkKernel.cpp \
+	UnopEliminators.cpp Environment.cpp PinkKernel.cpp \
 	Location.cpp Variable.cpp \
 	Bind.cpp Application.cpp Conditional.cpp Iteration.cpp \
 	Entity.cpp Pink.cpp -o Pink

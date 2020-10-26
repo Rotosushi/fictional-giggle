@@ -1,7 +1,7 @@
 
 #include "PinkError.hpp"
 
-Location PinkError::location()
+Location& PinkError::location()
 {
   return loc;
 }
@@ -11,7 +11,7 @@ string PinkError::what()
   return dsc;
 }
 
-string buildErrStr(const Location& loc, const string& errdsc, const string& errtxt)
+string buildErrStr(Location loc, string errdsc, string errtxt)
 {
   /*
     this function only really makes sense if the
@@ -28,21 +28,21 @@ string buildErrStr(const Location& loc, const string& errdsc, const string& errt
     a-line-of-text-describing-the-error-found
   */
   string result("   ");
-  result += errtext;
+  result += errtxt;
   result += "\n";
-  for (int i = 0; i < errtext.length() + 10; i++) {
+  for (int i = 0; i < errtxt.length() + 10; i++) {
     if (i < loc.first_column + 3 || i > loc.last_column + 3)
       result += "-";
     else
       result += "^";
   }
   result += "\n";
-  result += errdesc;
+  result += errdsc;
   result += "\n";
   return result;
 }
 
-string buildErrStr(const PinkError& e, const string& errtxt)
+string buildErrStr(PinkError e, string errtxt)
 {
   return buildErrStr(e.location(), e.what(), errtxt);
 }

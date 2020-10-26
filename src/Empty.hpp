@@ -7,8 +7,7 @@ using std::shared_ptr;
 #include "Ast.hpp"
 #include "TypeJudgement.hpp"
 #include "EvalJudgement.hpp"
-#include "SymbolTable.hpp"
-#include "OperatorTable.hpp"
+#include "Environment.hpp"
 
 class Empty : public Ast
 {

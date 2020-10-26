@@ -5,8 +5,7 @@ using std::string;
 using std::shared_ptr;
 
 #include "Ast.hpp"
-#include "SymbolTable.hpp"
-#include "OperatorTable.hpp"
+#include "Environment.hpp"
 #include "TypeJudgement.hpp"
 
 class Iteration : public Ast

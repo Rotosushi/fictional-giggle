@@ -6,15 +6,14 @@ using std::shared_ptr;
 using std::make_shared;
 
 #include "Ast.hpp"
-#include "Type.hpp"
 #include "TypeJudgement.hpp"
 #include "EvalJudgement.hpp"
-#include "SymbolTable.hpp"
-#include "OperatorTable.hpp"
+#include "Environment.hpp"
+#include "Empty.hpp"
 
 shared_ptr<Ast> Empty::clone_internal()
 {
-  return make_shared(Empty(*this));
+  return shared_ptr<Ast>(new Empty(*this));
 }
 
 string Empty::to_string_internal()

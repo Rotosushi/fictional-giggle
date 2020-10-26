@@ -7,7 +7,7 @@ bool EvalJudgement::succeeded()
   return success;
 }
 
-ParserJudgement::operator bool()
+EvalJudgement::operator bool()
 {
   return success;
 }

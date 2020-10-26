@@ -1,4 +1,4 @@
-#pragma once
+
 #include <string>
 using std::string;
 #include <memory>
@@ -18,7 +18,7 @@ using std::make_tuple;
 
 shared_ptr<Ast> Binop::clone_internal()
 {
-  return make_shared(Binop(op, lhs->clone(), rhs->clone(), location));
+  return shared_ptr<Ast>(new Binop(op, lhs->clone(), rhs->clone(), location));
 }
 
 string Binop::to_string_internal()
@@ -57,14 +57,14 @@ TypeJudgement Binop::getype_internal(Environment env)
     if (!rhsjdgmt)
       return rhsjdgmt;
 
-    shared_ptr<Type> lhstype = lhsjdgmt.u.judgement;
-    shared_ptr<Type> rhstype = rhsjdgmt.u.judgement;
+    shared_ptr<Type> lhstype = lhsjdgmt.u.jdgmt;
+    shared_ptr<Type> rhstype = rhsjdgmt.u.jdgmt;
 
-    auto eliminator = BinopEliminators->HasEliminator(lhstype, rhstype);
+    auto eliminator = (*BinopEliminators)->HasEliminator(lhstype, rhstype);
 
     if (eliminator)
     {
-      return TypeJudgement(eliminator->result_type());
+      return TypeJudgement(eliminator->GetResultType());
     }
     else
     {
@@ -76,7 +76,7 @@ TypeJudgement Binop::getype_internal(Environment env)
                     + "] and actual rhstype:["
                     + rhstype->to_string()
                     + "]\n";
-      return TypeJudgement(location, errdsc);
+      return TypeJudgement(TypeError(location, errdsc));
     }
   }
   else
@@ -85,7 +85,7 @@ TypeJudgement Binop::getype_internal(Environment env)
     string errdsc = "No binop found for symbol ["
                   + op
                   + "]\n";
-    return TypeJudgement(location, errdsc);
+    return TypeJudgement(TypeError(location, errdsc));
   }
 }
 

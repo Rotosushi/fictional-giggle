@@ -38,13 +38,16 @@ TypeJudgement Iteration::getype_internal(Environment env)
   as in, the result of the while term
   is the final body value. i don't
   see an initial argument against this?
+  it allows for one to validly use a
+  loop in certain contexts in which it would
+  be ambiguous previously.
   */
   TypeJudgement condjdgmt = cond->getype(env);
 
   if (!condjdgmt)
     return condjdgmt;
 
-  Type* condtype = condjdgmt.u.judgement.get();
+  Type* condtype = condjdgmt.u.jdgmt.get();
   shared_ptr<Type> booltype = make_shared<MonoType>(AtomicType::Bool);
 
   if (TypesEquivalent(condtype, booltype))

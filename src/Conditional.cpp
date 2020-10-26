@@ -6,14 +6,14 @@ using std::shared_ptr;
 using std::make_shared;
 
 #include "Ast.hpp"
-#include "SymbolTable.hpp"
-#include "OperatorTable.hpp"
+#include "Environment.hpp"
 #include "TypeJudgement.hpp"
+#include "EvalJudgement.hpp"
 #include "Conditional.hpp"
 
 shared_ptr<Ast> Conditional::clone_interal()
 {
-  return make_shared(Conditional(cond->clone(), fst->clone(), snd->clone(), location));
+  return shared_ptr<Ast>(new Conditional(cond->clone(), fst->clone(), snd->clone(), location));
 }
 
 string Conditional::to_string_internal()
@@ -99,7 +99,7 @@ TypeJudgement Conditional::getype_internal(Environment env)
   }
 }
 
-EvalJudgement Conditional::evaluate_internal(SymbolTable* env, OperatorTable* ops)
+EvalJudgement Conditional::evaluate_internal(Environment env)
 {
 
 }

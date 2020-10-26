@@ -13,8 +13,8 @@ using std::optional;
 #include <utility>
 using std::pair;
 
-#include "Ast.hpp"
-//#include "Entity.hpp"
+class Ast;
+class Type;
 
 /*
   function pointers seem usefull,
@@ -74,11 +74,11 @@ class BinopEliminator
   shared_ptr<Type>           result_type;
 
 public:
-  BinopEliminator(primitive_binop_eliminator elim, shared_ptr<Type> restype)
-    : primitive_eliminator(elim), result_type(restype) {}
+  BinopEliminator(primitive_binop_eliminator elim, shared_ptr<Type> result_type)
+    : primitive_eliminator(elim), result_type(result_type) {}
 
   shared_ptr<Ast> operator()(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs);
-  shared_ptr<Type> result_type();
+  shared_ptr<Type> GetResultType();
 };
 
 

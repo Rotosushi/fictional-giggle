@@ -7,7 +7,7 @@ using std::make_shared;
 
 #include "Type.hpp"
 
-shared_ptr<Ast> Type::clone()
+shared_ptr<Type> Type::clone()
 {
   return clone_internal();
 }
@@ -22,9 +22,9 @@ bool Type::is_polymorphic()
   return is_poly_internal();
 }
 
-shared_ptr<Ast> MonoType::clone_internal()
+shared_ptr<Type> MonoType::clone_internal()
 {
-  return make_shared(MonoType(*this));
+  return shared_ptr<Type>(new MonoType(*this));
 }
 
 string MonoType::to_string_internal()
@@ -65,9 +65,9 @@ bool MonoType::is_poly_internal()
   }
 }
 
-shared_ptr<Ast> ProcType::clone_internal()
+shared_ptr<Type> ProcType::clone_internal()
 {
-  return make_shared(ProcType(lhs->clone(), rhs->clone()));
+  return shared_ptr<Type>(new ProcType(lhs->clone(), rhs->clone(), location));
 }
 
 string ProcType::to_string_internal()
@@ -84,10 +84,10 @@ bool ProcType::is_poly_internal()
   return lhs->is_polymorphic() || rhs->is_polymorphic();
 }
 
-TypeJudgement TypesEquivalent(Type* t1, Type* t2)
+TypeJudgement TypesEquivalent(shared_ptr<Type> t1, shared_ptr<Type> t2)
 {
-  MonoType* mt1 = dynamic_cast<MonoType*>(t1);
-  MonoType* mt2 = dynamic_cast<MonoType*>(t2);
+  MonoType* mt1 = dynamic_cast<MonoType*>(t1.get());
+  MonoType* mt2 = dynamic_cast<MonoType*>(t2.get());
 
   if (mt1 != nullptr)
   {
@@ -95,7 +95,7 @@ TypeJudgement TypesEquivalent(Type* t1, Type* t2)
     {
       if (mt1->tag == mt2->tag)
       {
-        return TypeJudgement(t1);
+        return TypeJudgement(t1->clone());
       }
       else
       {
@@ -105,7 +105,7 @@ TypeJudgement TypesEquivalent(Type* t1, Type* t2)
                       + t2->to_string()
                       + "] not equal\n";
         TypeError typeerror(Location(), errdsc);
-        return Judgement(typeerror);
+        return TypeJudgement(typeerror);
       }
     }
     else
@@ -121,8 +121,8 @@ TypeJudgement TypesEquivalent(Type* t1, Type* t2)
   }
   else
   {
-    ProcType* pt1 = dynamic_cast<ProcType*>(t1);
-    ProcType* pt2 = dynamic_cast<ProcType*>(t2);
+    ProcType* pt1 = dynamic_cast<ProcType*>(t1.get());
+    ProcType* pt2 = dynamic_cast<ProcType*>(t2.get());
 
     if (pt1 != nullptr)
     {
@@ -132,11 +132,11 @@ TypeJudgement TypesEquivalent(Type* t1, Type* t2)
 
         if (j1.succeeded())
         {
-          TypeJudgement j2 = TypesEquivalent(pt2->rhs, pt2->rhs);
+          TypeJudgement j2 = TypesEquivalent(pt1->rhs, pt2->rhs);
 
           if (j2.succeeded())
           {
-            return TypeJudgement(t1);
+            return TypeJudgement(t2->clone());
           }
           else
           {
@@ -151,12 +151,12 @@ TypeJudgement TypesEquivalent(Type* t1, Type* t2)
       else
       {
         string errdsc = "cannot compare proc type t1:["
-                      + t1->to_string();
+                      + t1->to_string()
                       + "] to non-proc type t2:["
-                      + t2->to_string();
+                      + t2->to_string()
                       + "]";
         TypeError typeerror(Location(), errdsc);
-        return Judgement(typeerror);
+        return TypeJudgement(typeerror);
       }
     }
     else

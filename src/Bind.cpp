@@ -6,13 +6,13 @@ using std::shared_ptr;
 using std::make_shared;
 
 #include "Ast.hpp"
-#include "SymbolTable.hpp"
+#include "Environment.hpp"
 #include "TypeJudgement.hpp"
 #include "Bind.hpp"
 
 shared_ptr<Ast> Bind::clone_internal()
 {
-  return make_shared(Bind(op, rhs->clone(), location));
+  return shared_ptr<Ast>(new Bind(op, rhs->clone(), location));
 }
 
 string Bind::to_string_internal()
@@ -55,7 +55,7 @@ ENV |- id is-not-currently-bound-in-local-scope, term2 : type2
   }
 }
 
-EvalJudgement Bind::evaluate_internal(SymbolTable* env, OperatorTable* ops)
+EvalJudgement Bind::evaluate_internal(Environment env)
 {
 
 }

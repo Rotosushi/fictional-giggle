@@ -3,8 +3,7 @@ using std::string;
 #include <memory>
 using std::shared_ptr;
 
-#include "Ast.hpp"
-#include "ParserError.hpp"
+#include "ParserJudgement.hpp"
 
 bool ParserJudgement::succeeded()
 {

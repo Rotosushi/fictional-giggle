@@ -6,8 +6,7 @@ using std::shared_ptr;
 using std::make_shared;
 
 #include "Ast.hpp"
-#include "SymbolTable.hpp"
-#include "OperatorTable.hpp"
+#include "Environment.hpp"
 
 class Application : public Ast
 {

@@ -1,4 +1,3 @@
-#pragma once
 #include <string>
 using std::string;
 #include <memory>
@@ -14,6 +13,7 @@ using std::optional;
 using std::make_optional;
 
 #include "Associativity.hpp"
+#include "BinopPrecedenceTable.hpp"
 
 BinopPrecedenceTable::BinopPrecedenceTable()
 {}
@@ -25,7 +25,7 @@ void BinopPrecedenceTable::RegisterBinopPrecAndAssoc(const string& op, int prece
 
 optional<pair<int,Associativity>> BinopPrecedenceTable::FindPrecAndAssoc(const string& key)
 {
-  unordered_map::iterator binop = precedenceTable.find(key);
+  auto binop = precedenceTable.find(key);
   if (binop != precedenceTable.end())
   {
     return make_optional(get<pair<int,Associativity>>(*binop));

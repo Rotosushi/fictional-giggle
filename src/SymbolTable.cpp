@@ -22,7 +22,7 @@ SymbolTable::SymbolTable(const SymbolTable& other)
 
 optional<shared_ptr<Ast>> SymbolTable::lookupInLocalScopeOnly(const string& key)
 {
-  unordered_map::iterator sym = symbs.find(key);
+  auto sym = symbs.find(key);
   if (sym == symbs.end())
   {
     return optional<shared_ptr<Ast>>();
@@ -35,8 +35,8 @@ optional<shared_ptr<Ast>> SymbolTable::lookupInLocalScopeOnly(const string& key)
 
 optional<shared_ptr<Ast>> SymbolTable::operator[](const string& key)
 {
-  unordered_map::iterator sym = symbs.find(key);
-  if (sym = symbs.end())
+  auto sym = symbs.find(key);
+  if (sym == symbs.end())
   {
     if (enclosing_scope != nullptr)
     {
