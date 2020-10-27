@@ -109,9 +109,9 @@ optional<BinopEliminator> BinopEliminatorSet::HasEliminator(shared_ptr<Type> lty
   return optional<BinopEliminator>();
 }
 
-void BinopSet::RegisterBinop(const string& op, shared_ptr<BinopEliminatorSet> BinSet)
+void BinopSet::RegisterBinop(const string& op, shared_ptr<BinopEliminatorSet> binop)
 {
-  set.push_back(make_pair(op, BinSet));
+  set.push_back(make_pair(op, binop));
 }
 
 optional<shared_ptr<BinopEliminatorSet>> BinopSet::FindBinop(const string& op)

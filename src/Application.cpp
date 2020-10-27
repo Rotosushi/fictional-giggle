@@ -77,14 +77,16 @@ TypeJudgement Application::getype_internal(Environment env)
   */
   TypeJudgement typeA = lhs->getype(env);
 
-  if (typeA)
+
+  if (typeA) // could we type the lhs?
   {
-    ProcType* pt = dynamic_cast<ProcType*>(typeA.u.jdgmt.get());
-    if (pt)
+    shared_ptr<Type> tA =  typeA.u.jdgmt;
+    ProcType* pt = dynamic_cast<ProcType*>(tA.get());
+    if (pt) // does the lhs have procedure type?
     {
-      if (typeA.u.jdgmt.get()->is_polymorphic())
+      if (tA->is_polymorphic()) // is the procedure polymorphic?
       {
-        return TypeJudgement(make_shared(MonoType(AtomicType::Poly)));
+        return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Poly, lhs->location)));
       }
       else
       {
@@ -92,17 +94,17 @@ TypeJudgement Application::getype_internal(Environment env)
 
         if (typeB)
         {
-          Type* type1 = pt->lhs.get();
+          shared_ptr<Type> type1 = pt->lhs;
 
           if (type1 == nullptr)
             throw "bad lhs type\n";
 
-          Type* type2 = pt->rhs.get();
+          shared_ptr<Type> type2 = pt->rhs;
 
           if (type2 == nullptr)
             throw "bad rhs type\n";
 
-          Type* type3 = typeB.u.jdgmt.get();
+          shared_ptr<Type> type3 = typeB.u.jdgmt;
 
           if (type3 == nullptr)
             throw "bad argument type\n";
@@ -122,7 +124,7 @@ TypeJudgement Application::getype_internal(Environment env)
                           + "] not equivalent to formal type ["
                           + type1->to_string()
                           + "]\n";
-            return TypeJudgement(location, errdsc);
+            return TypeJudgement(TypeError(location, errdsc));
           }
         }
         else
@@ -138,6 +140,7 @@ TypeJudgement Application::getype_internal(Environment env)
 
       if (mt == nullptr)
       {
+        // not MonoType, not ProcType, it's undefined!
         throw "bad lhs application ptr\n";
       }
       else if (tA->is_polymorphic())
@@ -156,7 +159,7 @@ TypeJudgement Application::getype_internal(Environment env)
           term of monomorphic type at some later time
           than right now during typechecking,
           we have absolutely no way of inferring any
-          information on the possible return type
+          information on what the possible return type
           of this polymorphic term could be,
           except of course, that the term itself
           is going to be polymorphic, which means
@@ -172,14 +175,14 @@ TypeJudgement Application::getype_internal(Environment env)
           determinism. (or we fail, for some
           reason or another (which is, of course, reported.))
         */
-        return TypeJudgement(make_shared(MonoType(AtomicType::Poly)));
+        return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Poly, lhs->location)));
       }
       else
       {
         string errdsc = "cannot apply non-procedure type ["
                       + tA->to_string()
                       + "]\n";
-        return TypeJudgement(location, errdsc);
+        return TypeJudgement(TypeError(location, errdsc));
       }
     }
   }

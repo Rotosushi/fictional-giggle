@@ -57,6 +57,7 @@ SymbolTable& SymbolTable::operator=(const SymbolTable& rhs)
 {
   symbs = rhs.symbs;
   enclosing_scope = rhs.enclosing_scope;
+  return *this;
 }
 
 void SymbolTable::register_enclosing_scope(SymbolTable* scope)

@@ -78,6 +78,19 @@ protected:
   virtual TypeJudgement getype_internal(Environment env) = 0;
 };
 
+class TypeLiteral : public Object
+{
+public:
+  shared_ptr<Type> value;
+  TypeLiteral(shared_ptr<Type> t) : value(t->clone()) {}
+  TypeLiteral(const TypeLiteral& other) : value(other.value->clone()) {}
+
+protected:
+  virtual unique_ptr<Object> clone_internal() override;
+  virtual string to_string_internal() override;
+  virtual TypeJudgement getype_internal(Environment env) override;
+};
+
 class Nil : public Object
 {
 public:
@@ -96,6 +109,7 @@ public:
   int value;
 
   Integer(int v) : value(v) {}
+  Integer(const Integer& other) : value(other.value) {}
 
 protected:
   virtual unique_ptr<Object> clone_internal() override;
@@ -109,6 +123,7 @@ public:
   bool value;
 
   Boolean(bool v) : value(v) {}
+  Boolean(const Boolean& other) : value(other.value) {}
 
 protected:
   virtual unique_ptr<Object> clone_internal() override;
@@ -129,7 +144,7 @@ public:
     : arg_id(a_id), arg_type(a_type), scope(enclosing_scope), body(bd) {}
 
   Lambda(const Lambda& other)
-    : arg_id(other.arg_id), arg_type(other.arg_type), scope(other.scope), body(other.body) {}
+    : arg_id(other.arg_id), arg_type(other.arg_type->clone()), scope(other.scope), body(other.body->clone()) {}
 
 
 protected:
@@ -177,13 +192,14 @@ public:
   Entity(bool b, const Location& loc)
     : Ast(loc), literal((new Boolean(b))) {}
 
-  Entity(const Lambda& l, const Location& loc)
-    : Ast(loc), literal((new Lambda(l))) {}
+  Entity(unique_ptr<Lambda> l, const Location& loc)
+    : Ast(loc), literal(move(l)) {}
 
-  Entity(const PolyLambda& l, const Location& loc)
-    : Ast(loc), literal((new PolyLambda(l))) {}
+  Entity(unique_ptr<PolyLambda> l, const Location& loc)
+    : Ast(loc), literal(move(l)) {}
 
-
+  Entity(shared_ptr<Type> l, const Location& loc)
+    : Ast(loc), literal(unique_ptr<Object>(new TypeLiteral(l))) {}
 
   Entity(const Entity& other)
     : Ast(other.location), literal(other.literal->clone()) {}

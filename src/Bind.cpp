@@ -12,7 +12,7 @@ using std::make_shared;
 
 shared_ptr<Ast> Bind::clone_internal()
 {
-  return shared_ptr<Ast>(new Bind(op, rhs->clone(), location));
+  return shared_ptr<Ast>(new Bind(id, rhs->clone(), location));
 }
 
 string Bind::to_string_internal()
@@ -38,9 +38,9 @@ ENV |- id is-not-currently-bound-in-local-scope, term2 : type2
     string errdsc = "id ["
                   + id
                   + "] is already bound to ["
-                  + sym->to_string()
+                  + (*sym)->to_string()
                   + "]\n";
-    return TypeJudgement(location, errdsc);
+    return TypeJudgement(TypeError(location, errdsc));
   }
   else
   {
@@ -50,8 +50,8 @@ ENV |- id is-not-currently-bound-in-local-scope, term2 : type2
     // it is a prime candidate to be a one-liner,
     // however, that isn't debugger friendly.
 
-    TypeJudgement symjdgmt = (*sym)->getype(env);
-    return symjdgmt;
+    TypeJudgement rhsjdgmt = rhs->getype(env);
+    return rhsjdgmt;
   }
 }
 

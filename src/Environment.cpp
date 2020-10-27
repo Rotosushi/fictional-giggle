@@ -8,7 +8,7 @@ using std::shared_ptr;
 #include "Environment.hpp"
 
 Environment::Environment(shared_ptr<SymbolTable> s, shared_ptr<BinopPrecedenceTable> bp, shared_ptr<BinopSet> bs, shared_ptr<UnopSet> us)
-  : scope(s), precedences(bp), binops(bp), unops(us)
+  : scope(s), precedences(bp), binops(bs), unops(us)
 {
 
 }

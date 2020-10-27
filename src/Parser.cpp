@@ -685,17 +685,18 @@ shared_ptr<Ast> Parser::parse_primitive()
       type expressions are started by a
       type literal, and composed from there.
 
+    */
     case Token::TypeNil:
     case Token::TypeInt:
     case Token::TypeBool:
     {
-      lhs = parse_type();
+      lhs = shared_ptr<Ast>(new Entity(parse_type_annotation(), curloc()));
       break;
     }
 
+    /*
     having types be first class is probably
-    not a static language feature. at least
-    for sure in the first version.
+    not a static language feature.
     */
 
     /*
@@ -825,18 +826,22 @@ shared_ptr<Type> Parser::parse_type_annotation()
     if (curtok() == Token::TypeNil)
     {
       type = shared_ptr<Type>(new MonoType(AtomicType::Nil, curloc()));
+      nextok();
     }
     else if (curtok() == Token::TypeInt)
     {
       type = shared_ptr<Type>(new MonoType(AtomicType::Int, curloc()));
+      nextok();
     }
     else if (curtok() == Token::TypeBool)
     {
       type = shared_ptr<Type>(new MonoType(AtomicType::Bool, curloc()));
+      nextok();
     }
     else if (curtok() == Token::TypePoly)
     {
       type = shared_ptr<Type>(new MonoType(AtomicType::Poly, curloc()));
+      nextok();
     }
     else
     {
@@ -968,37 +973,39 @@ shared_ptr<Ast> Parser::parse_procedure()
       type = shared_ptr<Type>(new MonoType(AtomicType::Poly, Location()));
       poly = true;
     }
+
+    if (curtok() != Token::EqRarrow)
+      throw "unexpected missing \"=>\" after speculation.";
+
+    nextok();
+
+    // while we parse the body of this procedure,
+    // the procedures scope is the new enclosing
+    // scope/top-of-the-scope-stack.
+    // this line does double duty,
+    // 1) it constructs the new scope with a reference to
+    //      the old enclosing scope as it's enclosing scope.
+    // 2) it pushes this new scope onto the scope stack in
+    //      order to make it the new enclosing scope.
+    scopes.push(shared_ptr<SymbolTable>(new SymbolTable(scopes.top().get())));
+
+    body = parse_term();
+
+    Location&& rhsloc = curloc();
+    Location procloc(lhsloc.first_line,
+                     lhsloc.first_column,
+                     rhsloc.first_line,
+                     rhsloc.first_column);
+
+    proc = shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(id, type, scopes.top(), body)), procloc));
+    scopes.pop();
+
   }
   else
   {
     throw "unexpected missing argument after speculation.";
   }
 
-  if (curtok() != Token::EqRarrow)
-    throw "unexpected missing \"=>\" after speculation.";
-
-  nextok();
-
-  // while we parse the body of this procedure,
-  // the procedures scope is the new enclosing
-  // scope/top-of-the-scope-stack.
-  // this line does double duty,
-  // 1) it constructs the new scope with a reference to
-  //      the old enclosing scope as it's enclosing scope.
-  // 2) it pushes this new scope onto the scope stack in
-  //      order to make it the new enclosing scope.
-  scopes.push(shared_ptr<SymbolTable>(new SymbolTable(scopes.top().get())));
-
-  body = parse_term();
-
-  Location&& rhsloc = curloc();
-  Location procloc(lhsloc.first_line,
-                   lhsloc.first_column,
-                   rhsloc.first_line,
-                   rhsloc.first_column);
-
-  proc = shared_ptr<Ast>(new Entity(Lambda(id, type, scopes.top(), body), procloc));
-  scopes.pop();
 
   return proc;
 }

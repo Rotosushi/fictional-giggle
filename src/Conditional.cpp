@@ -11,7 +11,7 @@ using std::make_shared;
 #include "EvalJudgement.hpp"
 #include "Conditional.hpp"
 
-shared_ptr<Ast> Conditional::clone_interal()
+shared_ptr<Ast> Conditional::clone_internal()
 {
   return shared_ptr<Ast>(new Conditional(cond->clone(), fst->clone(), snd->clone(), location));
 }
@@ -47,23 +47,23 @@ TypeJudgement Conditional::getype_internal(Environment env)
 
   if (condjdgmt)
   {
-    shared_ptr<Type> booltype = make_shared(MonoType(AtomicType::Bool));
-    Type* ct = condjdgmt.u.jdgmt.get();
+    shared_ptr<Type> booltype = shared_ptr<Type>(new MonoType(AtomicType::Bool, Location()));
+    shared_ptr<Type> condtype = condjdgmt.u.jdgmt;
 
-    if (TypesEquivalent(ct, booltype.get()))
+    if (TypesEquivalent(condtype, booltype))
     {
-      TypeJudgement fstjdgmt = fst->getype(env, ops);
+      TypeJudgement fstjdgmt = fst->getype(env);
 
       if (!fstjdgmt)
         return fstjdgmt;
 
-      TypeJudgement sndjdgmt = snd->getype(env, ops);
+      TypeJudgement sndjdgmt = snd->getype(env);
 
       if (!sndjdgmt)
         return sndjdgmt;
 
-      Type* fsttype = fstjdgmt.u.jdgmt.get();
-      Type* sndtype = sndjdgmt.u.jdgmt.get();
+      shared_ptr<Type> fsttype = fstjdgmt.u.jdgmt;
+      shared_ptr<Type> sndtype = sndjdgmt.u.jdgmt;
 
       if (TypesEquivalent(fsttype, sndtype))
       {
@@ -75,22 +75,20 @@ TypeJudgement Conditional::getype_internal(Environment env)
       }
       else
       {
-        string errdsc = "conditional alternatives "
-                      + "have different types fst:["
+        string errdsc = "conditional alternatives have different types; fst:["
                       + fsttype->to_string()
                       + "] snd:["
                       + sndtype->to_string()
                       + "]\n";
-        return TypeJudgement(location, errdsc);
+        return TypeJudgement(TypeError(location, errdsc));
       }
     }
     else
     {
-      string errdsc = "Test expression"
-                    + " has type ["
-                    + ct->to_string()
+      string errdsc = "Test expression has type ["
+                    + condtype->to_string()
                     + "] not the expected type [Bool]\n";
-      return TypeJudgement(location, errdsc);
+      return TypeJudgement(TypeError(location, errdsc));
     }
   }
   else

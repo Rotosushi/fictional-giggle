@@ -7,7 +7,6 @@ using std::shared_ptr;
 #include "UnopEliminators.hpp"
 #include "SymbolTable.hpp"
 
-
 class Environment
 {
 public:

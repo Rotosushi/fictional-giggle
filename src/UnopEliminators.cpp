@@ -9,6 +9,7 @@ using std::tuple;
 using std::make_tuple;
 #include <optional>
 using std::optional;
+using std::make_optional;
 
 #include "Ast.hpp"
 #include "UnopEliminators.hpp"
@@ -56,9 +57,9 @@ optional<UnopEliminator> UnopEliminatorSet::HasEliminator(shared_ptr<Type> rtype
   return optional<UnopEliminator>();
 }
 
-void UnopSet::RegisterUnop(const string& op, shared_ptr<UnopEliminatorSet> set)
+void UnopSet::RegisterUnop(const string& op, shared_ptr<UnopEliminatorSet> unop)
 {
-  set.push_back(make_pair(op, set));
+  set.push_back(make_pair(op, unop));
 }
 
 optional<shared_ptr<UnopEliminatorSet>> UnopSet::FindUnop(const string& op)

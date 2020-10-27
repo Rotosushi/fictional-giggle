@@ -11,12 +11,13 @@ using std::shared_ptr;
 
 class Empty : public Ast
 {
+  int null;
 public:
-  Empty(const Location& loc)
-    : Ast(loc) {}
+  Empty(const Location& loc);
 
-  Empty(const Empty& other)
-    : Ast(other.location) {}
+  Empty(const Empty& other);
+
+  virtual ~Empty() {};
 
 protected:
   virtual shared_ptr<Ast> clone_internal() override;

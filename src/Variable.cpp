@@ -3,6 +3,7 @@
 using std::string;
 #include <memory>
 using std::shared_ptr;
+using std::make_shared;
 
 #include "Ast.hpp"
 #include "Environment.hpp"
@@ -10,7 +11,7 @@ using std::shared_ptr;
 
 shared_ptr<Ast> Variable::clone_internal()
 {
-  return make_shared(Variable(op, location));
+  return shared_ptr<Ast>(new Variable(id, location));
 }
 
 string Variable::to_string_internal()
@@ -25,7 +26,7 @@ TypeJudgement Variable::getype_internal(Environment env)
   ---------------------------
   env |- (id : type = value) : type
   */
-  optional<shared_ptr<Ast>> bound_term = env.scope[id];
+  optional<shared_ptr<Ast>> bound_term = (*env.scope)[id];
 
   if (bound_term)
   {
@@ -34,7 +35,7 @@ TypeJudgement Variable::getype_internal(Environment env)
   }
   else
   {
-    return TypeJudgement(location, "variable [" + id + "] not defined in environment.");
+    return TypeJudgement(TypeError(location, "variable [" + id + "] not defined in environment."));
   }
 }
 

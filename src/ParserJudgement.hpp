@@ -12,12 +12,12 @@ class ParserJudgement
 public:
   bool success;
   union U {
-    ParserError err;
+    ParserError error;
     shared_ptr<Ast> jdgmt;
 
     ~U() {}
-    U() : err("Default ParserJudgement", Location()) {}
-    U(const ParserError& err) : err(err) {}
+    U() : error("Default ParserJudgement", Location()) {}
+    U(const ParserError& err) : error(err) {}
     U(const shared_ptr<Ast>& term) : jdgmt(term) {}
   } u;
 

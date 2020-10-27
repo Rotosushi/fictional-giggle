@@ -10,11 +10,10 @@ using std::make_shared;
 using std::make_unique;
 
 #include "Ast.hpp"
-#include "SymbolTable.hpp"
-#include "OperatorTable.hpp"
+#include "Environment.hpp"
 #include "Entity.hpp"
 
-shared_ptr<Object> Object::clone()
+unique_ptr<Object> Object::clone()
 {
   return clone_internal();
 }
@@ -31,9 +30,26 @@ TypeJudgement Object::getype(Environment env)
 
 /* ------------------------------------------------------------------------- */
 
-shared_ptr<Object> Nil::clone_internal()
+unique_ptr<Object> TypeLiteral::clone_internal()
 {
-  return shared_ptr(new Nil(*this));
+  return unique_ptr<Object>(new TypeLiteral(*this));
+}
+
+string TypeLiteral::to_string_internal()
+{
+  return value->to_string();
+}
+
+TypeJudgement TypeLiteral::getype_internal(Environment env)
+{
+  return value->clone();
+}
+
+/* ------------------------------------------------------------------------- */
+
+unique_ptr<Object> Nil::clone_internal()
+{
+  return unique_ptr<Object>(new Nil(*this));
 }
 
 string Nil::to_string_internal()
@@ -43,48 +59,51 @@ string Nil::to_string_internal()
 
 TypeJudgement Nil::getype_internal(Environment env)
 {
-  return TypeJudgement(MonoType(AtomicType::Nil)));
+  return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Nil, Location())));
 }
 
 /* ------------------------------------------------------------------------- */
 
-shared_ptr<Object> Integer::clone_interal()
+unique_ptr<Object> Integer::clone_internal()
 {
-  return shared_ptr<Object>(new Integer(value));
+  return unique_ptr<Object>(new Integer(*this));
 }
 
 string Integer::to_string_internal()
 {
-  return string(value);
+  return std::to_string(value);
 }
 
 TypeJudgement Integer::getype_internal(Environment env)
 {
-  return TypeJudgement(MonoType(AtomicType::Int));
+  return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Int, Location())));
 }
 
 /* ------------------------------------------------------------------------- */
 
-shared_ptr<Object> Boolean::clone_interal()
+unique_ptr<Object> Boolean::clone_internal()
 {
-  return shared_ptr<Object>(new Boolean(value));
+  return unique_ptr<Object>(new Boolean(*this));
 }
 
 string Boolean::to_string_internal()
 {
-  return string(value);
+  if (value)
+    return "true";
+  else
+    return "false";
 }
 
 TypeJudgement Boolean::getype_internal(Environment env)
 {
-  return TypeJudgement(MonoType(AtomicType::Bool));
+  return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Bool, Location())));
 }
 
 /* ------------------------------------------------------------------------- */
 
-shared_ptr<Object> Lambda::clone_interal()
+unique_ptr<Object> Lambda::clone_internal()
 {
-  return shared_ptr<Object>(new Lambda(arg_id, arg_type->clone(), scope, body->clone(), location));
+  return unique_ptr<Object>(new Lambda(*this));
 }
 
 string Lambda::to_string_internal()
@@ -107,13 +126,13 @@ TypeJudgement Lambda::getype_internal(Environment env)
     ENV |- \ id : type1 => term : type1 -> type2
   */
 
-  this->scope.bind(this->arg_id, this->arg_type);
-  TypeJudgement type2 = body->getype(Environment(this->scope, env->precedences, env->binops, env->unops));
-  this->scope.unbind(this->arg_id);
+  this->scope->bind(this->arg_id, shared_ptr<Ast>(new Entity(this->arg_type, Location())));
+  TypeJudgement type2 = body->getype(Environment(this->scope, env.precedences, env.binops, env.unops));
+  this->scope->unbind(this->arg_id);
 
   if (type2)
   {
-    return TypeJudgement(ProcType(this->arg_type, type2.u.judgement));
+    return TypeJudgement(shared_ptr<Type>(new ProcType(this->arg_type, type2.u.jdgmt, Location())));
   }
   else
   {
@@ -130,7 +149,7 @@ optional<Lambda> PolyLambda::HasInstance(shared_ptr<Type> target_type, Environme
   type is to omit a procedure argument's type
   annotation.
   */
-  if (this->arg_type->is_polymorphic())
+  if (this->def.arg_type->is_polymorphic())
   {
     /*
       look for a possible overload to evaluate,
@@ -155,16 +174,26 @@ optional<Lambda> PolyLambda::HasInstance(shared_ptr<Type> target_type, Environme
   }
 }
 
-shared_ptr<Object> PolyLambda::clone_internal()
+unique_ptr<Object> PolyLambda::clone_internal()
 {
-  return shared_ptr<Object>(new PolyLambda(*this));
+  return unique_ptr<Object>(new PolyLambda(*this));
+}
+
+string PolyLambda::to_string_internal()
+{
+  return def.to_string();
+}
+
+TypeJudgement PolyLambda::getype_internal(Environment env)
+{
+  return def.getype(env);
 }
 
 /* ------------------------------------------------------------------------- */
 
-shared_ptr<Ast> Entity::clone_interal()
+shared_ptr<Ast> Entity::clone_internal()
 {
-  return shared_ptr<Ast>(new Entity(literal->clone()));
+  return shared_ptr<Ast>(new Entity(*this));
 }
 
 string Entity::to_string_internal()
@@ -186,5 +215,5 @@ EvalJudgement Entity::evaluate_internal(Environment env)
     but, with the way that i want to write the
     main evaluate method, i doubt it will matter.
   */
-  return EvalJudgement(*this);
+  return EvalJudgement(shared_ptr<Ast>(new Entity(*this)));
 }

@@ -1,7 +1,7 @@
 
 Pink: Lexer
 	clear
-	clang++ -fstandalone-debug -g -std=c++17 \
+	clang++ -fstandalone-debug -fexceptions -g -std=c++17 \
 	--stdlib=libstdc++ Ast.cpp Lexer.cpp Parser.cpp Type.cpp \
 	PinkError.cpp ParserError.cpp TypeError.cpp EvalError.cpp  \
 	ParserJudgement.cpp TypeJudgement.cpp EvalJudgement.cpp \
@@ -10,7 +10,7 @@ Pink: Lexer
 	UnopEliminators.cpp Environment.cpp PinkKernel.cpp \
 	Location.cpp Variable.cpp \
 	Bind.cpp Application.cpp Conditional.cpp Iteration.cpp \
-	Entity.cpp Pink.cpp -o Pink
+	Entity.cpp Empty.cpp Pink.cpp -o Pink
 
 
 Lexer:
@@ -22,5 +22,5 @@ clean:
 debug: Pink
 	gdb -tui Pink
 
-grind:
+grind: Pink
 	valgrind -v --leak-check=full --show-leak-kinds=all --track-origins=yes ./Pink

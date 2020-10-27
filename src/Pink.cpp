@@ -86,13 +86,14 @@ using std::endl;
 int main(int argc, char** argv)
 {
   string             input_text;
-  auto top_scope   = make_shared(SymbolTable());
-  auto precedences = make_shared(BinopPrecedenceTable());
-  auto binops      = make_shared(BinopSet());
-  auto unops       = make_shared(UnopSet());
+  auto top_scope   = shared_ptr<SymbolTable>(new SymbolTable());
+  auto precedences = shared_ptr<BinopPrecedenceTable>(new BinopPrecedenceTable());
+  auto binops      = shared_ptr<BinopSet>(new BinopSet());
+  auto unops       = shared_ptr<UnopSet>(new UnopSet());
 
   Environment environment(top_scope, precedences, binops, unops);
 
+  //RegisterPrimitiveSymbols(environment);
   RegisterPrimitiveBinops(environment);
   RegisterPrimitiveUnops(environment);
 
@@ -103,56 +104,59 @@ int main(int argc, char** argv)
 
   do {
     cout << ":> ";
-    getline (input_text, cin);
+    getline (cin, input_text);
+
 
     ParserJudgement termjdgmt = parser.parse(input_text);
 
-    /*
-    so theoretically we can flatten this
-    if tree by testing for the terms being
-    unsuccessful, which then a continue
-    allows us to skip the unneeded portions
-    of the loop. I dunno which is better
-    considering this isn't a very big tree.
-    */
-    if (termjdgmt.succeeded())
+    if (termjdgmt)
     {
-      shared_ptr<Ast> ast = termjdgmt.u.jdgmt;
-      TypeJudgement astjdgmt = ast->getype(env);
+      shared_ptr<Ast> term = termjdgmt.u.jdgmt;
 
-      if (astjdgmt.succeeded())
+      TypeJudgement typejdgmt = term->getype(environment);
+
+      if (typejdgmt)
       {
-        cout << "\ntype:[" + astjdgmt.u.judgement->to_string() + "]" << endl;
+        cout << "type:[" + typejdgmt.u.jdgmt->to_string() + "]" << endl;
         /*
         evaluation is the farthest unit from working,
         but once it does, this is the expected usecase
         of the evaluate() procedure.
 
-        EvalJudgement evaljdgmt = ast->evaluate(env);
+        EvalJudgement evaljdgmt = term->evaluate(environment);
 
-        if (evaljdgmt.succeeded())
+        if (evaljdgmt)
         {
           cout << "~> " << evaljdgmt.u.jdgmt->to_string() << endl;
         }
         else
         {
-          cout << buildErrStr(evaljdgmt.u.err, input_text) << endl;
+          // an evaluation error
+          cout << BuildErrStr(evaljdgmt.u.error, input_text) << endl;
         }
         */
-        // here is where it is safe to do cleanup
-        // before the next iteration of the R.E.P.L.
-        input_text.clear();
       }
       else
       {
-        cout << buildErrStr(astjdgmt, input_text) << endl;
+        // a type error
+        cout << buildErrStr(typejdgmt.u.error, input_text) << endl;
       }
     }
     else
     {
-        cout << buildErrStr(termjdgmt, input_text) << endl;
+      // a parser error
+      cout << buildErrStr(termjdgmt.u.error, input_text) << endl;
+      continue;
     }
-  } while ();
+    // here is where it is safe to do cleanup
+    // before the next iteration of the R.E.P.L.
+    input_text.clear();
+  } while (true);
+  // here is where it is safe to do cleanup of
+  // the interpreters memory, which, given the near
+  // exclusive use of shared_ptrs, means
+  // the implicit destructor calls.
+  return 0;
 }
 
 

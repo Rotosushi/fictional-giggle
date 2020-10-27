@@ -5,14 +5,13 @@ using std::string;
 using std::shared_ptr;
 
 #include "Ast.hpp"
-#include "SymbolTable.hpp"
-#include "OperatorTable.hpp"
+#include "Environment.hpp"
 #include "TypeJudgement.hpp"
 #include "Iteration.hpp"
 
 shared_ptr<Ast> Iteration::clone_internal()
 {
-  return make_shared(Iteration(cond->clone(), body->clone(), location));
+  return shared_ptr<Ast>(new Iteration(cond->clone(), body->clone(), location));
 }
 
 string Iteration::to_string_internal()
@@ -47,8 +46,8 @@ TypeJudgement Iteration::getype_internal(Environment env)
   if (!condjdgmt)
     return condjdgmt;
 
-  Type* condtype = condjdgmt.u.jdgmt.get();
-  shared_ptr<Type> booltype = make_shared<MonoType>(AtomicType::Bool);
+  shared_ptr<Type> condtype = condjdgmt.u.jdgmt;
+  shared_ptr<Type> booltype = shared_ptr<Type>(new MonoType(AtomicType::Bool, Location()));
 
   if (TypesEquivalent(condtype, booltype))
   {
@@ -57,11 +56,10 @@ TypeJudgement Iteration::getype_internal(Environment env)
   }
   else
   {
-    string errdsc = "conditional expression doesn't have type Bool"
-                  + " instead has type ["
+    string errdsc = "conditional expression has type ["
                   + condtype->to_string()
-                  + "]\n";
-    return TypeJudgement(location, errdsc);
+                  + "] instead of the expected type [Bool]\n";
+    return TypeJudgement(TypeError(location, errdsc));
   }
 }
 
