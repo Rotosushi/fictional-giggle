@@ -52,7 +52,7 @@ void rename_binding(Ast* lambda, Ast* value);
   need to go reread Types and Programming Languages.
 
   but if we derive evaluate literally from the small step
-  semantics, then the looping needs to occur in the caller
+  semantics, then looping needs to occur in the caller
   to evaluate to ensure that we have actually evaluated enough.
   the first call will preform a single step of beta-reduction
   or sometimes more if the reduction is inside of a larger
@@ -86,7 +86,7 @@ Ast* evaluate(Ast* term, Symboltable* env)
       'consume' the tree, however upon each call to
       a sub evaluate function, we do not clean up the memory
       we are passed in, and simply return new memory. this
-      means that sometimes we leak memory. however only if
+      means that sometimes we leak memory; only if
       we produce an intermediate term which causes this while
       to loop more than a single time. on each iteration,
       we leak the intermediary term.
@@ -127,7 +127,7 @@ Ast* evaluate_id(Ast* id, Symboltable* env)
    looking up the symbol in the Environment
    and returning the bound term as the result.
    if we cannot find the binding in the environment,
-   then the term is not typeable.
+   then the term is not evaluatable.
 
    ENV |- id : type = value
    -------------------------
@@ -150,7 +150,7 @@ Ast* evaluate_id(Ast* id, Symboltable* env)
         free(s);
       }
       // hopefully deleting garbage
-      DeleteAst(id);
+      // DeleteAst(id);
       return term;
     }
     else {
@@ -1059,7 +1059,7 @@ bool appears_free_in(char* name, Ast* term)
   we don't want to rename the bindings the user
   types in, because that would confuse the
   writer of the program.
-   */
+*/
 char* generate_name(int len)
 {
  const char symset[]  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";

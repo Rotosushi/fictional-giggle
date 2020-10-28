@@ -78,7 +78,6 @@ Y := \g => (\x => g (x x)) (\x => g (x x))
 
 Z := \f => (\x => f (\z => x x z)) (\x => f (\z => x x z))
 
-fact := \r => \n : Int => if n = 0 then 1 else n * (r (n - 1))
+fact := (\r => \n : Int => if n = 0 then 1 else n * (r (n - 1))) Z
 
-given Z, fact:
-Z fact n ==>> !n
+fact n ~> !n

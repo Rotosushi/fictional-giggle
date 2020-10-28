@@ -91,5 +91,77 @@ TypeJudgement Binop::getype_internal(Environment env)
 
 EvalJudgement Binop::evaluate_internal(Environment env)
 {
+  auto BinopEliminators = env.binops->FindBinop(op);
 
+  if (BinopEliminators)
+  {
+    auto lhsTypeJdgmt = lhs->getype(env);
+
+    if (!lhsTypeJdgmt)
+      return lhsTypeJdgmt;
+
+    auto rhsTypeJdgmt = rhs->getype(env);
+
+    if (!rhsTypeJdgmt)
+      return rhsTypeJdgmt;
+
+    shared_ptr<Type> lhstype = lhsTypeJdgmt.u.jdgmt;
+    shared_ptr<Type> rhstype = rhsTypeJdgmt.u.jdgmt;
+
+    auto eliminator = (*BinopEliminators)->HasEliminator(lhstype, rhstype);
+
+    if (eliminator)
+    {
+      auto lhsEvalJdgmt = lhs->evaluate(env);
+
+      if (!lhsEvalJdgmt)
+        return lhsEvalJdgmt;
+
+      auto rhsEvalJdgmt = rhs->evaluate(env);
+
+      if (!rhsEvalJdgmt)
+        return rhsEvalJdgmt;
+
+      shared_ptr<Ast> lhsvalue = lhsEvalJdgmt.u.jdgmt;
+      shared_ptr<Ast> rhsvalue = rhsEvalJdgmt.u.jdgmt;
+      return EvalJudgement((*eliminator)(lhsvalue, rhsvalue));
+    }
+    else
+    {
+      // error, no instance of binop valid for actual argument types.
+      string errdsc = "No instance of binop ["
+                    + op
+                    + "] for actual lhstype:["
+                    + lhstype->to_string()
+                    + "] and actual rhstype:["
+                    + rhstype->to_string()
+                    + "]\n";
+      return EvalJudgement(EvalError(location, errdsc));
+    }
+  }
+  else
+  {
+    // error, no binop by that symbol
+    string errdsc = "No binop found for symbol ["
+                  + op
+                  + "]\n";
+    return EvalJudgement(EvalError(location, errdsc));
+  }
+}
+
+void Binop::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+{
+  lhs->substitute(var, &lhs, value, env);
+  rhs->substitute(var, &rhs, value, env);
+}
+
+bool Binop::appears_free(string var)
+{
+  return lhs->appears_free(var) || rhs->appears_free(var);
+}
+
+void Binop::rename_binding(string old_name, string new_name)
+{
+  lhs->rename_binding(old_name, new_name);
+  rhs->rename_binding(old_name, new_name);
 }

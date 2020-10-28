@@ -87,4 +87,10 @@ protected:
   virtual string to_string_internal() = 0;
   virtual TypeJudgement getype_internal(Environment env) = 0;
   virtual EvalJudgement evaluate_internal(Environment env) = 0;
+  virtual void substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env) = 0;
+  virtual bool appears_free(string var) = 0;
+  virtual void rename_binding(string old_name, string new_name) = 0;
+
+  string generate_name(int len);
+
 };

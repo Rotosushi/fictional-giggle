@@ -35,11 +35,51 @@ TypeJudgement Variable::getype_internal(Environment env)
   }
   else
   {
-    return TypeJudgement(TypeError(location, "variable [" + id + "] not defined in environment."));
+    return TypeJudgement(TypeError(location, "variable [" + id + "] not bound in environment."));
   }
 }
 
 EvalJudgement Variable::evaluate_internal(Environment env)
 {
+/*
+ENV |- id : type = value
+-------------------------
+    id -> value
+*/
 
+  optional<shared_ptr<Ast>> term = (*env.scope)[id];
+
+  if (term)
+  {
+    return EvalJudgement(*term);
+  }
+  else
+  {
+    string errdsc = "variable ["
+                  + id
+                  + "] not bound in environment.";
+    return EvalJudgement(EvalError(location, errdsc));
+  }
+}
+
+void Variable::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+{
+  if (id == var)
+  {
+    (*term) = value->clone();
+  }
+}
+
+bool Variable::appears_free(string var)
+{
+  if (id == var)
+    return true;
+  else
+    return false;
+}
+
+void Variable::rename_binding(string old_name, string new_name)
+{
+  if (id == old_name)
+    id = new_name;
 }

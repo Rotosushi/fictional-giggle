@@ -10,6 +10,8 @@ using std::unique_ptr;
 
 #include "Ast.hpp"
 #include "Environment.hpp"
+#include "TypeJudgement.hpp"
+#include "EvalJudgement.hpp"
 
 class Object
 {
@@ -71,20 +73,29 @@ public:
         (church numerals, function pointers))
 
   */
+  virtual void rename_binding(string old_name, string new_name) = 0;
+  virtual bool appears_free(string name) = 0;
 
 protected:
   virtual unique_ptr<Object> clone_internal() = 0;
   virtual string to_string_internal() = 0;
   virtual TypeJudgement getype_internal(Environment env) = 0;
+
 };
 
+/*
+  types, but as first class values.
+*/
 class TypeLiteral : public Object
 {
 public:
   shared_ptr<Type> value;
+
   TypeLiteral(shared_ptr<Type> t) : value(t->clone()) {}
   TypeLiteral(const TypeLiteral& other) : value(other.value->clone()) {}
 
+  virtual void rename_binding(string old_name, string new_name) override;
+  virtual bool appears_free(string name) override;
 protected:
   virtual unique_ptr<Object> clone_internal() override;
   virtual string to_string_internal() override;
@@ -97,6 +108,8 @@ public:
   Nil() {}
   Nil(const Nil& other) {}
 
+  virtual void rename_binding(string old_name, string new_name) override;
+  virtual bool appears_free(string name) override;
 protected:
   virtual unique_ptr<Object> clone_internal() override;
   virtual string to_string_internal() override;
@@ -111,6 +124,8 @@ public:
   Integer(int v) : value(v) {}
   Integer(const Integer& other) : value(other.value) {}
 
+  virtual void rename_binding(string old_name, string new_name) override;
+  virtual bool appears_free(string name) override;
 protected:
   virtual unique_ptr<Object> clone_internal() override;
   virtual string to_string_internal() override;
@@ -125,6 +140,8 @@ public:
   Boolean(bool v) : value(v) {}
   Boolean(const Boolean& other) : value(other.value) {}
 
+  virtual void rename_binding(string old_name, string new_name) override;
+  virtual bool appears_free(string name) override;
 protected:
   virtual unique_ptr<Object> clone_internal() override;
   virtual string to_string_internal() override;
@@ -146,11 +163,13 @@ public:
   Lambda(const Lambda& other)
     : arg_id(other.arg_id), arg_type(other.arg_type->clone()), scope(other.scope), body(other.body->clone()) {}
 
-
+  virtual void rename_binding(string old_name, string new_name) override;
+  virtual bool appears_free(string name) override;
 protected:
   virtual unique_ptr<Object> clone_internal() override;
   virtual string to_string_internal() override;
   virtual TypeJudgement getype_internal(Environment env) override;
+
 };
 
 class PolyLambda : public Object
@@ -165,8 +184,9 @@ public:
   PolyLambda(const PolyLambda& other)
     : def(other.def), instances(other.instances) {}
 
-  optional<Lambda> HasInstance(shared_ptr<Type> target_type, Environment env);
-
+  optional<EvalJudgement> HasInstance(shared_ptr<Type> target_type, Environment env);
+  virtual void rename_binding(string old_name, string new_name) override;
+  virtual bool appears_free(string name) override;
 protected:
   virtual unique_ptr<Object> clone_internal() override;
   virtual string to_string_internal() override;
@@ -201,6 +221,9 @@ public:
   Entity(shared_ptr<Type> l, const Location& loc)
     : Ast(loc), literal(unique_ptr<Object>(new TypeLiteral(l))) {}
 
+  Entity(unique_ptr<Object> literal, const Location& loc)
+    : Ast(loc), literal(move(literal)) {}
+
   Entity(const Entity& other)
     : Ast(other.location), literal(other.literal->clone()) {}
 
@@ -209,4 +232,7 @@ protected:
   virtual string to_string_internal() override;
   virtual TypeJudgement getype_internal(Environment env) override;
   virtual EvalJudgement evaluate_internal(Environment env) override;
+  virtual void substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env) override;
+  virtual bool appears_free(string var) override;
+  virtual void rename_binding(string old_name, string new_name) override;
 };

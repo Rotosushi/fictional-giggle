@@ -66,4 +66,44 @@ TypeJudgement Iteration::getype_internal(Environment env)
 EvalJudgement Iteration::evaluate_internal(Environment env)
 {
 
+  auto is_bool_true = [](shared_ptr<Ast> term)
+  {
+    // so like, in the abstract these two unguarded
+    // casts are suspicious. however, the type
+    // system saves us here.
+    // cast the Ast* to an Entity*
+    Entity* ent = dynamic_cast<Entity*>(term.get());
+    // cast the Object* to a Boolean*
+    Boolean* bol = dynamic_cast<Boolean*>(ent->literal.get());
+
+    return bol->value;
+  }
+
+  EvalJudgement condjdgmt = cond->evaluate(env);
+
+  if (condjdgmt && is_bool_true(condjdgmt.u.jdgmt))
+  {
+    do {
+      EvalJudgement bodyjdgmt = body->evaluate(env);
+    } while ((condjdgmt = cond->evaluate(env)) && is_bool_true(condjdgmt.u.jdgmt));
+  }
+
+  return EvalJudgement(shared_ptr<Ast>(new Entity((void*)nullptr, location)));
+}
+
+void Iteration::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+{
+  cond->substitute(var, &cond, value, env);
+  body->substitute(var, &body, value, env);
+}
+
+bool Iteration::appears_free(string var)
+{
+  return cond->appears_free(var) || body->appears_free(var);
+}
+
+void Iteration::rename_binding(string old_name, string new_name)
+{
+  cond->rename_binding(old_name, new_name);
+  body->rename_binding(old_name, new_name);
 }

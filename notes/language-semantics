@@ -113,12 +113,6 @@ to provide expressions to the language.
 
 binops are operations over two values
 unops  are operations over one value
-later postops are operations over two values
-      but they are generally formed with two
-      lexemes, one immediately postfixed to
-      the first argument, and the second
-      lexeme as the ending token of the
-      term describing the second argument.
 
 types connect these two constructs,
 abstraction and expression, and allow
@@ -130,7 +124,7 @@ the composition of language constructs.
 
 also, funnily enough, primitive values
 plus operations also allow you to describe
-types as a kind of binary expression.
+types as a kind of affix expression.
 
 type := Nil
       | Int
@@ -174,6 +168,13 @@ in a stack based execution environment.
 
 this is no longer possible due to rewriting all of
 the parts. we solve this problem differently now.
+types are explicit within the grammar, and are not
+composed of a kind of binop, although actually,
+with the inclusion of a type literal entity, we can
+redefine type operators as a affix expression.
+(meaning we use the operator precedence parser
+ to parse type expressions. the very same procedure
+ which parses all other affix expressions.)
 
 ----------------------------------------------------------
 in an attempt to give some coarse language,
@@ -212,6 +213,10 @@ scale scale:
               uncountably infinite things
       i.e. we are talking at the scale of an
           uncountably infinite number of things.
+
+      (note: there are so many kinds of infinity
+       I just use the major distinction here because
+       this is again, a shorthand)
 
 
 in a program, variables act as names for things.
@@ -262,6 +267,28 @@ add := \x, y => x + y
 which means thinking about multiple dispatch.
 because we were previously thinking about
 single dispatch only.
+
+if we define it by way of currying,
+we can use single dispatch only, as each
+PolyLambda object is itself a dispatch
+procedure, and each of it's monomorphs
+are what is dispatched too.
+when interpreting we would be able to
+take advantage of the fact that partially
+applying an operator can instead return a closure
+in the exact way that partially applying a
+procedure allows, precisely because
+operators are implemented as procedures
+under the hood.
+
+however to my mind, having CLOS style multiple
+dispatch, is in the end the cleaner solution,
+because of it's fuller solution to the
+expression problem, whereas the curried style
+solution sticks us squarely in the extending
+behavior is easy extending state is hard
+camp of the expression problem. right with
+other static functional languages.
 
 
 to me, it would be nice if operators were

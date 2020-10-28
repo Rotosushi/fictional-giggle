@@ -997,7 +997,10 @@ shared_ptr<Ast> Parser::parse_procedure()
                      rhsloc.first_line,
                      rhsloc.first_column);
 
-    proc = shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(id, type, scopes.top(), body)), procloc));
+    if (!poly)
+      proc = shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(id, type, scopes.top(), body)), procloc));
+    else
+      proc = shared_ptr<Ast>(new Entity(unique_ptr<PolyLambda>(new Lambda(id, type, scopes.top(), body)), procloc));
     scopes.pop();
 
   }

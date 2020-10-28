@@ -57,5 +57,35 @@ ENV |- id is-not-currently-bound-in-local-scope, term2 : type2
 
 EvalJudgement Bind::evaluate_internal(Environment env)
 {
+  optional<shared_ptr<Ast>> sym = env.scope->lookupInLocalScopeOnly(id);
 
+  if (sym)
+  {
+    string errdsc = "id ["
+                  + id
+                  + "] is already bound to ["
+                  + (*sym)->to_string()
+                  + "]\n";
+    return EvalJudgement(EvalError(location, errdsc));
+  }
+  else
+  {
+    EvalJudgement result = rhs->evaluate(env);
+    return result;
+  }
+}
+
+void Bind::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+{
+  rhs->substitute(var, &rhs, value, env);
+}
+
+bool Bind::appears_free(string var)
+{
+  return rhs->appears_free(var);
+}
+
+void Bind::rename_binding(string old_name, string new_name)
+{
+  rhs->rename_binding(old_name, new_name);
 }

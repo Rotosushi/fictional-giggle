@@ -45,6 +45,10 @@ TypeJudgement TypeLiteral::getype_internal(Environment env)
   return value->clone();
 }
 
+void TypeLiteral::rename_binding(string old_name, string new_name)
+{
+}
+
 /* ------------------------------------------------------------------------- */
 
 unique_ptr<Object> Nil::clone_internal()
@@ -62,6 +66,10 @@ TypeJudgement Nil::getype_internal(Environment env)
   return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Nil, Location())));
 }
 
+void Nil::rename_binding(string old_name, string new_name)
+{
+}
+
 /* ------------------------------------------------------------------------- */
 
 unique_ptr<Object> Integer::clone_internal()
@@ -77,6 +85,10 @@ string Integer::to_string_internal()
 TypeJudgement Integer::getype_internal(Environment env)
 {
   return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Int, Location())));
+}
+
+void Integer::rename_binding(string old_name, string new_name)
+{
 }
 
 /* ------------------------------------------------------------------------- */
@@ -99,6 +111,9 @@ TypeJudgement Boolean::getype_internal(Environment env)
   return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Bool, Location())));
 }
 
+void Boolean::rename_binding(string old_name, string new_name)
+{
+}
 /* ------------------------------------------------------------------------- */
 
 unique_ptr<Object> Lambda::clone_internal()
@@ -140,9 +155,18 @@ TypeJudgement Lambda::getype_internal(Environment env)
   }
 }
 
+void Lambda::rename_binding(string old_name, string new_name)
+{
+  if (arg_id == old_name)
+  {
+    arg_id = new_name;
+  }
+  body->rename_binding(old_name, new_name);
+}
+
 /* ------------------------------------------------------------------------- */
 
-optional<Lambda> PolyLambda::HasInstance(shared_ptr<Type> target_type, Environment env)
+optional<EvalJudgement> PolyLambda::HasInstance(shared_ptr<Type> target_type, Environment env)
 {
   /*
   the only way to introduce a polymorphic
@@ -189,6 +213,11 @@ TypeJudgement PolyLambda::getype_internal(Environment env)
   return def.getype(env);
 }
 
+void PolyLambda::rename_binding(string old_name, string new_name)
+{
+
+}
+
 /* ------------------------------------------------------------------------- */
 
 shared_ptr<Ast> Entity::clone_internal()
@@ -216,4 +245,66 @@ EvalJudgement Entity::evaluate_internal(Environment env)
     main evaluate method, i doubt it will matter.
   */
   return EvalJudgement(shared_ptr<Ast>(new Entity(*this)));
+}
+
+void Entity::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+{
+  Lambda* lambda = dynamic_cast<Lambda*>(literal.get());
+
+  if (lambda == nullptr)
+  {
+    // if this entity is not a lambda, we cannot perform
+    // substitution upon it. there are no other entities
+    // which can store variables to be substituted.
+    return;
+  }
+  else
+  {
+    // we might have to perform replacement within a lambda.
+    // but only if the argument name doesn't match with the
+    // replacement name.
+    if (var == lambda->arg_id)
+    {
+      // the name matches, which means that the
+      // variable we are searching for is aready
+      // bound within this lambdas scope.
+      return;
+    }
+    else
+    {
+      // we can almost perform substitution,
+      // but there is one more case. should
+      // the value we are substituting into
+      // the lambda contain a free variable
+      // with the same name as the argument_id
+      // of the lambda we are substituting within,
+      // an unintentional binding will occurr,
+      // therefore we need to rename the argument
+      // name of the lambda we are executing.
+      if (value->appears_free(lambda->arg_id))
+      {
+        unique_ptr<Object> newlambda = literal->clone();
+
+        string new_name;
+        do {
+          new_name = generate_name(5);
+        } while(value->appears_free(new_name));
+
+        newlambda->rename_binding(lambda->arg_id, new_name);
+        lambda = (Lambda*)newlambda.get();
+      }
+
+      lambda->body->substitute(var, &(lambda->body), value, env);
+    }
+  }
+}
+
+bool Entity::appears_free(string var)
+{
+  return literal->appears_free(var);
+}
+
+void Entity::rename_binding(string old_name, string new_name)
+{
+  literal->rename_binding(old_name, new_name);
 }

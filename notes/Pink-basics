@@ -131,7 +131,8 @@ to the polymorphic procedure, except that the types of each
 argument is bound to some monotype. (and the body in the
 assembly representation can also be changed in accordance
 to the monotype that is bound.)
-
+(which is essentially the observation that c++ built
+it's templates out of.)
 
 
 and the next peice of the language is something
@@ -147,12 +148,12 @@ through which we can apply that manipulation to many
 different containers holding said state. this is the
 essence of both functions and operators. where the
 two differ is that operators compose in a different syntactic
-way than pure procedures. and that cognitively,
+way than pure procedures; and that cognitively,
 at least for me, where functions encapsulate larger/coarser
 ideas, operators encapsulate the building blocks, the
 basic actions. the primal materia with which larger
 flows of computation are wrought.
-and, given their ubiquity in programming languages,
+given their ubiquity in programming languages,
 they at least provide a secondary vehicle for composing
 computation, which the human mind i think, benefits from.
 
@@ -213,7 +214,7 @@ be turned on and off to represent different state.
 and we want to preform an operation which observes the bits
 in two different memory-cells and arrange the bits of a third
 cell to be some sequence which can be derived from the state
-of the first two cells. (a sequence of English sentences which
+of the first two cells. (a sequence of English words which
 seem to encapsulate every operation which a computer performs.)
 
   these two operations must never be part of the same overload

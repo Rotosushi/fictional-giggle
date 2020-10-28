@@ -195,9 +195,40 @@ TypeJudgement Application::getype_internal(Environment env)
 
 EvalJudgement Application::evaluate_internal(Environment env)
 {
-
+  /*
+    evaluate the lhs down to a lambda,
+    evaluate the argument down to a
+      value.
+    the type of the argument must match
+    the type of the value. (and if the
+    lambda is monomorphic, the typechecker
+    will have already confirmed that.)
+    if the lambda is a PolyLambda, then
+    we must use HasInstance to extract
+    a monomorph before we can then
+    evaluate the monomorphic instance
+    just like we evaluate a lambda,
+    or report the errror.
+  */
 }
 
+void Application::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+{
+  //[id -> value]lhs rhs := [id -> value]lhs [id -> value]rhs
+  lhs->substitute(var, &lhs, value, env);
+  rhs->substitute(var, &rhs, value, env);
+}
+
+bool Application::appears_free(string var)
+{
+  return lhs->appears_free(var) || rhs->appears_free(var);
+}
+
+void Application::rename_binding(string old_name, string new_name)
+{
+  lhs->rename_binding(old_name, new_name);
+  rhs->rename_binding(old_name, new_name);
+}
 
 
 
