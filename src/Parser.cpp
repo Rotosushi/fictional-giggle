@@ -3,6 +3,7 @@
   the grammar so far
 
   term := primary
+        | primary ';' primary
         | primary binop primary
 
   primary := type
@@ -73,6 +74,7 @@ using std::get;
 #include "Bind.hpp"
 #include "Iteration.hpp"
 #include "Conditional.hpp"
+#include "Sequence.hpp"
 #include "Environment.hpp"
 #include "ParserError.hpp"
 #include "ParserJudgement.hpp"
@@ -415,6 +417,7 @@ shared_ptr<Ast> Parser::parse_term()
         there may be more expression past the first
         primary term.
       */
+
       if (curtok() == Token::Operator && is_binop(curtxt()))
       {
         lhs = parse_infix(lhs, 0);
@@ -449,6 +452,19 @@ shared_ptr<Ast> Parser::parse_term()
                   an invalid token.
         */
 
+      }
+
+      if (curtok() == Token::Semicolon)
+      {
+        // we saw a ';' after the first primary term,
+        // this means we want to parse an entire term
+        // and then place the two terms into a sequence
+        // Node.
+        nextok(); // eat ';'
+        rhs = parse_term();
+        Location rhsloc = curloc();
+        Location seqloc = {lhsloc.first_line, lhsloc.first_column, rhsloc.last_line, rhsloc.last_column};
+        lhs = shared_ptr<Ast>(new Sequence(lhs, rhs, seqloc));
       }
     }
     else
@@ -987,6 +1003,7 @@ shared_ptr<Ast> Parser::parse_procedure()
     //      the old enclosing scope as it's enclosing scope.
     // 2) it pushes this new scope onto the scope stack in
     //      order to make it the new enclosing scope.
+    //      just in case procedure definitions occur within.
     scopes.push(shared_ptr<SymbolTable>(new SymbolTable(scopes.top().get())));
 
     body = parse_term();
@@ -1000,7 +1017,7 @@ shared_ptr<Ast> Parser::parse_procedure()
     if (!poly)
       proc = shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(id, type, scopes.top(), body)), procloc));
     else
-      proc = shared_ptr<Ast>(new Entity(unique_ptr<PolyLambda>(new Lambda(id, type, scopes.top(), body)), procloc));
+      proc = shared_ptr<Ast>(new Entity(unique_ptr<PolyLambda>(new PolyLambda(*(new Lambda(id, type, scopes.top(), body)))), procloc));
     scopes.pop();
 
   }
@@ -1136,17 +1153,30 @@ optional<ParserError> Parser::speculate_term()
   {
     result = speculate_primary();
 
-    if (result)
+    /*
+    recall that the none shape of this optional type means success.
+    */
+    if (!result)
     {
-      while (curtok() == Token::Operator && is_binop(curtxt()))
+      if (curtok() == Token::Operator && is_binop(curtxt()))
       {
-        /*
-        an infix/affix expression,
-        modulo precedence, is:
-          primary (operator primary)+
-        */
-          nextok(); // eat the binop
-          result = speculate_primary();
+        do
+        {
+          /*
+          an infix/affix expression,
+          modulo precedence, is:
+            primary (operator primary)+
+          */
+            nextok(); // eat the binop
+            result = speculate_primary();
+        } while (curtok() == Token::Operator && is_binop(curtxt()));
+      }
+
+      // after we parse some long expression we look for ';'
+      if (curtok() == Token::Semicolon)
+      {
+        nextok(); // eat ';'
+        result = speculate_term();
       }
     }
   }

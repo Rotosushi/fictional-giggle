@@ -1,4 +1,8 @@
 #pragma once
+#include <string>
+using std::string;
+#include <vector>
+using std::vector;
 #include <memory>
 using std::shared_ptr;
 
@@ -14,6 +18,7 @@ public:
   shared_ptr<BinopPrecedenceTable> precedences;
   shared_ptr<BinopSet>             binops;
   shared_ptr<UnopSet>              unops;
+  shared_ptr<vector<string>>       cleanup_list;
 
-  Environment(shared_ptr<SymbolTable> s, shared_ptr<BinopPrecedenceTable> bp, shared_ptr<BinopSet> bs, shared_ptr<UnopSet> us);
+  Environment(shared_ptr<SymbolTable> s, shared_ptr<BinopPrecedenceTable> bp, shared_ptr<BinopSet> bs, shared_ptr<UnopSet> us, shared_ptr<vector<string>> cl);
 };

@@ -8,6 +8,7 @@ using std::make_shared;
 #include "Ast.hpp"
 #include "Environment.hpp"
 #include "TypeJudgement.hpp"
+#include "Entity.hpp"
 #include "Bind.hpp"
 
 shared_ptr<Ast> Bind::clone_internal()
@@ -51,12 +52,24 @@ ENV |- id is-not-currently-bound-in-local-scope, term2 : type2
     // however, that isn't debugger friendly.
 
     TypeJudgement rhsjdgmt = rhs->getype(env);
+
+    if (!rhsjdgmt)
+      return rhsjdgmt;
+
+    env.scope->bind(id, shared_ptr<Ast>(new Entity(rhsjdgmt.u.jdgmt, rhs->location)));
+    (*env.cleanup_list).push_back(id);
+
     return rhsjdgmt;
   }
 }
 
 EvalJudgement Bind::evaluate_internal(Environment env)
 {
+  auto is_entity = [](shared_ptr<Ast> term)
+  {
+    Entity* entity = dynamic_cast<Entity*>(term.get());
+    return entity != nullptr;
+  };
   optional<shared_ptr<Ast>> sym = env.scope->lookupInLocalScopeOnly(id);
 
   if (sym)
@@ -71,21 +84,27 @@ EvalJudgement Bind::evaluate_internal(Environment env)
   else
   {
     EvalJudgement result = rhs->evaluate(env);
+
+    if (!result)
+      return result;
+
+    env.scope->bind(id, result.u.jdgmt);
     return result;
   }
 }
 
-void Bind::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+
+void Bind::substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
 {
   rhs->substitute(var, &rhs, value, env);
 }
 
-bool Bind::appears_free(string var)
+bool Bind::appears_free_internal(string var)
 {
   return rhs->appears_free(var);
 }
 
-void Bind::rename_binding(string old_name, string new_name)
+void Bind::rename_binding_internal(string old_name, string new_name)
 {
   rhs->rename_binding(old_name, new_name);
 }

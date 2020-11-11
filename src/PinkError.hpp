@@ -13,6 +13,9 @@ public:
   PinkError(const Location& l, const string& str)
     : loc(l), dsc(str) {}
 
+  PinkError(PinkError& other)
+    : loc(other.loc), dsc(other.dsc) {}
+
   virtual ~PinkError() {}
 
   Location& location();

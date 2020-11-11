@@ -2,6 +2,8 @@
 #include <string>
 using std::string;
 using std::getline;
+#include <vector>
+using std::vector;
 #include <memory>
 using std::shared_ptr;
 #include <iostream>
@@ -85,19 +87,28 @@ using std::endl;
 
 int main(int argc, char** argv)
 {
-  string             input_text;
-  auto top_scope   = shared_ptr<SymbolTable>(new SymbolTable());
-  auto precedences = shared_ptr<BinopPrecedenceTable>(new BinopPrecedenceTable());
-  auto binops      = shared_ptr<BinopSet>(new BinopSet());
-  auto unops       = shared_ptr<UnopSet>(new UnopSet());
+  string input_text;
+  auto top_scope    = shared_ptr<SymbolTable>(new SymbolTable());
+  auto precedences  = shared_ptr<BinopPrecedenceTable>(new BinopPrecedenceTable());
+  auto binops       = shared_ptr<BinopSet>(new BinopSet());
+  auto unops        = shared_ptr<UnopSet>(new UnopSet());
+  auto cleanup_list = shared_ptr<vector<string>>(new vector<string>());
 
-  Environment environment(top_scope, precedences, binops, unops);
+  Environment environment(top_scope, precedences, binops, unops, cleanup_list);
 
   //RegisterPrimitiveSymbols(environment);
   RegisterPrimitiveBinops(environment);
   RegisterPrimitiveUnops(environment);
 
   Parser parser(environment);
+
+  auto is_entity = [](shared_ptr<Ast> term)
+  {
+    Entity* entity = dynamic_cast<Entity*>(term.get());
+    return entity != nullptr;
+  };
+
+
 
   cout << "Welcome to Pink! v0.0.2\n"
        << "press ctrl+c to exit.\n";
@@ -115,26 +126,40 @@ int main(int argc, char** argv)
 
       TypeJudgement typejdgmt = term->getype(environment);
 
+      for (string& id : (*environment.cleanup_list))
+      {
+        environment.scope->unbind(id);
+      }
+
       if (typejdgmt)
       {
         cout << "type:[" + typejdgmt.u.jdgmt->to_string() + "]" << endl;
-        /*
-        evaluation is the farthest unit from working,
-        but once it does, this is the expected usecase
-        of the evaluate() procedure.
 
-        EvalJudgement evaljdgmt = term->evaluate(environment);
+        EvalJudgement evaljdgmt;
 
-        if (evaljdgmt)
-        {
-          cout << "~> " << evaljdgmt.u.jdgmt->to_string() << endl;
-        }
-        else
-        {
-          // an evaluation error
-          cout << BuildErrStr(evaljdgmt.u.error, input_text) << endl;
-        }
-        */
+        do {
+          evaljdgmt = term->evaluate(environment);
+
+          if (evaljdgmt && is_entity(evaljdgmt.u.jdgmt))
+          {
+            cout << "~> " << evaljdgmt.u.jdgmt->to_string() << endl;
+          }
+          else if (!evaljdgmt)
+          {
+            // an evaluation error
+            cout << buildErrStr(evaljdgmt.u.error, input_text) << endl;
+          }
+          else
+          {
+            // (evaljdgmt && !is_entity)
+            // assign the current term to
+            // the result of evaluation, such that evaluation
+            // can continue on the new term
+            term = evaljdgmt.u.jdgmt;
+          }
+        } while (evaljdgmt && !is_entity(evaljdgmt.u.jdgmt));
+        // this is another location it is appropriate to
+        // perform cleanup.
       }
       else
       {

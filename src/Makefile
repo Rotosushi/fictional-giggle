@@ -8,7 +8,7 @@ Pink: Lexer
 	Binop.cpp Unop.cpp SymbolTable.cpp \
 	BinopPrecedenceTable.cpp BinopEliminators.cpp \
 	UnopEliminators.cpp Environment.cpp PinkKernel.cpp \
-	Location.cpp Variable.cpp \
+	Location.cpp Variable.cpp Sequence.cpp \
 	Bind.cpp Application.cpp Conditional.cpp Iteration.cpp \
 	Entity.cpp Empty.cpp Pink.cpp -o Pink
 

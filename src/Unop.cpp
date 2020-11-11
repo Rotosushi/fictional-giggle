@@ -35,6 +35,9 @@ TypeJudgement Unop::getype_internal(Environment env)
     if (!rhsjdgmt)
       return rhsjdgmt;
 
+    if (rhsjdgmt.u.jdgmt->is_polymorphic())
+      return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Poly, Location())));
+
     shared_ptr<Type> rhstype = rhsjdgmt.u.jdgmt;
 
     auto eliminator = (*UnopEliminators)->HasEliminator(rhstype);
@@ -70,15 +73,16 @@ EvalJudgement Unop::evaluate_internal(Environment env)
 
   if (UnopEliminators)
   {
-    auto rhsTypeJdgmt = rhs->getype(env);
 
-    if (!rhsTypeJdgmt)
-      return rhsTypeJdgmt;
-
-    auto rhsEvalJdgmt = rhs->evaluate(env);
+    EvalJudgement rhsEvalJdgmt = rhs->evaluate(env);
 
     if (!rhsEvalJdgmt)
       return rhsEvalJdgmt;
+
+    auto rhsTypeJdgmt = rhsEvalJdgmt.u.jdgmt->getype(env);
+
+    if (!rhsTypeJdgmt)
+      return EvalJudgement(EvalError(rhsTypeJdgmt.u.error.location(), rhsTypeJdgmt.u.error.what()));
 
     shared_ptr<Type> rhstype = rhsTypeJdgmt.u.jdgmt;
 
@@ -86,7 +90,7 @@ EvalJudgement Unop::evaluate_internal(Environment env)
 
     if (eliminator)
     {
-      shared_ptr<Ast> result = (*eliminator)(rhsEvalJdgmt.u.jdgmt.get());
+      shared_ptr<Ast> result = (*eliminator)(rhsEvalJdgmt.u.jdgmt);
       return EvalJudgement(result);
     }
     else
@@ -110,17 +114,17 @@ EvalJudgement Unop::evaluate_internal(Environment env)
   }
 }
 
-void Unop::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Unop::substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
 {
   rhs->substitute(var, &rhs, value, env);
 }
 
-bool Unop::appears_free(string var)
+bool Unop::appears_free_internal(string var)
 {
-  rhs->appears_free(var);
+  return rhs->appears_free(var);
 }
 
-void Unop::rename_binding(string old_name, string new_name)
+void Unop::rename_binding_internal(string old_name, string new_name)
 {
   rhs->rename_binding(old_name, new_name);
 }

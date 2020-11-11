@@ -17,13 +17,13 @@ public:
 
     ~U() {}
     U() : error("Default ParserJudgement", Location()) {}
-    U(const ParserError& err) : error(err) {}
-    U(const shared_ptr<Ast>& term) : jdgmt(term) {}
+    U(ParserError err) : error(err) {}
+    U(shared_ptr<Ast> term) : jdgmt(term) {}
   } u;
 
   ParserJudgement() {}
-  ParserJudgement(const ParserError& err) : success(false), u(err) {}
-  ParserJudgement(const shared_ptr<Ast>& term) : success(true), u(term) {}
+  ParserJudgement(ParserError err) : success(false), u(err) {}
+  ParserJudgement(shared_ptr<Ast> term) : success(true), u(term) {}
 
   bool succeeded();
   operator bool();

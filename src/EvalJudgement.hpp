@@ -30,6 +30,26 @@ public:
   EvalJudgement(EvalError err)
     : success(false), u(err) {}
 
+  EvalJudgement(const EvalJudgement& other)
+    : success(other.success)
+  {
+    if (success)
+      u.jdgmt = other.u.jdgmt;
+    else
+      u.error = other.u.error;
+  }
+
+  EvalJudgement& operator=(const EvalJudgement& other)
+  {
+    success = other.success;
+    if (success)
+      u.jdgmt = other.u.jdgmt;
+    else
+      u.error = other.u.error;
+
+    return *this;
+  }
+
   bool succeeded();
   operator bool();
 };

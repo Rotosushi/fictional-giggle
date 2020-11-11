@@ -78,6 +78,19 @@ Y := \g => (\x => g (x x)) (\x => g (x x))
 
 Z := \f => (\x => f (\z => x x z)) (\x => f (\z => x x z))
 
-fact := (\r => \n : Int => if n = 0 then 1 else n * (r (n - 1))) Z
+T := (\x => \y => y (\z => x x y z)) (\x => \y => y (\z => x x y z))
+
+fact := Z (\r => \n : Int => if n = 0 then 1 else n * (r (n - 1)))
 
 fact n ~> !n
+
+gcd := Z (\r => \n => \m => if m = 0 then n else r y (x % y))
+
+gcd 27 9 
+~> 9
+
+gcd 111 259
+~> 37 
+
+
+hanoi := Z \r => \n => if n = 1 then 1 else 2 * r (n - 1) + 1

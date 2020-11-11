@@ -24,6 +24,7 @@ enum class Token
   RParen,
   Comma,
   Colon,
+  Semicolon,
   ColonEquals,
   Backslash,
   Rarrow,

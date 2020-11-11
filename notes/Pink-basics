@@ -224,7 +224,7 @@ our programming language. the two ideas/meanings we give to
 each pair of operators we give the same name, are so distinct,
 that we should not have given them the same name, because
 fundamentally they are different operations. (even though
-they are the same operation, applied at different levels
+they are actually the same operation, applied at different levels
 of abstraction.)
 
   if a program contains an operator, and that
@@ -237,13 +237,96 @@ again, i feel improves the legibility of programs.
 language understand this, albeit intuitively, is that bitwise
 and logical operators are always distinct symbols. the 'overloading'
 /metaphor is that syntactically bitwise ops are || and logical are |
-which is probably mostly an homage to the fact that both are 'or's).
+which is probably mostly an homage to the fact that both are 'or's)
+but again notice, the symbols are distinct.
 
 
 
 
 
 
+
+
+
+--------------------------------------------------------------------
+
+so in an OOP style, constructors and destructors and type information
+is held in a 'Object' record which allows us to write polymorphic
+create and destroy procedures, (new and delete in c++)
+which call the constructors of the object we want to construct.
+(every instance of each object has a pointer to this 'virtual table'
+  which is what allows the decoupling of the details of construction
+  from an application site)
+the creation and destruction procedures simply call the constructor
+or destructor respectively. and, because of a formalism whereby every
+Objects first member is a pointer to the virtual table, we can be
+assured that no matter the size of an object, we are able to call
+the exact same create/destroy procedures to construct/destruct
+any object. (these procedures are polymorphic in the same way
+a list type can be polymorphic. precisely because the exact details
+of the type itself are hidden from view,
+do not matter for the behavior of the procedure,
+said another way, the information is not required to exist within
+the context of a create or a destroy procedure, it is also not
+required to exist in any list procedure. we can also always issue
+correct instructions to create/destroy, even without knowledge of
+the details of the objects representation.)
+
+Pink need not deviate from this for our construction mechanisms,
+each 'object' kind (class in oop parlance) specifies it's constructors
+and destructors. we can consider the usual ability of constructors to
+have different signatures (forming an overload set), to be subsumed
+by the fact that the constructor for any class can be specified as a PolyLambda.
+we consider each individual constructor as monomorphic, but
+some application site may force a call to a runtime dispatch procedure.
+or, if the construction site provides monotyped arguments we are freely
+able to replace a call to the dispatch procedure with a direct call.
+(of course this sort of optimization only happens if we have access to
+all of the source code, but i am sure that caveat is on a lot of
+cross module optimizations)
+
+member functions no longer exist (unless done explicitly by storing a
+function pointer.)
+
+if we imagine each polymorphic procedure as both a runtime dispatch
+procedure, and a set of monomorphic procedures, then what should
+a function pointer to a PolyLambda be? always a reference to the dispatch procedure?
+the dispatch procedure has to have vararg type right? or can it take
+a tuple? a vector/dynamic-array?
+
+function pointers to regular procedures should be typed the same way
+as c right?
+
+but as soon as you have an overload you have to have dispatch to
+resolve the ambiguity at call sites. sometimes the dispatch can be
+resolved at compile time, sometimes only at runtime.
+
+the parser is a set of mutually recursive monomorphic procedures.
+the typechecker can be designed as a set of mutually recursive procedures,
+  where each procedure is a monomorphic member of the polymorphic
+  procedure that 'types' terms in the program.
+  and it dispatches over the type of the node being processed.
+  (the signature could be typeof(Ast term, Env env)
+  for the polylambda, and we could imagine a specialization/overload
+  for each concrete node type making up the set.
+
+the evaluator can be designed in a similar way.
+normally this is done by single dispatch over member procedures,
+instead pink will use open methods and provide the possibility of
+language supported multiple dispatch.
+
+this is precisely because the syntax of a monomorphic procedure
+and a polymorphic procedure are very similar. when changing one
+to the other, one simply needs to add/remove procedure-definitions/type-annotations.
+
+pretty sure we are going to have to bite the bullet and implement
+type inference. it's probably going to be easier to connect down
+to the implementation in assembly using something that is already
+understood. plus, i think it's doable with my current feature set?
+i'm still not sure what exactly makes something undecidable yet.
+but i would like to prove incorrectness for the insight it may bring.
+because the way i have it implemented works for so many cases, and
+we inferr basically nothing.
 
 
 

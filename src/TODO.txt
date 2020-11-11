@@ -1,0 +1,30 @@
+
+stuff left before the language is complete:
+
+-) make recursive procedures (via the Z procedure) work.
+  specifically I am using the simple factorial procedure to
+  test this. but once the simple case works the more complex
+  cases should work too. (i hope)
+
+-) add formal procedure definitions to the language,
+   and thusly allow overloading to occur. (also allowable
+   in formal method definitions, recursive calls to the same
+   procedure.)
+
+-) make multple dispatch procedures (open methods)
+   then, on that mechanism build user defined binops,
+   and unops
+
+-) define a procedure which can read a file of definitions.
+    we may need to add the ';' sequence grapheme to our language,
+    to allow this to work.
+
+-) define type compositions. probably: objects with single inheritance
+    no methods (at first), no private members (at first).
+    essentially the simple c 'struct' and 'union' semantics.
+    plus single inheritance and the usual OOP style constructors.
+    (except pink unions are always tagged. (maybe untagged is a separate
+    thing? but i need proof of usefullness first.))
+
+-) define a module mechanism that allows one to compose at the
+    namespace level.

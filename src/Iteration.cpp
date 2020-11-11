@@ -7,6 +7,7 @@ using std::shared_ptr;
 #include "Ast.hpp"
 #include "Environment.hpp"
 #include "TypeJudgement.hpp"
+#include "Entity.hpp"
 #include "Iteration.hpp"
 
 shared_ptr<Ast> Iteration::clone_internal()
@@ -47,9 +48,10 @@ TypeJudgement Iteration::getype_internal(Environment env)
     return condjdgmt;
 
   shared_ptr<Type> condtype = condjdgmt.u.jdgmt;
+  shared_ptr<Type> polytype = shared_ptr<Type>(new MonoType(AtomicType::Poly, Location()));
   shared_ptr<Type> booltype = shared_ptr<Type>(new MonoType(AtomicType::Bool, Location()));
 
-  if (TypesEquivalent(condtype, booltype))
+  if (TypesEquivalent(condtype, booltype) || TypesEquivalent(condtype, polytype))
   {
     TypeJudgement bodyjdgmt = body->getype(env);
     return bodyjdgmt;
@@ -65,6 +67,12 @@ TypeJudgement Iteration::getype_internal(Environment env)
 
 EvalJudgement Iteration::evaluate_internal(Environment env)
 {
+  auto is_entity = [](shared_ptr<Ast> term)
+  {
+    Entity* entity = dynamic_cast<Entity*>(term.get());
+    return entity != nullptr;
+  };
+
 
   auto is_bool_true = [](shared_ptr<Ast> term)
   {
@@ -77,7 +85,7 @@ EvalJudgement Iteration::evaluate_internal(Environment env)
     Boolean* bol = dynamic_cast<Boolean*>(ent->literal.get());
 
     return bol->value;
-  }
+  };
 
   EvalJudgement condjdgmt = cond->evaluate(env);
 
@@ -85,24 +93,28 @@ EvalJudgement Iteration::evaluate_internal(Environment env)
   {
     do {
       EvalJudgement bodyjdgmt = body->evaluate(env);
+
+      if (!bodyjdgmt)
+        return bodyjdgmt;
+
     } while ((condjdgmt = cond->evaluate(env)) && is_bool_true(condjdgmt.u.jdgmt));
   }
 
   return EvalJudgement(shared_ptr<Ast>(new Entity((void*)nullptr, location)));
 }
 
-void Iteration::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Iteration::substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
 {
   cond->substitute(var, &cond, value, env);
   body->substitute(var, &body, value, env);
 }
 
-bool Iteration::appears_free(string var)
+bool Iteration::appears_free_internal(string var)
 {
   return cond->appears_free(var) || body->appears_free(var);
 }
 
-void Iteration::rename_binding(string old_name, string new_name)
+void Iteration::rename_binding_internal(string old_name, string new_name)
 {
   cond->rename_binding(old_name, new_name);
   body->rename_binding(old_name, new_name);

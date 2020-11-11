@@ -9,6 +9,7 @@ using std::make_shared;
 #include "Environment.hpp"
 #include "TypeJudgement.hpp"
 #include "EvalJudgement.hpp"
+#include "Entity.hpp"
 #include "Conditional.hpp"
 
 shared_ptr<Ast> Conditional::clone_internal()
@@ -48,9 +49,17 @@ TypeJudgement Conditional::getype_internal(Environment env)
   if (condjdgmt)
   {
     shared_ptr<Type> booltype = shared_ptr<Type>(new MonoType(AtomicType::Bool, Location()));
+    shared_ptr<Type> polytype = shared_ptr<Type>(new MonoType(AtomicType::Poly, Location()));
     shared_ptr<Type> condtype = condjdgmt.u.jdgmt;
 
-    if (TypesEquivalent(condtype, booltype))
+    /*
+      in the case of a polymorphic test expression,
+      we want to allow the programmer to insert any
+      shape in, and then once they bind all instances
+      during evaluation of the term, we can simply
+      type the monomorphic term with the standard judgements.
+    */
+    if (TypesEquivalent(condtype, booltype) || TypesEquivalent(condtype, polytype))
     {
       TypeJudgement fstjdgmt = fst->getype(env);
 
@@ -72,6 +81,10 @@ TypeJudgement Conditional::getype_internal(Environment env)
           returning either is a valid option.
         */
         return fstjdgmt;
+      }
+      else if (TypesEquivalent(fsttype, polytype) || TypesEquivalent(sndtype, polytype))
+      {
+        return TypeJudgement(polytype);
       }
       else
       {
@@ -99,7 +112,13 @@ TypeJudgement Conditional::getype_internal(Environment env)
 
 EvalJudgement Conditional::evaluate_internal(Environment env)
 {
-  auto is_bool_true = [](shared_ptr<Ast> term)
+  auto is_entity = [](shared_ptr<Ast> term)
+  {
+    Entity* entity = dynamic_cast<Entity*>(term.get());
+    return entity != nullptr;
+  };
+
+  auto to_boolean_value = [](shared_ptr<Ast> term)
   {
     // so like, in the abstract these two unguarded
     // casts are suspicious. however, the type
@@ -110,17 +129,21 @@ EvalJudgement Conditional::evaluate_internal(Environment env)
     Boolean* bol = dynamic_cast<Boolean*>(ent->literal.get());
 
     return bol->value;
-  }
+  };
 
   EvalJudgement condjdgmt = cond->evaluate(env);
 
-  if (condjdgmt && is_bool_true(condjdgmt.u.jdgmt))
+  if (condjdgmt && to_boolean_value(condjdgmt.u.jdgmt))
   {
-    return fst->evaluate(env);
+    EvalJudgement fstjdgmt = fst->evaluate(env);
+
+    return fstjdgmt;
   }
   else if (condjdgmt)
   {
-    return snd->evaluate(env);
+    EvalJudgement sndjdgmt = snd->evaluate(env);
+
+    return sndjdgmt;
   }
   else
   {
@@ -128,21 +151,21 @@ EvalJudgement Conditional::evaluate_internal(Environment env)
   }
 }
 
-void Conditional::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Conditional::substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
 {
   cond->substitute(var, &cond, value, env);
   fst->substitute(var, &fst, value, env);
   snd->substitute(var, &snd, value, env);
 }
 
-bool Conditional::appears_free(string var)
+bool Conditional::appears_free_internal(string var)
 {
   return cond->appears_free(var)
       || fst->appears_free(var)
       || snd->appears_free(var);
 }
 
-void Conditional::rename_binding(string old_name, string new_name)
+void Conditional::rename_binding_internal(string old_name, string new_name)
 {
   cond->rename_binding(old_name, new_name);
   fst->rename_binding(old_name, new_name);

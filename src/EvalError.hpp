@@ -11,5 +11,8 @@ public:
   EvalError(const Location& l, const string& s)
     : PinkError(l, s) {}
 
+  EvalError(PinkError& other)
+    : PinkError(other.location(), other.what()) {}
+
   virtual string what() override;
 };

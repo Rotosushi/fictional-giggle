@@ -14,6 +14,7 @@ using std::make_tuple;
 #include "TypeJudgement.hpp"
 #include "EvalJudgement.hpp"
 #include "BinopEliminators.hpp"
+#include "Entity.hpp"
 #include "Binop.hpp"
 
 shared_ptr<Ast> Binop::clone_internal()
@@ -52,10 +53,16 @@ TypeJudgement Binop::getype_internal(Environment env)
     if (!lhsjdgmt)
       return lhsjdgmt;
 
+    if (lhsjdgmt.u.jdgmt->is_polymorphic())
+      return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Poly, Location())));
+
     auto rhsjdgmt = rhs->getype(env);
 
     if (!rhsjdgmt)
       return rhsjdgmt;
+
+    if (rhsjdgmt.u.jdgmt->is_polymorphic())
+      return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Poly, Location())));
 
     shared_ptr<Type> lhstype = lhsjdgmt.u.jdgmt;
     shared_ptr<Type> rhstype = rhsjdgmt.u.jdgmt;
@@ -91,19 +98,72 @@ TypeJudgement Binop::getype_internal(Environment env)
 
 EvalJudgement Binop::evaluate_internal(Environment env)
 {
+  auto is_entity = [](shared_ptr<Ast> term)
+  {
+    Entity* entity = dynamic_cast<Entity*>(term.get());
+    return entity != nullptr;
+  };
+
   auto BinopEliminators = env.binops->FindBinop(op);
 
   if (BinopEliminators)
   {
+    auto lhsEvalJdgmt = lhs->evaluate(env);
+
+    if (!lhsEvalJdgmt)
+      return lhsEvalJdgmt;
+
+    auto rhsEvalJdgmt = rhs->evaluate(env);
+
+    if (!rhsEvalJdgmt)
+      return rhsEvalJdgmt;
+
+    auto lhsTypeJdgmt = lhsEvalJdgmt.u.jdgmt->getype(env);
+
+    if (!lhsTypeJdgmt)
+      return EvalJudgement(EvalError(lhsTypeJdgmt.u.error));
+
+    auto rhsTypeJdgmt = rhsEvalJdgmt.u.jdgmt->getype(env);
+
+    if (!rhsTypeJdgmt)
+      return EvalJudgement(EvalError(rhsTypeJdgmt.u.error));
+
+
+    auto eliminator = (*BinopEliminators)->HasEliminator(lhsTypeJdgmt.u.jdgmt, rhsTypeJdgmt.u.jdgmt);
+
+
+    if (eliminator)
+    {
+      shared_ptr<Ast> lhsvalue = lhsEvalJdgmt.u.jdgmt;
+      shared_ptr<Ast> rhsvalue = rhsEvalJdgmt.u.jdgmt;
+      return EvalJudgement((*eliminator)(lhsvalue, rhsvalue));
+    }
+    else
+    {
+      // error, no instance of binop valid for actual argument types.
+      string errdsc = "No instance of binop ["
+                    + op
+                    + "] for actual lhstype:["
+                    + lhsTypeJdgmt.u.jdgmt->to_string()
+                    + "] and actual rhstype:["
+                    + rhsTypeJdgmt.u.jdgmt->to_string()
+                    + "]\n";
+      return EvalJudgement(EvalError(location, errdsc));
+    }
+    /*
+    just for fun, we are going to assume that evaluation gets to
+    happen before getting the types, (because it had to typecheck to get here right?)
+    so that we can hopefully evaluate
+    possible polymorphic leaves into monomorphic ones. (that's the idea at least)
     auto lhsTypeJdgmt = lhs->getype(env);
 
     if (!lhsTypeJdgmt)
-      return lhsTypeJdgmt;
+      return EvalJudgement(EvalError(lhsTypeJdgmt.u.error.location(), lhsTypeJdgmt.u.error.what()));
 
     auto rhsTypeJdgmt = rhs->getype(env);
 
     if (!rhsTypeJdgmt)
-      return rhsTypeJdgmt;
+      return EvalJudgement(EvalError(rhsTypeJdgmt.u.error.location(), rhsTypeJdgmt.u.error.what()));
 
     shared_ptr<Type> lhstype = lhsTypeJdgmt.u.jdgmt;
     shared_ptr<Type> rhstype = rhsTypeJdgmt.u.jdgmt;
@@ -112,12 +172,12 @@ EvalJudgement Binop::evaluate_internal(Environment env)
 
     if (eliminator)
     {
-      auto lhsEvalJdgmt = lhs->evaluate(env);
+      EvalJudgement lhsEvalJdgmt = lhs->evaluate(env);
 
       if (!lhsEvalJdgmt)
         return lhsEvalJdgmt;
 
-      auto rhsEvalJdgmt = rhs->evaluate(env);
+      EvalJudgement rhsEvalJdgmt = rhs->evaluate(env);
 
       if (!rhsEvalJdgmt)
         return rhsEvalJdgmt;
@@ -138,6 +198,7 @@ EvalJudgement Binop::evaluate_internal(Environment env)
                     + "]\n";
       return EvalJudgement(EvalError(location, errdsc));
     }
+    */
   }
   else
   {
@@ -149,18 +210,18 @@ EvalJudgement Binop::evaluate_internal(Environment env)
   }
 }
 
-void Binop::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Binop::substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
 {
   lhs->substitute(var, &lhs, value, env);
   rhs->substitute(var, &rhs, value, env);
 }
 
-bool Binop::appears_free(string var)
+bool Binop::appears_free_internal(string var)
 {
   return lhs->appears_free(var) || rhs->appears_free(var);
 }
 
-void Binop::rename_binding(string old_name, string new_name)
+void Binop::rename_binding_internal(string old_name, string new_name)
 {
   lhs->rename_binding(old_name, new_name);
   rhs->rename_binding(old_name, new_name);

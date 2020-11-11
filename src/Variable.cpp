@@ -62,7 +62,7 @@ ENV |- id : type = value
   }
 }
 
-void Variable::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Variable::substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
 {
   if (id == var)
   {
@@ -70,7 +70,7 @@ void Variable::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> val
   }
 }
 
-bool Variable::appears_free(string var)
+bool Variable::appears_free_internal(string var)
 {
   if (id == var)
     return true;
@@ -78,7 +78,7 @@ bool Variable::appears_free(string var)
     return false;
 }
 
-void Variable::rename_binding(string old_name, string new_name)
+void Variable::rename_binding_internal(string old_name, string new_name)
 {
   if (id == old_name)
     id = new_name;

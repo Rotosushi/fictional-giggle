@@ -11,5 +11,8 @@ public:
   TypeError(const Location& loc, const string& str)
     : PinkError(loc, str) {}
 
+  TypeError(PinkError& other)
+    : PinkError(other.location(), other.what()) {}
+
   virtual string what() override;
 };
