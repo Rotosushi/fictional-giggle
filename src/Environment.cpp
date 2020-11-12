@@ -2,6 +2,8 @@
 using std::string;
 #include <vector>
 using std::vector;
+#include <list>
+using std::list;
 #include <memory>
 using std::shared_ptr;
 
@@ -11,7 +13,7 @@ using std::shared_ptr;
 #include "SymbolTable.hpp"
 #include "Environment.hpp"
 
-Environment::Environment(shared_ptr<SymbolTable> s, shared_ptr<BinopPrecedenceTable> bp, shared_ptr<BinopSet> bs, shared_ptr<UnopSet> us, shared_ptr<vector<string>> cl)
+Environment::Environment(shared_ptr<SymbolTable> s, shared_ptr<BinopPrecedenceTable> bp, shared_ptr<BinopSet> bs, shared_ptr<UnopSet> us, shared_ptr<list<string>> cl)
   : scope(s), precedences(bp), binops(bs), unops(us), cleanup_list(cl)
 {
 

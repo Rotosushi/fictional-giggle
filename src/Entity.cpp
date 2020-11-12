@@ -1,6 +1,8 @@
 
 #include <string>
 using std::string;
+#include <list>
+using std::list;
 #include <vector>
 using std::vector;
 #include <memory>
@@ -180,6 +182,10 @@ TypeJudgement Lambda::getype(Environment env)
     {
       this->scope->unbind(id);
     }
+
+    if ((*this->cleanup_list).size() > 0)
+      (*this->cleanup_list).clear();
+
     return TypeJudgement(shared_ptr<Type>(new ProcType(this->arg_type, type2.u.jdgmt, Location())));
   }
   else
@@ -230,7 +236,7 @@ EvalJudgement PolyLambda::HasInstance(shared_ptr<Type> target_type, Environment 
 {
   auto build_target_lambda = [this](shared_ptr<Type> target_type)
   {
-    return shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(def.arg_id, target_type, def.scope, def.body)), Location()));
+    return shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(def.arg_id, target_type, def.scope, def.body, shared_ptr<list<string>>(new list<string>()))), Location()));
   };
   /*
   the only way to introduce a polymorphic

@@ -2,19 +2,23 @@
 /*
   the grammar so far
 
-  term := primary
-        | primary ';' primary
-        | primary binop primary
+  term := affix
+        | affix ';' term
 
-  primary := type
-           | atom
-           | atom atom
-           | unop atom
+  affix := primary
+         | primary operator primary
+
+  primary := primitive
+           | primitive primitive
+
+  primitive := type
+             | atom
+             | unop atom
 
   atom := identifier
         | identifier := term
         | nil
-        | integer
+        | [0-9]+
         | true
         | false
         | \ identifier (: term)? => term
@@ -26,8 +30,8 @@
   type := Nil
         | Int
         | Bool
+        | Poly
         | type -> type
-        | '(' type (',' type)+ ')'
 
   identifier := [a-zA-Z_][a-zA-Z0-9_]*
   integer    := [0-9]+
@@ -53,6 +57,8 @@ using std::stoi;
 using std::stack;
 #include <vector>
 using std::vector;
+#include <list>
+using std::list;
 #include <set>
 using std::set;
 #include <memory>
@@ -270,7 +276,7 @@ ParserJudgement Parser::parse(const string& text)
     but we still want to reject truly malformed terms.
   */
   mark();
-  optional<ParserError> err_or = speculate_term();
+  optional<ParserError> err_or = speculate_expression();
   release();
 
   /*
@@ -288,45 +294,73 @@ ParserJudgement Parser::parse(const string& text)
   }
   else
   {
-    return ParserJudgement(parse_term());
+    return ParserJudgement(parse_expression());
   }
+}
+
+/*
+
+term := affix
+      | affix ';' term
+
+affix := primary
+       | primary operator primary
+
+primary := primitive
+         | primitive primitive
+
+primitive := type
+           | atom
+           | unop atom
+
+atom := identifier
+      | identifier := term
+      | nil
+      | [0-9]+
+      | true
+      | false
+      | \ identifier (: term)? => term
+      | 'if' term 'then' term 'else' term
+      | 'while' term 'do' term
+      | '(' term ')'
+      | '(' term (',' term)+ ')'
+
+type := Nil
+      | Int
+      | Bool
+      | Poly
+      | type -> type
+*/
+shared_ptr<Ast> Parser::parse_expression()
+{
+  shared_ptr<Ast> lhs, rhs;
+  Location lhsloc = curloc();
+  lhs = parse_term();
+
+  if (lhs)
+  {
+    if (curtok() == Token::Semicolon)
+    {
+      // we saw a ';' after the first term,
+      // this means we want to parse an entire term
+      // and then place the two terms into a sequence
+      // Node.
+      nextok(); // eat ';'
+      rhs = parse_expression();
+      Location rhsloc = curloc();
+      Location seqloc = {lhsloc.first_line, lhsloc.first_column, rhsloc.last_line, rhsloc.last_column};
+      lhs = shared_ptr<Ast>(new Sequence(lhs, rhs, seqloc));
+    }
+  }
+
+  return lhs;
 }
 
 shared_ptr<Ast> Parser::parse_term()
 {
   shared_ptr<Ast> lhs, rhs;
-
   /*
-  term := primary
-        | primary binop primary
-
-  primary := type
-           | atom
-           | atom atom
-           | unop atom
-
-  atom := identifier
-        | identifier := term
-        | nil
-        | [0-9]+
-        | true
-        | false
-        | \ identifier (: term)? => term
-        | 'if' term 'then' term 'else' term
-        | 'while' term 'do' term
-        | '(' term ')'
-        | '(' term (',' term)+ ')'
-
-  type := Nil
-        | Int
-        | Bool
-        | type -> type
-        | '(' type (',' type)+ ')'
-  */
-
-  /*
-    we
-    require that the first term of
+    we require that the first term of
     any expression be a primary expression,
     this includes, variables,
     literal-values, literal-types,
@@ -384,13 +418,14 @@ shared_ptr<Ast> Parser::parse_term()
       additionally we should recommend that
       unary operators avoid symbolically
       intersecting with binary operators.
-      if they do, be aware the grammar rules will select
-      the binary form of the operator every time.
+      if they do, be aware the grammar rules place
+      prefrence on the binary form of the operator.
       this means that if the operator is both a unop
       and a binop, the expression
       a op b will always be the operation taking
-      arguments a and b.
-
+      arguments a and b,
+      and never the application of a taking as argument
+      the unop applied to b.
 
       TLDR:
       [a - b]
@@ -409,7 +444,10 @@ shared_ptr<Ast> Parser::parse_term()
       in order for the entire expression
       to parse as a call expression, otherwise
       we switch to parsing a binary operation,
-      but only if the operator itself is a binop.
+      however, this is only if the operator
+       itself is a binop and a unop. should the
+       operator only be defined as a unop then
+       the grammar will parse it as an application.
     */
     if (lhs != nullptr)
     {
@@ -452,19 +490,6 @@ shared_ptr<Ast> Parser::parse_term()
                   an invalid token.
         */
 
-      }
-
-      if (curtok() == Token::Semicolon)
-      {
-        // we saw a ';' after the first primary term,
-        // this means we want to parse an entire term
-        // and then place the two terms into a sequence
-        // Node.
-        nextok(); // eat ';'
-        rhs = parse_term();
-        Location rhsloc = curloc();
-        Location seqloc = {lhsloc.first_line, lhsloc.first_column, rhsloc.last_line, rhsloc.last_column};
-        lhs = shared_ptr<Ast>(new Sequence(lhs, rhs, seqloc));
       }
     }
     else
@@ -514,20 +539,6 @@ shared_ptr<Ast> Parser::parse_primary()
   we construct the deepest node as (a b)
   the next node as (a b) c, then the outermost,
   root node as ((a b) c) d.
-
-  we should recommend that
-  unary operators avoid symbolically
-  intersecting with binary operators.
-  if they do, be aware the grammar rules will select
-  the binary form of the operator every time.
-
-  this is to avoid the reverse case of parsing
-  [3 - 4] as [3 (-4)]
-  and yeah, you are reading that correctly,
-  it's a call expression...
-  and hence, does not allow the programmer
-  to even input an expression representing
-  [3 - 4]
   */
 
   while ((curtok() != Token::Operator && is_primary(curtok()))
@@ -902,19 +913,19 @@ shared_ptr<Ast> Parser::parse_if()
   {
     nextok();
 
-    test = parse_term();
+    test = parse_expression();
 
     if (curtok() == Token::Then)
     {
       nextok();
 
-      first = parse_term();
+      first = parse_expression();
 
       if (curtok() == Token::Else)
       {
         nextok();
 
-        second = parse_term();
+        second = parse_expression();
         Location&& rhsloc = curloc(), condloc(lhsloc.first_line,
                                               lhsloc.first_column,
                                               rhsloc.first_line,
@@ -942,11 +953,11 @@ shared_ptr<Ast> Parser::parse_while()
   if (curtok() == Token::While)
   {
     nextok();
-    test = parse_term();
+    test = parse_expression();
 
     if (curtok() == Token::Do) {
       nextok();
-      body = parse_term();
+      body = parse_expression();
 
       Location&& rhsloc = curloc(), looploc(lhsloc.first_line,
                                             lhsloc.first_column,
@@ -1006,7 +1017,7 @@ shared_ptr<Ast> Parser::parse_procedure()
     //      just in case procedure definitions occur within.
     scopes.push(shared_ptr<SymbolTable>(new SymbolTable(scopes.top().get())));
 
-    body = parse_term();
+    body = parse_expression();
 
     Location&& rhsloc = curloc();
     Location procloc(lhsloc.first_line,
@@ -1015,9 +1026,9 @@ shared_ptr<Ast> Parser::parse_procedure()
                      rhsloc.first_column);
 
     if (!poly)
-      proc = shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(id, type, scopes.top(), body)), procloc));
+      proc = shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(id, type, scopes.top(), body, shared_ptr<list<string>>(new list<string>()))), procloc));
     else
-      proc = shared_ptr<Ast>(new Entity(unique_ptr<PolyLambda>(new PolyLambda(*(new Lambda(id, type, scopes.top(), body)))), procloc));
+      proc = shared_ptr<Ast>(new Entity(unique_ptr<PolyLambda>(new PolyLambda(*(new Lambda(id, type, scopes.top(), body, shared_ptr<list<string>>(new list<string>()))))), procloc));
     scopes.pop();
 
   }
@@ -1144,6 +1155,25 @@ shared_ptr<Ast> Parser::parse_infix(shared_ptr<Ast> lhs, int precedence)
   return lhs;
 }
 
+/* ------------------------------------------------------------------------ */
+
+optional<ParserError> Parser::speculate_expression()
+{
+  optional<ParserError> result;
+
+  result = speculate_term();
+
+  if (!result)
+  {
+    if (speculate(Token::Semicolon))
+    {
+      result = speculate_expression();
+    }
+  }
+
+  return result;
+}
+
 
 optional<ParserError> Parser::speculate_term()
 {
@@ -1170,13 +1200,6 @@ optional<ParserError> Parser::speculate_term()
             nextok(); // eat the binop
             result = speculate_primary();
         } while (curtok() == Token::Operator && is_binop(curtxt()));
-      }
-
-      // after we parse some long expression we look for ';'
-      if (curtok() == Token::Semicolon)
-      {
-        nextok(); // eat ';'
-        result = speculate_term();
       }
     }
   }

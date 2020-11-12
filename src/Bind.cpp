@@ -57,7 +57,7 @@ ENV |- id is-not-currently-bound-in-local-scope, term2 : type2
       return rhsjdgmt;
 
     env.scope->bind(id, shared_ptr<Ast>(new Entity(rhsjdgmt.u.jdgmt, rhs->location)));
-    (*env.cleanup_list).push_back(id);
+    env.cleanup_list->push_back(id);
 
     return rhsjdgmt;
   }

@@ -16,7 +16,7 @@ shared_ptr<Ast> Sequence::clone_internal()
 
 string Sequence::to_string_internal()
 {
-  return lhs->to_string() + ";\n" + rhs->to_string();
+  return lhs->to_string() + "; " + rhs->to_string();
 }
 
 TypeJudgement Sequence::getype_internal(Environment env)

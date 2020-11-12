@@ -4,6 +4,8 @@ using std::string;
 using std::getline;
 #include <vector>
 using std::vector;
+#include <list>
+using std::list;
 #include <memory>
 using std::shared_ptr;
 #include <iostream>
@@ -92,7 +94,7 @@ int main(int argc, char** argv)
   auto precedences  = shared_ptr<BinopPrecedenceTable>(new BinopPrecedenceTable());
   auto binops       = shared_ptr<BinopSet>(new BinopSet());
   auto unops        = shared_ptr<UnopSet>(new UnopSet());
-  auto cleanup_list = shared_ptr<vector<string>>(new vector<string>());
+  auto cleanup_list = shared_ptr<list<string>>(new list<string>());
 
   Environment environment(top_scope, precedences, binops, unops, cleanup_list);
 
@@ -130,6 +132,9 @@ int main(int argc, char** argv)
       {
         environment.scope->unbind(id);
       }
+
+      if ((*environment.cleanup_list).size() > 0)
+        (*environment.cleanup_list).clear();
 
       if (typejdgmt)
       {

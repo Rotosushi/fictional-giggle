@@ -76,7 +76,42 @@ private:
   fine, given that throwing here signals an implementation
   defect rather than an actual syntax error.)
   */
-  shared_ptr<Ast> parse_term();
+  /*
+
+  expression := term
+              | term ';' expression
+
+  term := primary
+        | primary operator primary
+
+  primary := primitive
+           | primitive primitive
+
+  primitive := type
+             | atom
+             | unop atom
+
+  atom := identifier
+        | identifier := term
+        | nil
+        | [0-9]+
+        | true
+        | false
+        | \ identifier (: term)? => term
+        | 'if' term 'then' term 'else' term
+        | 'while' term 'do' term
+        | '(' term ')'
+        | '(' term (',' term)+ ')'
+
+  type := Nil
+        | Int
+        | Bool
+        | Poly
+        | type -> type
+  */
+  shared_ptr<Ast> parse_expression(); // new
+  shared_ptr<Ast> parse_term(); // modify
+  shared_ptr<Ast> parse_affix(); // new
   shared_ptr<Ast> parse_primary();
   shared_ptr<Ast> parse_primitive();
   shared_ptr<Type> parse_type_annotation();
@@ -86,7 +121,9 @@ private:
   shared_ptr<Ast> parse_infix(shared_ptr<Ast> lhs, int precedence);
 
   bool speculate(Token t);
+  optional<ParserError> speculate_expression();
   optional<ParserError> speculate_term();
+  optional<ParserError> speculate_affix();
   optional<ParserError> speculate_primary();
   optional<ParserError> speculate_primitive();
   optional<ParserError> speculate_type();
