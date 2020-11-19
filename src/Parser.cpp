@@ -7,6 +7,7 @@
 
   affix := primary
          | primary operator primary
+         | primary "<-" affix
 
   primary := primitive
            | primitive primitive
@@ -25,12 +26,12 @@
         | 'if' term 'then' term 'else' term
         | 'while' term 'do' term
         | '(' term ')'
-        | '(' term (',' term)+ ')'
 
-  type := Nil
-        | Int
-        | Bool
-        | Poly
+  type := "Nil"
+        | "Int"
+        | "Bool"
+        | "Poly"
+        | "Ref" type
         | type -> type
 
   identifier := [a-zA-Z_][a-zA-Z0-9_]*
@@ -81,6 +82,8 @@ using std::get;
 #include "Iteration.hpp"
 #include "Conditional.hpp"
 #include "Sequence.hpp"
+#include "Assignment.hpp"
+#include "Reference.hpp"
 #include "Environment.hpp"
 #include "ParserError.hpp"
 #include "ParserJudgement.hpp"
@@ -232,6 +235,7 @@ bool Parser::is_ender(Token t)
     case Token::NewLn: case Token::EqRarrow:
     case Token::Then: case Token::Else:
     case Token::Do: case Token::Comma:
+    case Token::Semicolon:
       return true;
     default:
       return false;
@@ -300,11 +304,12 @@ ParserJudgement Parser::parse(const string& text)
 
 /*
 
-term := affix
-      | affix ';' term
+expression := term
+            | term ';' expression
 
-affix := primary
-       | primary operator primary
+term := primary
+      | primary operator primary
+      | primary '<-' term
 
 primary := primitive
          | primitive primitive
@@ -323,7 +328,6 @@ atom := identifier
       | 'if' term 'then' term 'else' term
       | 'while' term 'do' term
       | '(' term ')'
-      | '(' term (',' term)+ ')'
 
 type := Nil
       | Int
@@ -459,6 +463,17 @@ shared_ptr<Ast> Parser::parse_term()
       if (curtok() == Token::Operator && is_binop(curtxt()))
       {
         lhs = parse_infix(lhs, 0);
+      }
+      else if (curtok() == Token::Larrow)
+      {
+        /*
+         term '<-' term
+        */
+        nextok(); // eat '<-'
+        rhs = parse_term();
+        Location&& rhsloc = curloc();
+        Location assgnloc(lhsloc.first_line, lhsloc.first_column, rhsloc.last_line, rhsloc.last_column);
+        lhs = shared_ptr<Ast>(new Assignment(lhs, rhs, assgnloc));
       }
       /*
         we could also validly see
@@ -847,10 +862,18 @@ shared_ptr<Type> Parser::parse_type_annotation()
   Location&& lhsloc = curloc();
   shared_ptr<Type> type, rhs;
 
-  auto parse_type_atom = [this]()
+  auto parse_type_atom = [this, lhsloc]()
   {
-    shared_ptr<Type> type;
-    if (curtok() == Token::TypeNil)
+    shared_ptr<Type> type, rhs;
+    if (curtok() == Token::TypeRef)
+    {
+      nextok(); // eat "Ref"
+      rhs = parse_type_annotation();
+      Location&& rhsloc = curloc();
+      Location refloc = {lhsloc.first_line, lhsloc.first_column, rhsloc.first_line, rhsloc.first_column};
+      type = shared_ptr<Type>(new RefType(rhs, refloc));
+    }
+    else if (curtok() == Token::TypeNil)
     {
       type = shared_ptr<Type>(new MonoType(AtomicType::Nil, curloc()));
       nextok();
@@ -880,14 +903,17 @@ shared_ptr<Type> Parser::parse_type_annotation()
     return type;
   };
 
+
+
   type = parse_type_atom();
 
   if (type && curtok() == Token::Rarrow)
   {
     /*
-      type := Nil
-            | Int
-            | Bool
+      type := "Nil"
+            | "Int"
+            | "Bool"
+            | "Ref" type
             | type '->' type
             //| '(' type (',' type)+ ')'
 
@@ -1017,7 +1043,7 @@ shared_ptr<Ast> Parser::parse_procedure()
     //      just in case procedure definitions occur within.
     scopes.push(shared_ptr<SymbolTable>(new SymbolTable(scopes.top().get())));
 
-    body = parse_expression();
+    body = parse_term();
 
     Location&& rhsloc = curloc();
     Location procloc(lhsloc.first_line,
@@ -1026,9 +1052,9 @@ shared_ptr<Ast> Parser::parse_procedure()
                      rhsloc.first_column);
 
     if (!poly)
-      proc = shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(id, type, scopes.top(), body, shared_ptr<list<string>>(new list<string>()))), procloc));
+      proc = shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(id, type, scopes.top(), body)), procloc));
     else
-      proc = shared_ptr<Ast>(new Entity(unique_ptr<PolyLambda>(new PolyLambda(*(new Lambda(id, type, scopes.top(), body, shared_ptr<list<string>>(new list<string>()))))), procloc));
+      proc = shared_ptr<Ast>(new Entity(unique_ptr<PolyLambda>(new PolyLambda(*(new Lambda(id, type, scopes.top(), body)))), procloc));
     scopes.pop();
 
   }
@@ -1201,6 +1227,19 @@ optional<ParserError> Parser::speculate_term()
             result = speculate_primary();
         } while (curtok() == Token::Operator && is_binop(curtxt()));
       }
+      else if (curtok() == Token::Larrow)
+      {
+        nextok();
+        result = speculate_term();
+      }
+      else if (is_ender(curtok()))
+      {
+        ;
+      }
+      else
+      {
+        result = optional<ParserError>({"unknown token in primary position: [" + curtxt() + "]", curloc()});
+      }
     }
   }
   else if (is_ender(curtok()))
@@ -1210,7 +1249,7 @@ optional<ParserError> Parser::speculate_term()
   }
   else
   {
-     result = optional<ParserError>({"unknown grapheme in primary position: [" + curtxt() + "]", curloc()});
+     result = optional<ParserError>({"unknown token in primary position: [" + curtxt() + "]", curloc()});
   }
   return result;
 }
@@ -1310,7 +1349,11 @@ optional<ParserError> Parser::speculate_type()
     // the body of this loop needs to parse
     // a type atom, which are then composed by
     // operations.
-    if (speculate(Token::TypeNil));
+    if (speculate(Token::TypeRef))
+    {
+      result = speculate_type();
+    }
+    else if (speculate(Token::TypeNil));
     else if (speculate(Token::TypeInt));
     else if (speculate(Token::TypeBool));
     else {

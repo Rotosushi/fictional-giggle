@@ -99,43 +99,43 @@ TypeJudgement Application::getype_internal(Environment env)
 
         if (typeB)
         {
-          shared_ptr<Type> type1 = pt->lhs;
+            shared_ptr<Type> type1 = pt->lhs;
 
-          if (type1 == nullptr)
-            throw "bad lhs type\n";
+            if (type1 == nullptr)
+              throw "bad lhs type\n";
 
-          shared_ptr<Type> type2 = pt->rhs;
+            shared_ptr<Type> type2 = pt->rhs;
 
-          if (type2 == nullptr)
-            throw "bad rhs type\n";
+            if (type2 == nullptr)
+              throw "bad rhs type\n";
 
-          shared_ptr<Type> type3 = typeB.u.jdgmt;
+            shared_ptr<Type> type3 = typeB.u.jdgmt;
 
-          if (type3 == nullptr)
-            throw "bad argument type\n";
+            if (type3 == nullptr)
+              throw "bad argument type\n";
 
-          if (TypesEquivalent(type1, type3))
-          {
-            /*
-              the type of the result of the application
-              is the rhs of the procedure type.
-            */
-            return TypeJudgement(type2);
+            if (TypesEquivalent(type1, type3))
+            {
+              /*
+                the type of the result of the application
+                is the rhs of the procedure type.
+              */
+              return TypeJudgement(type2);
+            }
+            else
+            {
+              string errdsc = "argument type ["
+                            + type3->to_string()
+                            + "] not equivalent to formal type ["
+                            + type1->to_string()
+                            + "]\n";
+              return TypeJudgement(TypeError(location, errdsc));
+            }
           }
           else
           {
-            string errdsc = "argument type ["
-                          + type3->to_string()
-                          + "] not equivalent to formal type ["
-                          + type1->to_string()
-                          + "]\n";
-            return TypeJudgement(TypeError(location, errdsc));
+            return typeB;
           }
-        }
-        else
-        {
-          return typeB;
-        }
       }
     }
     else

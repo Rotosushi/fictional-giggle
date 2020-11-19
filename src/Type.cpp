@@ -65,6 +65,21 @@ bool MonoType::is_poly_internal()
   }
 }
 
+shared_ptr<Type> RefType::clone_internal()
+{
+  return shared_ptr<Type>(new RefType(ref_type->clone(), Location()));
+}
+
+string RefType::to_string_internal()
+{
+  return "ref " + ref_type->to_string();
+}
+
+bool RefType::is_poly_internal()
+{
+  return ref_type->is_polymorphic();
+}
+
 shared_ptr<Type> ProcType::clone_internal()
 {
   return shared_ptr<Type>(new ProcType(lhs->clone(), rhs->clone(), location));
@@ -161,7 +176,31 @@ TypeJudgement TypesEquivalent(shared_ptr<Type> t1, shared_ptr<Type> t2)
     }
     else
     {
-      throw "bad type node";
+      RefType* rt1 = dynamic_cast<RefType*>(t1.get());
+
+      if (rt1 != nullptr)
+      {
+        RefType* rt2 = dynamic_cast<RefType*>(t2.get());
+        if (rt2 != nullptr)
+        {
+          TypeJudgement refjdgmt = TypesEquivalent(rt1->ref_type, rt2->ref_type);
+          return refjdgmt;
+        }
+        else
+        {
+          string errdsc = "cannot compare ref type t1:["
+                        + t1->to_string()
+                        + "] to non-ref type t2:["
+                        + t2->to_string()
+                        + "]";
+          TypeError typeerror(Location(), errdsc);
+          return TypeJudgement(typeerror);
+        }
+      }
+      else
+      {
+        throw "bad lhs type.";
+      }
     }
   }
 }

@@ -29,6 +29,4 @@ protected:
   virtual TypeJudgement getype_internal(Environment env) override;
   virtual EvalJudgement evaluate_internal(Environment env) override;
 
-
-
 };

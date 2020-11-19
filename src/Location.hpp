@@ -11,4 +11,6 @@ public:
   Location();
   Location(int fl, int fc, int ll, int lc);
   Location(const Location& other);
+
+  Location& operator=(const Location& other);
 };

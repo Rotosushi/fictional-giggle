@@ -11,6 +11,13 @@ string PinkError::what()
   return dsc;
 }
 
+PinkError& PinkError::operator=(const PinkError& other)
+{
+  loc = other.loc;
+  dsc = other.dsc;
+  return *this;
+}
+
 string buildErrStr(Location loc, string errdsc, string errtxt)
 {
   /*

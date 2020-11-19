@@ -32,11 +32,26 @@ void UnopEliminatorSet::RegisterPrimitiveEliminator(shared_ptr<Type> argtype, sh
 
 optional<UnopEliminator> UnopEliminatorSet::HasEliminator(shared_ptr<Type> rtype)
 {
+  /*
+    we somehow need to catch the "&" and "*"
+    ref types specially? so we can extract the
+    primitive procedure which allows us to
+    wrap or unwrap terms in our language with references.
+
+  */
   auto eliminator_arguments_match =
     [](tuple<shared_ptr<Type>, shared_ptr<Type>, primitive_unop_eliminator> eliminator, shared_ptr<Type> rtype)
   {
     bool result;
     if (TypesEquivalent(get<0>(eliminator), rtype))
+    {
+      result = true;
+    }
+    // i think this solves the problem, when this algorithm
+    // encounters the formal arg type RefPolyType of "&"
+    // and the formal arg type PolyType of "*"
+    // it will match against any passed type.
+    else if (get<0>(eliminator)->is_polymorphic())
     {
       result = true;
     }

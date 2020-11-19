@@ -10,6 +10,8 @@ using std::shared_ptr;
 #include "EvalJudgement.hpp"
 #include "Environment.hpp"
 #include "Entity.hpp"
+#include "Empty.hpp"
+#include "Reference.hpp"
 #include "Ast.hpp"
 
 /*
@@ -111,9 +113,24 @@ EvalJudgement Ast::evaluate(Environment env)
     return entity != nullptr;
   };
 
+  auto is_empty = [](shared_ptr<Ast> term)
+  {
+    Empty* empty = dynamic_cast<Empty*>(term.get());
+    return empty != nullptr;
+  };
+
+  auto is_ref = [](shared_ptr<Ast> term)
+  {
+    Reference* ref = dynamic_cast<Reference*>(term.get());
+    return ref != nullptr;
+  };
+
   EvalJudgement evljdgmt = this->evaluate_internal(env);
 
-  while (evljdgmt && !is_entity(evljdgmt.u.jdgmt))
+  while (evljdgmt
+     && !is_entity(evljdgmt.u.jdgmt)
+     && !is_empty(evljdgmt.u.jdgmt)
+     && !is_ref(evljdgmt.u.jdgmt))
   {
     evljdgmt = evljdgmt.u.jdgmt->evaluate_internal(env);
   }

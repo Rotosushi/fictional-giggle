@@ -181,12 +181,11 @@ public:
   shared_ptr<list<string>> cleanup_list;
 
   Lambda(const string& a_id, const shared_ptr<Type>& a_type,
-         shared_ptr<SymbolTable> enclosing_scope, const shared_ptr<Ast>& bd,
-         shared_ptr<list<string>> cl)
-    : arg_id(a_id), arg_type(a_type), scope(enclosing_scope), body(bd), cleanup_list(cl) {}
+         shared_ptr<SymbolTable> enclosing_scope, const shared_ptr<Ast>& bd)
+    : arg_id(a_id), arg_type(a_type), scope(enclosing_scope), body(bd), cleanup_list(shared_ptr<list<string>>(new list<string>())) {}
 
   Lambda(const Lambda& other)
-    : arg_id(other.arg_id), arg_type(other.arg_type->clone()), scope(other.scope), body(other.body->clone()), cleanup_list()
+    : arg_id(other.arg_id), arg_type(other.arg_type->clone()), scope(other.scope), body(other.body->clone()), cleanup_list(shared_ptr<list<string>>(new list<string>()))
   {
     for (const string& id : (*other.cleanup_list))
     {

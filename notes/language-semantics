@@ -1,8 +1,7 @@
 #! Multiple Dispatch and multi argument procedures
 
 later versions of this programming language are going
-to have multi dispatch along with the ability to
-pass a list of arguments. by this mechanism binary
+to have multi dispatch, by this mechanism binary
 operations are going to be built. until i can figure out
 mutiple arguments (and i kind of want a working
 version sooner than that would allow) single arguments
@@ -11,22 +10,30 @@ namely, how do we have binops at all?
 well, i guess, to start there will only be primitive
 operations, and those are going to be handled in a
 different way than composite binops.
+(boom, it's done, we even encapsulate the precise
+primitiveness/compositeness from the interpreter
+via the command pattern. i.e. a function pointer.)
+
+(and even later the ability to
+pass a list of arguments, i.e. varargs).
 
 #! optimizations
 
-a monomorphic procedure has the ability to
+our interpreter has the ability to
 apply monotyped procedures exclusively.
 how is this you ask? doesn't this language
 have polymorphic procedures? well,
-since the types of the arguments are monomorphic
-even if this procedure were to call a polymorphic
-procedure, this procedure is only able to pass
-monotyped arguments into that polymorphic procedure,
-by definition, this will uniquely dispatch to one of
+since the types of the actual arguments are knowable,
+ we can uniquely dispatch to one of
 the instances of that polymorphic procedure, and given
 that the types are monomorphic, by definition, this makes
 the application site reducable/optimizable to a direct call to the
 instance of the polymorphic procedure, right?
+
+(even if this procedure were to call a polymorphic
+procedure, this procedure is only able to pass
+monotyped arguments into that polymorphic procedure,
+by definition)
 
 sure we could apply more than one call, but each application
 site is itself monomorphic. this just repeats the above
@@ -39,6 +46,14 @@ set of types. to call one passing in some monomorph,
 by definition, implies that the other polymorphic procedure
 must be valid for that same monotype, (or not if the programmer
 doesn't pass the polytype argument into the poly procedure.)
+
+it is only in the case of a polymorphic argument being passed
+in as a variable to substitute for that we would see that the
+two polymorphs are now tied in the monomorphic types they
+must be valid for. (every type that makes the one typecheck
+must make the other typecheck or else typing of any application
+of the one containing the other would fail.)
+
 
 to repeat:
 a monotyped procedure applies another monotyped procedure
@@ -54,6 +69,9 @@ if you were to write procedures which only had polymorphic type,
 and you only ever called procedures with polymorphic type.
 (by definition never introducing a monotyped anything)
 you would be saying a lot of nothing.
+until such time as you apply the procedures giving some
+concrete type, then, the body must type given that the
+type provided is what the variables type is.
 
 
 #! use before definition

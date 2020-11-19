@@ -16,6 +16,8 @@ public:
   PinkError(PinkError& other)
     : loc(other.loc), dsc(other.dsc) {}
 
+  PinkError& operator=(const PinkError& other);
+
   virtual ~PinkError() {}
 
   Location& location();

@@ -21,3 +21,12 @@ Location::Location(const Location& other)
 {
 
 }
+
+Location& Location::operator=(const Location& other)
+{
+  first_line   = other.first_line;
+  first_column = other.first_column;
+  last_line    = other.last_line;
+  last_column  = other.last_column;
+  return *this;
+}

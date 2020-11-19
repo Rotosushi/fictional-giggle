@@ -15,6 +15,8 @@ using std::endl;
 
 #include "Ast.hpp"
 #include "Entity.hpp"
+#include "Empty.hpp"
+#include "Reference.hpp"
 #include "Parser.hpp"
 #include "BinopEliminators.hpp"
 #include "BinopPrecedenceTable.hpp"
@@ -110,6 +112,18 @@ int main(int argc, char** argv)
     return entity != nullptr;
   };
 
+  auto is_empty = [](shared_ptr<Ast> term)
+  {
+    Empty* empty = dynamic_cast<Empty*>(term.get());
+    return empty != nullptr;
+  };
+
+  auto is_ref = [](shared_ptr<Ast> term)
+  {
+    Reference* ref = dynamic_cast<Reference*>(term.get());
+    return ref != nullptr;
+  };
+
 
 
   cout << "Welcome to Pink! v0.0.2\n"
@@ -128,13 +142,16 @@ int main(int argc, char** argv)
 
       TypeJudgement typejdgmt = term->getype(environment);
 
-      for (string& id : (*environment.cleanup_list))
-      {
-        environment.scope->unbind(id);
-      }
-
       if ((*environment.cleanup_list).size() > 0)
+      {
+        // destructors get called here
+        for (string& id : (*environment.cleanup_list))
+        {
+          environment.scope->unbind(id);
+        }
+
         (*environment.cleanup_list).clear();
+      }
 
       if (typejdgmt)
       {
@@ -145,7 +162,7 @@ int main(int argc, char** argv)
         do {
           evaljdgmt = term->evaluate(environment);
 
-          if (evaljdgmt && is_entity(evaljdgmt.u.jdgmt))
+          if (evaljdgmt && (is_entity(evaljdgmt.u.jdgmt) || is_empty(evaljdgmt.u.jdgmt) || is_ref(evaljdgmt.u.jdgmt)))
           {
             cout << "~> " << evaljdgmt.u.jdgmt->to_string() << endl;
           }
@@ -162,7 +179,10 @@ int main(int argc, char** argv)
             // can continue on the new term
             term = evaljdgmt.u.jdgmt;
           }
-        } while (evaljdgmt && !is_entity(evaljdgmt.u.jdgmt));
+        } while (evaljdgmt
+             && !is_entity(evaljdgmt.u.jdgmt)
+             && !is_empty(evaljdgmt.u.jdgmt)
+             && !is_ref(evaljdgmt.u.jdgmt));
         // this is another location it is appropriate to
         // perform cleanup.
       }

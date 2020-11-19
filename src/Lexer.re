@@ -93,6 +93,7 @@ Token Lexer::yylex()
             $          { update_location(); return Token::End;         }
             [ \t\n]    { update_location(); continue;                  }
             "Poly"     { update_location(); return Token::TypePoly;    }
+            "Ref"      { update_location(); return Token::TypeRef;     }
             "nil"      { update_location(); return Token::Nil;         }
             "Nil"      { update_location(); return Token::TypeNil;     }
             "Int"      { update_location(); return Token::TypeInt;     }
@@ -111,6 +112,7 @@ Token Lexer::yylex()
             ":"        { update_location(); return Token::Colon;       }
             ";"        { update_location(); return Token::Semicolon;   }
             ":="       { update_location(); return Token::ColonEquals; }
+            "<-"       { update_location(); return Token::Larrow;      }
             "->"       { update_location(); return Token::Rarrow;      }
             "=>"       { update_location(); return Token::EqRarrow;    }
             identifier { update_location(); return Token::Id;          }

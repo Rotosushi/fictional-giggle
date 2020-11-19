@@ -29,7 +29,7 @@ string TypeLiteral::to_string()
 
 TypeJudgement TypeLiteral::getype(Environment env)
 {
-  return value->clone();
+  return value;
 }
 
 void TypeLiteral::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
@@ -177,14 +177,16 @@ TypeJudgement Lambda::getype(Environment env)
 
   if (type2)
   {
-    // destructors get called here
-    for (string& id : (*this->cleanup_list))
-    {
-      this->scope->unbind(id);
-    }
-
     if ((*this->cleanup_list).size() > 0)
+    {
+      // destructors get called here
+      for (string& id : (*this->cleanup_list))
+      {
+        this->scope->unbind(id);
+      }
+
       (*this->cleanup_list).clear();
+    }
 
     return TypeJudgement(shared_ptr<Type>(new ProcType(this->arg_type, type2.u.jdgmt, Location())));
   }
@@ -236,7 +238,7 @@ EvalJudgement PolyLambda::HasInstance(shared_ptr<Type> target_type, Environment 
 {
   auto build_target_lambda = [this](shared_ptr<Type> target_type)
   {
-    return shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(def.arg_id, target_type, def.scope, def.body, shared_ptr<list<string>>(new list<string>()))), Location()));
+    return shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(def.arg_id, target_type, def.scope, def.body)), Location()));
   };
   /*
   the only way to introduce a polymorphic

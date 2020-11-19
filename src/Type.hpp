@@ -53,6 +53,23 @@ protected:
   virtual bool is_poly_internal() override;
 };
 
+class RefType : public Type
+{
+public:
+  shared_ptr<Type> ref_type;
+
+  RefType(shared_ptr<Type> t, const Location& loc)
+    : Type(loc), ref_type(t) {}
+
+  RefType(const RefType& other)
+    : Type(other.location), ref_type(other.ref_type) {}
+
+protected:
+  virtual shared_ptr<Type> clone_internal() override;
+  virtual string to_string_internal() override;
+  virtual bool is_poly_internal() override;
+};
+
 class ProcType : public Type
 {
 public:

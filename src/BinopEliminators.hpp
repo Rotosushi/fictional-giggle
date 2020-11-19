@@ -34,7 +34,7 @@ class Type;
   address is stored within itself.
 
 */
-typedef shared_ptr<Ast> (*primitive_binop_eliminator)(const Ast* const, const Ast* const);
+typedef shared_ptr<Ast> (*primitive_binop_eliminator)(shared_ptr<Ast>, shared_ptr<Ast>);
 
 /*
   eventually, this class will encapsulate

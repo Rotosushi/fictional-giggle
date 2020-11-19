@@ -37,7 +37,7 @@ shared_ptr<Ast> BinopEliminator::operator()(shared_ptr<Ast> lhs, shared_ptr<Ast>
       [if primitive then apply primitive else apply composite]
        block.)
   */
-  return this->primitive_eliminator(lhs.get(), rhs.get());
+  return this->primitive_eliminator(lhs, rhs);
 }
 
 shared_ptr<Type> BinopEliminator::GetResultType()

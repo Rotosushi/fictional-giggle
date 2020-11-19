@@ -53,13 +53,20 @@ TypeJudgement Binop::getype_internal(Environment env)
     if (!lhsjdgmt)
       return lhsjdgmt;
 
-    if (lhsjdgmt.u.jdgmt->is_polymorphic())
-      return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Poly, Location())));
-
     auto rhsjdgmt = rhs->getype(env);
 
     if (!rhsjdgmt)
       return rhsjdgmt;
+
+    // we need to check for the 'early-exit-strategy'
+    // i.e. polymorphism, after we have typed both
+    // sides (with at least polymorphic type)
+    // otherwise the user could sneak badly formed
+    // code past the typechecker in the rhs of the
+    // equation.
+    if (lhsjdgmt.u.jdgmt->is_polymorphic())
+      return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Poly, Location())));
+
 
     if (rhsjdgmt.u.jdgmt->is_polymorphic())
       return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Poly, Location())));

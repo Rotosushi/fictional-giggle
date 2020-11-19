@@ -5,11 +5,56 @@ using std::make_shared;
 
 #include "Ast.hpp"
 #include "Entity.hpp"
+#include "Reference.hpp"
 #include "Environment.hpp"
 #include "PinkKernel.hpp"
 
+shared_ptr<Ast> AmpersandUnopWrapRef(shared_ptr<Ast> rhs)
+{
+  return shared_ptr<Ast>(new Reference(rhs, Location()));
+}
 
-shared_ptr<Ast> PlusBinopAddInts(const Ast* const lhs, const Ast* const rhs)
+shared_ptr<Ast> StarUnopUnwrapRef(shared_ptr<Ast> rhs)
+{
+  Reference* reference = dynamic_cast<Reference*>(rhs.get());
+
+  if (reference == nullptr)
+    throw "Bad rhs type, must be reference.";
+
+  return shared_ptr<Ast>(reference->ref);
+}
+
+shared_ptr<Ast> BangUnopBooleanNegation(shared_ptr<Ast> rhs)
+{
+  Entity* ent = dynamic_cast<Entity*>(rhs.get());
+
+  if (!ent)
+    throw "Bad rhs, must be an Entity.";
+
+  Boolean* bol = dynamic_cast<Boolean*>(ent->literal.get());
+
+  if (!bol)
+    throw "Bad entity, must be a Boolean.";
+
+  return shared_ptr<Ast>(new Entity(!(bol->value), Location()));
+}
+
+shared_ptr<Ast> MinusUnopIntegerNegation(shared_ptr<Ast> rhs)
+{
+  Entity* ent = dynamic_cast<Entity*>(rhs.get());
+
+  if (!ent)
+    throw "Bad rhs, must be an Entity.";
+
+  Integer* i = dynamic_cast<Integer*>(ent->literal.get());
+
+  if (!i)
+    throw "Bad entity, must be a Integer.";
+
+  return shared_ptr<Ast>(new Entity(-(i->value), Location()));
+}
+
+shared_ptr<Ast> PlusBinopAddInts(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
 {
   /*
   this could be done without the dynamic casts
@@ -28,8 +73,8 @@ shared_ptr<Ast> PlusBinopAddInts(const Ast* const lhs, const Ast* const rhs)
 
   return make_shared(Entity(lint->value  rint->value, Location()));
   */
-  const Entity* lentity = dynamic_cast<const Entity*>(lhs);
-  const Entity* rentity = dynamic_cast<const Entity*>(rhs);
+  const Entity* lentity = dynamic_cast<const Entity*>(lhs.get());
+  const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
 
   if (!lentity)
     throw "Bad Lhs Ast";
@@ -58,10 +103,10 @@ shared_ptr<Ast> PlusBinopAddInts(const Ast* const lhs, const Ast* const rhs)
   return shared_ptr<Ast>(new Entity(lint->value + rint->value, Location()));
 }
 
-shared_ptr<Ast> HyphenBinopSubtractInts(const Ast* const lhs, const Ast* const rhs)
+shared_ptr<Ast> HyphenBinopSubtractInts(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
 {
-  const Entity* lentity = dynamic_cast<const Entity*>(lhs);
-  const Entity* rentity = dynamic_cast<const Entity*>(rhs);
+  const Entity* lentity = dynamic_cast<const Entity*>(lhs.get());
+  const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
 
   if (!lentity)
     throw "Bad Lhs Ast";
@@ -81,10 +126,10 @@ shared_ptr<Ast> HyphenBinopSubtractInts(const Ast* const lhs, const Ast* const r
   return shared_ptr<Ast>(new Entity(lint->value - rint->value, Location()));
 }
 
-shared_ptr<Ast> FSlashBinopDivideInts(const Ast* const lhs, const Ast* const rhs)
+shared_ptr<Ast> FSlashBinopDivideInts(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
 {
-  const Entity* lentity = dynamic_cast<const Entity*>(lhs);
-  const Entity* rentity = dynamic_cast<const Entity*>(rhs);
+  const Entity* lentity = dynamic_cast<const Entity*>(lhs.get());
+  const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
 
   if (!lentity)
     throw "Bad Lhs Ast";
@@ -104,10 +149,10 @@ shared_ptr<Ast> FSlashBinopDivideInts(const Ast* const lhs, const Ast* const rhs
   return shared_ptr<Ast>(new Entity(lint->value / rint->value, Location()));
 }
 
-shared_ptr<Ast> StarBinopMultiplyInts(const Ast* lhs, const Ast* rhs)
+shared_ptr<Ast> StarBinopMultiplyInts(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
 {
-  const Entity* lentity = dynamic_cast<const Entity*>(lhs);
-  const Entity* rentity = dynamic_cast<const Entity*>(rhs);
+  const Entity* lentity = dynamic_cast<const Entity*>(lhs.get());
+  const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
 
   if (!lentity)
     throw "Bad Lhs Ast";
@@ -127,10 +172,10 @@ shared_ptr<Ast> StarBinopMultiplyInts(const Ast* lhs, const Ast* rhs)
   return shared_ptr<Ast>(new Entity(lint->value * rint->value, Location()));
 }
 
-shared_ptr<Ast> PercentBinopModulusInts(const Ast* lhs, const Ast* rhs)
+shared_ptr<Ast> PercentBinopModulusInts(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
 {
-  const Entity* lentity = dynamic_cast<const Entity*>(lhs);
-  const Entity* rentity = dynamic_cast<const Entity*>(rhs);
+  const Entity* lentity = dynamic_cast<const Entity*>(lhs.get());
+  const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
 
   if (!lentity)
     throw "Bad Lhs Ast";
@@ -150,10 +195,10 @@ shared_ptr<Ast> PercentBinopModulusInts(const Ast* lhs, const Ast* rhs)
   return shared_ptr<Ast>(new Entity(lint->value % rint->value, Location()));
 }
 
-shared_ptr<Ast> EqualsBinopEquivalentInts(const Ast* lhs, const Ast* rhs)
+shared_ptr<Ast> EqualsBinopEquivalentInts(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
 {
-  const Entity* lentity = dynamic_cast<const Entity*>(lhs);
-  const Entity* rentity = dynamic_cast<const Entity*>(rhs);
+  const Entity* lentity = dynamic_cast<const Entity*>(lhs.get());
+  const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
 
   if (!lentity)
     throw "Bad Lhs Ast";
@@ -213,7 +258,30 @@ void RegisterPrimitiveBinops(Environment env)
   env.precedences->RegisterBinopPrecAndAssoc("%", 6, Associativity::Left);
 }
 
-void RegisterPrimitiveUnops(Environment ops)
+void RegisterPrimitiveUnops(Environment env)
 {
+  auto PolyType    = shared_ptr<Type>(new MonoType(AtomicType::Poly, Location()));
+  auto RefPolyType = shared_ptr<Type>(new RefType(PolyType, Location()));
+  auto IntegerType = shared_ptr<Type>(new MonoType(AtomicType::Int, Location()));
+  auto BooleanType = shared_ptr<Type>(new MonoType(AtomicType::Bool, Location()));
 
+  // Poly ->  Ref Poly
+  auto AmpersandUnop = shared_ptr<UnopEliminatorSet>(new UnopEliminatorSet());
+  AmpersandUnop->RegisterPrimitiveEliminator(PolyType, RefPolyType, AmpersandUnopWrapRef);
+  env.unops->RegisterUnop("&", AmpersandUnop);
+
+  // Ref Poly -> Poly
+  auto StarUnop = shared_ptr<UnopEliminatorSet>(new UnopEliminatorSet());
+  StarUnop->RegisterPrimitiveEliminator(RefPolyType, PolyType, StarUnopUnwrapRef);
+  env.unops->RegisterUnop("*", StarUnop);
+
+  // Bool -> Bool
+  auto BangUnop = shared_ptr<UnopEliminatorSet>(new UnopEliminatorSet());
+  BangUnop->RegisterPrimitiveEliminator(BooleanType, BooleanType, BangUnopBooleanNegation);
+  env.unops->RegisterUnop("!", BangUnop);
+
+  // Int -> Int
+  auto MinusUnop = shared_ptr<UnopEliminatorSet>(new UnopEliminatorSet());
+  MinusUnop->RegisterPrimitiveEliminator(IntegerType, IntegerType, MinusUnopIntegerNegation);
+  env.unops->RegisterUnop("-", MinusUnop);
 }
