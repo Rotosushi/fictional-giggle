@@ -329,7 +329,7 @@ life to the idea of constructing functions at runtime.
 we want all function applications to be definable at compile-time.
 then we can compile & link them, and bam, a program. this is
 in my mind what it means to be C-like as opposed to functional
-or object oriented, instead of having a lot of implicitly available
+or object oriented or scripting/dynamic, instead of having a lot of implicitly available
 syntax (which adds to the size of a compiled program), Pink will
 have a small but extensible core, to which a programmer can request
 the addition of semantics. so, eventually there may be semantics
@@ -511,6 +511,7 @@ if we were to make a set of every application of some particular polymorphic
 function, we would arrive at Pinks definition of said polymorphic function.
 
 so, how about we use that hinge to define a calculus?
+and there you have it: Pink!
 
 
 

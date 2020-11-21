@@ -2,29 +2,29 @@
 #include <string>
 using std::string;
 #include <memory>
+using std::unique_ptr;
 using std::shared_ptr;
 
 #include "Ast.hpp"
 #include "TypeJudgement.hpp"
 #include "EvalJudgement.hpp"
 #include "Environment.hpp"
+#include "Object.hpp"
 
-class Empty : public Ast
+class Empty : public Object
 {
   int null;
 public:
-  Empty(const Location& loc);
+  Empty();
 
   Empty(const Empty& other);
 
   virtual ~Empty() {};
 
-protected:
-  virtual void substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env) override;
-  virtual bool appears_free_internal(string var) override;
-  virtual void rename_binding_internal(string old_name, string new_name) override;
-  virtual shared_ptr<Ast> clone_internal() override;
-  virtual string to_string_internal() override;
-  virtual TypeJudgement getype_internal(Environment env) override;
-  virtual EvalJudgement evaluate_internal(Environment env) override;
+  virtual unique_ptr<Object> clone() override;
+  virtual string to_string() override;
+  virtual TypeJudgement getype(Environment env) override;
+  virtual void substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env) override;
+  virtual bool appears_free(string var) override;
+  virtual void rename_binding(string old_name, string new_name) override;
 };

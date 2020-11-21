@@ -1,10 +1,12 @@
 
 stuff left before the language is complete:
 
--) make recursive procedures (via the Z procedure) work.
+*) make recursive procedures (via the Z procedure) work.
   specifically I am using the simple factorial procedure to
   test this. but once the simple case works the more complex
   cases should work too. (i hope)
+
+    this works!
 
 -) add formal procedure definitions to the language,
    and thusly allow overloading to occur. (also allowable
@@ -13,14 +15,22 @@ stuff left before the language is complete:
 
 -) make multple dispatch procedures (open methods)
    then, on that mechanism build user defined binops,
-   and unops
+   and unops, (unops could be made to work right now,
+   as we have single arg procedures already, however,
+   I have plenty of other places to spend my time, and
+   it will be good to go over things again at a later
+   date.)
 
 -) define a procedure which can read a file of definitions.
-    we may need to add the ';' sequence grapheme to our language,
-    to allow this to work.
+
+      *)we may need to add the ';' sequence grapheme to our language,
+        to allow this to work.
+        the sequence grapheme is in the language now!
 
 -) define type compositions. probably: objects with single inheritance
-    no methods (at first), no private members (at first).
+    no methods (only function pointers), no private members (at first.
+    private members are constructed and accessed exactly like regular
+    members, except they have restricted visibility.)
     essentially the simple c 'struct' and 'union' semantics.
     plus single inheritance and the usual OOP style constructors.
     (except pink unions are always tagged. (maybe untagged is a separate
@@ -28,3 +38,15 @@ stuff left before the language is complete:
 
 -) define a module mechanism that allows one to compose at the
     namespace level.
+
+-) cleanup the codebase around Objects and Entities,
+    while it is nice that the rest of the interpreter
+    is shielded from objects via the Entity inclusion,
+    we can break Object, and each primitive Object
+    into their own separate files.
+
+    this paired with separating the distinct groupings
+    of files into folders, and rewriting the makefile
+    to take advantage of some level of intermediate
+    files composing, so that we can reduce compilation
+    times somewhat.

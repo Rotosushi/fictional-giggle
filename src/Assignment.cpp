@@ -115,7 +115,9 @@ EvalJudgement Assignment::evaluate_internal(Environment env)
   if (!dstjdgmt)
     return dstjdgmt;
 
-  Reference* reference = dynamic_cast<Reference*>(dstjdgmt.u.jdgmt.get());
+  Entity* ent = dynamic_cast<Entity*>(dstjdgmt.u.jdgmt.get());
+
+  Reference* reference = dynamic_cast<Reference*>(ent->literal.get());
 
   if (reference != nullptr)
   {

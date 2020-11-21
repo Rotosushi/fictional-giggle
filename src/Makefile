@@ -5,12 +5,15 @@ Pink: Lexer
 	--stdlib=libstdc++ Ast.cpp Lexer.cpp Parser.cpp Type.cpp \
 	PinkError.cpp ParserError.cpp TypeError.cpp EvalError.cpp  \
 	ParserJudgement.cpp TypeJudgement.cpp EvalJudgement.cpp \
-	Binop.cpp Unop.cpp SymbolTable.cpp \
+	Binop.cpp Unop.cpp SymbolTable.cpp Object.cpp  \
+	TypeLiteral.cpp Nil.cpp Integer.cpp Boolean.cpp \
+	Lambda.cpp PolyLambda.cpp PinkException.cpp \
 	BinopPrecedenceTable.cpp BinopEliminators.cpp \
 	UnopEliminators.cpp Environment.cpp PinkKernel.cpp \
 	Location.cpp Variable.cpp Sequence.cpp Assignment.cpp \
 	Bind.cpp Application.cpp Conditional.cpp Iteration.cpp \
 	Reference.cpp Entity.cpp Empty.cpp Pink.cpp -o Pink
+
 
 
 Lexer:

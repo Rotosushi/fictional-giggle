@@ -6,20 +6,22 @@ using std::make_shared;
 #include "Ast.hpp"
 #include "Entity.hpp"
 #include "Reference.hpp"
+#include "PinkException.hpp"
 #include "Environment.hpp"
 #include "PinkKernel.hpp"
 
 shared_ptr<Ast> AmpersandUnopWrapRef(shared_ptr<Ast> rhs)
 {
-  return shared_ptr<Ast>(new Reference(rhs, Location()));
+  return shared_ptr<Ast>(new Entity(unique_ptr<Object>(new Reference(rhs)), Location()));
 }
 
 shared_ptr<Ast> StarUnopUnwrapRef(shared_ptr<Ast> rhs)
 {
-  Reference* reference = dynamic_cast<Reference*>(rhs.get());
+  Entity* entity = dynamic_cast<Entity*>(rhs.get());
+  Reference* reference = dynamic_cast<Reference*>(entity->literal.get());
 
   if (reference == nullptr)
-    throw "Bad rhs type, must be reference.";
+    throw PinkException("Bad rhs type, must be reference.", __FILE__, __LINE__);
 
   return shared_ptr<Ast>(reference->ref);
 }
@@ -29,12 +31,12 @@ shared_ptr<Ast> BangUnopBooleanNegation(shared_ptr<Ast> rhs)
   Entity* ent = dynamic_cast<Entity*>(rhs.get());
 
   if (!ent)
-    throw "Bad rhs, must be an Entity.";
+    throw PinkException("Bad rhs, must be an Entity.", __FILE__, __LINE__);
 
   Boolean* bol = dynamic_cast<Boolean*>(ent->literal.get());
 
   if (!bol)
-    throw "Bad entity, must be a Boolean.";
+    throw PinkException("Bad entity, must be a Boolean.", __FILE__, __LINE__);
 
   return shared_ptr<Ast>(new Entity(!(bol->value), Location()));
 }
@@ -44,12 +46,12 @@ shared_ptr<Ast> MinusUnopIntegerNegation(shared_ptr<Ast> rhs)
   Entity* ent = dynamic_cast<Entity*>(rhs.get());
 
   if (!ent)
-    throw "Bad rhs, must be an Entity.";
+    throw PinkException("Bad rhs, must be an Entity.", __FILE__, __LINE__);
 
   Integer* i = dynamic_cast<Integer*>(ent->literal.get());
 
   if (!i)
-    throw "Bad entity, must be a Integer.";
+    throw PinkException("Bad entity, must be a Integer.", __FILE__, __LINE__);
 
   return shared_ptr<Ast>(new Entity(-(i->value), Location()));
 }
@@ -77,20 +79,19 @@ shared_ptr<Ast> PlusBinopAddInts(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
   const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
 
   if (!lentity)
-    throw "Bad Lhs Ast";
+    throw PinkException("Bad Lhs Ast", __FILE__, __LINE__);
 
   if (!rentity)
-    throw "Bad Rhs Ast";
+    throw PinkException("Bad Rhs Ast", __FILE__, __LINE__);
 
   const Integer* lint = dynamic_cast<Integer*>(lentity->literal.get());
   const Integer* rint = dynamic_cast<Integer*>(rentity->literal.get());
 
   if (!lint)
-    throw "Bad Object Type";
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
 
   if (!rint)
-    throw "Bad Object Type";
-
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
     /*
     eventually the returned location should be
     the location of the entire expression, except
@@ -109,19 +110,19 @@ shared_ptr<Ast> HyphenBinopSubtractInts(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs
   const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
 
   if (!lentity)
-    throw "Bad Lhs Ast";
+    throw PinkException("Bad Lhs Ast", __FILE__, __LINE__);
 
   if (!rentity)
-    throw "Bad Rhs Ast";
+    throw PinkException("Bad Rhs Ast", __FILE__, __LINE__);
 
   const Integer* lint = dynamic_cast<Integer*>(lentity->literal.get());
   const Integer* rint = dynamic_cast<Integer*>(rentity->literal.get());
 
   if (!lint)
-    throw "Bad Object Type";
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
 
   if (!rint)
-    throw "Bad Object Type";
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
 
   return shared_ptr<Ast>(new Entity(lint->value - rint->value, Location()));
 }
@@ -132,19 +133,19 @@ shared_ptr<Ast> FSlashBinopDivideInts(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
   const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
 
   if (!lentity)
-    throw "Bad Lhs Ast";
+    throw PinkException("Bad Lhs Ast", __FILE__, __LINE__);
 
   if (!rentity)
-    throw "Bad Rhs Ast";
+    throw PinkException("Bad Rhs Ast", __FILE__, __LINE__);
 
   const Integer* lint = dynamic_cast<Integer*>(lentity->literal.get());
   const Integer* rint = dynamic_cast<Integer*>(rentity->literal.get());
 
   if (!lint)
-    throw "Bad Object Type";
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
 
   if (!rint)
-    throw "Bad Object Type";
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
 
   return shared_ptr<Ast>(new Entity(lint->value / rint->value, Location()));
 }
@@ -155,19 +156,19 @@ shared_ptr<Ast> StarBinopMultiplyInts(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
   const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
 
   if (!lentity)
-    throw "Bad Lhs Ast";
+    throw PinkException("Bad Lhs Ast", __FILE__, __LINE__);
 
   if (!rentity)
-    throw "Bad Rhs Ast";
+    throw PinkException("Bad Rhs Ast", __FILE__, __LINE__);
 
   const Integer* lint = dynamic_cast<Integer*>(lentity->literal.get());
   const Integer* rint = dynamic_cast<Integer*>(rentity->literal.get());
 
   if (!lint)
-    throw "Bad Object Type";
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
 
   if (!rint)
-    throw "Bad Object Type";
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
 
   return shared_ptr<Ast>(new Entity(lint->value * rint->value, Location()));
 }
@@ -178,19 +179,19 @@ shared_ptr<Ast> PercentBinopModulusInts(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs
   const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
 
   if (!lentity)
-    throw "Bad Lhs Ast";
+    throw PinkException("Bad Lhs Ast", __FILE__, __LINE__);
 
   if (!rentity)
-    throw "Bad Rhs Ast";
+    throw PinkException("Bad Rhs Ast", __FILE__, __LINE__);
 
   const Integer* lint = dynamic_cast<Integer*>(lentity->literal.get());
   const Integer* rint = dynamic_cast<Integer*>(rentity->literal.get());
 
   if (!lint)
-    throw "Bad Object Type";
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
 
   if (!rint)
-    throw "Bad Object Type";
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
 
   return shared_ptr<Ast>(new Entity(lint->value % rint->value, Location()));
 }
@@ -201,21 +202,251 @@ shared_ptr<Ast> EqualsBinopEquivalentInts(shared_ptr<Ast> lhs, shared_ptr<Ast> r
   const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
 
   if (!lentity)
-    throw "Bad Lhs Ast";
+    throw PinkException("Bad Lhs Ast", __FILE__, __LINE__);
 
   if (!rentity)
-    throw "Bad Rhs Ast";
+    throw PinkException("Bad Rhs Ast", __FILE__, __LINE__);
 
   const Integer* lint = dynamic_cast<Integer*>(lentity->literal.get());
   const Integer* rint = dynamic_cast<Integer*>(rentity->literal.get());
 
   if (!lint)
-    throw "Bad Object Type";
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
 
   if (!rint)
-    throw "Bad Object Type";
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
 
   return shared_ptr<Ast>(new Entity(lint->value == rint->value, Location()));
+}
+
+shared_ptr<Ast> EqualsBinopEquivalentBooleans(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
+{
+  const Entity* lentity = dynamic_cast<const Entity*>(lhs.get());
+  const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
+
+  if (!lentity)
+    throw PinkException("Bad Lhs Ast", __FILE__, __LINE__);
+
+  if (!rentity)
+    throw PinkException("Bad Rhs Ast", __FILE__, __LINE__);
+
+  const Boolean* lint = dynamic_cast<Boolean*>(lentity->literal.get());
+  const Boolean* rint = dynamic_cast<Boolean*>(rentity->literal.get());
+
+  if (!lint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  if (!rint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  return shared_ptr<Ast>(new Entity(lint->value == rint->value, Location()));
+}
+
+shared_ptr<Ast> BangEqualsBinopNotEquivalentInts(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
+{
+  const Entity* lentity = dynamic_cast<const Entity*>(lhs.get());
+  const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
+
+  if (!lentity)
+    throw PinkException("Bad Lhs Ast", __FILE__, __LINE__);
+
+  if (!rentity)
+    throw PinkException("Bad Rhs Ast", __FILE__, __LINE__);
+
+  const Integer* lint = dynamic_cast<Integer*>(lentity->literal.get());
+  const Integer* rint = dynamic_cast<Integer*>(rentity->literal.get());
+
+  if (!lint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  if (!rint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  return shared_ptr<Ast>(new Entity(lint->value != rint->value, Location()));
+}
+
+shared_ptr<Ast> BangEqualsBinopNotEquivalentBooleans(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
+{
+  const Entity* lentity = dynamic_cast<const Entity*>(lhs.get());
+  const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
+
+  if (!lentity)
+    throw PinkException("Bad Lhs Ast", __FILE__, __LINE__);
+
+  if (!rentity)
+    throw PinkException("Bad Rhs Ast", __FILE__, __LINE__);
+
+  const Boolean* lint = dynamic_cast<Boolean*>(lentity->literal.get());
+  const Boolean* rint = dynamic_cast<Boolean*>(rentity->literal.get());
+
+  if (!lint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  if (!rint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  return shared_ptr<Ast>(new Entity(lint->value != rint->value, Location()));
+}
+
+shared_ptr<Ast> LcarretEqualsBinopLessThanOrEqualInts(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
+{
+  const Entity* lentity = dynamic_cast<const Entity*>(lhs.get());
+  const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
+
+  if (!lentity)
+    throw PinkException("Bad Lhs Ast", __FILE__, __LINE__);
+
+  if (!rentity)
+    throw PinkException("Bad Rhs Ast", __FILE__, __LINE__);
+
+  const Integer* lint = dynamic_cast<Integer*>(lentity->literal.get());
+  const Integer* rint = dynamic_cast<Integer*>(rentity->literal.get());
+
+  if (!lint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  if (!rint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  return shared_ptr<Ast>(new Entity(lint->value <= rint->value, Location()));
+}
+
+shared_ptr<Ast> RcarretEqualsBinopGreaterThanOrEqualInts(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
+{
+  const Entity* lentity = dynamic_cast<const Entity*>(lhs.get());
+  const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
+
+  if (!lentity)
+    throw PinkException("Bad Lhs Ast", __FILE__, __LINE__);
+
+  if (!rentity)
+    throw PinkException("Bad Rhs Ast", __FILE__, __LINE__);
+
+  const Integer* lint = dynamic_cast<Integer*>(lentity->literal.get());
+  const Integer* rint = dynamic_cast<Integer*>(rentity->literal.get());
+
+  if (!lint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  if (!rint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  return shared_ptr<Ast>(new Entity(lint->value >= rint->value, Location()));
+}
+
+shared_ptr<Ast> LcarretBinopLessThanInts(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
+{
+  const Entity* lentity = dynamic_cast<const Entity*>(lhs.get());
+  const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
+
+  if (!lentity)
+    throw PinkException("Bad Lhs Ast", __FILE__, __LINE__);
+
+  if (!rentity)
+    throw PinkException("Bad Rhs Ast", __FILE__, __LINE__);
+
+  const Integer* lint = dynamic_cast<Integer*>(lentity->literal.get());
+  const Integer* rint = dynamic_cast<Integer*>(rentity->literal.get());
+
+  if (!lint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  if (!rint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  return shared_ptr<Ast>(new Entity(lint->value < rint->value, Location()));
+}
+
+shared_ptr<Ast> RcarretBinopGreaterThanInts(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
+{
+  const Entity* lentity = dynamic_cast<const Entity*>(lhs.get());
+  const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
+
+  if (!lentity)
+    throw PinkException("Bad Lhs Ast", __FILE__, __LINE__);
+
+  if (!rentity)
+    throw PinkException("Bad Rhs Ast", __FILE__, __LINE__);
+
+  const Integer* lint = dynamic_cast<Integer*>(lentity->literal.get());
+  const Integer* rint = dynamic_cast<Integer*>(rentity->literal.get());
+
+  if (!lint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  if (!rint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  return shared_ptr<Ast>(new Entity(lint->value > rint->value, Location()));
+}
+
+shared_ptr<Ast> PipeBinopBooleanOr(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
+{
+  const Entity* lentity = dynamic_cast<const Entity*>(lhs.get());
+  const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
+
+  if (!lentity)
+    throw PinkException("Bad Lhs Ast", __FILE__, __LINE__);
+
+  if (!rentity)
+    throw PinkException("Bad Rhs Ast", __FILE__, __LINE__);
+
+  const Boolean* lint = dynamic_cast<Boolean*>(lentity->literal.get());
+  const Boolean* rint = dynamic_cast<Boolean*>(rentity->literal.get());
+
+  if (!lint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  if (!rint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  return shared_ptr<Ast>(new Entity(lint->value || rint->value, Location()));
+}
+
+shared_ptr<Ast> CarretBinopBooleanXor(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
+{
+  const Entity* lentity = dynamic_cast<const Entity*>(lhs.get());
+  const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
+
+  if (!lentity)
+    throw PinkException("Bad Lhs Ast", __FILE__, __LINE__);
+
+  if (!rentity)
+    throw PinkException("Bad Rhs Ast", __FILE__, __LINE__);
+
+  const Boolean* lint = dynamic_cast<Boolean*>(lentity->literal.get());
+  const Boolean* rint = dynamic_cast<Boolean*>(rentity->literal.get());
+
+  if (!lint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  if (!rint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  return shared_ptr<Ast>(new Entity((lint->value && !rint->value) || (!lint->value && rint->value), Location()));
+}
+
+shared_ptr<Ast> AmpersandBinopBooleanAnd(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs)
+{
+  const Entity* lentity = dynamic_cast<const Entity*>(lhs.get());
+  const Entity* rentity = dynamic_cast<const Entity*>(rhs.get());
+
+  if (!lentity)
+    throw PinkException("Bad Lhs Ast", __FILE__, __LINE__);
+
+  if (!rentity)
+    throw PinkException("Bad Rhs Ast", __FILE__, __LINE__);
+
+  const Boolean* lint = dynamic_cast<Boolean*>(lentity->literal.get());
+  const Boolean* rint = dynamic_cast<Boolean*>(rentity->literal.get());
+
+  if (!lint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  if (!rint)
+    throw PinkException("Bad Object Type", __FILE__, __LINE__);
+
+  return shared_ptr<Ast>(new Entity(lint->value && rint->value, Location()));
 }
 
 void RegisterPrimitiveBinops(Environment env)
@@ -223,15 +454,63 @@ void RegisterPrimitiveBinops(Environment env)
   auto IntegerType = shared_ptr<Type>(new MonoType(AtomicType::Int, Location()));
   auto BooleanType = shared_ptr<Type>(new MonoType(AtomicType::Bool, Location()));
 
-  auto EqualsBinop = shared_ptr<BinopEliminatorSet>(new BinopEliminatorSet());
+  // Comparison Operators
+
   // the formal argument list reflects the
   // function type, as in, the type of the elimination
   // procedure is:
   // arg1 -> arg2 -> arg3
+  auto EqualsBinop = shared_ptr<BinopEliminatorSet>(new BinopEliminatorSet());
   EqualsBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, BooleanType, EqualsBinopEquivalentInts);
+  EqualsBinop->RegisterPrimitiveEliminator(BooleanType, BooleanType, BooleanType, EqualsBinopEquivalentBooleans);
   env.binops->RegisterBinop("=", EqualsBinop);
   env.precedences->RegisterBinopPrecAndAssoc("=", 1, Associativity::Left);
 
+  auto BangEqualsBinop = shared_ptr<BinopEliminatorSet>(new BinopEliminatorSet());
+  BangEqualsBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, BooleanType, BangEqualsBinopNotEquivalentInts);
+  BangEqualsBinop->RegisterPrimitiveEliminator(BooleanType, BooleanType, BooleanType, BangEqualsBinopNotEquivalentBooleans);
+  env.binops->RegisterBinop("!=", BangEqualsBinop);
+  env.precedences->RegisterBinopPrecAndAssoc("!=", 1, Associativity::Left);
+
+  auto LcarretEqualsBinop = shared_ptr<BinopEliminatorSet>(new BinopEliminatorSet());
+  LcarretEqualsBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, BooleanType, LcarretEqualsBinopLessThanOrEqualInts);
+  env.binops->RegisterBinop("<=", LcarretEqualsBinop);
+  env.precedences->RegisterBinopPrecAndAssoc("<=", 1, Associativity::Left);
+
+  auto LcarretBinop = shared_ptr<BinopEliminatorSet>(new BinopEliminatorSet());
+  LcarretBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, BooleanType, LcarretBinopLessThanInts);
+  env.binops->RegisterBinop("<", LcarretEqualsBinop);
+  env.precedences->RegisterBinopPrecAndAssoc("<", 1, Associativity::Left);
+
+  auto RcarretEqualsBinop = shared_ptr<BinopEliminatorSet>(new BinopEliminatorSet());
+  RcarretEqualsBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, BooleanType, RcarretEqualsBinopGreaterThanOrEqualInts);
+  env.binops->RegisterBinop(">=", RcarretEqualsBinop);
+  env.precedences->RegisterBinopPrecAndAssoc(">=", 1, Associativity::Left);
+
+  auto RcarretBinop = shared_ptr<BinopEliminatorSet>(new BinopEliminatorSet());
+  RcarretBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, BooleanType, RcarretBinopGreaterThanInts);
+  env.binops->RegisterBinop(">", RcarretBinop);
+  env.precedences->RegisterBinopPrecAndAssoc(">", 1, Associativity::Left);
+
+
+  // Boolean connectives
+  auto PipeBinop = shared_ptr<BinopEliminatorSet>(new BinopEliminatorSet());
+  PipeBinop->RegisterPrimitiveEliminator(BooleanType, BooleanType, BooleanType, PipeBinopBooleanOr);
+  env.binops->RegisterBinop("|", PipeBinop);
+  env.precedences->RegisterBinopPrecAndAssoc("|", 2, Associativity::Left);
+
+  auto CarretBinop = shared_ptr<BinopEliminatorSet>(new BinopEliminatorSet());
+  CarretBinop->RegisterPrimitiveEliminator(BooleanType, BooleanType, BooleanType, CarretBinopBooleanXor);
+  env.binops->RegisterBinop("^", CarretBinop);
+  env.precedences->RegisterBinopPrecAndAssoc("^", 2, Associativity::Left);
+
+  auto AmpersandBinop = shared_ptr<BinopEliminatorSet>(new BinopEliminatorSet());
+  AmpersandBinop->RegisterPrimitiveEliminator(BooleanType, BooleanType, BooleanType, AmpersandBinopBooleanAnd);
+  env.binops->RegisterBinop("&", AmpersandBinop);
+  env.precedences->RegisterBinopPrecAndAssoc("&", 2, Associativity::Left);
+
+
+  // Math Operations
   auto PlusBinop = shared_ptr<BinopEliminatorSet>(new BinopEliminatorSet());
   PlusBinop->RegisterPrimitiveEliminator(IntegerType, IntegerType, IntegerType, PlusBinopAddInts);
   env.binops->RegisterBinop("+", PlusBinop);

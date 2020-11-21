@@ -5,6 +5,7 @@ using std::string;
 using std::shared_ptr;
 using std::make_shared;
 
+#include "PinkException.hpp"
 #include "Type.hpp"
 
 shared_ptr<Type> Type::clone()
@@ -42,7 +43,7 @@ string MonoType::to_string_internal()
     case AtomicType::Bool:
       return "Bool";
     default:
-      throw "bad AtomicType tag.";
+      throw PinkException("bad AtomicType tag.", __FILE__, __LINE__);
   }
 }
 
@@ -61,7 +62,7 @@ bool MonoType::is_poly_internal()
     case AtomicType::Bool:
       return false;
     default:
-      throw "bad AtomicType tag.";
+      throw PinkException("bad AtomicType tag.", __FILE__, __LINE__);
   }
 }
 
@@ -199,7 +200,7 @@ TypeJudgement TypesEquivalent(shared_ptr<Type> t1, shared_ptr<Type> t2)
       }
       else
       {
-        throw "bad lhs type.";
+        throw PinkException("bad lhs type.", __FILE__, __LINE__);
       }
     }
   }

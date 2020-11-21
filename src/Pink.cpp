@@ -12,11 +12,11 @@ using std::shared_ptr;
 using std::cin;
 using std::cout;
 using std::endl;
+#include <exception>
+using std::exception;
 
 #include "Ast.hpp"
 #include "Entity.hpp"
-#include "Empty.hpp"
-#include "Reference.hpp"
 #include "Parser.hpp"
 #include "BinopEliminators.hpp"
 #include "BinopPrecedenceTable.hpp"
@@ -26,6 +26,7 @@ using std::endl;
 #include "EvalJudgement.hpp"
 #include "PinkError.hpp"
 #include "PinkKernel.hpp"
+#include "PinkException.hpp"
 
 
 /*
@@ -112,23 +113,9 @@ int main(int argc, char** argv)
     return entity != nullptr;
   };
 
-  auto is_empty = [](shared_ptr<Ast> term)
-  {
-    Empty* empty = dynamic_cast<Empty*>(term.get());
-    return empty != nullptr;
-  };
-
-  auto is_ref = [](shared_ptr<Ast> term)
-  {
-    Reference* ref = dynamic_cast<Reference*>(term.get());
-    return ref != nullptr;
-  };
-
-
-
   cout << "Welcome to Pink! v0.0.2\n"
        << "press ctrl+c to exit.\n";
-
+  try {
   do {
     cout << ":> ";
     getline (cin, input_text);
@@ -162,7 +149,7 @@ int main(int argc, char** argv)
         do {
           evaljdgmt = term->evaluate(environment);
 
-          if (evaljdgmt && (is_entity(evaljdgmt.u.jdgmt) || is_empty(evaljdgmt.u.jdgmt) || is_ref(evaljdgmt.u.jdgmt)))
+          if (evaljdgmt && is_entity(evaljdgmt.u.jdgmt))
           {
             cout << "~> " << evaljdgmt.u.jdgmt->to_string() << endl;
           }
@@ -179,10 +166,7 @@ int main(int argc, char** argv)
             // can continue on the new term
             term = evaljdgmt.u.jdgmt;
           }
-        } while (evaljdgmt
-             && !is_entity(evaljdgmt.u.jdgmt)
-             && !is_empty(evaljdgmt.u.jdgmt)
-             && !is_ref(evaljdgmt.u.jdgmt));
+        } while (evaljdgmt && !is_entity(evaljdgmt.u.jdgmt));
         // this is another location it is appropriate to
         // perform cleanup.
       }
@@ -202,6 +186,11 @@ int main(int argc, char** argv)
     // before the next iteration of the R.E.P.L.
     input_text.clear();
   } while (true);
+  }
+  catch (PinkException& e)
+  {
+    cout << e.what() << endl;
+  }
   // here is where it is safe to do cleanup of
   // the interpreters memory, which, given the near
   // exclusive use of shared_ptrs, means

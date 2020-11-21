@@ -85,6 +85,7 @@ using std::get;
 #include "Assignment.hpp"
 #include "Reference.hpp"
 #include "Environment.hpp"
+#include "PinkException.hpp"
 #include "ParserError.hpp"
 #include "ParserJudgement.hpp"
 #include "Parser.hpp"
@@ -266,7 +267,7 @@ ParserJudgement Parser::parse(const string& text)
 
   if (curtok() == Token::End)
   {
-    return ParserJudgement(shared_ptr<Ast>(new Empty(curloc())));
+    return ParserJudgement(shared_ptr<Ast>(new Entity(unique_ptr<Object>(new Empty()), curloc())));
   }
 
   /*
@@ -518,7 +519,7 @@ shared_ptr<Ast> Parser::parse_term()
   }
   else if (is_ender(curtok()))
   {
-    lhs = shared_ptr<Ast>(new Empty(lhsloc));
+    lhs = shared_ptr<Ast>(new Entity(unique_ptr<Object>(new Empty()), curloc()));
   }
   else
   {
@@ -852,7 +853,7 @@ shared_ptr<Ast> Parser::parse_primitive()
     }
 
     default:
-      throw "unexpected token in primitive position.";
+      throw PinkException("unexpected token in primitive position.", __FILE__, __LINE__);
   }
   return lhs;
 }
@@ -1005,7 +1006,7 @@ shared_ptr<Ast> Parser::parse_procedure()
   Location&& lhsloc = curloc();
 
   if (curtok() != Token::Backslash)
-    throw "unexpected missing backslash after speculation.";
+    throw PinkException("unexpected missing backslash after speculation.", __FILE__, __LINE__);
 
   nextok();
 
@@ -1028,7 +1029,7 @@ shared_ptr<Ast> Parser::parse_procedure()
     }
 
     if (curtok() != Token::EqRarrow)
-      throw "unexpected missing \"=>\" after speculation.";
+      throw PinkException("unexpected missing \"=>\" after speculation.", __FILE__, __LINE__);
 
     nextok();
 
@@ -1060,7 +1061,7 @@ shared_ptr<Ast> Parser::parse_procedure()
   }
   else
   {
-    throw "unexpected missing argument after speculation.";
+    throw PinkException("unexpected missing argument after speculation.", __FILE__, __LINE__);
   }
 
 

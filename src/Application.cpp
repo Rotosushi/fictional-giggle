@@ -5,6 +5,7 @@ using std::string;
 using std::shared_ptr;
 using std::make_shared;
 
+#include "PinkException.hpp"
 #include "Ast.hpp"
 #include "TypeJudgement.hpp"
 #include "EvalJudgement.hpp"
@@ -102,17 +103,17 @@ TypeJudgement Application::getype_internal(Environment env)
             shared_ptr<Type> type1 = pt->lhs;
 
             if (type1 == nullptr)
-              throw "bad lhs type\n";
+              throw PinkException("bad lhs type\n", __FILE__, __LINE__);
 
             shared_ptr<Type> type2 = pt->rhs;
 
             if (type2 == nullptr)
-              throw "bad rhs type\n";
+              throw PinkException("bad rhs type\n", __FILE__, __LINE__);
 
             shared_ptr<Type> type3 = typeB.u.jdgmt;
 
             if (type3 == nullptr)
-              throw "bad argument type\n";
+              throw PinkException("bad argument type\n", __FILE__, __LINE__);
 
             if (TypesEquivalent(type1, type3))
             {
@@ -146,7 +147,7 @@ TypeJudgement Application::getype_internal(Environment env)
       if (mt == nullptr)
       {
         // not MonoType, not ProcType, it's undefined!
-        throw "bad lhs application ptr\n";
+        throw PinkException("bad lhs application ptr\n", __FILE__, __LINE__);
       }
       else if (tA->is_polymorphic())
       {

@@ -2,23 +2,24 @@
 using std::string;
 #include <memory>
 using std::shared_ptr;
+using std::unique_ptr;
 using std::make_shared;
 
 #include "Ast.hpp"
 #include "Environment.hpp"
 #include "Reference.hpp"
 
-shared_ptr<Ast> Reference::clone_internal()
+unique_ptr<Object> Reference::clone()
 {
-  return shared_ptr<Ast>(new Reference(ref->clone(), Location()));
+  return unique_ptr<Object>(new Reference(ref));
 }
 
-string Reference::to_string_internal()
+string Reference::to_string()
 {
   return ref->to_string();
 }
 
-TypeJudgement Reference::getype_internal(Environment env)
+TypeJudgement Reference::getype(Environment env)
 {
   /*
     the type of a reference is 'ref T'
@@ -28,7 +29,7 @@ TypeJudgement Reference::getype_internal(Environment env)
   TypeJudgement refjdgmt = ref->getype(env);
   if (refjdgmt)
   {
-    shared_ptr<Type> reftype = shared_ptr<Type>(new RefType(refjdgmt.u.jdgmt, location));
+    shared_ptr<Type> reftype = shared_ptr<Type>(new RefType(refjdgmt.u.jdgmt, Location()));
     return TypeJudgement(reftype);
   }
   else
@@ -37,22 +38,17 @@ TypeJudgement Reference::getype_internal(Environment env)
   }
 }
 
-EvalJudgement Reference::evaluate_internal(Environment env)
-{
-  return EvalJudgement(shared_ptr<Ast>(new Reference(*this)));
-}
-
-void Reference::substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Reference::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
 {
   ref->substitute(var, &ref, value, env);
 }
 
-bool Reference::appears_free_internal(string var)
+bool Reference::appears_free(string var)
 {
   return ref->appears_free(var);
 }
 
-void Reference::rename_binding_internal(string old_name, string new_name)
+void Reference::rename_binding(string old_name, string new_name)
 {
   ref->rename_binding(old_name, new_name);
 }

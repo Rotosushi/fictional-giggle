@@ -19,7 +19,6 @@ string Unop::to_string_internal()
 {
   string result;
   result  = op;
-  result += " ";
   result += rhs->to_string();
   return result;
 }

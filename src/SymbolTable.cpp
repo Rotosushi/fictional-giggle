@@ -16,7 +16,7 @@ SymbolTable::SymbolTable(const SymbolTable& other)
 {
   for (auto&& sym : other.symbs)
   {
-    symbs.insert(make_pair(get<0>(sym), get<1>(sym)->clone()));
+    symbs.insert(make_pair(get<0>(sym), get<1>(sym)));
   }
 }
 
@@ -29,7 +29,7 @@ optional<shared_ptr<Ast>> SymbolTable::lookupInLocalScopeOnly(const string& key)
   }
   else
   {
-    return optional<shared_ptr<Ast>>((get<shared_ptr<Ast>>(*sym))->clone());
+    return optional<shared_ptr<Ast>>(get<shared_ptr<Ast>>(*sym));
   }
 }
 
@@ -49,7 +49,7 @@ optional<shared_ptr<Ast>> SymbolTable::operator[](const string& key)
   }
   else
   {
-    return optional<shared_ptr<Ast>>((get<shared_ptr<Ast>>(*sym))->clone());
+    return optional<shared_ptr<Ast>>(get<shared_ptr<Ast>>(*sym));
   }
 }
 
