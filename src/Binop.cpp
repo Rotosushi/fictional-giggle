@@ -217,10 +217,10 @@ EvalJudgement Binop::evaluate_internal(Environment env)
   }
 }
 
-void Binop::substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Binop::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
 {
-  lhs->substitute(var, &lhs, value, env);
-  rhs->substitute(var, &rhs, value, env);
+  lhs->substitute(subs, &lhs, env);
+  rhs->substitute(subs, &rhs, env);
 }
 
 bool Binop::appears_free_internal(string var)

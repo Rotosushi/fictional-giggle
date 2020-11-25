@@ -18,7 +18,9 @@ private:
   // all scopes are either the top scope
   // or a subscope of another scope.
   // essentially all scopes form a funny sort of n-ary tree.
-  // or an elaborate linked-list if you like.
+  // more like a list of tables, but because any table entry
+  // could itself contain another table, it's a tree right?
+  // so, "funny sort of tree"
 
   // in the same way that a static variable is
   // semantically a module local variable with

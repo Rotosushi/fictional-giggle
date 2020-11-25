@@ -21,7 +21,7 @@ public:
     : Ast(other.location), cond(other.cond), body(other.body) {}
 
 protected:
-  virtual void substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env) override;
+  virtual void substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env) override;
   virtual bool appears_free_internal(string var) override;
   virtual void rename_binding_internal(string old_name, string new_name) override;
   virtual shared_ptr<Ast> clone_internal() override;

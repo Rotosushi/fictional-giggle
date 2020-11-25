@@ -27,7 +27,7 @@ TypeJudgement Nil::getype(Environment env)
   return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Nil, Location())));
 }
 
-void Nil::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Nil::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
 {
   return;
 }

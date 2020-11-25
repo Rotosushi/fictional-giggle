@@ -38,9 +38,9 @@ TypeJudgement Reference::getype(Environment env)
   }
 }
 
-void Reference::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Reference::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
 {
-  ref->substitute(var, &ref, value, env);
+  ref->substitute(subs, &ref, env);
 }
 
 bool Reference::appears_free(string var)

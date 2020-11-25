@@ -17,7 +17,7 @@ class PolyLambda : public Object
 {
 public:
   Lambda def;
-  list<shared_ptr<Type>> instances;
+  list<vector<shared_ptr<Type>>> instances;
   /*
   and now, soon:
 
@@ -31,9 +31,9 @@ public:
   PolyLambda(PolyLambda& other)
     : def(other.def), instances(other.instances) {}
 
-  EvalJudgement HasInstance(shared_ptr<Type> target_type, Environment env);
+  EvalJudgement HasInstance(vector<shared_ptr<Type>> target_arg_types, Environment env);
 
-  virtual void substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env) override;
+  virtual void substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env) override;
   virtual void rename_binding(string old_name, string new_name) override;
   virtual bool appears_free(string name) override;
   virtual unique_ptr<Object> clone() override;

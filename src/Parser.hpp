@@ -114,7 +114,7 @@ private:
   shared_ptr<Ast> parse_affix(); // new
   shared_ptr<Ast> parse_primary();
   shared_ptr<Ast> parse_primitive();
-  shared_ptr<Type> parse_type_annotation();
+  shared_ptr<Type> parse_type();
   shared_ptr<Ast> parse_if();
   shared_ptr<Ast> parse_while();
   shared_ptr<Ast> parse_procedure();

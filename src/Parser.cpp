@@ -394,22 +394,23 @@ shared_ptr<Ast> Parser::parse_term()
       with unary operators, we want them to bind
       tightly to the immediate next term, but
       we do not want them to parse a full term
-      afterwards.
+      afterwards (as this leads to unintuitive
+      evaluation trees.)
 
       from the beginning we wanted expressions like
       a b c - f g h
       to parse as
       (a b c) - (f g h)
 
-      this is nessecary to avoid the reverse case of parsing
+      now i know this is necessary
+      to avoid the reverse case of parsing
       [3 - 4] as [3 (-4)]
       and yeah, you are reading that correctly,
       it's a call expression...
       and hence, does not allow the programmer
       to even input an expression representing
       [3 - 4]
-
-      this means we cannot parse
+      all this means we cannot parse
       a -b c -d
       as
       a (-b) c (-d)
@@ -420,7 +421,8 @@ shared_ptr<Ast> Parser::parse_term()
       the operation within parenthesis.
 
 
-      additionally we should recommend that
+      as a direct result of the above
+      discussion we should recommend that
       unary operators avoid symbolically
       intersecting with binary operators.
       if they do, be aware the grammar rules place
@@ -557,19 +559,23 @@ shared_ptr<Ast> Parser::parse_primary()
   root node as ((a b) c) d.
   */
 
-  while ((curtok() != Token::Operator && is_primary(curtok()))
-      || (curtok() == Token::Operator && !is_binop(curtxt())))
+  if ((curtok() != Token::Operator && is_primary(curtok()))
+   || (curtok() == Token::Operator && !is_binop(curtxt())))
   {
-    rhs = parse_primitive();
+    shared_ptr<vector<shared_ptr<Ast>>> actual_args;
+
+    do  {
+      actual_args.push_back(parse_primitive())
+    } while ((curtok() != Token::Operator && is_primary(curtok()))
+          || (curtok() == Token::Operator && !is_binop(curtxt())));
+
     Location&& rhsloc = curloc();
     Location callloc = Location(lhsloc.first_line,
                                 lhsloc.first_column,
                                 rhsloc.first_line,
                                 rhsloc.first_column);
-
-    lhs = shared_ptr<Ast>(new Application(lhs, rhs, callloc));
+    lhs = shared_ptr<Ast>(new Application(lhs, actual_args, callloc));
   }
-
   return lhs;
 }
 
@@ -733,7 +739,7 @@ shared_ptr<Ast> Parser::parse_primitive()
     case Token::TypeInt:
     case Token::TypeBool:
     {
-      lhs = shared_ptr<Ast>(new Entity(parse_type_annotation(), curloc()));
+      lhs = shared_ptr<Ast>(new Entity(parse_type(), curloc()));
       break;
     }
 
@@ -858,7 +864,7 @@ shared_ptr<Ast> Parser::parse_primitive()
   return lhs;
 }
 
-shared_ptr<Type> Parser::parse_type_annotation()
+shared_ptr<Type> Parser::parse_type()
 {
   Location&& lhsloc = curloc();
   shared_ptr<Type> type, rhs;
@@ -869,7 +875,7 @@ shared_ptr<Type> Parser::parse_type_annotation()
     if (curtok() == Token::TypeRef)
     {
       nextok(); // eat "Ref"
-      rhs = parse_type_annotation();
+      rhs = parse_type();
       Location&& rhsloc = curloc();
       Location refloc = {lhsloc.first_line, lhsloc.first_column, rhsloc.first_line, rhsloc.first_column};
       type = shared_ptr<Type>(new RefType(rhs, refloc));
@@ -893,6 +899,14 @@ shared_ptr<Type> Parser::parse_type_annotation()
     {
       type = shared_ptr<Type>(new MonoType(AtomicType::Poly, curloc()));
       nextok();
+    }
+    else if (curtok() == Token::LParen)
+    {
+      nextok();
+      type = parse_type();
+
+      if (curtok() != Token::Rparen)
+        throw PinkException("Unexpected missing closing parenthesis.", __FILE__, __LINE__);
     }
     else
     {
@@ -923,7 +937,7 @@ shared_ptr<Type> Parser::parse_type_annotation()
       type operator
     */
 
-    shared_ptr<Type> rhstype = parse_type_annotation();
+    shared_ptr<Type> rhstype = parse_type();
     Location&& rhsloc = curloc();
     Location typeloc(lhsloc.first_line, lhsloc.first_column, rhsloc.last_line, rhsloc.last_column);
     type = shared_ptr<Type>(new ProcType(type, rhstype, typeloc));
@@ -999,11 +1013,37 @@ shared_ptr<Ast> Parser::parse_while()
 
 shared_ptr<Ast> Parser::parse_procedure()
 {
+  /*
+    procedure := '\' id (: type)? (',' id (: type)?)* '=>' term
+  */
   bool poly = false;
-  string id;
-  shared_ptr<Type> type;
+  vector<pair<string, shared_ptr<Type>>> args;
   shared_ptr<Ast> proc, body;
   Location&& lhsloc = curloc();
+
+  auto parse_arg = [&poly]() -> pair<string, shared_ptr<Type>>
+  {
+    if (curtok() != Token::Id)
+      throw PinkException("unexpected missing argument after speculation.", __FILE__, __LINE__);
+
+    shared_ptr<Type> arg_type;
+    string arg_name = curtxt();
+    nextok();
+
+    if (curtok() == Token::Colon)
+    {
+      nextok();
+      arg_type = parse_type();
+      poly = arg_type->is_polymorphic();
+    }
+    else
+    {
+      arg_type = shared_ptr<Type>(new MonoType(AtomicType::Poly, Location()));
+      poly = true;
+    }
+
+    return pair<string, shared_ptr<Type>>(arg_name, arg_type);
+  };
 
   if (curtok() != Token::Backslash)
     throw PinkException("unexpected missing backslash after speculation.", __FILE__, __LINE__);
@@ -1012,20 +1052,11 @@ shared_ptr<Ast> Parser::parse_procedure()
 
   if (curtok() == Token::Id)
   {
-    id = curtxt();
-    nextok();
-
-    if (curtok() == Token::Colon)
+    args.push_back(parse_arg());
+    while (curtok() == Token::Comma)
     {
       nextok();
-      type = parse_type_annotation();
-      poly = type->is_polymorphic();
-    }
-    else
-    {
-      // if the type annotation is missing, we assume polymorphic type.
-      type = shared_ptr<Type>(new MonoType(AtomicType::Poly, Location()));
-      poly = true;
+      args.push_back(parse_arg());
     }
 
     if (curtok() != Token::EqRarrow)
@@ -1419,22 +1450,29 @@ optional<ParserError> Parser::speculate_procedure()
 {
   optional<ParserError> result;
 
+  auto speculate_arg = []()
+  {
+    if (speculate(Token::Id))
+      if (speculate(Token::Colon))
+      {
+        return speculate_type();
+      }
+      else
+      {
+        return optional<ParserError>();
+      }
+    else
+    {
+      return optional<ParserError>(ParserError("missing argument id", curloc()));
+    }
+  }
+
   // start parsing the procedure literal.
   if (speculate(Token::Backslash))
   {
-    // parse the argument, or argument list
-    if (speculate(Token::Id))
-    {
-        // type annotations are optional.
-        if (speculate(Token::Colon))
-        {
-          result = speculate_term();
-        }
-    }
-    else
-    {
-      result = optional<ParserError>({"missing argument following '\\'", curloc()});
-    }
+    if (speculate_arg())
+      while (speculate(Token::Comma) && !result)
+        result = speculate_arg();
 
     // parse the body
     if (!result && speculate(Token::EqRarrow))
@@ -1448,7 +1486,6 @@ optional<ParserError> Parser::speculate_procedure()
     else
       ; // in this case we want to preserve
         // the previous error message
-
   }
 
   return result;

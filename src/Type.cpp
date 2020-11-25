@@ -73,7 +73,7 @@ shared_ptr<Type> RefType::clone_internal()
 
 string RefType::to_string_internal()
 {
-  return "ref " + ref_type->to_string();
+  return "Ref " + ref_type->to_string();
 }
 
 bool RefType::is_poly_internal()
@@ -81,23 +81,46 @@ bool RefType::is_poly_internal()
   return ref_type->is_polymorphic();
 }
 
+ProcType::ProcType(vector<pair<string, shared_ptr<Type>>>& args, shared_ptr<Type> ret_type)
+  : Type(Location())
+{
+  for (pair<string,shared_ptr<Type>>>&& arg : args)
+  {
+    arg_types.push_back(get<shared_ptr<Type>>(arg));
+  }
+}
+
 shared_ptr<Type> ProcType::clone_internal()
 {
-  return shared_ptr<Type>(new ProcType(lhs->clone(), rhs->clone(), location));
+  return shared_ptr<Type>(new ProcType(arg_types, return_type, location));
 }
 
 string ProcType::to_string_internal()
 {
   string result;
-  result  = lhs->to_string();
-  result += " -> ";
-  result += rhs->to_string();
+  in length = arg_types.size();
+  for (int i = 0; i < length; ++i)
+  {
+    result += arg_types[i]->to_string();
+    result += " -> ";
+  }
+  result += result_type->to_string();
   return result;
 }
 
 bool ProcType::is_poly_internal()
 {
-  return lhs->is_polymorphic() || rhs->is_polymorphic();
+  if (result_type->is_polymorphic())
+    return true;
+  else
+  {
+    for (shared_ptr<Type>&& type : arg_types)
+    {
+      if (type->is_polymorphic())
+        return true;
+    }
+    return false;
+  }
 }
 
 TypeJudgement TypesEquivalent(shared_ptr<Type> t1, shared_ptr<Type> t2)
@@ -111,7 +134,7 @@ TypeJudgement TypesEquivalent(shared_ptr<Type> t1, shared_ptr<Type> t2)
     {
       if (mt1->tag == mt2->tag)
       {
-        return TypeJudgement(t1->clone());
+        return TypeJudgement(t1);
       }
       else
       {
@@ -144,25 +167,30 @@ TypeJudgement TypesEquivalent(shared_ptr<Type> t1, shared_ptr<Type> t2)
     {
       if (pt2 != nullptr)
       {
-        TypeJudgement j1 = TypesEquivalent(pt1->lhs, pt2->lhs);
-
-        if (j1.succeeded())
+        if (pt1->arg_types.size() == pt2->arg_types.size())
         {
-          TypeJudgement j2 = TypesEquivalent(pt1->rhs, pt2->rhs);
+          TypeJudgement j1;
+          int length = pt1->arg_types.size();
+          for (int i = 0; i < length; ++i)
+          {
+            j1 = TypesEquivalent(pt1->arg_types[i], pt2->arg_types[i]);
 
-          if (j2.succeeded())
-          {
-            return TypeJudgement(t2->clone());
+            if (!j1.succeeded())
+              return j1;
           }
-          else
-          {
+
+          TypeJudgement j2 = TypesEquivalent(pt1->return_type, pt2->return_type);
+          if (j2)
             return j2;
-          }
         }
-        else
-        {
-          return j1;
-        }
+
+        string errdsc = "Procedure Types not equivalent pt1:["
+                      + t1->to_string()
+                      + "] pt2:["
+                      + t2->to_string()
+                      + "]";
+        TypeError typeerror(Location(), errdsc);
+        return TypeJudgement(typeerror);
       }
       else
       {

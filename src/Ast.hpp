@@ -1,6 +1,11 @@
 #pragma once
 #include <string>
 using std::string;
+#include <vector>
+using std::vector>
+#include <utility>
+using std::pair;
+using std::get;
 #include <memory>
 using std::shared_ptr;
 
@@ -39,7 +44,7 @@ public:
   string to_string();
   TypeJudgement getype(Environment env);
   EvalJudgement evaluate(Environment env);
-  void substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env);
+  void substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env);
   bool appears_free(string var);
   void rename_binding(string old_name, string new_name);
 protected:
@@ -47,7 +52,7 @@ protected:
   virtual string to_string_internal() = 0;
   virtual TypeJudgement getype_internal(Environment env) = 0;
   virtual EvalJudgement evaluate_internal(Environment env) = 0;
-  virtual void substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env) = 0;
+  virtual void substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env) = 0;
   virtual bool appears_free_internal(string var) = 0;
   virtual void rename_binding_internal(string old_name, string new_name) = 0;
 

@@ -123,9 +123,9 @@ EvalJudgement Ast::evaluate(Environment env)
   return evljdgmt;
 }
 
-void Ast::substitute(string id, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Ast::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
 {
-  return this->substitute_internal(id, term, value, env);
+  return this->substitute_internal(subs, term, env);
 }
 
 bool Ast::appears_free(string id)

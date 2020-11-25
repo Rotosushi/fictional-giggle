@@ -16,7 +16,12 @@ using std::make_shared;
 
 shared_ptr<Ast> Application::clone_internal()
 {
-  return shared_ptr<Ast>(new Application(lhs->clone(), rhs->clone(), location));
+  vector<shared_ptr<Ast>> arg_list;
+  for (shared_ptr<Ast> arg : actual_args)
+  {
+    arg_list.push_back(arg->clone());
+  }
+  return shared_ptr<Ast>(new Application(lhs->clone(), arg_list, location));
 }
 
 string Application::to_string_internal()
@@ -96,47 +101,37 @@ TypeJudgement Application::getype_internal(Environment env)
       }
       else
       {
-        TypeJudgement typeB = rhs->getype(env);
+        vector<shared_ptr<Type>> actual_types;
 
-        if (typeB)
+        for (shared_ptr<Ast> arg : actual_args)
         {
-            shared_ptr<Type> type1 = pt->lhs;
+          TypeJudgement argtypejdgmt = arg->getype(env);
 
-            if (type1 == nullptr)
-              throw PinkException("bad lhs type\n", __FILE__, __LINE__);
-
-            shared_ptr<Type> type2 = pt->rhs;
-
-            if (type2 == nullptr)
-              throw PinkException("bad rhs type\n", __FILE__, __LINE__);
-
-            shared_ptr<Type> type3 = typeB.u.jdgmt;
-
-            if (type3 == nullptr)
-              throw PinkException("bad argument type\n", __FILE__, __LINE__);
-
-            if (TypesEquivalent(type1, type3))
-            {
-              /*
-                the type of the result of the application
-                is the rhs of the procedure type.
-              */
-              return TypeJudgement(type2);
-            }
-            else
-            {
-              string errdsc = "argument type ["
-                            + type3->to_string()
-                            + "] not equivalent to formal type ["
-                            + type1->to_string()
-                            + "]\n";
-              return TypeJudgement(TypeError(location, errdsc));
-            }
-          }
+          if (argtypejdgmt)
+            actual_types.push_back(argtypejdgmt.u.jdgmt);
           else
+            return argtypejdgmt;
+        }
+
+        if (actual_types.size() == pt->arg_types.size())
+        {
+          int len = actual_types.size();
+          for (int i = 0; i < len; ++i)
           {
-            return typeB;
+            TypeJudgement argjdgmt = TypesEquivalent(actual_types[i], arg_types[i]);
+
+            if (!argjdgmt.succeeded())
+              return argjdgmt;
           }
+
+          return TypeJudgement(pt->return_type);
+        }
+        // TODO: construct a closure type here, and in the
+        // evaluator, return a closure. to support partial
+        // application.
+        string errdsc = "formal argument types do not match actual argument types";
+        TypeError te(location, errdsc);
+        return TypeJudgement(te);
       }
     }
     else
@@ -267,7 +262,7 @@ value1 term2 -> value1 term2'
 
       if (polyLam)
       {
-
+        vector<pair<string, shared_ptr<Ast>>> actual_values;
         TypeJudgement rhsTypeJdgmt = rhsEvalJdgmt.u.jdgmt->getype(env);
         // extract an evaluatable instance before we
         // can substitute. we need the type of the rhs
@@ -353,11 +348,11 @@ value1 term2 -> value1 term2'
 }
 
 
-void Application::substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Application::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
 {
   //[id -> value]lhs rhs := [id -> value]lhs [id -> value]rhs
-  lhs->substitute(var, &lhs, value, env);
-  rhs->substitute(var, &rhs, value, env);
+  lhs->substitute(subs, &lhs, env);
+  rhs->substitute(subs, &rhs, env);
 }
 
 bool Application::appears_free_internal(string var)

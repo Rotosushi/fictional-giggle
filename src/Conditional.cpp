@@ -151,11 +151,11 @@ EvalJudgement Conditional::evaluate_internal(Environment env)
   }
 }
 
-void Conditional::substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Conditional::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
 {
-  cond->substitute(var, &cond, value, env);
-  fst->substitute(var, &fst, value, env);
-  snd->substitute(var, &snd, value, env);
+  cond->substitute(subs, &cond, env);
+  fst->substitute(subs, &fst, env);
+  snd->substitute(subs, &snd, env);
 }
 
 bool Conditional::appears_free_internal(string var)

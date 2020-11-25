@@ -103,10 +103,10 @@ EvalJudgement Iteration::evaluate_internal(Environment env)
   return EvalJudgement(shared_ptr<Ast>(new Entity((void*)nullptr, location)));
 }
 
-void Iteration::substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Iteration::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
 {
-  cond->substitute(var, &cond, value, env);
-  body->substitute(var, &body, value, env);
+  cond->substitute(subs, &cond, env);
+  body->substitute(subs, &body, env);
 }
 
 bool Iteration::appears_free_internal(string var)

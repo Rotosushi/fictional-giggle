@@ -141,7 +141,7 @@ EvalJudgement Assignment::evaluate_internal(Environment env)
   }
 }
 
-void Assignment::substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Assignment::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
 {
   // okay, so like, are there any shenanigans
   // regarding name conflicts in this term?
@@ -150,8 +150,8 @@ void Assignment::substitute_internal(string var, shared_ptr<Ast>* term, shared_p
   // but what we are substituting for may appear
   // in either side, unlike binding, which never needs
   // to substitute for the binding it introduces.
-  dst->substitute(var, &dst, value, env);
-  src->substitute(var, &src, value, env);
+  dst->substitute(subs, &dst, env);
+  src->substitute(subs, &src, env);
 }
 
 bool Assignment::appears_free_internal(string var)

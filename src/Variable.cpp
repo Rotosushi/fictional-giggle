@@ -62,11 +62,15 @@ ENV |- id : type = value
   }
 }
 
-void Variable::substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Variable::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
 {
-  if (id == var)
+  for (auto&& sub : subs)
   {
-    (*term) = value->clone();
+    if (get<string>(sub) == id)
+    {
+      (*term) = get<shared_ptr<Ast>>(sub)->clone();
+      break;
+    }
   }
 }
 

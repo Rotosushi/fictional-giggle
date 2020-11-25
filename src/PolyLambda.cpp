@@ -115,22 +115,37 @@ TypeJudgement PolyLambda::getype(Environment env)
   return def.getype(env);
 }
 
-void PolyLambda::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+// recall that when we call substitute on a polylambda object,
+// that always corresponds to an evaluation context, and just
+// like with Lambdas we avoid substituting for any bound ids
+// within the body. (these are what the procedure is polymorphic
+// over (and will be handed within an Application term),
+// whereas this substitution corresponds to bindings between
+// this polylambda and it's outer context.)
+void PolyLambda::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
 {
-  if (def.arg_id == var)
+  auto name_exists_in_args = [](string& name, vector<pair<string, shared_ptr<Type>>>& args)
   {
-    // the name appears bound in term,
-    // not free, so we cannot substitute.
-    return;
-  }
-  else
-  {
-    // we can search the body for places to
-    // substitute.
-    return def.body->substitute(var, &def.body, value, env);
-  }
+    for (auto&& arg: args)
+      if (get<string>(arg) == name)
+        return true;
+    return false;
+  };
+
+  vector<pair<string, shared_ptr<Ast>>> new_subs;
+  for (auto&& sub : subs)
+    if (!name_exists_in_args(get<string>(sub), def.args))
+      new_subs.push_back(sub);
+
+  // just to save ourselves from doing a bunch
+  // or pointless work.
+  if (new_subs.size() > 0)
+    def.body->substitute(new_subs, &(def.body), env);
 }
 
+// this is from a context of trying to avoid improper
+// bindings between terms, so in this case we are actually
+// specifically trying to modify the bound variables.
 void PolyLambda::rename_binding(string old_name, string new_name)
 {
   if (def.arg_id == old_name)

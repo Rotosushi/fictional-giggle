@@ -737,7 +737,7 @@ to monads holding type T's.
   fn proc (_:<type3>, _:<type1>)
   fn proc (_:<type3>, _:<type2>)
 
-  the switch could be
+  the switch (representing the dispatch procedure) could be
   switch (actual_args.length()) {
   case 1: {
     switch(actual_args[0].type) {
@@ -799,8 +799,8 @@ down a different logical path.
 
 we ask the question:
 
-given the context ? and some term t
-can we find a type for t such that t
+given the context ? and some polymorphic term t
+can we find a type T for t such that t
 typechecks?
 
 given the environment (ENV, usually written '?')
@@ -813,6 +813,12 @@ this algorithm looks similar to the regular typechecking
 algorithm. however, instead of checking the constraints
 we record them when they appear, simply making note of
 what each type is used for within the term.
+
+this constraint set is then 'unified' which reduces
+the cosntraint set to it's smallest possible equivalent
+representation, while also double checking that
+the constraint set is not internally contradictory,
+as in, for no type we could give does the body typecheck.
 
 when it comes time to apply a polymorphic procedure we
 substitute the formal types with the actual types provided
@@ -923,6 +929,25 @@ in the context ENV looks like:
   the loop as well, except we just require the body
   have a type.)
 
+  so building up the constraint set is rather straightforward,
+  we consider each typing judgement, and instead of testing for
+  the type's being correct at that moment, instead we record
+  each test the typechecker would have done to each argument
+  in a list.
+  then later, when we encounter a situation where we need to use
+  the polymorphic term, we instance the type variable with some
+  monomorphic type and see if the constraint set can be typed
+  given the monomorphic type.(this is where the logic of HasInstance
+  lives right now, the 'constraint set' is never calculated, instead
+  we let the usual typeing algorithm test the constraints after the
+  fact that we have been given some concrete type. this doesn't give
+  as much information however (we don't have enough type information to
+  make the same judgements in the case of references),
+  and is not as flexible as this method, which allows for polymorphic
+  records as well (with some difficult adjusment).)
+  (the sorts of constraints are just the ones from the judgements,
+  and the other semantic units, like sequence simply union the
+  constraint sets of the terms it holds.)
 
 
 2) unify the constraint set C to both
@@ -943,23 +968,244 @@ in the context ENV looks like:
       (this allows us to report an error in the
       usage of terms even though we lack a specific
       type.)
+  this unification also happens to leave us with the
+  smallest possible set of constraints which fully
+  type the term.
 
-3)
+3) construct the type scheme for the term's Type,
+    (the literature calls this generalizing the variables?)
+    this essentially corresponds to the list of variables
+    which must be given a concrete type within the body of
+    the term. the arguments to each procedure within the
+    body that are polymorphic.
+
+4) each time we encounter the polymorphic term we must
+    be able to use the type scheme in a typing context.
+
+so, something concrete:
+
+the term
+
+  \x: Int -> Int => \y: Int => x y
+
+(taking from the intuitions sketched by the algorithm above)
+is well typed because
+1) the leftmost term in the application
+    has procedure type. this is a constraint that
+    is introduced by the application semantics
+    themselves.
+2) the type of the rhs in the application,
+    the 'actual' argument, has a type (Int)
+    which is equivalent in form to the
+    expected type (Int) of the procedure,
+    the 'formal' argument.
+
+if we consider the polymorphic equivalent
+
+  \x => \y => x y
+
+we can interpret this term as having polymorphic type
+
+  \x : X1 => \y : X2 => x y
+
+we then generate a constraint set by walking the
+tree just like typing and evaluation,
+the application adds two constraints to the set (at least)
+  X1 must have procedure type
+  X2 must be equivalent to the
+      formal argument type of X1
+      (once X1 has some concrete
+      argument type of course)
+
+so the principle type of this term
+would be this constraint set
+  { X1 = T1 -> T2, X2 = T1 }
+
+when we want to apply a procedure of this type
+we first check that type actual argument types
+match the constraints the set places on them.
+
+further thinking:
+-----------------------------------------------------------------
+  \f => \x => \y => if f x y then x else y
+
+  \f:X1 => \x:X2 => \x:X3 => if f x y then x else y
+
+  C = { X1 = T1 -> T2 -> Bool,
+        X2 = T1,
+        X3 = T2,
+        X2 = X3 }
+
+-----------------------------------------------------------------
+  contradictory constraints can be generated:
+  these should result in non-typability.
+
+
+
+
+-----------------------------------------------------------------
+  \x => \y => x + y
+
+  \x:X1 => \y:X2 => x + y
+
+ C = { (+).HasEliminator(X1, X2) }
+
+  (countable? addable?
+    valid when applied to the
+    binop? call "Binop.HasEliminator"?)
 
 
 
 
 
 
+so, this is pushing my brain straight into multiple argument
+procedures. passing a number of arguments into a procedure
+determines the selector to call. this is because the number
+of arguments must be known at the application site.
+(variadic procedures cannot be polymorphic as well)
+then, each polymorphic argument has a set of monomorphic types
+it is associated with. why is this coming from the discussion
+of polymorphism above? because each term, at the scale of the global
+scope, is associated with the set of arguments which need to be
+specialized. which is precisely because currying is equivalent
+in semantics to multiple argument procedures plus partial application
+support (for free, because of the tree nature of execution).
+so, if for any given procedure definition (recall that procedures
+are the only language element that can introduce polymorphic bindings,
+eventually this will be extended to type compositions)
+we must track a set of variables to be specialized, well
+then we are doing the work of tracking a particular set of procedure
+arguments (types, specifically), but generally we must perform essentially
+the same work to support multiple argument procedures.
+each lambda is a particular member of a polymorphic lambda.
+
+so lets think through what it takes to type an application
+of a monomorphic multiple argument lambda.
+
+  say
+
+ f :=  \x:Int, y:Int => x + y
+
+  then, when we encounter some application
+
+  f a b
+
+  we lookup the procedures argument list
+  compare the size of the formal argument list
+  to the size of the actual argument list.
+
+  then if those match we compare each member of
+  of the set piece-wise until ether we find
+  a type that doesn't match or we find a valid
+  procedure application. (in the typing case we
+  return the procedures return type, the evaluation
+  case then immediately applies the procedure.)
+
+  so, if we consider a polymorphic procedure as the
+  set of procedures whose shape is the same, but whose
+  types can be replaced for any who match the constraints
+  presented by the shape (body) of the procedure, then
+  we can consider the typing of a polymorphic procedure
+  application as dispatching to the member of the polymorphic
+  procedure set whose number and type of each argument matches
+  the actual argument list presented by the application.
+  (if we fail to find a member of the set of sets who match,
+   then we can fall back onto generating a new member of the
+   set of sets seeing if this new member type-checks given the
+   constraints posed by the body.)
+
+  we need to essentially maintain a set of sets, where we first
+  separate by, number of arguments (i think is formally called a
+  procedures rank? i.e. rank one has one arg, rank 2 has 2 arg,
+  and so on.), then each argument is represented
+  by a set, where the first position in the set, from argument
+  1 to N, is one valid application. so to dispatch to the first
+  instance the type of each actual argument must match the type
+  of the formal argument in the first position of each argument.
+  if one argument doesn't match, we push the index up by one and
+  check that set of argument types. (this must be why CLOS sorts this
+  set on each insertion. we can store in sorted order if we use a linked
+  list implementation. (or a custom class over dynamic arrays.))
+  when we fail to find a valid instance, if the method is polymorphic
+  we can attempt to type a 'new' instance whose formal argument
+  list is equivalent to the actual argument list.
+
+  so, now to think about sorting.
+
+  each monomorphic type is considered distinct.
+
+  so the types
+
+  {A, B, C}
+
+  allow for a single procedure to take on:
+  A -> B
+  B -> C
+  C -> A
+
+  xor
+  A -> A
+  B -> A
+  C -> A
+  (this could be an A constructor.)
+  as valid sets.
+
+  and
+
+  A -> A -> A
+  A -> B -> A
+  A -> C -> A
+  B -> A -> A
+  B -> B -> A
+  B -> C -> A
+  C -> A -> A
+  C -> B -> A
+  C -> C -> A
+
+  this can be called by passing in
+  any two of A, B, C, and in every case
+  we return an A.
+  each of these procedures would need to
+  be represented in assembly. and the
+  argument type and order matter to the
+  assembly, which is why each of these
+  need to be distinct.
+  and why we don't
+  allow the procedure with the definition
+  A -> B -> C
+  be called by passing in a
+  B and then an A.
+
+  we allow polymorphism of the type, number and order
+  of the arguments.
+
+  (we still can't allow polymorphism of the return type,
+   because we can't distinguish if we want
+   A -> B
+   or
+   A -> A
+   at the application site, the information needed to make that
+   choice is almost always in the head of the programmer.)
 
 
 
 
 
-
-
-
-
+   additionally:
+   the parser needs to be modified to accept
+   lambda definitions with multiple arguments,
+   and the lambda definition needs to be modified
+   to have an argument list instead of a single
+   argument, and the application typeing and evaluation
+   judgements need to be modified to compare argument lists.
+   also the HasInstance procedure needs to be modified
+   to accept and do it's work over argument lists.
+   also, we then need to add support for partial application.
+   (construction of an unbound closure
+      around the appropriate lambda or polylambda,
+      which the application typing and evaluation rules
+      know how to deal with?)
 
 
 

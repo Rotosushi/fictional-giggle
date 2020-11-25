@@ -27,7 +27,7 @@ TypeJudgement TypeLiteral::getype(Environment env)
   return value;
 }
 
-void TypeLiteral::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void TypeLiteral::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
 {
   return;
 }

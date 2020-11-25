@@ -94,9 +94,9 @@ EvalJudgement Bind::evaluate_internal(Environment env)
 }
 
 
-void Bind::substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Bind::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
 {
-  rhs->substitute(var, &rhs, value, env);
+  rhs->substitute(subs, &rhs, env);
 }
 
 bool Bind::appears_free_internal(string var)

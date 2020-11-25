@@ -26,7 +26,7 @@ TypeJudgement Integer::getype(Environment env)
   return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Int, Location())));
 }
 
-void Integer::substitute(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Integer::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
 {
   return;
 }

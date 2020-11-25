@@ -37,9 +37,9 @@ EvalJudgement Entity::evaluate_internal(Environment env)
   return EvalJudgement(shared_ptr<Ast>(new Entity(*this)));
 }
 
-void Entity::substitute_internal(string var, shared_ptr<Ast>* term, shared_ptr<Ast> value, Environment env)
+void Entity::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
 {
-  return literal->substitute(var, term, value, env);
+  return literal->substitute(subs, term, env);
 }
 
 bool Entity::appears_free_internal(string var)
