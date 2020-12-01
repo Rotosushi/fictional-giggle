@@ -2,6 +2,10 @@
 #pragma once
 #include <string>
 using std::string;
+#include <vector>
+using std::vector>
+#include <utility>
+using std::pair;
 #include <memory>
 using std::shared_ptr;
 using std::unique_ptr;
@@ -13,17 +17,21 @@ using std::unique_ptr;
 #include "Object.hpp"
 #include "Lambda.hpp"
 
+/*
+ so, polylambda uses a lambda as a member so
+ we don't have to repeat the typing and evaluation
+ judgements for lambdas within here.
+ given that they are equivalent for the two
+ constructs, given our definitions of the other
+ language constructs handling of polymorphic
+ names.
+*/
+
 class PolyLambda : public Object
 {
 public:
   Lambda def;
   list<vector<shared_ptr<Type>>> instances;
-  /*
-  and now, soon:
-
-  Constraints principle_type;
-
-  */
 
   PolyLambda(Lambda& def)
     : def(def), instances() {}
@@ -34,7 +42,7 @@ public:
   EvalJudgement HasInstance(vector<shared_ptr<Type>> target_arg_types, Environment env);
 
   virtual void substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env) override;
-  virtual void rename_binding(string old_name, string new_name) override;
+  virtual void rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs) override;
   virtual bool appears_free(string name) override;
   virtual unique_ptr<Object> clone() override;
   virtual string to_string() override;

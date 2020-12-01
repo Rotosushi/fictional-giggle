@@ -45,17 +45,19 @@ public:
   TypeJudgement getype(Environment env);
   EvalJudgement evaluate(Environment env);
   void substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env);
-  bool appears_free(string var);
-  void rename_binding(string old_name, string new_name);
+  bool appears_free(vector<string>& names, vector<string>& appeared_free);
+  void rename_binding_in_body(vector<pair<string, string>>& renaming_pairs);
 protected:
   virtual shared_ptr<Ast> clone_internal() = 0;
   virtual string to_string_internal() = 0;
   virtual TypeJudgement getype_internal(Environment env) = 0;
   virtual EvalJudgement evaluate_internal(Environment env) = 0;
   virtual void substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env) = 0;
-  virtual bool appears_free_internal(string var) = 0;
-  virtual void rename_binding_internal(string old_name, string new_name) = 0;
+  virtual bool appears_free_internal(vector<string>& names, vector<string>& appeared_free) = 0;
+  virtual void rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs) = 0;
 
   string generate_name(int len);
+
+  void insert_if_unique(string& name, vector<string>& names);
 
 };

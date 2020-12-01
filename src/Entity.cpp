@@ -4,7 +4,10 @@ using std::string;
 #include <list>
 using std::list;
 #include <vector>
-using std::vector;
+using std::vector>
+#include <utility>
+using std::pair;
+using std::get;
 #include <memory>
 using std::shared_ptr;
 using std::unique_ptr;
@@ -47,7 +50,7 @@ bool Entity::appears_free_internal(string var)
   return literal->appears_free(var);
 }
 
-void Entity::rename_binding_internal(string old_name, string new_name)
+void Entity::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
 {
   literal->rename_binding(old_name, new_name);
 }

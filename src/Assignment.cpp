@@ -1,5 +1,10 @@
 #include <string>
 using std::string;
+#include <vector>
+using std::vector>
+#include <utility>
+using std::pair;
+using std::get;
 #include <memory>
 using std::shared_ptr;
 using std::make_shared;
@@ -41,7 +46,7 @@ TypeJudgement Assignment::getype_internal(Environment env)
     and the desire to build things, we allow references
     as first class values. this means we need to evaluate
     both sides before the assignment can occur.
-    (typeing is always greedy)
+    (typeing is already always greedy)
   */
   TypeJudgement dstjdgmt = dst->getype(env);
 
@@ -154,13 +159,15 @@ void Assignment::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs
   src->substitute(subs, &src, env);
 }
 
-bool Assignment::appears_free_internal(string var)
+bool Assignment::appears_free_internal(vector<string>& names, vector<string>& appeared_free)
 {
-  return dst->appears_free(var) || src->appears_free(var);
+  bool bd = dst->appears_free(names, appeared_free);
+  bool bs = src->appears_free(names, appeared_free);
+  return bd || bs;
 }
 
-void Assignment::rename_binding_internal(string old_name, string new_name)
+void Assignment::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
 {
-  dst->rename_binding(old_name, new_name);
-  src->rename_binding(old_name, new_name);
+  dst->rename_binding(renaming_pairs);
+  src->rename_binding(renaming_pairs);
 }

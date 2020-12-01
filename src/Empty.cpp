@@ -1,6 +1,11 @@
 
 #include <string>
 using std::string;
+#include <vector>
+using std::vector>
+#include <utility>
+using std::pair;
+using std::get;
 #include <memory>
 using std::shared_ptr;
 using std::unique_ptr;
@@ -46,7 +51,7 @@ bool Empty::appears_free(string var)
   return false;
 }
 
-void Empty::rename_binding(string old_name, string new_name)
+void Empty::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
 {
   return;
 }

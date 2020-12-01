@@ -1,6 +1,10 @@
 #pragma once
 #include <string>
 using std::string;
+#include <vector>
+using std::vector>
+#include <utility>
+using std::pair;
 #include <memory>
 using std::shared_ptr;
 using std::unique_ptr;
@@ -21,7 +25,7 @@ public:
   Integer(const Integer& other) : value(other.value) {}
 
   virtual void substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env) override;
-  virtual void rename_binding(string old_name, string new_name) override;
+  virtual void rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs) override;
   virtual bool appears_free(string name) override;
   virtual unique_ptr<Object> clone() override;
   virtual string to_string() override;

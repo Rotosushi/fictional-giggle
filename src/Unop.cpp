@@ -1,5 +1,10 @@
 #include <string>
 using std::string;
+#include <vector>
+using std::vector>
+#include <utility>
+using std::pair;
+using std::get;
 #include <memory>
 using std::shared_ptr;
 
@@ -72,7 +77,6 @@ EvalJudgement Unop::evaluate_internal(Environment env)
 
   if (UnopEliminators)
   {
-
     EvalJudgement rhsEvalJdgmt = rhs->evaluate(env);
 
     if (!rhsEvalJdgmt)
@@ -81,7 +85,7 @@ EvalJudgement Unop::evaluate_internal(Environment env)
     auto rhsTypeJdgmt = rhsEvalJdgmt.u.jdgmt->getype(env);
 
     if (!rhsTypeJdgmt)
-      return EvalJudgement(EvalError(rhsTypeJdgmt.u.error.location(), rhsTypeJdgmt.u.error.what()));
+      return EvalJudgement(EvalError(rhsTypeJdgmt.u.error));
 
     shared_ptr<Type> rhstype = rhsTypeJdgmt.u.jdgmt;
 
@@ -123,7 +127,7 @@ bool Unop::appears_free_internal(string var)
   return rhs->appears_free(var);
 }
 
-void Unop::rename_binding_internal(string old_name, string new_name)
+void Unop::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
 {
   rhs->rename_binding(old_name, new_name);
 }

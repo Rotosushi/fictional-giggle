@@ -1,6 +1,11 @@
 
 #include <string>
 using std::string;
+#include <vector>
+using std::vector>
+#include <utility>
+using std::pair;
+using std::get;
 #include <memory>
 using std::shared_ptr;
 using std::make_shared;
@@ -158,16 +163,28 @@ void Conditional::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& sub
   snd->substitute(subs, &snd, env);
 }
 
-bool Conditional::appears_free_internal(string var)
+bool Conditional::appears_free_internal(vector<string>& names, vector<string>& appeared_free)
 {
+  /*
   return cond->appears_free(var)
       || fst->appears_free(var)
       || snd->appears_free(var);
+  i think this is a case where we
+  want to traverse each branch, specifically
+  because this algorithm is building up the
+  appeared_free list via side effect, and we
+  absolutely do not want to miss a binding.
+  */
+  bool b1 = cond->appears_free(names, appeared_free);
+  bool b2 = fst->appears_free(names, appeared_free);
+  bool b3 = snd->appeard_free(names, appeared_free);
+
+  return b1 || b2 || b3;
 }
 
-void Conditional::rename_binding_internal(string old_name, string new_name)
+void Conditional::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
 {
-  cond->rename_binding(old_name, new_name);
-  fst->rename_binding(old_name, new_name);
-  snd->rename_binding(old_name, new_name);
+  cond->rename_binding(renaming_pairs);
+  fst->rename_binding(renaming_pairs);
+  snd->rename_binding(renaming_pairs);
 }

@@ -20,7 +20,7 @@ public:
   shared_ptr<BinopPrecedenceTable> precedences;
   shared_ptr<BinopSet>             binops;
   shared_ptr<UnopSet>              unops;
-  shared_ptr<list<string>>       cleanup_list;
+  shared_ptr<list<string>>         cleanup_list;
 
   Environment(shared_ptr<SymbolTable> s, shared_ptr<BinopPrecedenceTable> bp, shared_ptr<BinopSet> bs, shared_ptr<UnopSet> us, shared_ptr<list<string>> cl);
 };

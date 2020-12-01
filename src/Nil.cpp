@@ -1,5 +1,10 @@
 #include <string>
 using std::string;
+#include <vector>
+using std::vector>
+#include <utility>
+using std::pair;
+using std::get;
 #include <memory>
 using std::shared_ptr;
 using std::unique_ptr;
@@ -32,7 +37,7 @@ void Nil::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast
   return;
 }
 
-void Nil::rename_binding(string old_name, string new_name)
+void Nil::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
 {
 }
 

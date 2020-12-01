@@ -1017,11 +1017,12 @@ shared_ptr<Ast> Parser::parse_procedure()
     procedure := '\' id (: type)? (',' id (: type)?)* '=>' term
   */
   bool poly = false;
+  shared_ptr<Type> poly_type = shared_ptr<Type>(new MonoType(AtomicType::Poly, Location()));
   vector<pair<string, shared_ptr<Type>>> args;
   shared_ptr<Ast> proc, body;
   Location&& lhsloc = curloc();
 
-  auto parse_arg = [&poly]() -> pair<string, shared_ptr<Type>>
+  auto parse_arg = [&poly, &poly_type]() -> pair<string, shared_ptr<Type>>
   {
     if (curtok() != Token::Id)
       throw PinkException("unexpected missing argument after speculation.", __FILE__, __LINE__);
@@ -1038,7 +1039,7 @@ shared_ptr<Ast> Parser::parse_procedure()
     }
     else
     {
-      arg_type = shared_ptr<Type>(new MonoType(AtomicType::Poly, Location()));
+      arg_type = poly_type;
       poly = true;
     }
 
@@ -1084,9 +1085,14 @@ shared_ptr<Ast> Parser::parse_procedure()
                      rhsloc.first_column);
 
     if (!poly)
-      proc = shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(id, type, scopes.top(), body)), procloc));
+      proc = shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(args, scopes.top(), body)), procloc));
     else
-      proc = shared_ptr<Ast>(new Entity(unique_ptr<PolyLambda>(new PolyLambda(*(new Lambda(id, type, scopes.top(), body)))), procloc));
+    {
+      for (auto&& arg : args)
+        get<shared_ptr<Type>>(arg) = poly_type;
+      proc = shared_ptr<Ast>(new Entity(unique_ptr<PolyLambda>(new PolyLambda(*(new Lambda(args, scopes.top(), body)))), procloc));
+    }
+
     scopes.pop();
 
   }

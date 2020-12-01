@@ -1189,6 +1189,72 @@ of a monomorphic multiple argument lambda.
    choice is almost always in the head of the programmer.)
 
 
+a monomorphic lambda can be supported by
+the current class,
+a polymorphic lambda needs to be distinguished
+in two ways, the kind where the text of the body
+is meant to be taken by the compiler as a
+template for type substitution, and the kind where
+we are just adding alternatives to a set of overloads.
+I would also like the solution to be robust enough to
+allow the programmer to provide their own instances of
+some given polymorphic procedure for a template,
+which allows for the programmer to provide a different
+body for a given type, if the body that would be generated
+by the template would be untypable, but you still wanted
+to provide the procedure for the given type.
+(c++ calls this partial template specialization.)
+so, how about, lambdas are allows to be fully monomorphic
+or fully polymorphic. no overloading.
+whereas, there is now two different kinds of function
+declaration, monomorphic/overloaded or
+polymorphic.
+
+fn A '(' <argument-list> ')' <body>
+fn A '(' <argument-list>' ')' <body>'
+
+the interpreter will dispatch to the different
+bodies based on the types of the provided arguments.
+we allow the procedure to have the same name
+and dispatch based upon the runtime type(s)
+of the argument(s), we allow a set of procedures
+each with differing argument lists to share the same
+name. this is a monomorphic overload set.
+(type after evaluation, in the runtime this would
+be the value after evaluation.)
+
+polyfn A '(' <argument-list> ')' <body>
+polyfn A '(' <argument-list>' ')' <body>'
+
+we allow a polymorphic procedure to be described by
+a single template body per rank of the procedure.
+a single argument polyfn A set, a two argument polyfn set.
+three arg and so on. (maybe?)
+then we can allow the programmer to provide a new
+polyfn A definition, however if they provide a single argument
+of monomorphic type then we can specialize this
+procedure over that type.
+so, a template has a rank, and if we consider a call to that
+procedure with less than the required number of types we construct
+a closure and delay the actual application for a later time.
+just like with a monomorphic procedure application.
+
+however, what about overloads/specializations which provide a call
+signature that differs in the number of arguments?
+essentially, defining the specialization/overload takes the
+place of the compiler ever being able to infer a closure creation,
+should the types overlap. so, do we even really want partial application?
+maybe we remove that feature in favor of letting the programmer explicitly
+delay application by way of procedure pointers.
+we could even maybe consider a polymorphic class which implements
+the 'closure' semantics within the language itself. (over
+a template parameter meaning the procedure pointer name and
+a dynamic array of values. (since values know their type they can
+be positionally applied to the procedure pointed to by the pointer.))
+such that a programmer can construct closures when they want them
+explicitly, so if their existence precludes some design pattern
+the language would still be able to express them.
+(partial application i think.)
 
 
 
@@ -1206,6 +1272,7 @@ of a monomorphic multiple argument lambda.
       around the appropriate lambda or polylambda,
       which the application typing and evaluation rules
       know how to deal with?)
+
 
 
 

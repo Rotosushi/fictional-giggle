@@ -1,6 +1,11 @@
 
 #include <string>
 using std::string;
+#include <vector>
+using std::vector>
+#include <utility>
+using std::pair;
+using std::get;
 #include <memory>
 using std::shared_ptr;
 
@@ -109,12 +114,14 @@ void Iteration::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs,
   body->substitute(subs, &body, env);
 }
 
-bool Iteration::appears_free_internal(string var)
+bool Iteration::appears_free_internal(vector<string>& names, vector<string>& appeared_free)
 {
-  return cond->appears_free(var) || body->appears_free(var);
+  bool bc = cond->appears_free(names, appeared_free);
+  bool bb = body->appears_free(names, appeared_free);
+  return bc || bb;
 }
 
-void Iteration::rename_binding_internal(string old_name, string new_name)
+void Iteration::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
 {
   cond->rename_binding(old_name, new_name);
   body->rename_binding(old_name, new_name);

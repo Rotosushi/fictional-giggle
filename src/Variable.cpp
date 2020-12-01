@@ -1,6 +1,11 @@
 
 #include <string>
 using std::string;
+#include <vector>
+using std::vector>
+#include <utility>
+using std::pair;
+using std::get;
 #include <memory>
 using std::shared_ptr;
 using std::make_shared;
@@ -74,15 +79,25 @@ void Variable::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, 
   }
 }
 
-bool Variable::appears_free_internal(string var)
+bool Variable::appears_free_internal(vector<string>& names, vector<string>& appeared_free)
 {
+  /*
   if (id == var)
     return true;
   else
     return false;
+  */
+  for (auto&& name : names)
+    if (id == name)
+    {
+      insert_if_unique(name, appeared_free);
+      return true;
+    }
+
+  return false;
 }
 
-void Variable::rename_binding_internal(string old_name, string new_name)
+void Variable::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
 {
   if (id == old_name)
     id = new_name;

@@ -1,5 +1,10 @@
 #include <string>
 using std::string;
+#include <vector>
+using std::vector>
+#include <utility>
+using std::pair;
+using std::get;
 #include <memory>
 using std::shared_ptr;
 
@@ -60,7 +65,7 @@ bool Sequence::appears_free_internal(string var)
   return lhs->appears_free(var) || rhs->appears_free(var);
 }
 
-void Sequence::rename_binding_internal(string old_name, string new_name)
+void Sequence::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
 {
   lhs->rename_binding(old_name, new_name);
   rhs->rename_binding(old_name, new_name);

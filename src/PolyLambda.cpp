@@ -1,6 +1,11 @@
 
 #include <string>
 using std::string;
+#include <vector>
+using std::vector>
+#include <utility>
+using std::pair;
+using std::get;
 #include <memory>
 using std::shared_ptr;
 using std::unique_ptr;
@@ -15,88 +20,87 @@ using std::unique_ptr;
 #include "PolyLambda.hpp"
 
 
-EvalJudgement PolyLambda::HasInstance(shared_ptr<Type> target_type, Environment env)
+EvalJudgement PolyLambda::HasInstance(vector<shared_ptr<Type>> target_types, Environment env)
 {
-  auto build_target_lambda = [this](shared_ptr<Type> target_type)
+  if (target_types.size() != def.args.size())
   {
-    return shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(def.arg_id, target_type, def.scope, def.body)), Location()));
-  };
+    string errdsc = "mismatch of the number of actual arguments ["
+                  + std::to_string(target_types.size())
+                  + "] to formal arguments ["
+                  + std::to_string(gef.args.size())
+                  + "]";
+    EvalError err(Location(), errdsc);
+  }
   /*
-  the only way to introduce a polymorphic
-  type is to omit a procedure argument's type
-  annotation.
+
+  */
+  auto build_target_lambda = [this](shared_ptr<Type> target_types)
+  {
+    vector<pair<string, shared_ptr<Type>>> arglist;
+    int len = target_types.size();
+    for (int i = 0; i < len; ++i)
+    {
+      pair<string, shared_ptr<Type>>& arg = def.args[i];
+      arglist.push_back(make_pair(get<string>(arg), target_types[i]));
+    }
+    return shared_ptr<Ast>(new Entity(unique_ptr<Object>(new Lambda(argslist, def.scope, def.body)), Location()));
+  };
+
+  auto argument_types_match = [this](vector<shared_ptr<Type>>& formal_types, vector<shared_ptr<Type>>& actual_types)
+  {
+    bool match = false;
+
+    int len = formal_types.size();
+    for (int i = 0; i < len; i++)
+    {
+      TypeJudgement eqjdgmt = TypesEquivalent(formal_types[i], actual_types[i]);
+
+      if (eqjdgmt && i == len)
+        match = true;
+      else if (!eqjdgmt)
+      {
+        match = false;
+        break;
+      }
+      // there is a little hole here for the
+      // "i need to check the rest of the args"
+      // case within this loop.
+      // 'hole' is when (eqjdgmt == true && i != len)
+    }
+
+    return match;
+  }
+  /*
+    look for a possible overload to evaluate,
+    if one exists return it for evaluation.
+    if none exists try and create one,
+    if the created version types, return
+    a copy of it for evaluation,
+    otherwise report that no
+    instance can be constructed for the
+    target type
   */
 
-  if (this->def.arg_type->is_polymorphic())
+  for (vector<shared_ptr<Type>>& instance_types : instances)
   {
-    /*
-      look for a possible overload to evaluate,
-      if one exists return it for evaluation.
-      if none exists try and create one,
-      if the created version types, return
-      a copy of it for evaluation,
-      otherwise report that no
-      instance can be constructed for the
-      target type
-    */
-    for (shared_ptr<Type> instance_type : instances)
+    if (argument_types_match(instance_types, target_types));
     {
-      TypeJudgement eqjdgmt = TypesEquivalent(instance_type, target_type);
-      if (eqjdgmt)
-      {
-        return EvalJudgement(build_target_lambda(instance_type));
-      }
+      return EvalJudgement(build_target_lambda(instance_types));
     }
+  }
 
-    shared_ptr<Ast> newInst = build_target_lambda(target_type);
+  shared_ptr<Ast> newInst = build_target_lambda(target_type);
 
-    TypeJudgement newInstJdgmt = newInst->getype(env);
+  TypeJudgement newInstJdgmt = newInst->getype(env);
 
-    if (newInstJdgmt)
-    {
-      instances.push_back(target_type->clone());
-      return EvalJudgement(newInst);
-    }
-    else
-    {
-      return EvalJudgement(EvalError(newInstJdgmt.u.error));
-    }
+  if (newInstJdgmt)
+  {
+    instances.push_back(target_types);
+    return EvalJudgement(newInst);
   }
   else
   {
-    /*
-    this polylambda is not polymorphic, meaning it is
-    simply overloaded, which doesn't happen according
-    to the grammar, but it is the other side of the
-    if conditional, so it's included early.
-      look for a possible match in the definition,
-      and if that fails and no alternatives exist,
-      then report no instance for the target type
-      exist. if there is a match, return a copy
-      of the lambda to be evaluated.
-
-    it's also implemented early, because it is easy to
-    imagine it's implementation given the above implementation.
-    */
-    TypeJudgement defeqjdgmt = TypesEquivalent(def.arg_type, target_type);
-    if (defeqjdgmt)
-    {
-      return EvalJudgement(build_target_lambda(target_type));
-    }
-
-    for (shared_ptr<Type> instance_type : instances)
-    {
-      TypeJudgement eqjdgmt = TypesEquivalent(instance_type, target_type);
-      if (eqjdgmt)
-      {
-        return EvalJudgement(build_target_lambda(target_type));
-      }
-    }
-
-    string errdsc = "No instance of Overloaded Lambda found for target type ["
-                  + target_type->to_string()
-                  + "]";
-    return EvalJudgement(EvalError(Location(), errdsc));
+    return EvalJudgement(EvalError(newInstJdgmt.u.error));
   }
 }
 
@@ -146,13 +150,13 @@ void PolyLambda::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_
 // this is from a context of trying to avoid improper
 // bindings between terms, so in this case we are actually
 // specifically trying to modify the bound variables.
-void PolyLambda::rename_binding(string old_name, string new_name)
+void PolyLambda::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
 {
   if (def.arg_id == old_name)
   {
     def.arg_id = new_name;
   }
-  def.body->rename_binding(old_name, new_name);
+  def.body->rename_binding_in_body(old_name, new_name);
 }
 
 bool PolyLambda::appears_free(string name)

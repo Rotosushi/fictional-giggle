@@ -1,5 +1,10 @@
 #include <string>
 using std::string;
+#include <vector>
+using std::vector>
+#include <utility>
+using std::pair;
+using std::get;
 #include <memory>
 using std::shared_ptr;
 using std::unique_ptr;
@@ -17,5 +22,5 @@ Object::Object()
 
 Object::~Object()
 {
-  
+
 }
