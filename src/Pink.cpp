@@ -97,7 +97,7 @@ int main(int argc, char** argv)
   auto precedences  = shared_ptr<BinopPrecedenceTable>(new BinopPrecedenceTable());
   auto binops       = shared_ptr<BinopSet>(new BinopSet());
   auto unops        = shared_ptr<UnopSet>(new UnopSet());
-  auto cleanup_list = shared_ptr<list<string>>(new list<string>());
+  auto cleanup_list = shared_ptr<vector<string>>(new vector<string>());
 
   Environment environment(top_scope, precedences, binops, unops, cleanup_list);
 
@@ -129,7 +129,7 @@ int main(int argc, char** argv)
 
       TypeJudgement typejdgmt = term->getype(environment);
 
-      if ((*environment.cleanup_list).size() > 0)
+      if (environment.cleanup_list->size() > 0)
       {
         // destructors get called here
         for (string& id : (*environment.cleanup_list))
@@ -137,7 +137,7 @@ int main(int argc, char** argv)
           environment.scope->unbind(id);
         }
 
-        (*environment.cleanup_list).clear();
+        environment.cleanup_list->clear();
       }
 
       if (typejdgmt)

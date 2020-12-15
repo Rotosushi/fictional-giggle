@@ -2,7 +2,7 @@
 #include <string>
 using std::string;
 #include <vector>
-using std::vector>
+using std::vector;
 #include <utility>
 using std::pair;
 using std::get;
@@ -177,14 +177,14 @@ bool Conditional::appears_free_internal(vector<string>& names, vector<string>& a
   */
   bool b1 = cond->appears_free(names, appeared_free);
   bool b2 = fst->appears_free(names, appeared_free);
-  bool b3 = snd->appeard_free(names, appeared_free);
+  bool b3 = snd->appears_free(names, appeared_free);
 
   return b1 || b2 || b3;
 }
 
 void Conditional::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
 {
-  cond->rename_binding(renaming_pairs);
-  fst->rename_binding(renaming_pairs);
-  snd->rename_binding(renaming_pairs);
+  cond->rename_binding_in_body(renaming_pairs);
+  fst->rename_binding_in_body(renaming_pairs);
+  snd->rename_binding_in_body(renaming_pairs);
 }

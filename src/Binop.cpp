@@ -2,7 +2,7 @@
 #include <string>
 using std::string;
 #include <vector>
-using std::vector>
+using std::vector;
 #include <utility>
 using std::pair;
 #include <memory>
@@ -230,12 +230,12 @@ void Binop::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, sha
 bool Binop::appears_free_internal(vector<string>& names, vector<string>& appeared_free)
 {
   bool bl = lhs->appears_free(names, appeared_free);
-  bool br = rhs->appears_free(names_appeared_free);
+  bool br = rhs->appears_free(names, appeared_free);
   return bl || br;
 }
 
 void Binop::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
 {
-  lhs->rename_binding(old_name, new_name);
-  rhs->rename_binding(old_name, new_name);
+  lhs->rename_binding_in_body(renaming_pairs);
+  rhs->rename_binding_in_body(renaming_pairs);
 }

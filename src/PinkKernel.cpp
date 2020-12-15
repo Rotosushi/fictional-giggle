@@ -543,15 +543,34 @@ void RegisterPrimitiveUnops(Environment env)
   auto RefPolyType = shared_ptr<Type>(new RefType(PolyType, Location()));
   auto IntegerType = shared_ptr<Type>(new MonoType(AtomicType::Int, Location()));
   auto BooleanType = shared_ptr<Type>(new MonoType(AtomicType::Bool, Location()));
+  auto RefIntType  = shared_ptr<Type>(new RefType(IntegerType, Location()));
+  auto RefBoolType = shared_ptr<Type>(new RefType(BooleanType, Location()));
 
-  // Poly ->  Ref Poly
+  /*
+    so originally I thought it was very clever to
+    provide references operators with a Polymorphic type.
+    however, this destroys crucial type information in cases
+    where we use the operator in expressions.
+    so, in an effort to fix this i have instead opted to provide
+    "concrete" instances of each of the "bodies" of the Primitive
+    Unop Eliminator. which, can remain a single implementation
+    because it is carried out in the semantics of shared_ptr assignment.
+    something that need not be explicit to the programmer during
+    interpretation.
+    this now leaves function pointers as an unsolved problem.
+    mostly because i am unsure how to encode the type information
+    using the simple unary operator, (which works amazingly
+    for Atomic types)
+    and further, the idea of a reference to a composite type.
+  */
   auto AmpersandUnop = shared_ptr<UnopEliminatorSet>(new UnopEliminatorSet());
-  AmpersandUnop->RegisterPrimitiveEliminator(PolyType, RefPolyType, AmpersandUnopWrapRef);
+  AmpersandUnop->RegisterPrimitiveEliminator(IntegerType, RefIntType, AmpersandUnopWrapRef);
+  AmpersandUnop->RegisterPrimitiveEliminator(BooleanType, RefBoolType, AmpersandUnopWrapRef);
   env.unops->RegisterUnop("&", AmpersandUnop);
 
-  // Ref Poly -> Poly
   auto StarUnop = shared_ptr<UnopEliminatorSet>(new UnopEliminatorSet());
-  StarUnop->RegisterPrimitiveEliminator(RefPolyType, PolyType, StarUnopUnwrapRef);
+  StarUnop->RegisterPrimitiveEliminator(RefIntType, IntegerType, StarUnopUnwrapRef);
+  StarUnop->RegisterPrimitiveEliminator(RefBoolType, BooleanType, StarUnopUnwrapRef);
   env.unops->RegisterUnop("*", StarUnop);
 
   // Bool -> Bool

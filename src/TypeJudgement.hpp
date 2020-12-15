@@ -41,7 +41,7 @@ public:
   TypeJudgement(TypeError err)
     : success(false), u(err) {}
 
-  TypeJudgement(const TypeJudgement&& other)
+  TypeJudgement(const TypeJudgement& other)
     : success(other.success)
     {
       if (success)
@@ -53,6 +53,8 @@ public:
         u.error = other.u.error;
       }
     }
+
+  TypeJudgement& operator=(const TypeJudgement& other);
 
   bool succeeded();
   operator bool();

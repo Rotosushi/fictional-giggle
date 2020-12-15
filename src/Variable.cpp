@@ -2,7 +2,7 @@
 #include <string>
 using std::string;
 #include <vector>
-using std::vector>
+using std::vector;
 #include <utility>
 using std::pair;
 using std::get;
@@ -99,6 +99,10 @@ bool Variable::appears_free_internal(vector<string>& names, vector<string>& appe
 
 void Variable::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
 {
-  if (id == old_name)
-    id = new_name;
+  for (auto&& pair : renaming_pairs)
+    if (get<0>(pair) == id)
+    {
+      id = get<1>(pair);
+      break;
+    }
 }

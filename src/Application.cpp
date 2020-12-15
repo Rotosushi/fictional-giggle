@@ -2,7 +2,7 @@
 #include <string>
 using std::string;
 #include <vector>
-using std::vector>
+using std::vector;
 #include <utility>
 using std::pair;
 using std::make_pair;
@@ -39,7 +39,7 @@ string Application::to_string_internal()
   int len = actual_args.size();
   for (int i = 0; i < len; i++)
   {
-    auto& arg = actual_arg[i];
+    auto& arg = actual_args[i];
     result += arg->to_string();
     if (i < (len - 1))
       result += " ";
@@ -133,7 +133,7 @@ TypeJudgement Application::getype_internal(Environment env)
           int len = actual_types.size();
           for (int i = 0; i < len; ++i)
           {
-            TypeJudgement argjdgmt = TypesEquivalent(actual_types[i], arg_types[i]);
+            TypeJudgement argjdgmt = TypesEquivalent(actual_types[i], pt->arg_types[i]);
 
             if (!argjdgmt.succeeded())
               return argjdgmt;
@@ -283,6 +283,7 @@ value1 term2 -> value1 term2'
       */
       vector<shared_ptr<Type>> actual_types;
       vector<shared_ptr<Ast>> actual_values;
+      Lambda* evallam = nullptr;
 
       for (auto& arg : actual_args)
       {
@@ -291,14 +292,20 @@ value1 term2 -> value1 term2'
         // this means we apply polymorphic subterms and
         // then we can observe either the failed application,
         // or the monomorphic value that is the result of
-        // the application.
-        TypeJudgement valuejdgmt = arg->evaluate(env);
+        // the application. this is in contrast to the
+        // typing judgement which uses the type of the
+        // term unevaluated (albeit because it has no choice)
+        // which means it never types polymorphic
+        // terms! (that's okay though, because we always type
+        // the attempts at applying polymorphic terms before
+        // we "go wrong")
+        EvalJudgement valuejdgmt = arg->evaluate(env);
 
         if (valuejdgmt)
         {
           actual_values.push_back(valuejdgmt.u.jdgmt);
 
-          TypeJudgement value_type = valuejdgmt.u.jdgmt->getype();
+          TypeJudgement value_type = valuejdgmt.u.jdgmt->getype(env);
           if (value_type)
             actual_types.push_back(value_type.u.jdgmt);
           else
@@ -315,8 +322,8 @@ value1 term2 -> value1 term2'
 
         if (instjdgmt)
         {
-          Entity* mono = dynamic_cast<Entity*>(instjdgmt.u.jdgmt);
-          evallam = dynamic_cast<Lambda*>(mono.literal.get());
+          Entity* mono = dynamic_cast<Entity*>(instjdgmt.u.jdgmt.get());
+          evallam = dynamic_cast<Lambda*>(mono->literal.get());
         }
         else
         {
@@ -383,20 +390,32 @@ void Application::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& sub
 {
   //[id -> value]lhs rhs := [id -> value]lhs [id -> value]rhs
   lhs->substitute(subs, &lhs, env);
-  rhs->substitute(subs, &rhs, env);
+
+  for (shared_ptr<Ast>& arg : actual_args)
+  {
+    arg->substitute(subs, &arg, env);
+  }
 }
 
 bool Application::appears_free_internal(vector<string>& names, vector<string>& appeared_free)
 {
   bool bl = lhs->appears_free(names, appeared_free);
-  bool br = rhs->appears_free(names, appeared_free);
-  return bl || br;
+  bool ba = true;
+  for (shared_ptr<Ast>& arg : actual_args)
+  {
+    ba = arg->appears_free(names, appeared_free);
+  }
+  return bl || ba;
 }
 
 void Application::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
 {
-  lhs->rename_binding(renaming_pairs);
-  rhs->rename_binding(renaming_pairs);
+  lhs->rename_binding_in_body(renaming_pairs);
+
+  for (shared_ptr<Ast>& arg : actual_args)
+  {
+    arg->rename_binding_in_body(renaming_pairs);
+  }
 }
 
 

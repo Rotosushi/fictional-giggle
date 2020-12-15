@@ -562,10 +562,10 @@ shared_ptr<Ast> Parser::parse_primary()
   if ((curtok() != Token::Operator && is_primary(curtok()))
    || (curtok() == Token::Operator && !is_binop(curtxt())))
   {
-    shared_ptr<vector<shared_ptr<Ast>>> actual_args;
+    vector<shared_ptr<Ast>> actual_args;
 
     do  {
-      actual_args.push_back(parse_primitive())
+      actual_args.push_back(parse_primitive());
     } while ((curtok() != Token::Operator && is_primary(curtok()))
           || (curtok() == Token::Operator && !is_binop(curtxt())));
 
@@ -905,7 +905,7 @@ shared_ptr<Type> Parser::parse_type()
       nextok();
       type = parse_type();
 
-      if (curtok() != Token::Rparen)
+      if (curtok() != Token::RParen)
         throw PinkException("Unexpected missing closing parenthesis.", __FILE__, __LINE__);
     }
     else
@@ -913,6 +913,7 @@ shared_ptr<Type> Parser::parse_type()
       /*
         bad type atom
       */
+      throw PinkException("Unexpected Bad Type Atom", __FILE__, __LINE__);
     }
 
     return type;
@@ -931,16 +932,17 @@ shared_ptr<Type> Parser::parse_type()
             | "Ref" type
             | type '->' type
             //| '(' type (',' type)+ ')'
-
-      this recursive call should enact the
-      right associative nature of the '->'
-      type operator
     */
+    vector<shared_ptr<Type>> proc_types;
+    proc_types.push_back(type);
+    do {
+      nextok();
+      proc_types.push_back(parse_type_atom());
+    } while (curtok() == Token::Rarrow);
 
-    shared_ptr<Type> rhstype = parse_type();
     Location&& rhsloc = curloc();
     Location typeloc(lhsloc.first_line, lhsloc.first_column, rhsloc.last_line, rhsloc.last_column);
-    type = shared_ptr<Type>(new ProcType(type, rhstype, typeloc));
+    type = shared_ptr<Type>(new ProcType(proc_types, typeloc));
   }
 
   return type;
@@ -1022,7 +1024,7 @@ shared_ptr<Ast> Parser::parse_procedure()
   shared_ptr<Ast> proc, body;
   Location&& lhsloc = curloc();
 
-  auto parse_arg = [&poly, &poly_type]() -> pair<string, shared_ptr<Type>>
+  auto parse_arg = [this, &poly, &poly_type]() -> pair<string, shared_ptr<Type>>
   {
     if (curtok() != Token::Id)
       throw PinkException("unexpected missing argument after speculation.", __FILE__, __LINE__);
@@ -1090,7 +1092,7 @@ shared_ptr<Ast> Parser::parse_procedure()
     {
       for (auto&& arg : args)
         get<shared_ptr<Type>>(arg) = poly_type;
-      proc = shared_ptr<Ast>(new Entity(unique_ptr<PolyLambda>(new PolyLambda(*(new Lambda(args, scopes.top(), body)))), procloc));
+      proc = shared_ptr<Ast>(new Entity(unique_ptr<PolyLambda>(new PolyLambda(args, scopes.top(), body)), procloc));
     }
 
     scopes.pop();
@@ -1456,28 +1458,13 @@ optional<ParserError> Parser::speculate_procedure()
 {
   optional<ParserError> result;
 
-  auto speculate_arg = []()
-  {
-    if (speculate(Token::Id))
-      if (speculate(Token::Colon))
-      {
-        return speculate_type();
-      }
-      else
-      {
-        return optional<ParserError>();
-      }
-    else
-    {
-      return optional<ParserError>(ParserError("missing argument id", curloc()));
-    }
-  }
-
   // start parsing the procedure literal.
   if (speculate(Token::Backslash))
   {
-    if (speculate_arg())
-      while (speculate(Token::Comma) && !result)
+    result = speculate_arg();
+
+    if (!result)
+      while(speculate(Token::Comma) && !result)
         result = speculate_arg();
 
     // parse the body
@@ -1495,6 +1482,25 @@ optional<ParserError> Parser::speculate_procedure()
   }
 
   return result;
+}
+
+optional<ParserError> Parser::speculate_arg()
+{
+  if (speculate(Token::Id))
+    if (speculate(Token::Colon))
+    {
+      return speculate_type();
+    }
+    else
+    {
+      // we saw an arg!
+      return optional<ParserError>();
+    }
+
+  else
+  {
+    return optional<ParserError>(ParserError("missing argument id", curloc()));
+  }
 }
 
 

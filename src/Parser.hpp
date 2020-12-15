@@ -130,4 +130,5 @@ private:
   optional<ParserError> speculate_if();
   optional<ParserError> speculate_while();
   optional<ParserError> speculate_procedure();
+  optional<ParserError> speculate_arg();
 };

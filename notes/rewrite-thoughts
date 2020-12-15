@@ -1,4 +1,30 @@
 
+
+
+
+if we consider optimization to be valid then we must
+consider it replacement of terms across and along some lines
+in which behavior is equivalent and either time or space
+is compressed compared to some original implementation.
+
+essentially, the optimized version should behave identically
+to the not optimized version, but it should do it in less time
+or space.
+
+so, the test rig of this language could take this into
+consideration maybe? say we replace the tree style evaluation
+with continuation passing style? or an instruction interpreter?
+
+
+
+
+
+
+
+
+
+
+
 why rewrite in c++?
 
 well, the parametric polymorphism is attractive,

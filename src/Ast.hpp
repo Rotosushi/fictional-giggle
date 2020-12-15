@@ -2,7 +2,7 @@
 #include <string>
 using std::string;
 #include <vector>
-using std::vector>
+using std::vector;
 #include <utility>
 using std::pair;
 using std::get;
@@ -55,8 +55,6 @@ protected:
   virtual void substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env) = 0;
   virtual bool appears_free_internal(vector<string>& names, vector<string>& appeared_free) = 0;
   virtual void rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs) = 0;
-
-  string generate_name(int len);
 
   void insert_if_unique(string& name, vector<string>& names);
 

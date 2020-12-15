@@ -1,6 +1,11 @@
 
 #include <string>
 using std::string;
+#include <vector>
+using std::vector;
+#include <utility>
+using std::pair;
+using std::get;
 #include <memory>
 using std::shared_ptr;
 using std::make_shared;
@@ -81,10 +86,29 @@ bool RefType::is_poly_internal()
   return ref_type->is_polymorphic();
 }
 
+ProcType::ProcType(vector<shared_ptr<Type>>& proc_types, const Location& loc)
+  : Type(loc)
+{
+  auto ret_type = (proc_types.end()--);
+  for (auto i = proc_types.begin(); i != ret_type; i++)
+  {
+    arg_types.push_back(*i);
+  }
+}
+
 ProcType::ProcType(vector<pair<string, shared_ptr<Type>>>& args, shared_ptr<Type> ret_type)
   : Type(Location())
 {
-  for (pair<string,shared_ptr<Type>>>&& arg : args)
+  for (auto&& arg : args)
+  {
+    arg_types.push_back(get<shared_ptr<Type>>(arg));
+  }
+}
+
+ProcType::ProcType(vector<pair<string, shared_ptr<Type>>>& args, shared_ptr<Type> ret_type, const Location& loc)
+  : Type(loc), return_type(ret_type)
+{
+  for (auto&& arg : args)
   {
     arg_types.push_back(get<shared_ptr<Type>>(arg));
   }
@@ -92,29 +116,29 @@ ProcType::ProcType(vector<pair<string, shared_ptr<Type>>>& args, shared_ptr<Type
 
 shared_ptr<Type> ProcType::clone_internal()
 {
-  return shared_ptr<Type>(new ProcType(arg_types, return_type, location));
+  return shared_ptr<Type>(new ProcType(*this));
 }
 
 string ProcType::to_string_internal()
 {
   string result;
-  in length = arg_types.size();
+  int length = arg_types.size();
   for (int i = 0; i < length; ++i)
   {
     result += arg_types[i]->to_string();
     result += " -> ";
   }
-  result += result_type->to_string();
+  result += return_type->to_string();
   return result;
 }
 
 bool ProcType::is_poly_internal()
 {
-  if (result_type->is_polymorphic())
+  if (return_type->is_polymorphic())
     return true;
   else
   {
-    for (shared_ptr<Type>&& type : arg_types)
+    for (shared_ptr<Type>& type : arg_types)
     {
       if (type->is_polymorphic())
         return true;

@@ -9,6 +9,8 @@ using std::get;
 #include <memory>
 using std::shared_ptr;
 using std::unique_ptr;
+#include <algorithm>
+using std::remove_if;
 
 #include "Ast.hpp"
 #include "Environment.hpp"
@@ -16,6 +18,7 @@ using std::unique_ptr;
 #include "EvalJudgement.hpp"
 #include "Object.hpp"
 #include "Entity.hpp"
+#include "Gensym.hpp"
 #include "Lambda.hpp"
 
 
@@ -51,14 +54,14 @@ TypeJudgement Lambda::getype(Environment env)
         --------------------------------
     ENV |- \ id : type1 => term : type1 -> type2
   */
-  for (pair<string, shared_ptr<Type>>&& arg : this->args)
+  for (pair<string, shared_ptr<Type>>& arg : this->args)
   {
     this->scope->bind(get<string>(arg), shared_ptr<Ast>(new Entity(get<shared_ptr<Type>>(arg), Location())));
   }
 
   TypeJudgement type2 = body->getype(Environment(this->scope, env.precedences, env.binops, env.unops, this->cleanup_list));
 
-  for (pair<string, shared_ptr<Type>>&& arg : this->args)
+  for (pair<string, shared_ptr<Type>>& arg : this->args)
   {
     this->scope->unbind(get<string>(arg));
   }
@@ -123,14 +126,14 @@ void Lambda::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<
   */
   auto name_exists_in_args = [](string& name, vector<pair<string, shared_ptr<Type>>>& args)
   {
-    for (auto&& arg: args)
+    for (auto& arg: args)
       if (get<string>(arg) == name)
         return true;
     return false;
   };
 
   vector<pair<string, shared_ptr<Ast>>> new_subs;
-  for (auto&& sub : subs)
+  for (auto& sub : subs)
     if (!name_exists_in_args(get<string>(sub), args))
       new_subs.push_back(sub);
 
@@ -152,62 +155,35 @@ void Lambda::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<
     vector<pair<string, string>> renamings;
     vector<string> bound_names;
     vector<string> appeared_free;
-    for (auto&& arg : args)
+    for (auto& arg : args)
       bound_names.push_back(get<string>(arg));
 
     // if we see any bound name conflicts they are
     // recorded within appeared_free.
-    if ((*term->appears_free(bound_names, appeared_free)))
+    if (((*term)->appears_free(bound_names, appeared_free)))
     {
       // so we need to construct a list of pairs
-      // such that each bound name is associated with an
+      // such that each bad name is associated with an
       // appropriate replacement name, such that
       // each replacement name itself does not
-      // appear bound within the procedure.
-      vector<string> possible_renamings;
-      vector<string> renamings_free;
-      /*
-        okay, this seems wrong in the cases where we need
-        to loop. but the first iteration, if each name is
-        selected unique the first time, we shouldn't have
-        any issues.
-        the problem stems from the fact that we never remove
-        names from the appeared_free if we genereate a name
-        which was unique from the bindings, but then did
-        appear_free within the term. this binding would
-        expand the size of the appeared_free list, by inserting
-        the newly conflicting name, but this name would still
-        occur within the list upon the next iteration,
-        which would cause the algorithm to generate a superfluous
-        name on the next iteration. i think this could cause further issues.
-        but this bug would occur based upon RNG as well,
-        which makes it triply nasty if it happens.
-      */
-      do
-      {
-        possible_renamings.clear();
-        for (int i = 0; i < appeared_free.size(); i++)
-        {
-          possible_renamings.push_back(generate_name(5));
-        }
-
-      } while ((*term)->appears_free(possible_renamings, appeared_free))
-
-      // every element which appeared_free is renamed to its possible new name.
-      for (int i = 0; i < appeared_free.size(); i++)
-      {
-        renamings.push_back(make_pair(appeared_free[i], possible_renamings[i]));
-      }
+      // appear free within the term.
+      // first we make a copy of the terms which appeared_free.
+      // this is because we want to maintain knowledge of
+      // the exact set of bound names which appeared_free,
+      // and we do not want to count names that we generated
+      // that happened to conflict in that list.
+      for (string& free_name : appeared_free)
+        renamings.push_back(make_pair(free_name, gensym()));
 
       // rename the formal arguments which conflict.
-      for (auto&& arg : args)
-        for (auto&& pair : renamings)
+      for (auto& arg : args)
+        for (auto& pair : renamings)
           if (get<0>(pair) == get<string>(arg))
           {
             get<string>(arg) = get<1>(pair);
           }
       // rename the formal arguments appearances within the body
-      body->rename_binding_in_body_internal(renamings);
+      body->rename_binding_in_body(renamings);
     }
 
     body->substitute(new_subs, &body, env);
@@ -215,34 +191,87 @@ void Lambda::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<
 
 }
 
-void Lambda::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
+void Lambda::rename_binding_in_body(vector<pair<string, string>>& renaming_pairs)
 {
   /*
-    if within the body of the lambda whose binding we are renaming
-    is itself a lambda whose has a biding with the same name as what we are
+    if within the body of the lambda whose bindings we are renaming
+    is itself a lambda which has a biding with the same name as what we are
     looking to replace, we do not rename, because that lambda
     is introducing that binding for it's own body, and that makes
     it a separate binding than the one we are looking for.
-    if the binding is not the one that we are looking for, then
-    we need to look for instances of the binding within the
-    body of the lambda.
+    in fact, given that this lambda is introducing the binding,
+    all instances of the name within the lambdas body are separate
+    from the binding we are looking for. now, we do not want to
+    modify the list of pairs we were passed (because it is a reference
+    to save space, and that means we are sharing the list with the rest of
+    the algorithm peices to do our work.) now, we have a clever
+    solution to this problem, we allocate a new list, and pass it in
+    while typing the rest of the body, this does double duty of
+    keeping the renaming consistent with the rules of substitution,
+    and threading the right data to the right parts of the algorithm
+    without having to directly communicate with any of the other
+    peices of the algorithm. (yay side effects!)
+    This practice is especially usefull in the downwards sense
+    of the tree of execution, in the reverse sense, really the
+    usefullness is present in the constructor pattern, building
+    things and then returning what you built. otherwise we need
+    to consider who has ownership of memory and all that.
    */
+   auto name_exists_in_args = [this](string& name)
+   {
+     for (auto& arg: args)
+       if (get<string>(arg) == name)
+         return true;
+     return false;
+   };
 
+   vector<pair<string, string>> new_pairs;
+
+   for (pair<string, string>& old_pair : renaming_pairs)
+   {
+     if (!name_exists_in_args(get<0>(old_pair)))
+     {
+       new_pairs.emplace_back(old_pair);
+     }
+   }
+
+   if (new_pairs.size() > 0)
+    body->rename_binding_in_body(new_pairs);
 }
 
 bool Lambda::appears_free(vector<string>& names, vector<string>& appeared_free)
 {
   /*
-  if (arg_id == name)
-  {
-    // arg_id matches the free name, meaning
-    // that the name appears bound in the body
-    // of this lambda.
-    return false;
-  }
-  else
-  {
-    return body->appears_free(name);
-  }
+  funnily enough
+  appears_free is essentially rename_binding_in_body
+
+  every name which appears bound in this procedure by definition
+  cannot appear_free any lower than this point (in the sense
+  of the tree representing this execution).
   */
+
+  // the closure allows for early exit of the
+  // inner loop without my explicit use of a goto.
+  // the alternative pattern is one of the few
+  // justifiable uses of a goto in c/c++ imo.
+  auto name_exists_in_args = [this](string& name)
+  {
+    for (pair<string, shared_ptr<Type>>& arg: args)
+      if (get<string>(arg) == name)
+        return true;
+    return false;
+  };
+
+  vector<string> new_names;
+
+  for (string& name : names)
+    if (!name_exists_in_args(name))
+    {
+      new_names.emplace_back(name);
+    }
+
+  if (new_names.size() > 0)
+    return body->appears_free(new_names, appeared_free);
+  else
+    return false;
 }

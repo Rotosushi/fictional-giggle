@@ -1273,6 +1273,32 @@ the language would still be able to express them.
       which the application typing and evaluation rules
       know how to deal with?)
 
+ohmygoshohmygoshohmygoshohmygosh i think it's working???!@?!@?!?!?@?@/!@?!
+
+i think i can define composite binary operators now!
+and Unops too!
+then onwards to a procedure that can read in declarations.
+
+--------------------------------------------------------------------
+
+okay, so additionally, do we want references to be able to be
+considered as pointers, and make assignment work on both any
+two T instead of a ref T on the lhs and a T on the rhs.
+then the programmer can make the subtle distinction
+between assignment of the reference, or assignment of the
+value pointed to by said reference.
+yes, this is a necessary feature of a low level language.
+I gotta say, "this series/segment/cluster of memory addresses is mapped out
+thusly", and then "write/read such and such value from such and such location"
+
+
+
+
+
+
+
+
+
 
 
 

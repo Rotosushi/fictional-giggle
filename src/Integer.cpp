@@ -1,7 +1,7 @@
 #include <string>
 using std::string;
 #include <vector>
-using std::vector>
+using std::vector;
 #include <utility>
 using std::pair;
 using std::get;
@@ -36,12 +36,12 @@ void Integer::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr
   return;
 }
 
-void Integer::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
+void Integer::rename_binding_in_body(vector<pair<string, string>>& renaming_pairs)
 {
   return;
 }
 
-bool Integer::appears_free(string name)
+bool Integer::appears_free(vector<string>& names, vector<string>& appeared_free)
 {
   return false;
 }

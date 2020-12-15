@@ -32,12 +32,12 @@ void TypeLiteral::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared
   return;
 }
 
-void TypeLiteral::rename_binding(string old_name, string new_name)
+void TypeLiteral::rename_binding_in_body(vector<pair<string, string>>& renaming_pairs)
 {
   return;
 }
 
-bool TypeLiteral::appears_free(string name)
+bool TypeLiteral::appears_free(vector<string>& names, vector<string>& appeared_frees)
 {
   return false;
 }

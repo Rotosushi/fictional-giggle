@@ -2,7 +2,7 @@
 #include <string>
 using std::string;
 #include <vector>
-using std::vector>
+using std::vector;
 #include <utility>
 using std::pair;
 using std::get;
@@ -138,33 +138,13 @@ bool Ast::appears_free(vector<string>& names, vector<string>& appeared_free)
   return this->appears_free_internal(names, appeared_free);
 }
 
-void Ast::rename_binding(string old_name, string new_name)
+void Ast::rename_binding_in_body(vector<pair<string, string>>& renaming_pairs)
 {
-  return this->rename_binding_internal(old_name, new_name);
+  return this->rename_binding_in_body_internal(renaming_pairs);
 }
 
 
-/* this is a very simplistic version of
-  renaming. it (mostly) ensures the semantics,
-  and should be kept separate
-  from anything but evaluating a given Ast.
-  we don't want to rename the bindings the user
-  types in, because that would confuse the
-  writer of the program.
-*/
-string Ast::generate_name(int len)
-{
-  const char symset[]  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const int  symsetlen = 52;
-  string result;
-  for (int i = 0; i < len; ++i)
-  {
-    result += symset[rand() % symsetlen];
-  }
-  return result;
-}
-
-void insert_if_unique(string& name, vector<string>& names)
+void Ast::insert_if_unique(string& name, vector<string>& names)
 {
   bool appears = false;
   for (auto&& id : names)

@@ -16,3 +16,14 @@ TypeJudgement::operator bool()
 {
   return success;
 }
+
+TypeJudgement& TypeJudgement::operator=(const TypeJudgement& other)
+{
+  success = other.success;
+  if (success)
+    u.jdgmt = other.u.jdgmt;
+  else
+    u.error = other.u.error;
+
+  return *this;
+}

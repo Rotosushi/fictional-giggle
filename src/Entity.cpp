@@ -4,7 +4,7 @@ using std::string;
 #include <list>
 using std::list;
 #include <vector>
-using std::vector>
+using std::vector;
 #include <utility>
 using std::pair;
 using std::get;
@@ -45,12 +45,12 @@ void Entity::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, sh
   return literal->substitute(subs, term, env);
 }
 
-bool Entity::appears_free_internal(string var)
+bool Entity::appears_free_internal(vector<string>& names, vector<string>& appeared_free)
 {
-  return literal->appears_free(var);
+  return literal->appears_free(names, appeared_free);
 }
 
 void Entity::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
 {
-  literal->rename_binding(old_name, new_name);
+  literal->rename_binding_in_body(renaming_pairs);
 }

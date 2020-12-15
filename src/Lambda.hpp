@@ -37,27 +37,31 @@ public:
   vector<pair<string, shared_ptr<Type>>> args;
   shared_ptr<SymbolTable> scope;
   shared_ptr<Ast> body;
-  shared_ptr<list<string>> cleanup_list;
+  shared_ptr<vector<string>> cleanup_list;
 
   Lambda(vector<pair<string, shared_ptr<Type>>>& args,
          shared_ptr<SymbolTable> enclosing_scope, const shared_ptr<Ast>& bd)
     : args(args),
       scope(enclosing_scope),
       body(bd),
-      cleanup_list(shared_ptr<list<string>>(new list<string>()))
-  { }
+      cleanup_list(shared_ptr<vector<string>>(new vector<string>()))
+  {
+
+  }
 
   Lambda(const Lambda& other)
     : args(other.args),
       scope(other.scope),
-      body(other.body->clone()),
-      cleanup_list(shared_ptr<list<string>>(new list<string>(*(other.cleanup_list))))
-  { }
+      body(other.body),
+      cleanup_list(shared_ptr<vector<string>>(new vector<string>(*(other.cleanup_list))))
+  {
+
+  }
 
   void rename_bindings(vector<string>& to_rename);
 
   virtual void substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env) override;
-  virtual void rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs) override;
+  virtual void rename_binding_in_body(vector<pair<string, string>>& renaming_pairs) override;
   virtual bool appears_free(vector<string>& names, vector<string>& appeared_free) override;
   virtual unique_ptr<Object> clone() override;
   virtual string to_string() override;

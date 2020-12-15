@@ -2,7 +2,7 @@
 #include <string>
 using std::string;
 #include <vector>
-using std::vector>
+using std::vector;
 #include <utility>
 using std::pair;
 using std::get;
@@ -123,6 +123,6 @@ bool Iteration::appears_free_internal(vector<string>& names, vector<string>& app
 
 void Iteration::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
 {
-  cond->rename_binding(old_name, new_name);
-  body->rename_binding(old_name, new_name);
+  cond->rename_binding_in_body(renaming_pairs);
+  body->rename_binding_in_body(renaming_pairs);
 }

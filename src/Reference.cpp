@@ -1,7 +1,7 @@
 #include <string>
 using std::string;
 #include <vector>
-using std::vector>
+using std::vector;
 #include <utility>
 using std::pair;
 using std::get;
@@ -45,15 +45,15 @@ TypeJudgement Reference::getype(Environment env)
 
 void Reference::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
 {
-  ref->substitute(subs, &ref, env);
+  return;
 }
 
-bool Reference::appears_free(string var)
+bool Reference::appears_free(vector<string>& names, vector<string>& appeared_free)
 {
-  return ref->appears_free(var);
+  return false;
 }
 
-void Reference::rename_binding(vector<pair<string, string>>& renaming_pairs)
+void Reference::rename_binding_in_body(vector<pair<string, string>>& renaming_pairs)
 {
-  ref->rename_binding(old_name, new_name);
+  return;
 }

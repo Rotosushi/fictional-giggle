@@ -1,0 +1,96 @@
+
+some lambda calculus to run through the interpreter to test it's
+correctness:
+
+helper primitives:
+toInt := \p => p (\x => x + 1) 0
+
+toBool := \p => p true false
+
+/* church booleans */
+
+True  := \t => \f => t
+False := \t => \f => f
+
+/* church numerals and some basic math primitives */
+
+zero  := \p => \n => n
+one   := \p => \n => p n
+two   := \p => \n => p (p n)
+three := \p => \n => p (p (p n))
+four  := \p => \n => p (p (p (p n)))
+five  := \p => \n => p (p (p (p (p n))))
+six   := \p => \n => p (p (p (p (p (p n)))))
+seven := \p => \n => p (p (p (p (p (p (p n))))))
+eight := \p => \n => p (p (p (p (p (p (p (p n)))))))
+nine  := \p => \n => p (p (p (p (p (p (p (p (p n))))))))
+ten   := \p => \n => p (p (p (p (p (p (p (p (p (p n)))))))))
+
+isZero := \n => n (\x => False) (True)
+
+succ := \n => \f => \x => f (n f x)
+
+plus := \m => \n => m succ n
+sub  := \m => \n => n pred m
+
+mult  := \m => \n => \f => m (n f)
+mult' := \m => \n => m (plus n) 0
+
+exp := \b => \e => e b
+
+/* church pairs */
+Pair := \x => \y => \f => f x y
+Fst  := \p => p (\x => \y => x)
+Snd  := \p => p (\x => \y => y)
+
+
+slide := \p => Pair (Snd p) (succ Snd p)
+/*
+where p is a Pair of numerals
+  slide (0, 1) -> (1, 2)
+  slide (2, 3) -> (3, 4)
+*/
+
+/*
+  given the definition of pairs and slide as above,
+  we can implement the predecessor function as:
+*/
+pred := \n => Fst (n slide (Pair zero zero))
+
+isLessOrEqual := \m => \n => isZero (sub m n)
+
+
+/* n % m */
+mod := Z \f => \m => \n => isLessOrEqual n m (\x => f (sub m n)) n x) (m)
+
+
+I := \x => x
+K := \x=>\y=>x
+S := \x=>\y=>\z=>x z (y z)
+
+B := \x=>\y=>\z=>x (y z)
+C := \x=>\y=>\z=>x z y
+W := \x=>\y=>x y y
+
+U := \x =>x x
+
+Y := \g => (\x => g (x x)) (\x => g (x x))
+
+Z := \f => (\x => f (\z => x x z)) (\x => f (\z => x x z))
+
+T := (\x => \y => y (\z => x x y z)) (\x => \y => y (\z => x x y z))
+
+fact := Z (\r => \n : Int => if n = 0 then 1 else n * (r (n - 1)))
+
+fact n ~> !n
+
+gcd := Z (\r => \n => \m => if m = 0 then n else r m (n % m))
+
+gcd 27 9
+~> 9
+
+gcd 111 259
+~> 37
+
+
+hanoi := Z \r => \n => if n = 1 then 1 else 2 * r (n - 1) + 1

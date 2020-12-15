@@ -1,7 +1,7 @@
 #include <string>
 using std::string;
 #include <vector>
-using std::vector>
+using std::vector;
 #include <utility>
 using std::pair;
 using std::get;
@@ -37,11 +37,11 @@ void Nil::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast
   return;
 }
 
-void Nil::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
+void Nil::rename_binding_in_body(vector<pair<string, string>>& renaming_pairs)
 {
 }
 
-bool Nil::appears_free(string name)
+bool Nil::appears_free(vector<string>& names, vector<string>& appeared_free)
 {
   return false;
 }

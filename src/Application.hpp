@@ -2,7 +2,7 @@
 #include <string>
 using std::string;
 #include <vector>
-using std::vector>
+using std::vector;
 #include <utility>
 using std::pair;
 #include <memory>
@@ -19,14 +19,14 @@ public:
   vector<shared_ptr<Ast>> actual_args;
 
   Application(shared_ptr<Ast> l, vector<shared_ptr<Ast>> args, const Location& loc)
-    : Ast(loc), lhs(l), actual_args(r) {}
+    : Ast(loc), lhs(l), actual_args(args) {}
 
   Application(const Application& other)
     : Ast(other.location), lhs(other.lhs)
   {
     for (shared_ptr<Ast> arg : other.actual_args)
     {
-      this->actual_args.push_pack(arg->clone());
+      this->actual_args.push_back(arg);
     }
   }
 

@@ -1,7 +1,7 @@
 #include <string>
 using std::string;
 #include <vector>
-using std::vector>
+using std::vector;
 #include <utility>
 using std::pair;
 using std::get;
@@ -122,12 +122,12 @@ void Unop::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shar
   rhs->substitute(subs, &rhs, env);
 }
 
-bool Unop::appears_free_internal(string var)
+bool Unop::appears_free_internal(vector<string>& names, vector<string>& appeared_free)
 {
-  return rhs->appears_free(var);
+  return rhs->appears_free(names, appeared_free);
 }
 
 void Unop::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
 {
-  rhs->rename_binding(old_name, new_name);
+  rhs->rename_binding_in_body(renaming_pairs);
 }
