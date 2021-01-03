@@ -77,13 +77,11 @@ class Object
 public:
   Object();
   virtual ~Object();
+
   virtual unique_ptr<Object> clone() = 0;
   virtual string to_string() = 0;
-  virtual TypeJudgement getype(Environment env) = 0;
-
-  virtual void substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env) = 0;
-  virtual void rename_binding_in_body(vector<pair<string, string>>& renaming_pairs) = 0;
-  virtual bool appears_free(vector<string>& names, vector<string>& appeared_free) = 0;
-protected:
-  
+  virtual TypeJudgement getype(Environment& env) = 0;
+  virtual void substitute(string& var, shared_ptr<Ast>* term, shared_ptr<Ast>& value, Environment& env) = 0;
+  virtual bool appears_free(string& var) = 0;
+  virtual void rename_binding(string& old_name, string& new_name) = 0;
 };

@@ -207,15 +207,17 @@ themselves an abstraction over the actual memory of the machine.
 within which it is easiest to get by with word addressing
 and references are really the way to get to memory at all.
 
-  bitwise operations break this notion of a memory cell, and
-exposes that the memory cell is nothing more than a
+  bitwise operations break this notion of a language entity, and
+exposes the memory cell to the programmer.
+ which is itself nothing more than a
 somewhat arbitrary sequence of electrical bits which can
 be turned on and off to represent different state.
-and we want to preform an operation which observes the bits
+
+ we want to preform an operation which observes the bits
 in two different memory-cells and arrange the bits of a third
 cell to be some sequence which can be derived from the state
 of the first two cells. (a sequence of English words which
-seem to encapsulate every operation which a computer performs.)
+seem to encapsulate every operation a computer performs.)
 
   these two operations must never be part of the same overload
 set, on grounds that they belong to two distinct classes of
@@ -234,11 +236,13 @@ those two or more kinds of thing. this maintains the alignment
 of the idea which is being expressed by the operator. which
 again, i feel improves the legibility of programs.
 (the reason that i think the designers of every programming
-language understand this, albeit intuitively, is that bitwise
+language understands this is that bitwise
 and logical operators are always distinct symbols. the 'overloading'
 /metaphor is that syntactically bitwise ops are || and logical are |
 which is probably mostly an homage to the fact that both are 'or's)
-but again notice, the symbols are distinct.
+but again notice, the symbols are distinct, hence dinstinct operations.
+
+
 
 
 

@@ -78,7 +78,7 @@ public:
     : primitive_eliminator(elim), result_type(result_type) {}
 
   shared_ptr<Ast> operator()(shared_ptr<Ast> lhs, shared_ptr<Ast> rhs);
-  shared_ptr<Type> GetResultType();
+  shared_ptr<Type> ResultType();
 };
 
 

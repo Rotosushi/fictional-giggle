@@ -86,34 +86,6 @@ bool RefType::is_poly_internal()
   return ref_type->is_polymorphic();
 }
 
-ProcType::ProcType(vector<shared_ptr<Type>>& proc_types, const Location& loc)
-  : Type(loc)
-{
-  auto ret_type = (proc_types.end()--);
-  for (auto i = proc_types.begin(); i != ret_type; i++)
-  {
-    arg_types.push_back(*i);
-  }
-}
-
-ProcType::ProcType(vector<pair<string, shared_ptr<Type>>>& args, shared_ptr<Type> ret_type)
-  : Type(Location())
-{
-  for (auto&& arg : args)
-  {
-    arg_types.push_back(get<shared_ptr<Type>>(arg));
-  }
-}
-
-ProcType::ProcType(vector<pair<string, shared_ptr<Type>>>& args, shared_ptr<Type> ret_type, const Location& loc)
-  : Type(loc), return_type(ret_type)
-{
-  for (auto&& arg : args)
-  {
-    arg_types.push_back(get<shared_ptr<Type>>(arg));
-  }
-}
-
 shared_ptr<Type> ProcType::clone_internal()
 {
   return shared_ptr<Type>(new ProcType(*this));
@@ -122,29 +94,19 @@ shared_ptr<Type> ProcType::clone_internal()
 string ProcType::to_string_internal()
 {
   string result;
-  int length = arg_types.size();
-  for (int i = 0; i < length; ++i)
-  {
-    result += arg_types[i]->to_string();
-    result += " -> ";
-  }
+  result  = argument_type->to_string();
+  result += " -> ";
   result += return_type->to_string();
   return result;
 }
 
 bool ProcType::is_poly_internal()
 {
-  if (return_type->is_polymorphic())
+  if (argument_type->is_polymorphic()
+   || return_type->is_polymorphic())
     return true;
   else
-  {
-    for (shared_ptr<Type>& type : arg_types)
-    {
-      if (type->is_polymorphic())
-        return true;
-    }
     return false;
-  }
 }
 
 TypeJudgement TypesEquivalent(shared_ptr<Type> t1, shared_ptr<Type> t2)
@@ -191,30 +153,19 @@ TypeJudgement TypesEquivalent(shared_ptr<Type> t1, shared_ptr<Type> t2)
     {
       if (pt2 != nullptr)
       {
-        if (pt1->arg_types.size() == pt2->arg_types.size())
-        {
-          TypeJudgement j1;
-          int length = pt1->arg_types.size();
-          for (int i = 0; i < length; ++i)
-          {
-            j1 = TypesEquivalent(pt1->arg_types[i], pt2->arg_types[i]);
+        TypeJudgement j1 = TypesEquivalent(pt1->argument_type, pt2->argument_type);
 
-            if (!j1.succeeded())
-              return j1;
-          }
+       if (j1.succeeded())
+       {
+         TypeJudgement j2 = TypesEquivalent(pt1->return_type, pt2->return_type);
 
-          TypeJudgement j2 = TypesEquivalent(pt1->return_type, pt2->return_type);
-          if (j2)
-            return j2;
-        }
-
-        string errdsc = "Procedure Types not equivalent pt1:["
-                      + t1->to_string()
-                      + "] pt2:["
-                      + t2->to_string()
-                      + "]";
-        TypeError typeerror(Location(), errdsc);
-        return TypeJudgement(typeerror);
+         if (j2.succeeded())
+           return TypeJudgement(t2);
+         else
+           return j2;
+       }
+       else
+         return j1;
       }
       else
       {

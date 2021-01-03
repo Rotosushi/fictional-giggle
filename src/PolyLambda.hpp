@@ -30,15 +30,17 @@ using std::unique_ptr;
 class PolyLambda : public Object
 {
 public:
-  vector<pair<string, shared_ptr<Type>>> args;
+  string arg_id;
+  shared_ptr<Type> arg_type;
   shared_ptr<SymbolTable> scope;
   shared_ptr<Ast> body;
   shared_ptr<vector<string>> cleanup_list;
-  list<vector<shared_ptr<Type>>> instances;
+  list<shared_ptr<Type>> instances;
 
-  PolyLambda(vector<pair<string, shared_ptr<Type>>>& args,
+  PolyLambda(string a_i, shared_ptr<Type> a_t,
          shared_ptr<SymbolTable> enclosing_scope, const shared_ptr<Ast>& bd)
-    : args(args),
+    : arg_id(a_i),
+      arg_type(a_t),
       scope(enclosing_scope),
       body(bd),
       cleanup_list(shared_ptr<vector<string>>(new vector<string>())),
@@ -48,7 +50,8 @@ public:
   }
 
   PolyLambda(PolyLambda& other)
-    : args(other.args),
+    : arg_id(other.arg_id),
+      arg_type(other.arg_type),
       scope(other.scope),
       body(other.body),
       cleanup_list(shared_ptr<vector<string>>(new vector<string>(*(other.cleanup_list)))),
@@ -57,12 +60,12 @@ public:
 
   }
 
-  EvalJudgement HasInstance(vector<shared_ptr<Type>> target_arg_types, Environment env);
+  EvalJudgement HasInstance(shared_ptr<Type> target_type, Environment env);
 
-  virtual void substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env) override;
-  virtual void rename_binding_in_body(vector<pair<string, string>>& renaming_pairs) override;
-  virtual bool appears_free(vector<string>& names, vector<string>& appeared_free) override;
   virtual unique_ptr<Object> clone() override;
   virtual string to_string() override;
-  virtual TypeJudgement getype(Environment env) override;
+  virtual TypeJudgement getype(Environment& env) override;
+  virtual void substitute(string& var, shared_ptr<Ast>* term, shared_ptr<Ast>& value, Environment& env) override;
+  virtual bool appears_free(string& var) override;
+  virtual void rename_binding(string& old_name, string& new_name) override;
 };

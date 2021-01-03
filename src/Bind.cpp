@@ -30,7 +30,7 @@ string Bind::to_string_internal()
   return result;
 }
 
-TypeJudgement Bind::getype_internal(Environment env)
+TypeJudgement Bind::getype_internal(Environment& env)
 {
   /*
 ENV |- id is-not-currently-bound-in-local-scope, term2 : type2
@@ -68,7 +68,7 @@ ENV |- id is-not-currently-bound-in-local-scope, term2 : type2
   }
 }
 
-EvalJudgement Bind::evaluate_internal(Environment env)
+EvalJudgement Bind::evaluate_internal(Environment& env)
 {
   auto is_entity = [](shared_ptr<Ast> term)
   {
@@ -99,17 +99,17 @@ EvalJudgement Bind::evaluate_internal(Environment env)
 }
 
 
-void Bind::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
+void Bind::substitute_internal(string& var, shared_ptr<Ast>* term, shared_ptr<Ast>& value, Environment& env)
 {
-  rhs->substitute(subs, &rhs, env);
+  rhs->substitute(var, &rhs, value, env);
 }
 
-bool Bind::appears_free_internal(vector<string>& names, vector<string>& appeared_free)
+bool Bind::appears_free_internal(string& var)
 {
-  return rhs->appears_free(names, appeared_free);
+  return rhs->appears_free(var);
 }
 
-void Bind::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
+void Bind::rename_binding_internal(string& old_name, string& new_name)
 {
-  rhs->rename_binding_in_body(renaming_pairs);
+  rhs->rename_binding(old_name, new_name);
 }

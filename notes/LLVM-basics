@@ -110,12 +110,17 @@ treat a global constant name as two separate
 anythings. but we can allow procedures to share
 names as long they differ by number or type of
 arguments. (commonly called overloading)
+(
+i have been pondering removing overloading
+the number of arguments, and then using that
+logic to encode partial application.
+)
 we can allow name shadowing, by allowing a name
 to be defined if it doesn't exist within the
-local scope. instead of forcing all names
+local most scope. instead of forcing all names
 to be unique across all scopes within the
 program. (this would be super inconvenient
-for programmers however)
+for programmers.)
 however, name shadowing introduces an issue,
 how do we then refer to either name explicitly,
 such that i can access either the local name
@@ -133,27 +138,28 @@ variables are the data-members of records, unions,
 and pointers.
 we can and should allow for an inner scope to
 access names of outer scopes. this is well defined
-in all situations, the procedure call is the
+in all situations, the procedure call is in a sense a
 downward name boundary. (as in, names in the local
 namespace stop being visible in the new scope,
 even though it is technically a 'lower' scope.)
-there is no upwards name boundary however,
+conversely, there is no upwards name boundary however,
 every procedure will have access to module local variables
 and global variables. or if it is a procedure local
 lambda, then it will have visibility of the surrounding
-scope. (formal procedures never have this 'dynamic scope')
+scope, and hence upwards (formal procedures never have this 'dynamic scope')
 this is because we can be sure that a lambda defined
-and applied on within the scope of another procedure
+and applied within the scope of another procedure
 will always exist in the correct circumstances such
-that the dynamic names will be alive. this can turn out
-not to be the case if the lambda is returned as the result
+that the dynamic names will be alive. we need to be aware
+of a confounding case however. the name can turn out to not
+be alive on the stack if instead the lambda is returned as the result
 of evaluating the procedure. in this case, the names
-that are used 'dynamically' within the lamdba, must be
+that are used 'dynamically' within the lambda, must be
 captured by-value on the heap, and a pointer to this
 structure is stored alongside a pointer to the
 definition of the returned procedure. then, that procedure
 can be called at a later point, and the dynamic values
-are still alive in the program.
+are still alive for the lambda to access.
 
 starting from a set of
 source files, and a function which can

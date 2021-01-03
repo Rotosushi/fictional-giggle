@@ -27,21 +27,21 @@ string Nil::to_string()
   return "nil";
 }
 
-TypeJudgement Nil::getype(Environment env)
+TypeJudgement Nil::getype(Environment& env)
 {
   return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Nil, Location())));
 }
 
-void Nil::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
+void Nil::substitute(string& var, shared_ptr<Ast>* term, shared_ptr<Ast>& value, Environment& env)
 {
   return;
 }
 
-void Nil::rename_binding_in_body(vector<pair<string, string>>& renaming_pairs)
+void Nil::rename_binding(string& old_name, string& new_name)
 {
 }
 
-bool Nil::appears_free(vector<string>& names, vector<string>& appeared_free)
+bool Nil::appears_free(string& var)
 {
   return false;
 }

@@ -1279,6 +1279,9 @@ i think i can define composite binary operators now!
 and Unops too!
 then onwards to a procedure that can read in declarations.
 
+okay, also also, I need to conceive of function pointers (or References i suppose)
+and of composite types, and composite type pointers.
+
 --------------------------------------------------------------------
 
 okay, so additionally, do we want references to be able to be

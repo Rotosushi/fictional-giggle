@@ -30,7 +30,7 @@ string Iteration::to_string_internal()
   return result;
 }
 
-TypeJudgement Iteration::getype_internal(Environment env)
+TypeJudgement Iteration::getype_internal(Environment& env)
 {
   /*
   ENV |- 'while' t1 : T1 'do' t2 : T2,
@@ -45,7 +45,9 @@ TypeJudgement Iteration::getype_internal(Environment env)
   see an initial argument against this?
   it allows for one to validly use a
   loop in certain contexts in which it would
-  be ambiguous previously.
+  be invalid previously. although it does introduce
+  the idea of an else clause that is run if the
+  conditional fails the first time.
   */
   TypeJudgement condjdgmt = cond->getype(env);
 
@@ -70,7 +72,7 @@ TypeJudgement Iteration::getype_internal(Environment env)
   }
 }
 
-EvalJudgement Iteration::evaluate_internal(Environment env)
+EvalJudgement Iteration::evaluate_internal(Environment& env)
 {
   auto is_entity = [](shared_ptr<Ast> term)
   {
@@ -108,21 +110,21 @@ EvalJudgement Iteration::evaluate_internal(Environment env)
   return EvalJudgement(shared_ptr<Ast>(new Entity((void*)nullptr, location)));
 }
 
-void Iteration::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
+void Iteration::substitute_internal(string& var, shared_ptr<Ast>* term, shared_ptr<Ast>& value, Environment& env)
 {
-  cond->substitute(subs, &cond, env);
-  body->substitute(subs, &body, env);
+  cond->substitute(var, &cond, value, env);
+  body->substitute(var, &body, value, env);
 }
 
-bool Iteration::appears_free_internal(vector<string>& names, vector<string>& appeared_free)
+bool Iteration::appears_free_internal(string& var)
 {
-  bool bc = cond->appears_free(names, appeared_free);
-  bool bb = body->appears_free(names, appeared_free);
+  bool bc = cond->appears_free(var);
+  bool bb = body->appears_free(var);
   return bc || bb;
 }
 
-void Iteration::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
+void Iteration::rename_binding_internal(string& old_name, string& new_name)
 {
-  cond->rename_binding_in_body(renaming_pairs);
-  body->rename_binding_in_body(renaming_pairs);
+  cond->rename_binding(old_name, new_name);
+  body->rename_binding(old_name, new_name);
 }

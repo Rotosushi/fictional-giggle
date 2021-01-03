@@ -22,22 +22,22 @@ string TypeLiteral::to_string()
   return value->to_string();
 }
 
-TypeJudgement TypeLiteral::getype(Environment env)
+TypeJudgement TypeLiteral::getype(Environment& env)
 {
-  return value;
+  return TypeJudgement(value);
 }
 
-void TypeLiteral::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
-{
-  return;
-}
-
-void TypeLiteral::rename_binding_in_body(vector<pair<string, string>>& renaming_pairs)
+void TypeLiteral::substitute(string& var, shared_ptr<Ast>* term, shared_ptr<Ast>& value, Environment& env)
 {
   return;
 }
 
-bool TypeLiteral::appears_free(vector<string>& names, vector<string>& appeared_frees)
+bool TypeLiteral::appears_free(string& var)
 {
   return false;
+}
+
+void TypeLiteral::rename_binding(string& old_name, string& new_name)
+{
+  return;
 }

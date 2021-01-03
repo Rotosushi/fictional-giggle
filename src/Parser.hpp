@@ -13,13 +13,16 @@ using std::shared_ptr;
 #include <utility>
 using std::optional;
 
-#include "Ast.hpp"
 #include "Token.hpp"
 #include "Location.hpp"
 #include "Lexer.hpp"
-#include "Environment.hpp"
+#include "BinopPrecedenceTable.hpp"
+#include "BinopEliminators.hpp"
+#include "UnopEliminators.hpp"
+#include "SymbolTable.hpp"
 #include "ParserJudgement.hpp"
 
+class Ast;
 
 
 class Parser
@@ -28,7 +31,9 @@ class Parser
   // we utilize a stack. this is to support the
   // usage of scopes in typeing and evaluation.
   stack<shared_ptr<SymbolTable>>     scopes;
-  Environment             env;
+  shared_ptr<BinopPrecedenceTable> precedences;
+  shared_ptr<BinopSet>    binops;
+  shared_ptr<UnopSet>     unops;
   Lexer                   lexer;
   stack<int, vector<int>> marks;
   vector<Token>           tokbuf;
@@ -37,7 +42,10 @@ class Parser
   int                     curidx;
 
 public:
-  Parser(Environment env);
+  Parser(shared_ptr<SymbolTable> tpscp,
+         shared_ptr<BinopPrecedenceTable> prsdncs,
+         shared_ptr<BinopSet> bnps,
+         shared_ptr<UnopSet>  unps);
 
   ParserJudgement parse(const string& text);
 

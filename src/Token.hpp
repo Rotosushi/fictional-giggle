@@ -32,4 +32,5 @@ enum class Token
   Rarrow,
   EqRarrow,
   Operator,
+  Import,
 };

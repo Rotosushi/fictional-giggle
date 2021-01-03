@@ -26,7 +26,7 @@ string Assignment::to_string_internal()
   return dst->to_string() + " <- " + src->to_string();
 }
 
-TypeJudgement Assignment::getype_internal(Environment env)
+TypeJudgement Assignment::getype_internal(Environment& env)
 {
   auto is_ref_type = [](shared_ptr<Type> type)
   {
@@ -89,12 +89,18 @@ TypeJudgement Assignment::getype_internal(Environment env)
 
   shared_ptr<Type> dsttype = dstjdgmt.u.jdgmt;
 
+  if (dsttype->is_polymorphic())
+    return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Poly, Location())));
+
   TypeJudgement srcjdgmt = src->getype(env);
 
   if (!srcjdgmt)
     return srcjdgmt;
 
   shared_ptr<Type> srctype = srcjdgmt.u.jdgmt;
+
+  if (srctype->is_polymorphic())
+    return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Poly, Location())));
 
   if (TypesEquivalent(dsttype, srctype))
   {
@@ -120,7 +126,7 @@ TypeJudgement Assignment::getype_internal(Environment env)
   }
 }
 
-EvalJudgement Assignment::evaluate_internal(Environment env)
+EvalJudgement Assignment::evaluate_internal(Environment& env)
 {
   /*
     ENV |- lhs : ref T, rhs : T
@@ -192,7 +198,7 @@ EvalJudgement Assignment::evaluate_internal(Environment env)
   }
 }
 
-void Assignment::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
+void Assignment::substitute_internal(string& id, shared_ptr<Ast>* term, shared_ptr<Ast>& value, Environment& env)
 {
   // okay, so like, are there any shenanigans
   // regarding name conflicts in this term?
@@ -201,19 +207,19 @@ void Assignment::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs
   // but what we are substituting for may appear
   // in either side, unlike binding, which never needs
   // to substitute for the binding it introduces.
-  dst->substitute(subs, &dst, env);
-  src->substitute(subs, &src, env);
+  dst->substitute(id, &dst, value, env);
+  src->substitute(id, &src, value, env);
 }
 
-bool Assignment::appears_free_internal(vector<string>& names, vector<string>& appeared_free)
+bool Assignment::appears_free_internal(string& id)
 {
-  bool bd = dst->appears_free(names, appeared_free);
-  bool bs = src->appears_free(names, appeared_free);
+  bool bd = dst->appears_free(id);
+  bool bs = src->appears_free(id);
   return bd || bs;
 }
 
-void Assignment::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
+void Assignment::rename_binding_internal(string& old_name, string& new_name)
 {
-  dst->rename_binding_in_body(renaming_pairs);
-  src->rename_binding_in_body(renaming_pairs);
+  dst->rename_binding(old_name, new_name);
+  src->rename_binding(old_name, new_name);
 }

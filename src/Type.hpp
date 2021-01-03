@@ -77,20 +77,14 @@ protected:
 class ProcType : public Type
 {
 public:
-  vector<shared_ptr<Type>> arg_types;
+  shared_ptr<Type> argument_type;
   shared_ptr<Type> return_type;
 
-  ProcType(vector<shared_ptr<Type>>& arg_types, shared_ptr<Type>& return_type, const Location& loc)
-    : Type(loc), arg_types(arg_types), return_type(return_type) {}
-
-  ProcType(vector<shared_ptr<Type>>& proc_types, const Location& loc);
-
-  ProcType(vector<pair<string,shared_ptr<Type>>>& args, shared_ptr<Type> ret_type);
-
-  ProcType(vector<pair<string, shared_ptr<Type>>>& args, shared_ptr<Type> ret_type, const Location& loc);
+  ProcType(shared_ptr<Type>& arg_type, shared_ptr<Type>& ret_type, const Location& loc)
+    : Type(loc), argument_type(arg_type), return_type(ret_type) {}
 
   ProcType(const ProcType& other)
-    : Type(other.location), arg_types(other.arg_types), return_type(other.return_type) {}
+    : Type(other.location), argument_type(other.argument_type), return_type(other.return_type) {}
 
   ~ProcType() {}
 

@@ -34,7 +34,7 @@ string Conditional::to_string_internal()
   return result;
 }
 
-TypeJudgement Conditional::getype_internal(Environment env)
+TypeJudgement Conditional::getype_internal(Environment& env)
 {
   /*
     ENV |- 'if' t1 : T1 'then' t2 : T2 'else' t3 : T3,
@@ -115,7 +115,7 @@ TypeJudgement Conditional::getype_internal(Environment env)
   }
 }
 
-EvalJudgement Conditional::evaluate_internal(Environment env)
+EvalJudgement Conditional::evaluate_internal(Environment& env)
 {
   auto is_entity = [](shared_ptr<Ast> term)
   {
@@ -156,14 +156,14 @@ EvalJudgement Conditional::evaluate_internal(Environment env)
   }
 }
 
-void Conditional::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
+void Conditional::substitute_internal(string& var, shared_ptr<Ast>* term, shared_ptr<Ast>& value, Environment& env)
 {
-  cond->substitute(subs, &cond, env);
-  fst->substitute(subs, &fst, env);
-  snd->substitute(subs, &snd, env);
+  cond->substitute(var, &cond, value, env);
+  fst->substitute(var, &fst, value, env);
+  snd->substitute(var, &snd, value, env);
 }
 
-bool Conditional::appears_free_internal(vector<string>& names, vector<string>& appeared_free)
+bool Conditional::appears_free_internal(string& var)
 {
   /*
   return cond->appears_free(var)
@@ -175,16 +175,16 @@ bool Conditional::appears_free_internal(vector<string>& names, vector<string>& a
   appeared_free list via side effect, and we
   absolutely do not want to miss a binding.
   */
-  bool b1 = cond->appears_free(names, appeared_free);
-  bool b2 = fst->appears_free(names, appeared_free);
-  bool b3 = snd->appears_free(names, appeared_free);
+  bool b1 = cond->appears_free(var);
+  bool b2 = fst->appears_free(var);
+  bool b3 = snd->appears_free(var);
 
   return b1 || b2 || b3;
 }
 
-void Conditional::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
+void Conditional::rename_binding_internal(string& old_name, string& new_name)
 {
-  cond->rename_binding_in_body(renaming_pairs);
-  fst->rename_binding_in_body(renaming_pairs);
-  snd->rename_binding_in_body(renaming_pairs);
+  cond->rename_binding(old_name, new_name);
+  fst->rename_binding(old_name, new_name);
+  snd->rename_binding(old_name, new_name);
 }

@@ -30,27 +30,27 @@ string Entity::to_string_internal()
   return literal->to_string();
 }
 
-TypeJudgement Entity::getype_internal(Environment env)
+TypeJudgement Entity::getype_internal(Environment& env)
 {
   return literal->getype(env);
 }
 
-EvalJudgement Entity::evaluate_internal(Environment env)
+EvalJudgement Entity::evaluate_internal(Environment& env)
 {
   return EvalJudgement(shared_ptr<Ast>(new Entity(*this)));
 }
 
-void Entity::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
+void Entity::substitute_internal(string& var, shared_ptr<Ast>* term, shared_ptr<Ast>& value, Environment& env)
 {
-  return literal->substitute(subs, term, env);
+  return literal->substitute(var, term, value, env);
 }
 
-bool Entity::appears_free_internal(vector<string>& names, vector<string>& appeared_free)
+bool Entity::appears_free_internal(string& var)
 {
-  return literal->appears_free(names, appeared_free);
+  return literal->appears_free(var);
 }
 
-void Entity::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
+void Entity::rename_binding_internal(string& old_name, string& new_name)
 {
-  literal->rename_binding_in_body(renaming_pairs);
+  literal->rename_binding(old_name, new_name);
 }

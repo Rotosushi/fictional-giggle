@@ -28,7 +28,7 @@ string Unop::to_string_internal()
   return result;
 }
 
-TypeJudgement Unop::getype_internal(Environment env)
+TypeJudgement Unop::getype_internal(Environment& env)
 {
   auto UnopEliminators = env.unops->FindUnop(op);
 
@@ -71,7 +71,7 @@ TypeJudgement Unop::getype_internal(Environment env)
   }
 }
 
-EvalJudgement Unop::evaluate_internal(Environment env)
+EvalJudgement Unop::evaluate_internal(Environment& env)
 {
   auto UnopEliminators = env.unops->FindUnop(op);
 
@@ -102,7 +102,7 @@ EvalJudgement Unop::evaluate_internal(Environment env)
       string errdsc = "No instance of unop ["
                     + op
                     + "] for actual argument type ["
-                    + rhs->to_string()
+                    + rhstype->to_string()
                     + "]\n";
       return EvalJudgement(EvalError(location, errdsc));
     }
@@ -117,17 +117,17 @@ EvalJudgement Unop::evaluate_internal(Environment env)
   }
 }
 
-void Unop::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
+void Unop::substitute_internal(string& var, shared_ptr<Ast>* term, shared_ptr<Ast>& value, Environment& env)
 {
-  rhs->substitute(subs, &rhs, env);
+  rhs->substitute(var, &rhs, value, env);
 }
 
-bool Unop::appears_free_internal(vector<string>& names, vector<string>& appeared_free)
+bool Unop::appears_free_internal(string& var)
 {
-  return rhs->appears_free(names, appeared_free);
+  return rhs->appears_free(var);
 }
 
-void Unop::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
+void Unop::rename_binding_internal(string& old_name, string& new_name)
 {
-  rhs->rename_binding_in_body(renaming_pairs);
+  rhs->rename_binding(old_name, new_name);
 }

@@ -84,21 +84,27 @@ using std::get;
 #include "Sequence.hpp"
 #include "Assignment.hpp"
 #include "Reference.hpp"
-#include "Environment.hpp"
 #include "PinkException.hpp"
 #include "ParserError.hpp"
 #include "ParserJudgement.hpp"
+#include "BinopPrecedenceTable.hpp"
+#include "BinopEliminators.hpp"
+#include "UnopEliminators.hpp"
+#include "SymbolTable.hpp"
 #include "Parser.hpp"
 
 
-Parser::Parser(Environment environment)
-  : env(environment)
+Parser::Parser(shared_ptr<SymbolTable> tpscp,
+       shared_ptr<BinopPrecedenceTable> prsdncs,
+       shared_ptr<BinopSet> bnps,
+       shared_ptr<UnopSet>  unps)
+  : precedences(prsdncs), binops(bnps), unops(unps)
 {
   /*
     we need to utilize a stack in order to
     express the nesting of scopes naturally.
   */
-  scopes.push(env.scope);
+  scopes.push(tpscp);
   reset();
 }
 
@@ -187,7 +193,7 @@ Location Parser::curloc()
 
 bool Parser::is_unop(const string& op)
 {
-  optional<shared_ptr<UnopEliminatorSet>> unop = env.unops->FindUnop(op);
+  optional<shared_ptr<UnopEliminatorSet>> unop = unops->FindUnop(op);
   if (unop)
   {
     return true;
@@ -200,7 +206,7 @@ bool Parser::is_unop(const string& op)
 
 bool Parser::is_binop(const string& op)
 {
-  optional<shared_ptr<BinopEliminatorSet>> binop = env.binops->FindBinop(op);
+  optional<shared_ptr<BinopEliminatorSet>> binop = binops->FindBinop(op);
   if (binop)
   {
     return true;
@@ -253,7 +259,6 @@ bool Parser::speculate(Token t)
   else
   {
     return false;
-
   }
 }
 
@@ -559,22 +564,17 @@ shared_ptr<Ast> Parser::parse_primary()
   root node as ((a b) c) d.
   */
 
-  if ((curtok() != Token::Operator && is_primary(curtok()))
-   || (curtok() == Token::Operator && !is_binop(curtxt())))
+  while ((curtok() != Token::Operator && is_primary(curtok()))
+      || (curtok() == Token::Operator && !is_binop(curtxt())))
   {
-    vector<shared_ptr<Ast>> actual_args;
-
-    do  {
-      actual_args.push_back(parse_primitive());
-    } while ((curtok() != Token::Operator && is_primary(curtok()))
-          || (curtok() == Token::Operator && !is_binop(curtxt())));
-
+    rhs = parse_primitive();
     Location&& rhsloc = curloc();
     Location callloc = Location(lhsloc.first_line,
                                 lhsloc.first_column,
                                 rhsloc.first_line,
                                 rhsloc.first_column);
-    lhs = shared_ptr<Ast>(new Application(lhs, actual_args, callloc));
+
+    lhs = shared_ptr<Ast>(new Application(lhs, rhs, callloc));
   }
   return lhs;
 }
@@ -925,6 +925,7 @@ shared_ptr<Type> Parser::parse_type()
 
   if (type && curtok() == Token::Rarrow)
   {
+    nextok(); // eat '->'
     /*
       type := "Nil"
             | "Int"
@@ -932,17 +933,16 @@ shared_ptr<Type> Parser::parse_type()
             | "Ref" type
             | type '->' type
             //| '(' type (',' type)+ ')'
-    */
-    vector<shared_ptr<Type>> proc_types;
-    proc_types.push_back(type);
-    do {
-      nextok();
-      proc_types.push_back(parse_type_atom());
-    } while (curtok() == Token::Rarrow);
 
+      the recursive call enacts the
+      right associative nature of the
+      '->' type operator.
+    */
+
+    shared_ptr<Type> rhstype = parse_type();
     Location&& rhsloc = curloc();
     Location typeloc(lhsloc.first_line, lhsloc.first_column, rhsloc.last_line, rhsloc.last_column);
-    type = shared_ptr<Type>(new ProcType(proc_types, typeloc));
+    type = shared_ptr<Type>(new ProcType(type, rhstype, typeloc));
   }
 
   return type;
@@ -1013,40 +1013,113 @@ shared_ptr<Ast> Parser::parse_while()
   return loop;
 }
 
+/*
+saving this for later when we try and build
+multiple argument procedure definitions out
+of single argument procedure structures only.
+(we still want to parse lists of arguments,
+for the conveinence of the programmer.)
+
+  procedure := '\' id (: type)? (',' id (: type)?)* '=>' term
 shared_ptr<Ast> Parser::parse_procedure()
 {
-  /*
-    procedure := '\' id (: type)? (',' id (: type)?)* '=>' term
-  */
+bool poly = false;
+shared_ptr<Type> poly_type = shared_ptr<Type>(new MonoType(AtomicType::Poly, Location()));
+vector<pair<string, shared_ptr<Type>>> args;
+shared_ptr<Ast> proc, body;
+Location&& lhsloc = curloc();
+
+auto parse_arg = [this, &poly, &poly_type]() -> pair<string, shared_ptr<Type>>
+{
+  if (curtok() != Token::Id)
+    throw PinkException("unexpected missing argument after speculation.", __FILE__, __LINE__);
+
+  shared_ptr<Type> arg_type;
+  string arg_name = curtxt();
+  nextok();
+
+  if (curtok() == Token::Colon)
+  {
+    nextok();
+    arg_type = parse_type();
+    poly = arg_type->is_polymorphic();
+  }
+  else
+  {
+    arg_type = poly_type;
+    poly = true;
+  }
+
+  return pair<string, shared_ptr<Type>>(arg_name, arg_type);
+};
+
+if (curtok() != Token::Backslash)
+  throw PinkException("unexpected missing backslash after speculation.", __FILE__, __LINE__);
+
+nextok();
+
+if (curtok() == Token::Id)
+{
+  args.push_back(parse_arg());
+  while (curtok() == Token::Comma)
+  {
+    nextok();
+    args.push_back(parse_arg());
+  }
+
+  if (curtok() != Token::EqRarrow)
+    throw PinkException("unexpected missing \"=>\" after speculation.", __FILE__, __LINE__);
+
+  nextok();
+
+  // while we parse the body of this procedure,
+  // the procedures scope is the new enclosing
+  // scope/top-of-the-scope-stack.
+  // this line does double duty,
+  // 1) it constructs the new scope with a reference to
+  //      the old enclosing scope as it's enclosing scope.
+  // 2) it pushes this new scope onto the scope stack in
+  //      order to make it the new enclosing scope.
+  //      just in case procedure definitions occur within.
+  scopes.push(shared_ptr<SymbolTable>(new SymbolTable(scopes.top().get())));
+
+  body = parse_term();
+
+  Location&& rhsloc = curloc();
+  Location procloc(lhsloc.first_line,
+                   lhsloc.first_column,
+                   rhsloc.first_line,
+                   rhsloc.first_column);
+
+  if (!poly)
+    proc = shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(args, scopes.top(), body)), procloc));
+  else
+  {
+    for (auto&& arg : args)
+      get<shared_ptr<Type>>(arg) = poly_type;
+    proc = shared_ptr<Ast>(new Entity(unique_ptr<PolyLambda>(new PolyLambda(args, scopes.top(), body)), procloc));
+  }
+
+  scopes.pop();
+
+}
+else
+{
+  throw PinkException("unexpected missing argument after speculation.", __FILE__, __LINE__);
+}
+
+
+return proc;
+*/
+
+shared_ptr<Ast> Parser::parse_procedure()
+{
+
   bool poly = false;
-  shared_ptr<Type> poly_type = shared_ptr<Type>(new MonoType(AtomicType::Poly, Location()));
-  vector<pair<string, shared_ptr<Type>>> args;
+  string id;
+  shared_ptr<Type> type;
   shared_ptr<Ast> proc, body;
   Location&& lhsloc = curloc();
-
-  auto parse_arg = [this, &poly, &poly_type]() -> pair<string, shared_ptr<Type>>
-  {
-    if (curtok() != Token::Id)
-      throw PinkException("unexpected missing argument after speculation.", __FILE__, __LINE__);
-
-    shared_ptr<Type> arg_type;
-    string arg_name = curtxt();
-    nextok();
-
-    if (curtok() == Token::Colon)
-    {
-      nextok();
-      arg_type = parse_type();
-      poly = arg_type->is_polymorphic();
-    }
-    else
-    {
-      arg_type = poly_type;
-      poly = true;
-    }
-
-    return pair<string, shared_ptr<Type>>(arg_name, arg_type);
-  };
 
   if (curtok() != Token::Backslash)
     throw PinkException("unexpected missing backslash after speculation.", __FILE__, __LINE__);
@@ -1055,11 +1128,20 @@ shared_ptr<Ast> Parser::parse_procedure()
 
   if (curtok() == Token::Id)
   {
-    args.push_back(parse_arg());
-    while (curtok() == Token::Comma)
+    id = curtxt();
+    nextok();
+
+    if (curtok() == Token::Colon)
     {
       nextok();
-      args.push_back(parse_arg());
+      type = parse_type();
+      poly = type->is_polymorphic();
+    }
+    else
+    {
+      // if the type annotation is missing, we assume polymorphic type.
+      type = shared_ptr<Type>(new MonoType(AtomicType::Poly, Location()));
+      poly = true;
     }
 
     if (curtok() != Token::EqRarrow)
@@ -1087,14 +1169,9 @@ shared_ptr<Ast> Parser::parse_procedure()
                      rhsloc.first_column);
 
     if (!poly)
-      proc = shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(args, scopes.top(), body)), procloc));
+      proc = shared_ptr<Ast>(new Entity(unique_ptr<Lambda>(new Lambda(id, type, scopes.top(), body)), procloc));
     else
-    {
-      for (auto&& arg : args)
-        get<shared_ptr<Type>>(arg) = poly_type;
-      proc = shared_ptr<Ast>(new Entity(unique_ptr<PolyLambda>(new PolyLambda(args, scopes.top(), body)), procloc));
-    }
-
+      proc = shared_ptr<Ast>(new Entity(unique_ptr<PolyLambda>(new PolyLambda(id, type, scopes.top(), body)), procloc));
     scopes.pop();
 
   }
@@ -1172,7 +1249,7 @@ shared_ptr<Ast> Parser::parse_infix(shared_ptr<Ast> lhs, int precedence)
     case get executed, which avoids a
     possible runtime error.
   */
-  while ((lookahead = env.precedences->FindPrecAndAssoc(curtxt())) && get<0>(*lookahead) >= precedence)
+  while ((lookahead = precedences->FindPrecAndAssoc(curtxt())) && get<0>(*lookahead) >= precedence)
   {
     string&& optxt = curtxt();
     optional<pair<int, Associativity>> curop(lookahead);
@@ -1197,7 +1274,7 @@ shared_ptr<Ast> Parser::parse_infix(shared_ptr<Ast> lhs, int precedence)
          rhs   rhs'
 
     */
-    while ((lookahead = env.precedences->FindPrecAndAssoc(curtxt()))
+    while ((lookahead = precedences->FindPrecAndAssoc(curtxt()))
            &&   (get<0>(*lookahead) > get<0>(*curop)
              || (get<0>(*lookahead) == get<0>(*curop) && get<1>(*lookahead) == Associativity::Right)))
     {
@@ -1454,34 +1531,44 @@ optional<ParserError> Parser::speculate_if()
   return result;
 }
 
+
 optional<ParserError> Parser::speculate_procedure()
 {
   optional<ParserError> result;
 
-  // start parsing the procedure literal.
-  if (speculate(Token::Backslash))
-  {
-    result = speculate_arg();
-
-    if (!result)
-      while(speculate(Token::Comma) && !result)
-        result = speculate_arg();
-
-    // parse the body
-    if (!result && speculate(Token::EqRarrow))
+    // start parsing the procedure literal.
+    if (speculate(Token::Backslash))
     {
-      result = speculate_term();
-    }
-    else if (!result)
-    {
-      result = optional<ParserError>({"missing \"=>\" after argument", curloc()});
-    }
-    else
-      ; // in this case we want to preserve
-        // the previous error message
-  }
+      // parse the argument, or argument list
+      if (speculate(Token::Id))
+      {
+          // type annotations are optional.
+          if (speculate(Token::Colon))
+          {
+            result = speculate_term();
+          }
+      }
+      else
+      {
+        result = optional<ParserError>({"missing argument following '\\'", curloc()});
+      }
 
-  return result;
+      // parse the body
+      if (!result && speculate(Token::EqRarrow))
+      {
+        result = speculate_term();
+      }
+      else if (!result)
+      {
+        result = optional<ParserError>({"missing \"=>\" after argument", curloc()});
+      }
+      else
+        ; // in this case we want to preserve
+          // the previous error message
+
+    }
+
+    return result;
 }
 
 optional<ParserError> Parser::speculate_arg()

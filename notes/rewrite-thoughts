@@ -14,7 +14,7 @@ or space.
 so, the test rig of this language could take this into
 consideration maybe? say we replace the tree style evaluation
 with continuation passing style? or an instruction interpreter?
-
+which is faster given identical language definitions?
 
 
 
@@ -26,6 +26,11 @@ with continuation passing style? or an instruction interpreter?
 
 
 why rewrite in c++?
+
+-- future me: watch past me discover that i was using
+              the polymorphism wrong, and subsequently
+              stumbling upon the classical interpreter
+              pattern.
 
 well, the parametric polymorphism is attractive,
 but it requires so much syntax and is only
@@ -116,7 +121,7 @@ like the c version of the Ast structure, which is a
 typechecker, and evaluator, each over 1500 lines.
 instead the most cluttered file in the project is
 Entity, which is currently encapsulating the
-entire primitive object herarchy/representation
+entire primitive object herarchy/representation (future me: not anymore!)
 as well as declaring the Ast node which holds Objects.
 (Entities themselves.) ((Object and the Object hierarchy
 are going to be split into their own source files
@@ -143,10 +148,29 @@ up the large 'stages' into their individual components spread across
 each nodes defining file. of course, the same semantics need to exist
 so this hasn't reduced the code size overall, as now there are many more
 files with smaller files sizes. this is in fact more organized than
-before, and I spend less time searching the codebase (but honestly
-not by much.) this in fact has also had the effect of localizing
+before, and I spend less time searching the codebase
+ this in fact has also had the effect of localizing
 the complexity of each of the components of the stages, as the
 nodes stage code need focus only on what is important about the node.
 
 also this is probably the most cannonical interpretation of things,
 and as such is probably very unoptimized. but that comes after it works.
+
+the other thing i have noticed is that most compilers keep going
+after the first error looking for more errors. so, to acheive this
+we first need to modify the data structure of each *Judgement.
+to hold a list of errors, or the success. then we can have the failure
+state continued to pass through the algorithm gathering errors
+until we reach some maximum. (which given the recursive nature of
+programming, errors upstream tend to multiply into errors downstream.)
+then we can either print the success and continue, or print the errors
+and continue.
+this is all probably adding more checks to the various
+if conditions in the algorithm to either pass the errors
+onwards or when the maximum is reached (or the term ends)
+we return the results. (either good or bad. for the control
+segment of the algorithm to either report the failures and
+continue interpretation, or end compilation; or continue to
+evaluation and then continue to more interpretation, or
+continue the compilation until and object file is produced,
+or a list of errors is produced, perhaps from the linker.)

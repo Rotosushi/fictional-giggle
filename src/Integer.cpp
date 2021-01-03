@@ -26,22 +26,22 @@ string Integer::to_string()
   return std::to_string(value);
 }
 
-TypeJudgement Integer::getype(Environment env)
+TypeJudgement Integer::getype(Environment& env)
 {
   return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Int, Location())));
 }
 
-void Integer::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
+void Integer::substitute(string& var, shared_ptr<Ast>* term, shared_ptr<Ast>& value, Environment& env)
 {
   return;
 }
 
-void Integer::rename_binding_in_body(vector<pair<string, string>>& renaming_pairs)
+void Integer::rename_binding(string& old_name, string& new_name)
 {
   return;
 }
 
-bool Integer::appears_free(vector<string>& names, vector<string>& appeared_free)
+bool Integer::appears_free(string& var)
 {
   return false;
 }

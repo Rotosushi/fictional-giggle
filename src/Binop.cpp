@@ -37,7 +37,7 @@ string Binop::to_string_internal()
   return result;
 }
 
-TypeJudgement Binop::getype_internal(Environment env)
+TypeJudgement Binop::getype_internal(Environment& env)
 {
   /*
     we find the Binop Eliminator via the BinopSet
@@ -82,7 +82,7 @@ TypeJudgement Binop::getype_internal(Environment env)
 
     if (eliminator)
     {
-      return TypeJudgement(eliminator->GetResultType());
+      return TypeJudgement(eliminator->ResultType());
     }
     else
     {
@@ -107,7 +107,7 @@ TypeJudgement Binop::getype_internal(Environment env)
   }
 }
 
-EvalJudgement Binop::evaluate_internal(Environment env)
+EvalJudgement Binop::evaluate_internal(Environment& env)
 {
   auto is_entity = [](shared_ptr<Ast> term)
   {
@@ -221,21 +221,21 @@ EvalJudgement Binop::evaluate_internal(Environment env)
   }
 }
 
-void Binop::substitute_internal(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
+void Binop::substitute_internal(string& var, shared_ptr<Ast>* term, shared_ptr<Ast>& value, Environment& env)
 {
-  lhs->substitute(subs, &lhs, env);
-  rhs->substitute(subs, &rhs, env);
+  lhs->substitute(var, &lhs, value, env);
+  rhs->substitute(var, &rhs, value, env);
 }
 
-bool Binop::appears_free_internal(vector<string>& names, vector<string>& appeared_free)
+bool Binop::appears_free_internal(string& var)
 {
-  bool bl = lhs->appears_free(names, appeared_free);
-  bool br = rhs->appears_free(names, appeared_free);
+  bool bl = lhs->appears_free(var);
+  bool br = rhs->appears_free(var);
   return bl || br;
 }
 
-void Binop::rename_binding_in_body_internal(vector<pair<string, string>>& renaming_pairs)
+void Binop::rename_binding_internal(string& old_name, string& new_name)
 {
-  lhs->rename_binding_in_body(renaming_pairs);
-  rhs->rename_binding_in_body(renaming_pairs);
+  lhs->rename_binding(old_name, new_name);
+  rhs->rename_binding(old_name, new_name);
 }

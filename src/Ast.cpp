@@ -88,7 +88,7 @@ string Ast::to_string()
   return this->to_string_internal();
 }
 
-TypeJudgement Ast::getype(Environment env)
+TypeJudgement Ast::getype(Environment& env)
 {
   if (cached_type == nullptr)
   {
@@ -110,7 +110,7 @@ TypeJudgement Ast::getype(Environment env)
   }
 }
 
-EvalJudgement Ast::evaluate(Environment env)
+EvalJudgement Ast::evaluate(Environment& env)
 {
   auto is_entity = [](shared_ptr<Ast> term)
   {
@@ -128,19 +128,19 @@ EvalJudgement Ast::evaluate(Environment env)
   return evljdgmt;
 }
 
-void Ast::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
+void Ast::substitute(string& var, shared_ptr<Ast>* term, shared_ptr<Ast>& value, Environment& env)
 {
-  return this->substitute_internal(subs, term, env);
+  return this->substitute_internal(var, term, value, env);
 }
 
-bool Ast::appears_free(vector<string>& names, vector<string>& appeared_free)
+bool Ast::appears_free(string& var)
 {
-  return this->appears_free_internal(names, appeared_free);
+  return this->appears_free_internal(var);
 }
 
-void Ast::rename_binding_in_body(vector<pair<string, string>>& renaming_pairs)
+void Ast::rename_binding(string& old_name, string& new_name)
 {
-  return this->rename_binding_in_body_internal(renaming_pairs);
+  return this->rename_binding_internal(old_name, new_name);
 }
 
 

@@ -29,8 +29,8 @@ public:
 
   virtual unique_ptr<Object> clone() override;
   virtual string to_string() override;
-  virtual TypeJudgement getype(Environment env) override;
-  virtual void substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env) override;
-  virtual bool appears_free(vector<string>& names, vector<string>& appeared_free) override;
-  virtual void rename_binding_in_body(vector<pair<string, string>>& renaming_pairs) override;
+  virtual TypeJudgement getype(Environment& env) override;
+  virtual void substitute(string& var, shared_ptr<Ast>* term, shared_ptr<Ast>& value, Environment& env) override;
+  virtual bool appears_free(string& var) override;
+  virtual void rename_binding(string& old_name, string& new_name) override;
 };

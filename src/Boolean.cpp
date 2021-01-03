@@ -30,22 +30,22 @@ string Boolean::to_string()
     return "false";
 }
 
-TypeJudgement Boolean::getype(Environment env)
+TypeJudgement Boolean::getype(Environment& env)
 {
   return TypeJudgement(shared_ptr<Type>(new MonoType(AtomicType::Bool, Location())));
 }
 
-void Boolean::substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env)
+void Boolean::substitute(string& id, shared_ptr<Ast>* term, shared_ptr<Ast>& value, Environment& env)
 {
   return;
 }
 
-void Boolean::rename_binding_in_body(vector<pair<string, string>>& renaming_pairs)
+void Boolean::rename_binding(string& old_name, string& new_name)
 {
   return;
 }
 
-bool Boolean::appears_free(vector<string>& names, vector<string>& appeared_free)
+bool Boolean::appears_free(string& id)
 {
   return false;
 }

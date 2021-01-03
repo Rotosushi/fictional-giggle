@@ -34,14 +34,16 @@ using std::unique_ptr;
 class Lambda : public Object
 {
 public:
-  vector<pair<string, shared_ptr<Type>>> args;
+  string arg_id;
+  shared_ptr<Type> arg_type;
   shared_ptr<SymbolTable> scope;
   shared_ptr<Ast> body;
   shared_ptr<vector<string>> cleanup_list;
 
-  Lambda(vector<pair<string, shared_ptr<Type>>>& args,
+  Lambda(string a_i, shared_ptr<Type> a_t,
          shared_ptr<SymbolTable> enclosing_scope, const shared_ptr<Ast>& bd)
-    : args(args),
+    : arg_id(a_i),
+      arg_type(a_t),
       scope(enclosing_scope),
       body(bd),
       cleanup_list(shared_ptr<vector<string>>(new vector<string>()))
@@ -50,7 +52,8 @@ public:
   }
 
   Lambda(const Lambda& other)
-    : args(other.args),
+    : arg_id(other.arg_id),
+      arg_type(other.arg_type),
       scope(other.scope),
       body(other.body),
       cleanup_list(shared_ptr<vector<string>>(new vector<string>(*(other.cleanup_list))))
@@ -60,10 +63,10 @@ public:
 
   void rename_bindings(vector<string>& to_rename);
 
-  virtual void substitute(vector<pair<string, shared_ptr<Ast>>>& subs, shared_ptr<Ast>* term, Environment env) override;
-  virtual void rename_binding_in_body(vector<pair<string, string>>& renaming_pairs) override;
-  virtual bool appears_free(vector<string>& names, vector<string>& appeared_free) override;
   virtual unique_ptr<Object> clone() override;
   virtual string to_string() override;
-  virtual TypeJudgement getype(Environment env) override;
+  virtual TypeJudgement getype(Environment& env) override;
+  virtual void substitute(string& var, shared_ptr<Ast>* term, shared_ptr<Ast>& value, Environment& env) override;
+  virtual void rename_binding(string& old_name, string& new_name) override;
+  virtual bool appears_free(string& var) override;
 };

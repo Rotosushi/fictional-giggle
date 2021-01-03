@@ -40,7 +40,7 @@ shared_ptr<Ast> BinopEliminator::operator()(shared_ptr<Ast> lhs, shared_ptr<Ast>
   return this->primitive_eliminator(lhs, rhs);
 }
 
-shared_ptr<Type> BinopEliminator::GetResultType()
+shared_ptr<Type> BinopEliminator::ResultType()
 {
   return result_type;
 }
